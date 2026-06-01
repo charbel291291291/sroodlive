@@ -15,14 +15,26 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  final usernameController = TextEditingController();
+  final displayNameController = TextEditingController();
+
   bool isLoading = true;
+  bool isSaving = false;
   String? errorMessage;
+  String? successMessage;
   Map<String, dynamic>? profile;
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
+  }
+
+  @override
+  void dispose() {
+    usernameController.dispose();
+    displayNameController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadProfile() async {
@@ -46,6 +58,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .eq('id', user.id)
           .single();
 
+      usernameController.text = data['username']?.toString() ?? '';
+      displayNameController.text = data['display_name']?.toString() ?? '';
+
       setState(() {
         profile = data;
         isLoading = false;
@@ -57,6 +72,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ? 'فشل تحميل الملف الشخصي: $error'
             : 'Failed to load profile: $error';
       });
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    final isArabic = widget.isArabic;
+    final username = usernameController.text.trim();
+    final displayName = displayNameController.text.trim();
+
+    if (username.length < 3) {
+      setState(() {
+        successMessage = null;
+        errorMessage = isArabic
+            ? 'اسم المستخدم يجب أن يكون 3 أحرف أو أكثر.'
+            : 'Username must be 3 characters or more.';
+      });
+      return;
+    }
+
+    setState(() {
+      isSaving = true;
+      errorMessage = null;
+      successMessage = null;
+    });
+
+    try {
+      final client = SupabaseService.requiredClient;
+      final user = client.auth.currentUser;
+
+      if (user == null) {
+        throw StateError('No logged-in user found.');
+      }
+
+      await client.from('profiles').update({
+        'username': username,
+        'display_name': displayName.isEmpty ? username : displayName,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', user.id);
+
+      await _loadProfile();
+
+      setState(() {
+        successMessage = isArabic
+            ? 'تم حفظ الملف الشخصي.'
+            : 'Profile saved.';
+      });
+    } catch (error) {
+      setState(() {
+        errorMessage = isArabic
+            ? 'فشل الحفظ: $error'
+            : 'Save failed: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          isSaving = false;
+        });
+      }
     }
   }
 
@@ -72,7 +144,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
 
-    final username = profile?['username']?.toString() ?? '-';
     final email = profile?['email']?.toString() ?? '-';
     final role = profile?['role']?.toString() ?? 'user';
     final coins = profile?['coins_balance']?.toString() ?? '0';
@@ -96,8 +167,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 10),
             Text(
               isArabic
-                  ? 'بياناتك الأساسية من Supabase.'
-                  : 'Your basic data from Supabase.',
+                  ? 'عدل اسمك وبياناتك الأساسية.'
+                  : 'Edit your name and basic profile data.',
               textAlign: isArabic ? TextAlign.right : TextAlign.left,
               style: const TextStyle(
                 fontSize: 16,
@@ -105,6 +176,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             const SizedBox(height: 24),
+            _ProfileInput(
+              controller: usernameController,
+              label: isArabic ? 'اسم المستخدم' : 'Username',
+              isArabic: isArabic,
+            ),
+            _ProfileInput(
+              controller: displayNameController,
+              label: isArabic ? 'الاسم الظاهر' : 'Display name',
+              isArabic: isArabic,
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: FilledButton.icon(
+                onPressed: isSaving ? null : _saveProfile,
+                icon: const Icon(Icons.save_rounded),
+                label: Text(
+                  isSaving
+                      ? (isArabic ? 'جار الحفظ...' : 'Saving...')
+                      : (isArabic ? 'حفظ التغييرات' : 'Save changes'),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             if (errorMessage != null)
               Text(
                 errorMessage!,
@@ -113,34 +209,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   color: Color(0xFFD6A84F),
                   fontWeight: FontWeight.w700,
                 ),
-              )
-            else ...[
-              _ProfileCard(
-                label: isArabic ? 'اسم المستخدم' : 'Username',
-                value: username,
-                isArabic: isArabic,
               ),
-              _ProfileCard(
-                label: isArabic ? 'البريد' : 'Email',
-                value: email,
-                isArabic: isArabic,
+            if (successMessage != null)
+              Text(
+                successMessage!,
+                textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                style: const TextStyle(
+                  color: Color(0xFF2ECC71),
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-              _ProfileCard(
-                label: isArabic ? 'الدور' : 'Role',
-                value: role,
-                isArabic: isArabic,
-              ),
-              _ProfileCard(
-                label: isArabic ? 'العملات' : 'Coins',
-                value: coins,
-                isArabic: isArabic,
-              ),
-              _ProfileCard(
-                label: isArabic ? 'مستوى VIP' : 'VIP Level',
-                value: vipLevel,
-                isArabic: isArabic,
-              ),
-            ],
+            const SizedBox(height: 18),
+            _ProfileCard(
+              label: isArabic ? 'البريد' : 'Email',
+              value: email,
+              isArabic: isArabic,
+            ),
+            _ProfileCard(
+              label: isArabic ? 'الدور' : 'Role',
+              value: role,
+              isArabic: isArabic,
+            ),
+            _ProfileCard(
+              label: isArabic ? 'العملات' : 'Coins',
+              value: coins,
+              isArabic: isArabic,
+            ),
+            _ProfileCard(
+              label: isArabic ? 'مستوى VIP' : 'VIP Level',
+              value: vipLevel,
+              isArabic: isArabic,
+            ),
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
@@ -164,6 +263,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 120),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileInput extends StatelessWidget {
+  const _ProfileInput({
+    required this.controller,
+    required this.label,
+    required this.isArabic,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextField(
+        controller: controller,
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
         ),
       ),
     );
