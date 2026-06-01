@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import '../../core/supabase/supabase_service.dart';
 import '../../main.dart';
 import '../profile/profile_screen.dart';
 
@@ -61,6 +62,8 @@ class RoomsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSupabaseReady = SupabaseService.isConfigured;
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -79,12 +82,38 @@ class RoomsTab extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               isArabic
-                  ? 'الغرف الصوتية ستظهر هنا بعد ربط Supabase.'
-                  : 'Voice rooms will appear here after Supabase setup.',
+                  ? 'الغرف الصوتية ستظهر هنا بعد ربط قاعدة البيانات.'
+                  : 'Voice rooms will appear here after database setup.',
               textAlign: isArabic ? TextAlign.right : TextAlign.left,
               style: const TextStyle(
                 fontSize: 16,
                 color: Color(0xFFB8B8C7),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF14141F),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: isSupabaseReady
+                      ? const Color(0xFF2ECC71)
+                      : const Color(0xFFD6A84F),
+                ),
+              ),
+              child: Text(
+                isSupabaseReady
+                    ? (isArabic ? 'Supabase متصل' : 'Supabase connected')
+                    : (isArabic ? 'Supabase غير مفعل' : 'Supabase not configured'),
+                textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                style: TextStyle(
+                  color: isSupabaseReady
+                      ? const Color(0xFF2ECC71)
+                      : const Color(0xFFD6A84F),
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],
