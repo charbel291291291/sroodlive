@@ -37,6 +37,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   supabase_flutter: ^2.12.4
+  livekit_client: ^2.7.0
 
 dev_dependencies:
   flutter_test:
