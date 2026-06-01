@@ -13,23 +13,76 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  String? message;
+
   @override
   void initState() {
     super.initState();
+    _checkSession();
+  }
 
-    Timer(const Duration(seconds: 2), () {
+  Future<void> _checkSession() async {
+    await Future<void>.delayed(const Duration(seconds: 2));
+
+    if (!mounted) return;
+
+    final client = SupabaseService.client;
+    final user = client?.auth.currentUser;
+
+    if (client == null || user == null) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => const OnboardingScreen(),
+        ),
+      );
+      return;
+    }
+
+    try {
+      final profile = await client
+          .from('profiles')
+          .select('is_banned')
+          .eq('id', user.id)
+          .single();
+
+      final isBanned = profile['is_banned'] == true;
+
       if (!mounted) return;
 
-      final client = SupabaseService.client;
-      final user = client?.auth.currentUser;
+      if (isBanned) {
+        await client.auth.signOut();
+
+        setState(() {
+          message = 'Your account is banned.';
+        });
+
+        await Future<void>.delayed(const Duration(seconds: 2));
+
+        if (!mounted) return;
+
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => const OnboardingScreen(),
+          ),
+        );
+
+        return;
+      }
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) =>
-              user == null ? const OnboardingScreen() : const HomeScreen(),
+          builder: (_) => const HomeScreen(),
         ),
       );
-    });
+    } catch (_) {
+      if (!mounted) return;
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => const OnboardingScreen(),
+        ),
+      );
+    }
   }
 
   @override
@@ -49,16 +102,16 @@ class _SplashScreenState extends State<SplashScreen> {
             end: Alignment.bottomCenter,
           ),
         ),
-        child: const Column(
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
+            const Icon(
               Icons.mic_rounded,
               size: 72,
               color: Color(0xFFD6A84F),
             ),
-            SizedBox(height: 24),
-            Text(
+            const SizedBox(height: 24),
+            const Text(
               'SrOOd Live',
               style: TextStyle(
                 fontSize: 34,
@@ -66,10 +119,11 @@ class _SplashScreenState extends State<SplashScreen> {
                 letterSpacing: 1.2,
               ),
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             Text(
-              'Voice rooms. Gifts. Prestige.',
-              style: TextStyle(
+              message ?? 'Voice rooms. Gifts. Prestige.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
                 fontSize: 15,
                 color: Color(0xFFB8B8C7),
               ),

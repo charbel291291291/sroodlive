@@ -29,6 +29,21 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  Future<bool> _isCurrentUserBanned() async {
+    final client = SupabaseService.requiredClient;
+    final user = client.auth.currentUser;
+
+    if (user == null) return false;
+
+    final profile = await client
+        .from('profiles')
+        .select('is_banned')
+        .eq('id', user.id)
+        .single();
+
+    return profile['is_banned'] == true;
+  }
+
   Future<void> _login() async {
     final isArabic = _isArabic(context);
 
@@ -41,10 +56,44 @@ class _LoginScreenState extends State<LoginScreen> {
       final email = emailController.text.trim();
       final password = passwordController.text.trim();
 
+      if (email.isEmpty || password.isEmpty) {
+        setState(() {
+          message = isArabic
+              ? 'اكتب البريد الإلكتروني وكلمة المرور أولا.'
+              : 'Enter email and password first.';
+        });
+        return;
+      }
+
+      if (password.length < 6) {
+        setState(() {
+          message = isArabic
+              ? 'كلمة المرور يجب أن تكون 6 أحرف أو أكثر.'
+              : 'Password must be 6 characters or more.';
+        });
+        return;
+      }
+
       await SupabaseService.requiredClient.auth.signInWithPassword(
         email: email,
         password: password,
       );
+
+      final isBanned = await _isCurrentUserBanned();
+
+      if (isBanned) {
+        await SupabaseService.requiredClient.auth.signOut();
+
+        if (!mounted) return;
+
+        setState(() {
+          message = isArabic
+              ? 'تم حظر هذا الحساب.'
+              : 'This account is banned.';
+        });
+
+        return;
+      }
 
       if (!mounted) return;
 
@@ -85,6 +134,24 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final email = emailController.text.trim();
       final password = passwordController.text.trim();
+
+      if (email.isEmpty || password.isEmpty) {
+        setState(() {
+          message = isArabic
+              ? 'اكتب البريد الإلكتروني وكلمة المرور أولا.'
+              : 'Enter email and password first.';
+        });
+        return;
+      }
+
+      if (password.length < 6) {
+        setState(() {
+          message = isArabic
+              ? 'كلمة المرور يجب أن تكون 6 أحرف أو أكثر.'
+              : 'Password must be 6 characters or more.';
+        });
+        return;
+      }
 
       await SupabaseService.requiredClient.auth.signUp(
         email: email,
