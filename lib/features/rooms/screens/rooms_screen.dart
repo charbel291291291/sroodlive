@@ -20,6 +20,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
   final RoomsService _roomsService = const RoomsService();
 
   List<Room> _rooms = [];
+  Map<String, int> _activeCounts = {};
   bool _loading = true;
   bool _creating = false;
   String? _error;
@@ -38,11 +39,13 @@ class _RoomsScreenState extends State<RoomsScreen> {
 
     try {
       final rooms = await _roomsService.getRooms();
+      final activeCounts = await _roomsService.getActiveMemberCounts();
 
       if (!mounted) return;
 
       setState(() {
         _rooms = rooms;
+        _activeCounts = activeCounts;
       });
     } catch (error) {
       if (!mounted) return;
@@ -243,8 +246,9 @@ class _RoomsScreenState extends State<RoomsScreen> {
                   padding: const EdgeInsets.only(bottom: 14),
                   child: _RoomCard(
                     room: room,
-                    isArabic: widget.isArabic,
-                    onJoin: () => _joinRoom(room),
+                        activeCount: _activeCounts[room.id] ?? 0,
+                        isArabic: widget.isArabic,
+                        onJoin: () => _joinRoom(room),
                   ),
                 ),
               ),
@@ -258,11 +262,13 @@ class _RoomsScreenState extends State<RoomsScreen> {
 class _RoomCard extends StatelessWidget {
   const _RoomCard({
     required this.room,
+    required this.activeCount,
     required this.isArabic,
     required this.onJoin,
   });
 
   final Room room;
+  final int activeCount;
   final bool isArabic;
   final VoidCallback onJoin;
 
@@ -337,8 +343,8 @@ class _RoomCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               _RoomPill(
-                icon: Icons.event_seat_rounded,
-                label: '${room.maxSeats}',
+                icon: Icons.people_rounded,
+                label: '$activeCount/${room.maxSeats}',
               ),
               const Spacer(),
               FilledButton.icon(
@@ -442,6 +448,11 @@ class _RoomsMessageCard extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
 
 
 

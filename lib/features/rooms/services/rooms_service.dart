@@ -15,6 +15,24 @@ class RoomsService {
         .toList();
   }
 
+  Future<Map<String, int>> getActiveMemberCounts() async {
+    final data = await SupabaseService.requiredClient
+        .from('room_members')
+        .select('room_id')
+        .filter('left_at', 'is', null);
+
+    final counts = <String, int>{};
+
+    for (final item in data as List<dynamic>) {
+      final map = item as Map<String, dynamic>;
+      final roomId = map['room_id'] as String;
+
+      counts[roomId] = (counts[roomId] ?? 0) + 1;
+    }
+
+    return counts;
+  }
+
   Future<Room> createRoom({
     required String name,
     String? description,
@@ -82,4 +100,3 @@ class RoomsService {
         .eq('user_id', user.id);
   }
 }
-
