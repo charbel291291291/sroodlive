@@ -2,6 +2,7 @@
 import '../../core/supabase/supabase_service.dart';
 import '../../main.dart';
 import '../profile/profile_screen.dart';
+import '../rooms/screens/rooms_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,7 +20,7 @@ class _HomeScreenState extends State<HomeScreen> {
         AppLanguageController.of(context).locale.languageCode == 'ar';
 
     final pages = [
-      RoomsTab(isArabic: isArabic),
+      RoomsScreen(isArabic: isArabic),
       WalletTab(isArabic: isArabic),
       ProfileScreen(isArabic: isArabic),
     ];
@@ -165,3 +166,5 @@ class WalletTab extends StatelessWidget {
     );
   }
 }
+
+
