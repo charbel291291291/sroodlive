@@ -1,6 +1,8 @@
 ﻿import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../core/supabase/supabase_service.dart';
+import '../home/home_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -18,9 +20,13 @@ class _SplashScreenState extends State<SplashScreen> {
     Timer(const Duration(seconds: 2), () {
       if (!mounted) return;
 
+      final client = SupabaseService.client;
+      final user = client?.auth.currentUser;
+
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => const OnboardingScreen(),
+          builder: (_) =>
+              user == null ? const OnboardingScreen() : const HomeScreen(),
         ),
       );
     });

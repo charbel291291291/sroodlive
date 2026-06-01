@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import '../../core/supabase/supabase_service.dart';
+import '../onboarding/onboarding_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
@@ -140,6 +141,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 isArabic: isArabic,
               ),
             ],
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  await SupabaseService.requiredClient.auth.signOut();
+
+                  if (!context.mounted) return;
+
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (_) => const OnboardingScreen(),
+                    ),
+                    (_) => false,
+                  );
+                },
+                icon: const Icon(Icons.logout_rounded),
+                label: Text(isArabic ? 'تسجيل الخروج' : 'Logout'),
+              ),
+            ),
             const SizedBox(height: 120),
           ],
         ),
