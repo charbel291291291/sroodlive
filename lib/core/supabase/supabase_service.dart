@@ -10,4 +10,14 @@ class SupabaseService {
     if (!isConfigured) return null;
     return Supabase.instance.client;
   }
+
+  static SupabaseClient get requiredClient {
+    final supabaseClient = client;
+
+    if (supabaseClient == null) {
+      throw StateError('Supabase is not configured');
+    }
+
+    return supabaseClient;
+  }
 }
