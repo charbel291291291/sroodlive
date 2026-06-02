@@ -594,9 +594,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF14141F),
+                  color: const Color(0xFF171125),
                   borderRadius: BorderRadius.circular(26),
-                  border: Border.all(color: const Color(0xFF2A2A38)),
+                  border: Border.all(color: const Color(0xFF4A3470)),
                 ),
                 child: Column(
                   crossAxisAlignment: crossAxisAlignment,
@@ -605,12 +605,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                       width: 58,
                       height: 58,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFD6A84F).withValues(alpha: 0.16),
+                        color: const Color(0xFFF0C15A).withValues(alpha: 0.16),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Icon(
                         Icons.mic_rounded,
-                        color: Color(0xFFD6A84F),
+                        color: Color(0xFFF0C15A),
                         size: 30,
                       ),
                     ),
@@ -633,7 +633,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                       textAlign: textAlign,
                       style: const TextStyle(
                         fontSize: 16,
-                        color: Color(0xFFB8B8C7),
+                        color: Color(0xFFD8CFEA),
                       ),
                     ),
                     const SizedBox(height: 18),
@@ -710,9 +710,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF14141F),
+                  color: const Color(0xFF171125),
                   borderRadius: BorderRadius.circular(26),
-                  border: Border.all(color: const Color(0xFF2A2A38)),
+                  border: Border.all(color: const Color(0xFF4A3470)),
                 ),
                 child: Column(
                   crossAxisAlignment: crossAxisAlignment,
@@ -755,7 +755,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                             ? '\u0644\u0627 \u064a\u0648\u062c\u062f \u0645\u0634\u0627\u0631\u0643\u0648\u0646 \u0646\u0634\u0637\u0648\u0646 \u0628\u0639\u062f.'
                             : 'No active participants yet.',
                         textAlign: textAlign,
-                        style: const TextStyle(color: Color(0xFFB8B8C7)),
+                        style: const TextStyle(color: Color(0xFFD8CFEA)),
                       )
                     else
                       ..._members.map(
@@ -786,9 +786,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF14141F),
+                  color: const Color(0xFF171125),
                   borderRadius: BorderRadius.circular(26),
-                  border: Border.all(color: const Color(0xFF2A2A38)),
+                  border: Border.all(color: const Color(0xFF4A3470)),
                 ),
                 child: Column(
                   crossAxisAlignment: crossAxisAlignment,
@@ -809,7 +809,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                           ? '\u0627\u062a\u0635\u0644 \u0628\u063a\u0631\u0641\u0629 \u0627\u0644\u0635\u0648\u062a \u0627\u0644\u0645\u0628\u0627\u0634\u0631.'
                           : 'Connect to the live audio room.',
                       textAlign: textAlign,
-                      style: const TextStyle(color: Color(0xFFB8B8C7)),
+                      style: const TextStyle(color: Color(0xFFD8CFEA)),
                     ),
                     const SizedBox(height: 18),
                     if (!_iCanUseMic)
@@ -817,9 +817,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF232332),
+                          color: const Color(0xFF241638),
                           borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: const Color(0xFF303044)),
+                          border: Border.all(color: const Color(0xFF5A3A86)),
                         ),
                         child: Text(
                           widget.isArabic
@@ -827,7 +827,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                               : 'You are a listener. Ask the host to make you a speaker to use the mic.',
                           textAlign: textAlign,
                           style: const TextStyle(
-                            color: Color(0xFFB8B8C7),
+                            color: Color(0xFFD8CFEA),
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -837,7 +837,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                       _connectedAudio
                           ? Icons.graphic_eq_rounded
                           : Icons.mic_none_rounded,
-                      color: const Color(0xFFD6A84F),
+                      color: const Color(0xFFF0C15A),
                       size: 52,
                     ),
                     const SizedBox(height: 18),
@@ -966,9 +966,9 @@ class _ParticipantTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF232332),
+        color: const Color(0xFF241638),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF303044)),
+        border: Border.all(color: const Color(0xFF5A3A86)),
       ),
       child: Column(
         children: [
@@ -977,11 +977,11 @@ class _ParticipantTile extends StatelessWidget {
             children: [
               CircleAvatar(
                 backgroundColor: const Color(
-                  0xFFD6A84F,
+                  0xFFF0C15A,
                 ).withValues(alpha: 0.18),
                 child: Icon(
                   isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
-                  color: const Color(0xFFD6A84F),
+                  color: const Color(0xFFF0C15A),
                 ),
               ),
               const SizedBox(width: 12),
@@ -1004,7 +1004,7 @@ class _ParticipantTile extends StatelessWidget {
                       joinedAt,
                       textAlign: isArabic ? TextAlign.right : TextAlign.left,
                       style: const TextStyle(
-                        color: Color(0xFFB8B8C7),
+                        color: Color(0xFFD8CFEA),
                         fontSize: 12,
                       ),
                     ),
@@ -1092,7 +1092,7 @@ class _SmallStatusPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFF14141F),
+        color: const Color(0xFF171125),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -1100,7 +1100,7 @@ class _SmallStatusPill extends StatelessWidget {
         style: const TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w800,
-          color: Color(0xFFD6A84F),
+          color: Color(0xFFF0C15A),
         ),
       ),
     );
@@ -1118,13 +1118,13 @@ class _RoomDetailPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF232332),
+        color: const Color(0xFF241638),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: const Color(0xFFD6A84F)),
+          Icon(icon, size: 16, color: const Color(0xFFF0C15A)),
           const SizedBox(width: 6),
           Text(
             label,
