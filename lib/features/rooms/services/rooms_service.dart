@@ -1,5 +1,6 @@
-﻿import '../../../core/supabase/supabase_service.dart';
+import '../../../core/supabase/supabase_service.dart';
 import '../models/room.dart';
+import '../models/room_member.dart';
 
 class RoomsService {
   const RoomsService();
@@ -33,6 +34,34 @@ class RoomsService {
     return counts;
   }
 
+  Future<List<RoomMember>> getActiveRoomMembers(String roomId) async {
+    final client = SupabaseService.requiredClient;
+
+    try {
+      final data = await client
+          .from('room_members')
+          .select('*, profiles(display_name, full_name, username, name)')
+          .eq('room_id', roomId)
+          .filter('left_at', 'is', null)
+          .order('joined_at', ascending: true);
+
+      return (data as List<dynamic>)
+          .map((item) => RoomMember.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      final data = await client
+          .from('room_members')
+          .select()
+          .eq('room_id', roomId)
+          .filter('left_at', 'is', null)
+          .order('joined_at', ascending: true);
+
+      return (data as List<dynamic>)
+          .map((item) => RoomMember.fromJson(item as Map<String, dynamic>))
+          .toList();
+    }
+  }
+
   Future<Room> createRoom({
     required String name,
     String? description,
@@ -46,7 +75,8 @@ class RoomsService {
       throw StateError('No logged-in user found.');
     }
 
-    final roomName = 'srood_${DateTime.now().millisecondsSinceEpoch}_${user.id.substring(0, 8)}';
+    final roomName =
+        'srood_${DateTime.now().millisecondsSinceEpoch}_${user.id.substring(0, 8)}';
 
     final data = await client
         .from('rooms')
@@ -77,10 +107,30 @@ class RoomsService {
         'room_id': roomId,
         'user_id': user.id,
         'role': 'listener',
+        'is_muted': true,
         'left_at': null,
       },
       onConflict: 'room_id,user_id',
     );
+  }
+
+  Future<void> setMyMuteStatus({
+    required String roomId,
+    required bool isMuted,
+  }) async {
+    final client = SupabaseService.requiredClient;
+    final user = client.auth.currentUser;
+
+    if (user == null) {
+      throw StateError('No logged-in user found.');
+    }
+
+    await client
+        .from('room_members')
+        .update({'is_muted': isMuted})
+        .eq('room_id', roomId)
+        .eq('user_id', user.id)
+        .filter('left_at', 'is', null);
   }
 
   Future<void> leaveRoom(String roomId) async {
@@ -94,6 +144,7 @@ class RoomsService {
     await client
         .from('room_members')
         .update({
+          'is_muted': true,
           'left_at': DateTime.now().toIso8601String(),
         })
         .eq('room_id', roomId)

@@ -1,6 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../models/room.dart';
+import '../models/room_member.dart';
 import '../services/livekit_room_service.dart';
 import '../services/livekit_token_service.dart';
 import '../services/rooms_service.dart';
@@ -29,11 +30,48 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   bool _connectingAudio = false;
   bool _connectedAudio = false;
   bool _micEnabled = true;
+  bool _loadingMembers = true;
+
+  List<RoomMember> _members = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMembers();
+  }
 
   @override
   void dispose() {
     _liveKitRoomService.disconnect();
     super.dispose();
+  }
+
+  Future<void> _loadMembers() async {
+    setState(() {
+      _loadingMembers = true;
+    });
+
+    try {
+      final members = await _roomsService.getActiveRoomMembers(widget.room.id);
+
+      if (!mounted) return;
+
+      setState(() {
+        _members = members;
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingMembers = false;
+        });
+      }
+    }
   }
 
   Future<void> _testLiveKitToken() async {
@@ -52,7 +90,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         SnackBar(
           content: Text(
             widget.isArabic
-                ? 'LiveKit token جاهز: ${response.roomName}'
+                ? 'LiveKit token ????: ${response.roomName}'
                 : 'LiveKit token ready: ${response.roomName}',
           ),
         ),
@@ -82,6 +120,11 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         roomId: widget.room.id,
       );
 
+      await _roomsService.setMyMuteStatus(
+        roomId: widget.room.id,
+        isMuted: false,
+      );
+
       if (!mounted) return;
 
       setState(() {
@@ -89,10 +132,14 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         _micEnabled = true;
       });
 
+      await _loadMembers();
+
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.isArabic ? 'تم الاتصال بالصوت' : 'Audio connected',
+            widget.isArabic ? '?? ??????? ??????' : 'Audio connected',
           ),
         ),
       );
@@ -115,16 +162,26 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     final nextValue = !_micEnabled;
 
     await _liveKitRoomService.setMicrophoneEnabled(nextValue);
+    await _roomsService.setMyMuteStatus(
+      roomId: widget.room.id,
+      isMuted: !nextValue,
+    );
 
     if (!mounted) return;
 
     setState(() {
       _micEnabled = nextValue;
     });
+
+    await _loadMembers();
   }
 
   Future<void> _disconnectAudio() async {
     await _liveKitRoomService.disconnect();
+    await _roomsService.setMyMuteStatus(
+      roomId: widget.room.id,
+      isMuted: true,
+    );
 
     if (!mounted) return;
 
@@ -132,6 +189,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       _connectedAudio = false;
       _micEnabled = true;
     });
+
+    await _loadMembers();
   }
 
   Future<void> _leaveRoom() async {
@@ -151,7 +210,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         SnackBar(
           content: Text(
             widget.isArabic
-                ? 'خرجت من الغرفة: ${widget.room.name}'
+                ? '???? ?? ??????: ${widget.room.name}'
                 : 'Left room: ${widget.room.name}',
           ),
         ),
@@ -169,6 +228,24 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     }
   }
 
+  String _roleLabel(String role) {
+    switch (role) {
+      case 'host':
+        return widget.isArabic ? '????' : 'Host';
+      case 'speaker':
+        return widget.isArabic ? '?????' : 'Speaker';
+      default:
+        return widget.isArabic ? '?????' : 'Listener';
+    }
+  }
+
+  String _joinedLabel(DateTime joinedAt) {
+    final local = joinedAt.toLocal();
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+    return widget.isArabic ? '???? $hour:$minute' : 'Joined $hour:$minute';
+  }
+
   @override
   Widget build(BuildContext context) {
     final textAlign = widget.isArabic ? TextAlign.right : TextAlign.left;
@@ -177,187 +254,364 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isArabic ? 'الغرفة' : 'Room'),
+        title: Text(widget.isArabic ? '??????' : 'Room'),
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(22),
-              decoration: BoxDecoration(
-                color: const Color(0xFF14141F),
-                borderRadius: BorderRadius.circular(26),
-                border: Border.all(
-                  color: const Color(0xFF2A2A38),
+        child: RefreshIndicator(
+          onRefresh: _loadMembers,
+          child: ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(22),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF14141F),
+                  borderRadius: BorderRadius.circular(26),
+                  border: Border.all(
+                    color: const Color(0xFF2A2A38),
+                  ),
                 ),
-              ),
-              child: Column(
-                crossAxisAlignment: crossAxisAlignment,
-                children: [
-                  Container(
-                    width: 58,
-                    height: 58,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFD6A84F).withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Icon(
-                      Icons.mic_rounded,
-                      color: Color(0xFFD6A84F),
-                      size: 30,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    widget.room.name,
-                    textAlign: textAlign,
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.room.description?.isNotEmpty == true
-                        ? widget.room.description!
-                        : (widget.isArabic ? 'بدون وصف' : 'No description'),
-                    textAlign: textAlign,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Color(0xFFB8B8C7),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Row(
-                    textDirection:
-                        widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
-                    children: [
-                      _RoomDetailPill(
-                        icon: Icons.language_rounded,
-                        label: widget.room.language.toUpperCase(),
+                child: Column(
+                  crossAxisAlignment: crossAxisAlignment,
+                  children: [
+                    Container(
+                      width: 58,
+                      height: 58,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD6A84F).withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      const SizedBox(width: 8),
-                      _RoomDetailPill(
-                        icon: Icons.event_seat_rounded,
-                        label: '${widget.room.maxSeats}',
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 18),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(22),
-              decoration: BoxDecoration(
-                color: const Color(0xFF14141F),
-                borderRadius: BorderRadius.circular(26),
-                border: Border.all(
-                  color: const Color(0xFF2A2A38),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: crossAxisAlignment,
-                children: [
-                  Text(
-                    widget.isArabic ? 'الصوت المباشر' : 'Live audio',
-                    textAlign: textAlign,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.isArabic
-                        ? 'اتصل بالغرفة الصوتية المباشرة.'
-                        : 'Connect to the live audio room.',
-                    textAlign: textAlign,
-                    style: const TextStyle(
-                      color: Color(0xFFB8B8C7),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Icon(
-                    _connectedAudio
-                        ? Icons.graphic_eq_rounded
-                        : Icons.mic_none_rounded,
-                    color: const Color(0xFFD6A84F),
-                    size: 52,
-                  ),
-                  const SizedBox(height: 18),
-                  FilledButton.icon(
-                    onPressed: _connectedAudio || _connectingAudio
-                        ? null
-                        : _connectAudio,
-                    icon: _connectingAudio
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.wifi_tethering_rounded),
-                    label: Text(
-                      widget.isArabic ? 'تشغيل الصوت' : 'Connect audio',
-                    ),
-                  ),
-                  if (_connectedAudio) ...[
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: _toggleMic,
-                      icon: Icon(
-                        _micEnabled
-                            ? Icons.mic_rounded
-                            : Icons.mic_off_rounded,
-                      ),
-                      label: Text(
-                        _micEnabled
-                            ? (widget.isArabic ? 'إطفاء المايك' : 'Mute mic')
-                            : (widget.isArabic ? 'تشغيل المايك' : 'Unmute mic'),
+                      child: const Icon(
+                        Icons.mic_rounded,
+                        color: Color(0xFFD6A84F),
+                        size: 30,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: _disconnectAudio,
-                      icon: const Icon(Icons.link_off_rounded),
-                      label: Text(
-                        widget.isArabic ? 'فصل الصوت' : 'Disconnect audio',
+                    const SizedBox(height: 18),
+                    Text(
+                      widget.room.name,
+                      textAlign: textAlign,
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      widget.room.description?.isNotEmpty == true
+                          ? widget.room.description!
+                          : (widget.isArabic ? '???? ???' : 'No description'),
+                      textAlign: textAlign,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Color(0xFFB8B8C7),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      textDirection:
+                          widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+                      children: [
+                        _RoomDetailPill(
+                          icon: Icons.language_rounded,
+                          label: widget.room.language.toUpperCase(),
+                        ),
+                        const SizedBox(width: 8),
+                        _RoomDetailPill(
+                          icon: Icons.event_seat_rounded,
+                          label: '${_members.length}/${widget.room.maxSeats}',
+                        ),
+                      ],
                     ),
                   ],
-                ],
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
-            OutlinedButton.icon(
-              onPressed: _testingToken ? null : _testLiveKitToken,
-              icon: _testingToken
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.key_rounded),
-              label: Text(
-                widget.isArabic ? 'اختبار LiveKit Token' : 'Test LiveKit Token',
+              const SizedBox(height: 18),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(22),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF14141F),
+                  borderRadius: BorderRadius.circular(26),
+                  border: Border.all(
+                    color: const Color(0xFF2A2A38),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: crossAxisAlignment,
+                  children: [
+                    Row(
+                      textDirection:
+                          widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            widget.isArabic ? '?????????' : 'Participants',
+                            textAlign: textAlign,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: _loadingMembers ? null : _loadMembers,
+                          icon: _loadingMembers
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.refresh_rounded),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    if (_members.isEmpty && !_loadingMembers)
+                      Text(
+                        widget.isArabic
+                            ? '?? ???? ??????? ?????.'
+                            : 'No active participants yet.',
+                        textAlign: textAlign,
+                        style: const TextStyle(
+                          color: Color(0xFFB8B8C7),
+                        ),
+                      )
+                    else
+                      ..._members.map(
+                        (member) => _ParticipantTile(
+                          name: member.fallbackName(widget.isArabic),
+                          role: _roleLabel(member.role),
+                          joinedAt: _joinedLabel(member.joinedAt),
+                          isMuted: member.isMuted,
+                          isArabic: widget.isArabic,
+                        ),
+                      ),
+                  ],
+                ),
               ),
+              const SizedBox(height: 18),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(22),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF14141F),
+                  borderRadius: BorderRadius.circular(26),
+                  border: Border.all(
+                    color: const Color(0xFF2A2A38),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: crossAxisAlignment,
+                  children: [
+                    Text(
+                      widget.isArabic ? '????? ???????' : 'Live audio',
+                      textAlign: textAlign,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      widget.isArabic
+                          ? '???? ??????? ??????? ????????.'
+                          : 'Connect to the live audio room.',
+                      textAlign: textAlign,
+                      style: const TextStyle(
+                        color: Color(0xFFB8B8C7),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Icon(
+                      _connectedAudio
+                          ? Icons.graphic_eq_rounded
+                          : Icons.mic_none_rounded,
+                      color: const Color(0xFFD6A84F),
+                      size: 52,
+                    ),
+                    const SizedBox(height: 18),
+                    FilledButton.icon(
+                      onPressed: _connectedAudio || _connectingAudio
+                          ? null
+                          : _connectAudio,
+                      icon: _connectingAudio
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.wifi_tethering_rounded),
+                      label: Text(
+                        widget.isArabic ? '????? ?????' : 'Connect audio',
+                      ),
+                    ),
+                    if (_connectedAudio) ...[
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: _toggleMic,
+                        icon: Icon(
+                          _micEnabled
+                              ? Icons.mic_rounded
+                              : Icons.mic_off_rounded,
+                        ),
+                        label: Text(
+                          _micEnabled
+                              ? (widget.isArabic ? '????? ??????' : 'Mute mic')
+                              : (widget.isArabic ? '????? ??????' : 'Unmute mic'),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: _disconnectAudio,
+                        icon: const Icon(Icons.link_off_rounded),
+                        label: Text(
+                          widget.isArabic ? '??? ?????' : 'Disconnect audio',
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              OutlinedButton.icon(
+                onPressed: _testingToken ? null : _testLiveKitToken,
+                icon: _testingToken
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.key_rounded),
+                label: Text(
+                  widget.isArabic ? '?????? LiveKit Token' : 'Test LiveKit Token',
+                ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: _leaving ? null : _leaveRoom,
+                icon: _leaving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.logout_rounded),
+                label: Text(widget.isArabic ? '?????? ?? ??????' : 'Leave room'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ParticipantTile extends StatelessWidget {
+  const _ParticipantTile({
+    required this.name,
+    required this.role,
+    required this.joinedAt,
+    required this.isMuted,
+    required this.isArabic,
+  });
+
+  final String name;
+  final String role;
+  final String joinedAt;
+  final bool isMuted;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF232332),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFF303044),
+        ),
+      ),
+      child: Row(
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        children: [
+          CircleAvatar(
+            backgroundColor: const Color(0xFFD6A84F).withValues(alpha: 0.18),
+            child: Icon(
+              isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
+              color: const Color(0xFFD6A84F),
             ),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: _leaving ? null : _leaveRoom,
-              icon: _leaving
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.logout_rounded),
-              label: Text(widget.isArabic ? 'الخروج من الغرفة' : 'Leave room'),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  joinedAt,
+                  textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                  style: const TextStyle(
+                    color: Color(0xFFB8B8C7),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment:
+                isArabic ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+            children: [
+              _SmallStatusPill(label: role),
+              const SizedBox(height: 6),
+              _SmallStatusPill(
+                label: isMuted
+                    ? (isArabic ? '????' : 'Muted')
+                    : (isArabic ? '?????' : 'Live mic'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SmallStatusPill extends StatelessWidget {
+  const _SmallStatusPill({
+    required this.label,
+  });
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFF14141F),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: Color(0xFFD6A84F),
         ),
       ),
     );

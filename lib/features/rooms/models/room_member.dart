@@ -1,4 +1,4 @@
-﻿class RoomMember {
+class RoomMember {
   const RoomMember({
     required this.id,
     required this.roomId,
@@ -8,6 +8,7 @@
     required this.joinedAt,
     this.seatNumber,
     this.leftAt,
+    this.displayName,
   });
 
   final String id;
@@ -18,8 +19,22 @@
   final bool isMuted;
   final DateTime joinedAt;
   final DateTime? leftAt;
+  final String? displayName;
 
   factory RoomMember.fromJson(Map<String, dynamic> json) {
+    final profile = json['profiles'];
+    String? resolvedName;
+
+    if (profile is Map<String, dynamic>) {
+      resolvedName =
+          profile['display_name']?.toString() ??
+          profile['full_name']?.toString() ??
+          profile['username']?.toString() ??
+          profile['name']?.toString();
+    }
+
+    resolvedName ??= json['display_name']?.toString();
+
     return RoomMember(
       id: json['id'].toString(),
       roomId: json['room_id'].toString(),
@@ -31,6 +46,16 @@
       leftAt: json['left_at'] == null
           ? null
           : DateTime.parse(json['left_at'].toString()),
+      displayName: resolvedName,
     );
+  }
+
+  String fallbackName(bool isArabic) {
+    if (displayName != null && displayName!.trim().isNotEmpty) {
+      return displayName!.trim();
+    }
+
+    final shortId = userId.length >= 8 ? userId.substring(0, 8) : userId;
+    return isArabic ? '?????? $shortId' : 'User $shortId';
   }
 }
