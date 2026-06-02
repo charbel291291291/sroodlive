@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/supabase/supabase_service.dart';
 import '../models/room.dart';
 import '../models/room_member.dart';
 import '../services/livekit_room_service.dart';
@@ -31,8 +32,24 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   bool _connectedAudio = false;
   bool _micEnabled = true;
   bool _loadingMembers = true;
+  String? _roleBusyUserId;
 
   List<RoomMember> _members = const [];
+
+  String? get _currentUserId =>
+      SupabaseService.requiredClient.auth.currentUser?.id;
+
+  bool get _iAmHost {
+    final currentUserId = _currentUserId;
+
+    if (currentUserId == null) {
+      return false;
+    }
+
+    return _members.any(
+      (member) => member.userId == currentUserId && member.role == 'host',
+    );
+  }
 
   @override
   void initState() {
@@ -69,6 +86,47 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       if (mounted) {
         setState(() {
           _loadingMembers = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _changeMemberRole({
+    required RoomMember member,
+    required String role,
+  }) async {
+    setState(() {
+      _roleBusyUserId = member.userId;
+    });
+
+    try {
+      await _roomsService.updateMemberRole(
+        roomId: widget.room.id,
+        userId: member.userId,
+        role: role,
+      );
+
+      await _loadMembers();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.isArabic ? '?? ????? ?????' : 'Role updated',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _roleBusyUserId = null;
         });
       }
     }
@@ -322,6 +380,13 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                           icon: Icons.event_seat_rounded,
                           label: '${_members.length}/${widget.room.maxSeats}',
                         ),
+                        if (_iAmHost) ...[
+                          const SizedBox(width: 8),
+                          _RoomDetailPill(
+                            icon: Icons.admin_panel_settings_rounded,
+                            label: widget.isArabic ? '??? ??????' : 'You host',
+                          ),
+                        ],
                       ],
                     ),
                   ],
@@ -383,9 +448,21 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                         (member) => _ParticipantTile(
                           name: member.fallbackName(widget.isArabic),
                           role: _roleLabel(member.role),
+                          rawRole: member.role,
                           joinedAt: _joinedLabel(member.joinedAt),
                           isMuted: member.isMuted,
                           isArabic: widget.isArabic,
+                          showHostControls:
+                              _iAmHost && member.role != 'host',
+                          isBusy: _roleBusyUserId == member.userId,
+                          onPromote: () => _changeMemberRole(
+                            member: member,
+                            role: 'speaker',
+                          ),
+                          onMoveToListener: () => _changeMemberRole(
+                            member: member,
+                            role: 'listener',
+                          ),
                         ),
                       ),
                   ],
@@ -512,19 +589,32 @@ class _ParticipantTile extends StatelessWidget {
   const _ParticipantTile({
     required this.name,
     required this.role,
+    required this.rawRole,
     required this.joinedAt,
     required this.isMuted,
     required this.isArabic,
+    required this.showHostControls,
+    required this.isBusy,
+    required this.onPromote,
+    required this.onMoveToListener,
   });
 
   final String name;
   final String role;
+  final String rawRole;
   final String joinedAt;
   final bool isMuted;
   final bool isArabic;
+  final bool showHostControls;
+  final bool isBusy;
+  final VoidCallback onPromote;
+  final VoidCallback onMoveToListener;
 
   @override
   Widget build(BuildContext context) {
+    final canPromote = rawRole == 'listener';
+    final canMoveToListener = rawRole == 'speaker';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
@@ -535,56 +625,100 @@ class _ParticipantTile extends StatelessWidget {
           color: const Color(0xFF303044),
         ),
       ),
-      child: Row(
-        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+      child: Column(
         children: [
-          CircleAvatar(
-            backgroundColor: const Color(0xFFD6A84F).withValues(alpha: 0.18),
-            child: Icon(
-              isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
-              color: const Color(0xFFD6A84F),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment:
-                  isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  textAlign: isArabic ? TextAlign.right : TextAlign.left,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 15,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  joinedAt,
-                  textAlign: isArabic ? TextAlign.right : TextAlign.left,
-                  style: const TextStyle(
-                    color: Color(0xFFB8B8C7),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment:
-                isArabic ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+          Row(
+            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
             children: [
-              _SmallStatusPill(label: role),
-              const SizedBox(height: 6),
-              _SmallStatusPill(
-                label: isMuted
-                    ? (isArabic ? '????' : 'Muted')
-                    : (isArabic ? '?????' : 'Live mic'),
+              CircleAvatar(
+                backgroundColor: const Color(0xFFD6A84F).withValues(alpha: 0.18),
+                child: Icon(
+                  isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
+                  color: const Color(0xFFD6A84F),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      joinedAt,
+                      textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                      style: const TextStyle(
+                        color: Color(0xFFB8B8C7),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment:
+                    isArabic ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+                children: [
+                  _SmallStatusPill(label: role),
+                  const SizedBox(height: 6),
+                  _SmallStatusPill(
+                    label: isMuted
+                        ? (isArabic ? '????' : 'Muted')
+                        : (isArabic ? '?????' : 'Live mic'),
+                  ),
+                ],
               ),
             ],
           ),
+          if (showHostControls) ...[
+            const SizedBox(height: 12),
+            Row(
+              textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+              children: [
+                if (canPromote)
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: isBusy ? null : onPromote,
+                      icon: isBusy
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.record_voice_over_rounded),
+                      label: Text(
+                        isArabic ? '????? ??????' : 'Make speaker',
+                      ),
+                    ),
+                  ),
+                if (canMoveToListener)
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: isBusy ? null : onMoveToListener,
+                      icon: isBusy
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.hearing_rounded),
+                      label: Text(
+                        isArabic ? '????? ??????' : 'Move to listener',
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
         ],
       ),
     );

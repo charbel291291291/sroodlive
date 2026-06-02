@@ -139,6 +139,23 @@ class RoomsService {
     );
   }
 
+  Future<void> updateMemberRole({
+    required String roomId,
+    required String userId,
+    required String role,
+  }) async {
+    if (role != 'speaker' && role != 'listener') {
+      throw ArgumentError('Invalid role.');
+    }
+
+    await SupabaseService.requiredClient
+        .from('room_members')
+        .update({'role': role})
+        .eq('room_id', roomId)
+        .eq('user_id', userId)
+        .filter('left_at', 'is', null);
+  }
+
   Future<void> setMyMuteStatus({
     required String roomId,
     required bool isMuted,
