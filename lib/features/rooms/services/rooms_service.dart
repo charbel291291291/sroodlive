@@ -2,6 +2,27 @@ import '../../../core/supabase/supabase_service.dart';
 import '../models/room.dart';
 import '../models/room_member.dart';
 
+class LockedRoomException implements Exception {
+  const LockedRoomException();
+
+  @override
+  String toString() => 'locked_room';
+}
+
+class WrongRoomPasswordException implements Exception {
+  const WrongRoomPasswordException();
+
+  @override
+  String toString() => 'wrong_room_password';
+}
+
+class RoomPasswordRequiredException implements Exception {
+  const RoomPasswordRequiredException();
+
+  @override
+  String toString() => 'room_password_required';
+}
+
 class RoomsService {
   const RoomsService();
 
@@ -123,7 +144,7 @@ class RoomsService {
     return 'listener';
   }
 
-  Future<void> joinRoom(String roomId) async {
+  Future<void> joinRoom(String roomId, {String? password}) async {
     final client = SupabaseService.requiredClient;
     final user = client.auth.currentUser;
 
@@ -131,20 +152,40 @@ class RoomsService {
       throw StateError('No logged-in user found.');
     }
 
-    final role = await getMyRoleForRoom(roomId);
-    final now = DateTime.now().toUtc().toIso8601String();
+    final room = await client
+        .from('rooms')
+        .select('owner_id,is_locked')
+        .eq('id', roomId)
+        .single();
 
-    await client.from('room_members').upsert(
-      {
-        'room_id': roomId,
-        'user_id': user.id,
-        'role': role,
-        'is_muted': true,
-        'left_at': null,
-        'last_seen_at': now,
-      },
-      onConflict: 'room_id,user_id',
-    );
+    final ownerId = room['owner_id']?.toString();
+    final role = ownerId == user.id ? 'host' : 'listener';
+    final isLocked = room['is_locked'] == true;
+
+    if (isLocked &&
+        role == 'listener' &&
+        (password == null || password.trim().isEmpty)) {
+      throw const LockedRoomException();
+    }
+
+    try {
+      await client.rpc(
+        'join_room_with_password',
+        params: {'p_room_id': roomId, 'p_password': password},
+      );
+    } catch (error) {
+      final message = error.toString();
+
+      if (message.contains('wrong_room_password')) {
+        throw const WrongRoomPasswordException();
+      }
+
+      if (message.contains('locked_room')) {
+        throw const LockedRoomException();
+      }
+
+      rethrow;
+    }
   }
 
   Future<void> heartbeatRoomMember(String roomId) async {
@@ -166,6 +207,7 @@ class RoomsService {
   Future<void> setRoomLocked({
     required String roomId,
     required bool isLocked,
+    String? password,
   }) async {
     final client = SupabaseService.requiredClient;
     final user = client.auth.currentUser;
@@ -174,23 +216,26 @@ class RoomsService {
       throw StateError('No logged-in user found.');
     }
 
-    final room = await client
-        .from('rooms')
-        .select('owner_id')
-        .eq('id', roomId)
-        .single();
+    try {
+      await client.rpc(
+        'set_room_lock',
+        params: {
+          'p_room_id': roomId,
+          'p_is_locked': isLocked,
+          'p_password': password,
+        },
+      );
+    } catch (error) {
+      final message = error.toString();
 
-    final ownerId = room['owner_id']?.toString();
+      if (message.contains('room_password_required')) {
+        throw const RoomPasswordRequiredException();
+      }
 
-    if (ownerId != user.id) {
-      throw StateError('Only the host can lock this room.');
+      rethrow;
     }
-
-    await client
-        .from('rooms')
-        .update({'is_locked': isLocked})
-        .eq('id', roomId);
   }
+
   Future<void> updateMemberRole({
     required String roomId,
     required String userId,
@@ -239,11 +284,7 @@ class RoomsService {
 
     await client
         .from('room_members')
-        .update({
-          'is_muted': true,
-          'left_at': now,
-          'last_seen_at': now,
-        })
+        .update({'is_muted': true, 'left_at': now, 'last_seen_at': now})
         .eq('room_id', roomId)
         .eq('user_id', user.id);
   }

@@ -1,14 +1,11 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../models/room.dart';
 import '../services/rooms_service.dart';
 import 'room_details_screen.dart';
 
 class RoomsScreen extends StatefulWidget {
-  const RoomsScreen({
-    required this.isArabic,
-    super.key,
-  });
+  const RoomsScreen({required this.isArabic, super.key});
 
   final bool isArabic;
 
@@ -54,12 +51,12 @@ class _RoomsScreenState extends State<RoomsScreen> {
         _error = error.toString();
       });
     } finally {
-        if (mounted) {
-          setState(() {
-            _loading = false;
-          });
-        }
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
       }
+    }
   }
 
   Future<void> _createRoom() async {
@@ -76,7 +73,9 @@ class _RoomsScreenState extends State<RoomsScreen> {
             children: [
               TextField(
                 controller: nameController,
-                textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+                textDirection: widget.isArabic
+                    ? TextDirection.rtl
+                    : TextDirection.ltr,
                 decoration: InputDecoration(
                   labelText: widget.isArabic ? 'اسم الغرفة' : 'Room name',
                 ),
@@ -84,7 +83,9 @@ class _RoomsScreenState extends State<RoomsScreen> {
               const SizedBox(height: 12),
               TextField(
                 controller: descriptionController,
-                textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+                textDirection: widget.isArabic
+                    ? TextDirection.rtl
+                    : TextDirection.ltr,
                 decoration: InputDecoration(
                   labelText: widget.isArabic ? 'وصف قصير' : 'Short description',
                 ),
@@ -133,12 +134,12 @@ class _RoomsScreenState extends State<RoomsScreen> {
         _error = error.toString();
       });
     } finally {
-        if (mounted) {
-          setState(() {
-            _creating = false;
-          });
-        }
+      if (mounted) {
+        setState(() {
+          _creating = false;
+        });
       }
+    }
   }
 
   Future<void> _joinRoom(Room room) async {
@@ -150,10 +151,8 @@ class _RoomsScreenState extends State<RoomsScreen> {
       await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => RoomDetailsScreen(
-            room: room,
-            isArabic: widget.isArabic,
-          ),
+          builder: (_) =>
+              RoomDetailsScreen(room: room, isArabic: widget.isArabic),
         ),
       );
 
@@ -161,17 +160,24 @@ class _RoomsScreenState extends State<RoomsScreen> {
     } catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString())),
-      );
+      final message = error is LockedRoomException
+          ? (widget.isArabic
+                ? '\u0627\u0644\u063a\u0631\u0641\u0629 \u0645\u0642\u0641\u0644\u0629 \u0645\u0646 \u0627\u0644\u0645\u0636\u064a\u0641.'
+                : 'This room is locked by the host.')
+          : error.toString();
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final textAlign = widget.isArabic ? TextAlign.right : TextAlign.left;
-    final crossAxisAlignment =
-        widget.isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    final crossAxisAlignment = widget.isArabic
+        ? CrossAxisAlignment.end
+        : CrossAxisAlignment.start;
 
     return SafeArea(
       child: RefreshIndicator(
@@ -209,10 +215,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
                   ? 'ادخل غرفة صوتية اسمع شارك أو افتح سهرود جديد.'
                   : 'Join a voice room, listen, talk, or start a new SrOOd.',
               textAlign: textAlign,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Color(0xFFB8B8C7),
-              ),
+              style: const TextStyle(fontSize: 16, color: Color(0xFFB8B8C7)),
             ),
             const SizedBox(height: 24),
             if (_loading)
@@ -246,9 +249,9 @@ class _RoomsScreenState extends State<RoomsScreen> {
                   padding: const EdgeInsets.only(bottom: 14),
                   child: _RoomCard(
                     room: room,
-                        activeCount: _activeCounts[room.id] ?? 0,
-                        isArabic: widget.isArabic,
-                        onJoin: () => _joinRoom(room),
+                    activeCount: _activeCounts[room.id] ?? 0,
+                    isArabic: widget.isArabic,
+                    onJoin: () => _joinRoom(room),
                   ),
                 ),
               ),
@@ -275,17 +278,16 @@ class _RoomCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textAlign = isArabic ? TextAlign.right : TextAlign.left;
-    final crossAxisAlignment =
-        isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    final crossAxisAlignment = isArabic
+        ? CrossAxisAlignment.end
+        : CrossAxisAlignment.start;
 
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: const Color(0xFF14141F),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: const Color(0xFF2A2A38),
-        ),
+        border: Border.all(color: const Color(0xFF2A2A38)),
       ),
       child: Column(
         crossAxisAlignment: crossAxisAlignment,
@@ -300,10 +302,7 @@ class _RoomCard extends StatelessWidget {
                   color: const Color(0xFFD6A84F).withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Icon(
-                  Icons.mic_rounded,
-                  color: Color(0xFFD6A84F),
-                ),
+                child: const Icon(Icons.mic_rounded, color: Color(0xFFD6A84F)),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -324,9 +323,7 @@ class _RoomCard extends StatelessWidget {
                           ? room.description!
                           : (isArabic ? 'بدون وصف' : 'No description'),
                       textAlign: textAlign,
-                      style: const TextStyle(
-                        color: Color(0xFFB8B8C7),
-                      ),
+                      style: const TextStyle(color: Color(0xFFB8B8C7)),
                     ),
                   ],
                 ),
@@ -361,10 +358,7 @@ class _RoomCard extends StatelessWidget {
 }
 
 class _RoomPill extends StatelessWidget {
-  const _RoomPill({
-    required this.icon,
-    required this.label,
-  });
+  const _RoomPill({required this.icon, required this.label});
 
   final IconData icon;
   final String label;
@@ -384,10 +378,7 @@ class _RoomPill extends StatelessWidget {
           const SizedBox(width: 5),
           Text(
             label,
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
           ),
         ],
       ),
@@ -418,9 +409,7 @@ class _RoomsMessageCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF14141F),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: const Color(0xFF2A2A38),
-        ),
+        border: Border.all(color: const Color(0xFF2A2A38)),
       ),
       child: Column(
         crossAxisAlignment: crossAxisAlignment,
@@ -430,30 +419,16 @@ class _RoomsMessageCard extends StatelessWidget {
           Text(
             title,
             textAlign: textAlign,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),
           Text(
             message,
             textAlign: textAlign,
-            style: const TextStyle(
-              color: Color(0xFFB8B8C7),
-            ),
+            style: const TextStyle(color: Color(0xFFB8B8C7)),
           ),
         ],
       ),
     );
   }
 }
-
-
-
-
-
-
-
-
-
