@@ -35,6 +35,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   bool _connectedAudio = false;
   bool _micEnabled = true;
   bool _loadingMembers = true;
+  bool _lockBusy = false;
+  late bool _roomLocked;
   String? _roleBusyUserId;
 
   List<RoomMember> _members = const [];
@@ -89,6 +91,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   @override
   void initState() {
     super.initState();
+    _roomLocked = widget.room.isLocked;
     _loadMembers();
     _startHeartbeat();
     _subscribeToMembers();
@@ -208,6 +211,54 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     }
   }
 
+  Future<void> _toggleRoomLock() async {
+    if (!_iAmHost || _lockBusy) {
+      return;
+    }
+
+    final nextValue = !_roomLocked;
+
+    setState(() {
+      _lockBusy = true;
+    });
+
+    try {
+      await _roomsService.setRoomLocked(
+        roomId: widget.room.id,
+        isLocked: nextValue,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _roomLocked = nextValue;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.isArabic
+                ? (nextValue
+                    ? '\u062a\u0645 \u0642\u0641\u0644 \u0627\u0644\u063a\u0631\u0641\u0629'
+                    : '\u062a\u0645 \u0641\u062a\u062d \u0627\u0644\u063a\u0631\u0641\u0629')
+                : (nextValue ? 'Room locked' : 'Room unlocked'),
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _lockBusy = false;
+        });
+      }
+    }
+  }
   Future<void> _changeMemberRole({
     required RoomMember member,
     required String role,
@@ -526,6 +577,15 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                           icon: Icons.event_seat_rounded,
                           label: '$_activeSpeakerCount/${widget.room.maxSeats}',
                         ),
+                        const SizedBox(width: 8),
+                        _RoomDetailPill(
+                          icon: _roomLocked
+                              ? Icons.lock_rounded
+                              : Icons.lock_open_rounded,
+                          label: widget.isArabic
+                              ? (_roomLocked ? '\u0645\u0642\u0641\u0644\u0629' : '\u0645\u0641\u062a\u0648\u062d\u0629')
+                              : (_roomLocked ? 'Locked' : 'Open'),
+                        ),
                         if (_iAmHost) ...[
                           const SizedBox(width: 8),
                           _RoomDetailPill(
@@ -538,6 +598,30 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                   ],
                 ),
               ),
+              if (_iAmHost) ...[
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _lockBusy ? null : _toggleRoomLock,
+                  icon: _lockBusy
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(
+                          _roomLocked
+                              ? Icons.lock_open_rounded
+                              : Icons.lock_rounded,
+                        ),
+                  label: Text(
+                    widget.isArabic
+                        ? (_roomLocked
+                            ? '\u0641\u062a\u062d \u0627\u0644\u063a\u0631\u0641\u0629'
+                            : '\u0642\u0641\u0644 \u0627\u0644\u063a\u0631\u0641\u0629')
+                        : (_roomLocked ? 'Unlock room' : 'Lock room'),
+                  ),
+                ),
+              ],
               const SizedBox(height: 18),
               Container(
                 width: double.infinity,
