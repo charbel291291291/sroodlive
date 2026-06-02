@@ -558,7 +558,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            widget.isArabic ? 'ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾Ãƒâ„¢Ã¢â‚¬Â¦ÃƒËœÃ‚Â´ÃƒËœÃ‚Â§ÃƒËœÃ‚Â±Ãƒâ„¢Ã†â€™Ãƒâ„¢Ã‹â€ Ãƒâ„¢Ã¢â‚¬Â ' : 'Participants',
+                            widget.isArabic ? '\u0627\u0644\u0645\u0634\u0627\u0631\u0643\u0648\u0646' : 'Participants',
                             textAlign: textAlign,
                             style: const TextStyle(
                               fontSize: 20,
