@@ -39,6 +39,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
 
   List<RoomMember> _members = const [];
   RealtimeChannel? _membersChannel;
+  Timer? _heartbeatTimer;
 
   String? get _currentUserId =>
       SupabaseService.requiredClient.auth.currentUser?.id;
@@ -81,11 +82,14 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   void initState() {
     super.initState();
     _loadMembers();
+    _startHeartbeat();
     _subscribeToMembers();
   }
 
   @override
   void dispose() {
+    _heartbeatTimer?.cancel();
+
     final membersChannel = _membersChannel;
 
     if (membersChannel != null) {
@@ -94,6 +98,16 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
 
     _liveKitRoomService.disconnect();
     super.dispose();
+  }
+
+  void _startHeartbeat() {
+    unawaited(_roomsService.heartbeatRoomMember(widget.room.id));
+
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => unawaited(_roomsService.heartbeatRoomMember(widget.room.id)),
+    );
   }
 
   void _subscribeToMembers() {

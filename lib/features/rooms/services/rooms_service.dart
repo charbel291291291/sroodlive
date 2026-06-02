@@ -5,6 +5,9 @@ import '../models/room_member.dart';
 class RoomsService {
   const RoomsService();
 
+  DateTime get _activeSince =>
+      DateTime.now().toUtc().subtract(const Duration(seconds: 45));
+
   Future<List<Room>> getRooms() async {
     final data = await SupabaseService.requiredClient
         .from('rooms')
@@ -20,7 +23,8 @@ class RoomsService {
     final data = await SupabaseService.requiredClient
         .from('room_members')
         .select('room_id')
-        .filter('left_at', 'is', null);
+        .filter('left_at', 'is', null)
+        .gte('last_seen_at', _activeSince.toIso8601String());
 
     final counts = <String, int>{};
 
@@ -43,6 +47,7 @@ class RoomsService {
           .select('*, profiles(display_name, full_name, username, name)')
           .eq('room_id', roomId)
           .filter('left_at', 'is', null)
+          .gte('last_seen_at', _activeSince.toIso8601String())
           .order('joined_at', ascending: true);
 
       return (data as List<dynamic>)
@@ -54,6 +59,7 @@ class RoomsService {
           .select()
           .eq('room_id', roomId)
           .filter('left_at', 'is', null)
+          .gte('last_seen_at', _activeSince.toIso8601String())
           .order('joined_at', ascending: true);
 
       return (data as List<dynamic>)
@@ -126,6 +132,7 @@ class RoomsService {
     }
 
     final role = await getMyRoleForRoom(roomId);
+    final now = DateTime.now().toUtc().toIso8601String();
 
     await client.from('room_members').upsert(
       {
@@ -134,9 +141,26 @@ class RoomsService {
         'role': role,
         'is_muted': true,
         'left_at': null,
+        'last_seen_at': now,
       },
       onConflict: 'room_id,user_id',
     );
+  }
+
+  Future<void> heartbeatRoomMember(String roomId) async {
+    final client = SupabaseService.requiredClient;
+    final user = client.auth.currentUser;
+
+    if (user == null) {
+      return;
+    }
+
+    await client
+        .from('room_members')
+        .update({'last_seen_at': DateTime.now().toUtc().toIso8601String()})
+        .eq('room_id', roomId)
+        .eq('user_id', user.id)
+        .filter('left_at', 'is', null);
   }
 
   Future<void> updateMemberRole({
@@ -183,11 +207,14 @@ class RoomsService {
       throw StateError('No logged-in user found.');
     }
 
+    final now = DateTime.now().toUtc().toIso8601String();
+
     await client
         .from('room_members')
         .update({
           'is_muted': true,
-          'left_at': DateTime.now().toIso8601String(),
+          'left_at': now,
+          'last_seen_at': now,
         })
         .eq('room_id', roomId)
         .eq('user_id', user.id);
