@@ -185,7 +185,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
           SnackBar(
             content: Text(
               widget.isArabic
-                  ? '?? ??? ????? ???? ????? ????'
+                  ? '\u062a\u0645 \u0641\u0635\u0644 \u0627\u0644\u0635\u0648\u062a \u0644\u0623\u0646\u0643 \u0623\u0635\u0628\u062d\u062a \u0645\u0633\u062a\u0645\u0639\u0627\u064b'
                   : 'Audio disconnected because you are now a listener',
             ),
           ),
@@ -245,7 +245,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.isArabic ? '?? ????? ?????' : 'Role updated',
+            widget.isArabic ? '\u062a\u0645 \u062a\u062d\u062f\u064a\u062b \u0627\u0644\u062f\u0648\u0631' : 'Role updated',
           ),
         ),
       );
@@ -280,7 +280,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         SnackBar(
           content: Text(
             widget.isArabic
-                ? 'LiveKit token ????: ${response.roomName}'
+                ? 'LiveKit token \u062c\u0627\u0647\u0632: ${response.roomName}'
                 : 'LiveKit token ready: ${response.roomName}',
           ),
         ),
@@ -306,7 +306,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         SnackBar(
           content: Text(
             widget.isArabic
-                ? '???? ?? ?????? ?????? ??? ????? ?????? ??????'
+                ? '\u0627\u0637\u0644\u0628 \u0645\u0646 \u0627\u0644\u0645\u0636\u064a\u0641 \u062a\u0631\u0642\u064a\u062a\u0643 \u0625\u0644\u0649 \u0645\u062a\u062d\u062f\u062b \u0644\u0627\u0633\u062a\u062e\u062f\u0627\u0645 \u0627\u0644\u0645\u0627\u064a\u0643'
                 : 'Ask the host to make you a speaker to use the mic',
           ),
         ),
@@ -343,7 +343,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.isArabic ? '?? ??????? ??????' : 'Audio connected',
+            widget.isArabic ? '\u062a\u0645 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 \u0628\u0627\u0644\u0635\u0648\u062a' : 'Audio connected',
           ),
         ),
       );
@@ -414,7 +414,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         SnackBar(
           content: Text(
             widget.isArabic
-                ? '???? ?? ??????: ${widget.room.name}'
+                ? '\u063a\u0627\u062f\u0631\u062a \u0627\u0644\u063a\u0631\u0641\u0629: ${widget.room.name}'
                 : 'Left room: ${widget.room.name}',
           ),
         ),
@@ -435,11 +435,11 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   String _roleLabel(String role) {
     switch (role) {
       case 'host':
-        return widget.isArabic ? '????' : 'Host';
+        return widget.isArabic ? '\u0645\u0636\u064a\u0641' : 'Host';
       case 'speaker':
-        return widget.isArabic ? '?????' : 'Speaker';
+        return widget.isArabic ? '\u0645\u062a\u062d\u062f\u062b' : 'Speaker';
       default:
-        return widget.isArabic ? '?????' : 'Listener';
+        return widget.isArabic ? '\u0645\u0633\u062a\u0645\u0639' : 'Listener';
     }
   }
 
@@ -447,7 +447,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     final local = joinedAt.toLocal();
     final hour = local.hour.toString().padLeft(2, '0');
     final minute = local.minute.toString().padLeft(2, '0');
-    return widget.isArabic ? '???? $hour:$minute' : 'Joined $hour:$minute';
+    return widget.isArabic ? '\u0627\u0646\u0636\u0645 $hour:$minute' : 'Joined $hour:$minute';
   }
 
   @override
@@ -458,7 +458,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isArabic ? '??????' : 'Room'),
+        title: Text(widget.isArabic ? '\u0627\u0644\u063a\u0631\u0641\u0629' : 'Room'),
       ),
       body: SafeArea(
         child: RefreshIndicator(
@@ -505,7 +505,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                     Text(
                       widget.room.description?.isNotEmpty == true
                           ? widget.room.description!
-                          : (widget.isArabic ? '???? ???' : 'No description'),
+                          : (widget.isArabic ? '\u0644\u0627 \u064a\u0648\u062c\u062f \u0648\u0635\u0641' : 'No description'),
                       textAlign: textAlign,
                       style: const TextStyle(
                         fontSize: 16,
@@ -524,13 +524,13 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                         const SizedBox(width: 8),
                         _RoomDetailPill(
                           icon: Icons.event_seat_rounded,
-                          label: '${_members.length}/${widget.room.maxSeats}',
+                          label: '$_activeSpeakerCount/${widget.room.maxSeats}',
                         ),
                         if (_iAmHost) ...[
                           const SizedBox(width: 8),
                           _RoomDetailPill(
                             icon: Icons.admin_panel_settings_rounded,
-                            label: widget.isArabic ? '??? ??????' : 'You host',
+                            label: widget.isArabic ? '\u0623\u0646\u062a \u0627\u0644\u0645\u0636\u064a\u0641' : 'You host',
                           ),
                         ],
                       ],
@@ -582,7 +582,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                     if (_members.isEmpty && !_loadingMembers)
                       Text(
                         widget.isArabic
-                            ? '?? ???? ??????? ?????.'
+                            ? '\u0644\u0627 \u064a\u0648\u062c\u062f \u0645\u0634\u0627\u0631\u0643\u0648\u0646 \u0646\u0634\u0637\u0648\u0646 \u0628\u0639\u062f.'
                             : 'No active participants yet.',
                         textAlign: textAlign,
                         style: const TextStyle(
@@ -629,7 +629,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                   crossAxisAlignment: crossAxisAlignment,
                   children: [
                     Text(
-                      widget.isArabic ? '????? ???????' : 'Live audio',
+                      widget.isArabic ? '\u0627\u0644\u0635\u0648\u062a \u0627\u0644\u0645\u0628\u0627\u0634\u0631' : 'Live audio',
                       textAlign: textAlign,
                       style: const TextStyle(
                         fontSize: 20,
@@ -639,7 +639,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                     const SizedBox(height: 8),
                     Text(
                       widget.isArabic
-                          ? '???? ??????? ??????? ????????.'
+                          ? '\u0627\u062a\u0635\u0644 \u0628\u063a\u0631\u0641\u0629 \u0627\u0644\u0635\u0648\u062a \u0627\u0644\u0645\u0628\u0627\u0634\u0631.'
                           : 'Connect to the live audio room.',
                       textAlign: textAlign,
                       style: const TextStyle(
@@ -660,7 +660,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                         ),
                         child: Text(
                           widget.isArabic
-                              ? '??? ????? ?????. ???? ?? ?????? ?????? ??? ????? ?????? ??????.'
+                              ? '\u0623\u0646\u062a \u0645\u0633\u062a\u0645\u0639 \u062d\u0627\u0644\u064a\u0627\u064b. \u0627\u0637\u0644\u0628 \u0645\u0646 \u0627\u0644\u0645\u0636\u064a\u0641 \u062a\u0631\u0642\u064a\u062a\u0643 \u0625\u0644\u0649 \u0645\u062a\u062d\u062f\u062b \u0644\u0627\u0633\u062a\u062e\u062f\u0627\u0645 \u0627\u0644\u0645\u0627\u064a\u0643.'
                               : 'You are a listener. Ask the host to make you a speaker to use the mic.',
                           textAlign: textAlign,
                           style: const TextStyle(
@@ -690,7 +690,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                             )
                           : const Icon(Icons.wifi_tethering_rounded),
                       label: Text(
-                        widget.isArabic ? '????? ?????' : 'Connect audio',
+                        widget.isArabic ? '\u062a\u0634\u063a\u064a\u0644 \u0627\u0644\u0635\u0648\u062a' : 'Connect audio',
                       ),
                     ),
                     if (_connectedAudio) ...[
@@ -704,8 +704,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                         ),
                         label: Text(
                           _micEnabled
-                              ? (widget.isArabic ? '????? ??????' : 'Mute mic')
-                              : (widget.isArabic ? '????? ??????' : 'Unmute mic'),
+                              ? (widget.isArabic ? '\u0643\u062a\u0645 \u0627\u0644\u0645\u0627\u064a\u0643' : 'Mute mic')
+                              : (widget.isArabic ? '\u0641\u062a\u062d \u0627\u0644\u0645\u0627\u064a\u0643' : 'Unmute mic'),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -713,7 +713,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                         onPressed: _disconnectAudio,
                         icon: const Icon(Icons.link_off_rounded),
                         label: Text(
-                          widget.isArabic ? '??? ?????' : 'Disconnect audio',
+                          widget.isArabic ? '\u0641\u0635\u0644 \u0627\u0644\u0635\u0648\u062a' : 'Disconnect audio',
                         ),
                       ),
                     ],
@@ -731,7 +731,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                       )
                     : const Icon(Icons.key_rounded),
                 label: Text(
-                  widget.isArabic ? '?????? LiveKit Token' : 'Test LiveKit Token',
+                  widget.isArabic ? '\u0627\u062e\u062a\u0628\u0627\u0631 LiveKit Token' : 'Test LiveKit Token',
                 ),
               ),
               const SizedBox(height: 12),
@@ -744,7 +744,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.logout_rounded),
-                label: Text(widget.isArabic ? '?????? ?? ??????' : 'Leave room'),
+                label: Text(widget.isArabic ? '\u0645\u063a\u0627\u062f\u0631\u0629 \u0627\u0644\u063a\u0631\u0641\u0629' : 'Leave room'),
               ),
             ],
           ),
@@ -841,8 +841,8 @@ class _ParticipantTile extends StatelessWidget {
                   const SizedBox(height: 6),
                   _SmallStatusPill(
                     label: isMuted
-                        ? (isArabic ? '????' : 'Muted')
-                        : (isArabic ? '?????' : 'Live mic'),
+                        ? (isArabic ? '\u0645\u0643\u062a\u0648\u0645' : 'Muted')
+                        : (isArabic ? '\u0645\u0627\u064a\u0643 \u0645\u0641\u062a\u0648\u062d' : 'Live mic'),
                   ),
                 ],
               ),
@@ -865,7 +865,7 @@ class _ParticipantTile extends StatelessWidget {
                             )
                           : const Icon(Icons.record_voice_over_rounded),
                       label: Text(
-                        isArabic ? '????? ??????' : 'Make speaker',
+                        isArabic ? '\u062c\u0639\u0644\u0647 \u0645\u062a\u062d\u062f\u062b\u0627\u064b' : 'Make speaker',
                       ),
                     ),
                   ),
@@ -881,7 +881,7 @@ class _ParticipantTile extends StatelessWidget {
                             )
                           : const Icon(Icons.hearing_rounded),
                       label: Text(
-                        isArabic ? '????? ??????' : 'Move to listener',
+                        isArabic ? '\u0625\u0639\u0627\u062f\u062a\u0647 \u0645\u0633\u062a\u0645\u0639\u0627\u064b' : 'Move to listener',
                       ),
                     ),
                   ),
