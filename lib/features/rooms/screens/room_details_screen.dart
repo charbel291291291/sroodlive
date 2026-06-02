@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
 import '../models/room.dart';
@@ -35,6 +38,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   String? _roleBusyUserId;
 
   List<RoomMember> _members = const [];
+  RealtimeChannel? _membersChannel;
 
   String? get _currentUserId =>
       SupabaseService.requiredClient.auth.currentUser?.id;
@@ -77,18 +81,48 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   void initState() {
     super.initState();
     _loadMembers();
+    _subscribeToMembers();
   }
 
   @override
   void dispose() {
+    final membersChannel = _membersChannel;
+
+    if (membersChannel != null) {
+      unawaited(SupabaseService.requiredClient.removeChannel(membersChannel));
+    }
+
     _liveKitRoomService.disconnect();
     super.dispose();
   }
 
-  Future<void> _loadMembers() async {
-    setState(() {
-      _loadingMembers = true;
-    });
+  void _subscribeToMembers() {
+    _membersChannel = SupabaseService.requiredClient
+        .channel('room_members_${widget.room.id}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'room_members',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'room_id',
+            value: widget.room.id,
+          ),
+          callback: (_) {
+            if (!mounted) return;
+
+            unawaited(_loadMembers(showLoading: false));
+          },
+        )
+        .subscribe();
+  }
+
+  Future<void> _loadMembers({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() {
+        _loadingMembers = true;
+      });
+    }
 
     try {
       final members = await _roomsService.getActiveRoomMembers(widget.room.id);
@@ -143,9 +177,11 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       );
     } finally {
       if (mounted) {
-        setState(() {
-          _loadingMembers = false;
-        });
+        if (showLoading) {
+          setState(() {
+            _loadingMembers = false;
+          });
+        }
       }
     }
   }
@@ -389,7 +425,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       ),
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _loadMembers,
+          onRefresh: () => _loadMembers(),
           child: ListView(
             padding: const EdgeInsets.all(24),
             children: [
