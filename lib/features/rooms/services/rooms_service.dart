@@ -94,6 +94,29 @@ class RoomsService {
     return Room.fromJson(data);
   }
 
+  Future<String> getMyRoleForRoom(String roomId) async {
+    final client = SupabaseService.requiredClient;
+    final user = client.auth.currentUser;
+
+    if (user == null) {
+      throw StateError('No logged-in user found.');
+    }
+
+    final room = await client
+        .from('rooms')
+        .select('owner_id')
+        .eq('id', roomId)
+        .single();
+
+    final ownerId = room['owner_id']?.toString();
+
+    if (ownerId == user.id) {
+      return 'host';
+    }
+
+    return 'listener';
+  }
+
   Future<void> joinRoom(String roomId) async {
     final client = SupabaseService.requiredClient;
     final user = client.auth.currentUser;
@@ -102,11 +125,13 @@ class RoomsService {
       throw StateError('No logged-in user found.');
     }
 
+    final role = await getMyRoleForRoom(roomId);
+
     await client.from('room_members').upsert(
       {
         'room_id': roomId,
         'user_id': user.id,
-        'role': 'listener',
+        'role': role,
         'is_muted': true,
         'left_at': null,
       },
