@@ -66,6 +66,14 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
 
   bool get _iCanUseMic => _memberCanUseMic(_myMember);
 
+  int get _activeSpeakerCount {
+    return _members
+        .where((member) => member.role == 'host' || member.role == 'speaker')
+        .length;
+  }
+
+  bool get _speakerSeatsFull => _activeSpeakerCount >= widget.room.maxSeats;
+
   bool get _iAmHost {
     final currentUserId = _currentUserId;
 
@@ -209,6 +217,21 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     });
 
     try {
+      if (role == 'speaker' &&
+          member.role != 'speaker' &&
+          _speakerSeatsFull) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              widget.isArabic
+                  ? '\u0645\u0642\u0627\u0639\u062f \u0627\u0644\u0645\u062a\u062d\u062f\u062b\u064a\u0646 \u0645\u0645\u062a\u0644\u0626\u0629.'
+                  : 'Speaker seats are full.',
+            ),
+          ),
+        );
+        return;
+      }
+
       await _roomsService.updateMemberRole(
         roomId: widget.room.id,
         userId: member.userId,
@@ -535,7 +558,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            widget.isArabic ? '?????????' : 'Participants',
+                            widget.isArabic ? 'Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â´Ã˜Â§Ã˜Â±Ã™Æ’Ã™Ë†Ã™â€ ' : 'Participants',
                             textAlign: textAlign,
                             style: const TextStyle(
                               fontSize: 20,
