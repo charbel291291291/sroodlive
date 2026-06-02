@@ -131,36 +131,6 @@ class RoomsService {
       throw StateError('No logged-in user found.');
     }
 
-    final room = await client
-        .from('rooms')
-        .select('max_seats')
-        .eq('id', roomId)
-        .single();
-
-    final maxSeats = (room['max_seats'] as num?)?.toInt() ?? 12;
-
-    final existingMember = await client
-        .from('room_members')
-        .select('user_id')
-        .eq('room_id', roomId)
-        .eq('user_id', user.id)
-        .filter('left_at', 'is', null)
-        .gte('last_seen_at', _activeSince.toIso8601String())
-        .maybeSingle();
-
-    if (existingMember == null) {
-      final activeMembers = await client
-          .from('room_members')
-          .select('user_id')
-          .eq('room_id', roomId)
-          .filter('left_at', 'is', null)
-          .gte('last_seen_at', _activeSince.toIso8601String());
-
-      if ((activeMembers as List<dynamic>).length >= maxSeats) {
-        throw StateError('Room is full.');
-      }
-    }
-
     final role = await getMyRoleForRoom(roomId);
     final now = DateTime.now().toUtc().toIso8601String();
 
