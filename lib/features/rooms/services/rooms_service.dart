@@ -163,6 +163,34 @@ class RoomsService {
         .filter('left_at', 'is', null);
   }
 
+  Future<void> setRoomLocked({
+    required String roomId,
+    required bool isLocked,
+  }) async {
+    final client = SupabaseService.requiredClient;
+    final user = client.auth.currentUser;
+
+    if (user == null) {
+      throw StateError('No logged-in user found.');
+    }
+
+    final room = await client
+        .from('rooms')
+        .select('owner_id')
+        .eq('id', roomId)
+        .single();
+
+    final ownerId = room['owner_id']?.toString();
+
+    if (ownerId != user.id) {
+      throw StateError('Only the host can lock this room.');
+    }
+
+    await client
+        .from('rooms')
+        .update({'is_locked': isLocked})
+        .eq('id', roomId);
+  }
   Future<void> updateMemberRole({
     required String roomId,
     required String userId,
