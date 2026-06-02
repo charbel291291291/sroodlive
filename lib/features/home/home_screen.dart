@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../core/supabase/supabase_service.dart';
 import '../../main.dart';
 import '../profile/profile_screen.dart';
@@ -26,38 +26,90 @@ class _HomeScreenState extends State<HomeScreen> {
     ];
 
     return Scaffold(
+      extendBody: true,
       body: pages[selectedIndex],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: selectedIndex,
-        onDestinationSelected: (index) {
-          setState(() {
-            selectedIndex = index;
-          });
-        },
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.meeting_room_rounded),
-            label: isArabic ? 'الغرف' : 'Rooms',
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(30),
+            gradient: const LinearGradient(
+              colors: [Color(0xFF241638), Color(0xFF130A20)],
+            ),
+            border: Border.all(color: const Color(0xFF5A3A86)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF8B26D9).withValues(alpha: 0.28),
+                blurRadius: 26,
+                offset: const Offset(0, 14),
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: const Icon(Icons.account_balance_wallet_rounded),
-            label: isArabic ? 'المحفظة' : 'Wallet',
+          child: NavigationBarTheme(
+            data: NavigationBarThemeData(
+              height: 66,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              indicatorColor: const Color(0xFFF0C15A).withValues(alpha: 0.18),
+              labelTextStyle: WidgetStateProperty.resolveWith((states) {
+                final selected = states.contains(WidgetState.selected);
+
+                return TextStyle(
+                  color: selected
+                      ? const Color(0xFFF0C15A)
+                      : const Color(0xFFD8CFEA),
+                  fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+                  fontSize: 12,
+                );
+              }),
+              iconTheme: WidgetStateProperty.resolveWith((states) {
+                final selected = states.contains(WidgetState.selected);
+
+                return IconThemeData(
+                  color: selected
+                      ? const Color(0xFFF0C15A)
+                      : const Color(0xFFD8CFEA),
+                  size: selected ? 28 : 24,
+                );
+              }),
+            ),
+            child: NavigationBar(
+              selectedIndex: selectedIndex,
+              onDestinationSelected: (index) {
+                setState(() {
+                  selectedIndex = index;
+                });
+              },
+              destinations: [
+                NavigationDestination(
+                  selectedIcon: const Icon(Icons.meeting_room_rounded),
+                  icon: const Icon(Icons.meeting_room_outlined),
+                  label: isArabic ? 'الغرف' : 'Rooms',
+                ),
+                NavigationDestination(
+                  selectedIcon: const Icon(
+                    Icons.account_balance_wallet_rounded,
+                  ),
+                  icon: const Icon(Icons.account_balance_wallet_outlined),
+                  label: isArabic ? 'المحفظة' : 'Wallet',
+                ),
+                NavigationDestination(
+                  selectedIcon: const Icon(Icons.person_rounded),
+                  icon: const Icon(Icons.person_outline_rounded),
+                  label: isArabic ? 'الملف' : 'Profile',
+                ),
+              ],
+            ),
           ),
-          NavigationDestination(
-            icon: const Icon(Icons.person_rounded),
-            label: isArabic ? 'الملف' : 'Profile',
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
 class RoomsTab extends StatelessWidget {
-  const RoomsTab({
-    required this.isArabic,
-    super.key,
-  });
+  const RoomsTab({required this.isArabic, super.key});
 
   final bool isArabic;
 
@@ -69,16 +121,14 @@ class RoomsTab extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
-          crossAxisAlignment:
-              isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment: isArabic
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
           children: [
             Text(
               isArabic ? 'الغرف المباشرة' : 'Live Rooms',
               textAlign: isArabic ? TextAlign.right : TextAlign.left,
-              style: const TextStyle(
-                fontSize: 30,
-                fontWeight: FontWeight.w800,
-              ),
+              style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 10),
             Text(
@@ -86,10 +136,7 @@ class RoomsTab extends StatelessWidget {
                   ? 'الغرف الصوتية ستظهر هنا بعد ربط قاعدة البيانات.'
                   : 'Voice rooms will appear here after database setup.',
               textAlign: isArabic ? TextAlign.right : TextAlign.left,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Color(0xFFB8B8C7),
-              ),
+              style: const TextStyle(fontSize: 16, color: Color(0xFFB8B8C7)),
             ),
             const SizedBox(height: 24),
             Container(
@@ -107,7 +154,9 @@ class RoomsTab extends StatelessWidget {
               child: Text(
                 isSupabaseReady
                     ? (isArabic ? 'Supabase متصل' : 'Supabase connected')
-                    : (isArabic ? 'Supabase غير مفعل' : 'Supabase not configured'),
+                    : (isArabic
+                          ? 'Supabase غير مفعل'
+                          : 'Supabase not configured'),
                 textAlign: isArabic ? TextAlign.right : TextAlign.left,
                 style: TextStyle(
                   color: isSupabaseReady
@@ -125,10 +174,7 @@ class RoomsTab extends StatelessWidget {
 }
 
 class WalletTab extends StatelessWidget {
-  const WalletTab({
-    required this.isArabic,
-    super.key,
-  });
+  const WalletTab({required this.isArabic, super.key});
 
   final bool isArabic;
 
@@ -138,16 +184,14 @@ class WalletTab extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
-          crossAxisAlignment:
-              isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment: isArabic
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
           children: [
             Text(
               isArabic ? 'المحفظة' : 'Wallet',
               textAlign: isArabic ? TextAlign.right : TextAlign.left,
-              style: const TextStyle(
-                fontSize: 30,
-                fontWeight: FontWeight.w800,
-              ),
+              style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 10),
             Text(
@@ -155,10 +199,7 @@ class WalletTab extends StatelessWidget {
                   ? 'العملات الهدايا وسجل الشحن سيظهرون هنا.'
                   : 'Coins, gifts, and recharge history will appear here.',
               textAlign: isArabic ? TextAlign.right : TextAlign.left,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Color(0xFFB8B8C7),
-              ),
+              style: const TextStyle(fontSize: 16, color: Color(0xFFB8B8C7)),
             ),
           ],
         ),
@@ -166,5 +207,3 @@ class WalletTab extends StatelessWidget {
     );
   }
 }
-
-
