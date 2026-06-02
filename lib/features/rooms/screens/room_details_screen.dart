@@ -681,6 +681,13 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                   ],
                 ),
               ),
+              const SizedBox(height: 18),
+              _LiveRoomStage(
+                members: _members,
+                maxSeats: widget.room.maxSeats,
+                isArabic: widget.isArabic,
+                activeSpeakerCount: _activeSpeakerCount,
+              ),
               if (_iAmHost) ...[
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
@@ -780,6 +787,11 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                       ),
                   ],
                 ),
+              ),
+              const SizedBox(height: 18),
+              _LiveChatPanel(
+                roomName: widget.room.name,
+                isArabic: widget.isArabic,
               ),
               const SizedBox(height: 18),
               Container(
@@ -892,6 +904,19 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                   ],
                 ),
               ),
+              const SizedBox(height: 18),
+              _LiveBottomActionBar(
+                isArabic: widget.isArabic,
+                connectedAudio: _connectedAudio,
+                connectingAudio: _connectingAudio,
+                micEnabled: _micEnabled,
+                canUseMic: _iCanUseMic,
+                leaving: _leaving,
+                onConnectAudio: _connectAudio,
+                onToggleMic: _toggleMic,
+                onDisconnectAudio: _disconnectAudio,
+                onLeaveRoom: _leaveRoom,
+              ),
               const SizedBox(height: 24),
               OutlinedButton.icon(
                 onPressed: _testingToken ? null : _testLiveKitToken,
@@ -925,6 +950,649 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LiveRoomStage extends StatelessWidget {
+  const _LiveRoomStage({
+    required this.members,
+    required this.maxSeats,
+    required this.isArabic,
+    required this.activeSpeakerCount,
+  });
+
+  final List<RoomMember> members;
+  final int maxSeats;
+  final bool isArabic;
+  final int activeSpeakerCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final seats = _buildSeats();
+    final textAlign = isArabic ? TextAlign.right : TextAlign.left;
+    final crossAxisAlignment = isArabic
+        ? CrossAxisAlignment.end
+        : CrossAxisAlignment.start;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF2D1247), Color(0xFF170B27), Color(0xFF0C0614)],
+        ),
+        border: Border.all(color: Color(0xFF6F4A9B)),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0xFF8B26D9).withValues(alpha: 0.18),
+            blurRadius: 28,
+            offset: Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: crossAxisAlignment,
+        children: [
+          Row(
+            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: crossAxisAlignment,
+                  children: [
+                    Text(
+                      isArabic
+                          ? '\u0645\u0646\u0635\u0629 \u0627\u0644\u0635\u0648\u062a'
+                          : 'Voice Stage',
+                      textAlign: textAlign,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      isArabic
+                          ? '$activeSpeakerCount/$maxSeats \u0645\u0642\u0627\u0639\u062f \u0646\u0634\u0637\u0629'
+                          : '$activeSpeakerCount/$maxSeats active seats',
+                      textAlign: textAlign,
+                      style: const TextStyle(
+                        color: Color(0xFFD8CFEA),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFFD978), Color(0xFFD99A2B)],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0xFFF0C15A).withValues(alpha: 0.30),
+                      blurRadius: 18,
+                      offset: Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.graphic_eq_rounded,
+                  color: Color(0xFF160B26),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 22),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: seats.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              mainAxisSpacing: 22,
+              crossAxisSpacing: 12,
+              childAspectRatio: 0.58,
+            ),
+            itemBuilder: (context, index) {
+              return _LiveSeatBubble(seat: seats[index], isArabic: isArabic);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<_StageSeat> _buildSeats() {
+    final stageMembers = members
+        .where((member) => member.role == 'host' || member.role == 'speaker')
+        .toList();
+
+    final seats = <_StageSeat>[];
+
+    for (final member in stageMembers) {
+      seats.add(
+        _StageSeat(
+          name: member.fallbackName(isArabic),
+          role: member.role,
+          isMuted: member.isMuted,
+          isEmpty: false,
+        ),
+      );
+    }
+
+    final safeMaxSeats = maxSeats <= 0 ? 12 : maxSeats;
+    while (seats.length < safeMaxSeats) {
+      seats.add(
+        const _StageSeat(name: '', role: 'empty', isMuted: true, isEmpty: true),
+      );
+    }
+
+    return seats.take(safeMaxSeats).toList();
+  }
+}
+
+class _StageSeat {
+  const _StageSeat({
+    required this.name,
+    required this.role,
+    required this.isMuted,
+    required this.isEmpty,
+  });
+
+  final String name;
+  final String role;
+  final bool isMuted;
+  final bool isEmpty;
+}
+
+class _LiveSeatBubble extends StatelessWidget {
+  const _LiveSeatBubble({required this.seat, required this.isArabic});
+
+  final _StageSeat seat;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    final isHost = seat.role == 'host';
+    final label = seat.isEmpty
+        ? (isArabic ? '\u0641\u0627\u0631\u063a' : 'Empty')
+        : seat.name;
+    final badge = seat.isEmpty
+        ? (isArabic ? '\u0645\u0642\u0639\u062f' : 'Seat')
+        : isHost
+        ? (isArabic ? '\u0645\u0636\u064a\u0641' : 'Host')
+        : (isArabic ? '\u0645\u062a\u062d\u062f\u062b' : 'Speaker');
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 62,
+          height: 62,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: seat.isEmpty
+                ? const LinearGradient(
+                    colors: [Color(0xFF241638), Color(0xFF130A20)],
+                  )
+                : const LinearGradient(
+                    colors: [Color(0xFFF0C15A), Color(0xFF8B26D9)],
+                  ),
+            border: Border.all(
+              color: seat.isEmpty
+                  ? const Color(0xFF5A3A86)
+                  : const Color(0xFFFFD978),
+              width: 1.4,
+            ),
+            boxShadow: seat.isEmpty
+                ? []
+                : [
+                    BoxShadow(
+                      color: const Color(0xFFF0C15A).withValues(alpha: 0.24),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+          ),
+          child: Icon(
+            seat.isEmpty
+                ? Icons.add_rounded
+                : seat.isMuted
+                ? Icons.mic_off_rounded
+                : Icons.mic_rounded,
+            color: seat.isEmpty ? const Color(0xFFD8CFEA) : Colors.white,
+            size: 26,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+            color: seat.isEmpty ? const Color(0xFF9E91B8) : Colors.white,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: isHost
+                ? const Color(0xFFF0C15A).withValues(alpha: 0.18)
+                : const Color(0xFF241638),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: isHost ? const Color(0xFFF0C15A) : const Color(0xFF5A3A86),
+            ),
+          ),
+          child: Text(
+            badge,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              color: isHost ? const Color(0xFFF0C15A) : const Color(0xFFD8CFEA),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LiveChatPanel extends StatelessWidget {
+  const _LiveChatPanel({required this.roomName, required this.isArabic});
+
+  final String roomName;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    final textAlign = isArabic ? TextAlign.right : TextAlign.left;
+    final crossAxisAlignment = isArabic
+        ? CrossAxisAlignment.end
+        : CrossAxisAlignment.start;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        color: const Color(0xFF12091D),
+        border: Border.all(color: const Color(0xFF4A3470)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF8B26D9).withValues(alpha: 0.14),
+            blurRadius: 22,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: crossAxisAlignment,
+        children: [
+          Row(
+            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+            children: [
+              Expanded(
+                child: Text(
+                  isArabic
+                      ? '\u0627\u0644\u062f\u0631\u062f\u0634\u0629'
+                      : 'Room Chat',
+                  textAlign: textAlign,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF241638),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: const Color(0xFF5A3A86)),
+                ),
+                child: Text(
+                  isArabic ? '\u0645\u0628\u0627\u0634\u0631' : 'Live',
+                  style: const TextStyle(
+                    color: Color(0xFFF0C15A),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _LiveChatBubble(
+            isArabic: isArabic,
+            icon: Icons.campaign_rounded,
+            title: isArabic ? '\u062f\u0639\u0648\u0629' : 'Invite',
+            message: isArabic
+                ? '\u0627\u062f\u0639\u064f \u0623\u0635\u062f\u0642\u0627\u0621\u0643 \u0625\u0644\u0649 \u0627\u0644\u063a\u0631\u0641\u0629.'
+                : 'Invite friends into your room.',
+            highlighted: true,
+          ),
+          const SizedBox(height: 10),
+          _LiveChatBubble(
+            isArabic: isArabic,
+            icon: Icons.shield_rounded,
+            title: isArabic ? '\u062a\u0646\u0628\u064a\u0647' : 'Notice',
+            message: isArabic
+                ? '\u0627\u062d\u062a\u0631\u0645 \u0627\u0644\u0645\u0636\u064a\u0641 \u0648\u0627\u0644\u0645\u0633\u062a\u0645\u0639\u064a\u0646. \u0627\u0644\u0645\u062e\u0627\u0644\u0641\u0627\u062a \u0642\u062f \u062a\u0624\u062f\u064a \u0625\u0644\u0649 \u062d\u0638\u0631.'
+                : 'Respect the host and listeners. Violations can lead to a ban.',
+            highlighted: false,
+          ),
+          const SizedBox(height: 10),
+          _LiveChatBubble(
+            isArabic: isArabic,
+            icon: Icons.login_rounded,
+            title: roomName,
+            message: isArabic
+                ? '\u062f\u062e\u0644\u062a \u0627\u0644\u063a\u0631\u0641\u0629.'
+                : 'You entered the room.',
+            highlighted: false,
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF241638),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: const Color(0xFF5A3A86)),
+            ),
+            child: Row(
+              textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+              children: [
+                Expanded(
+                  child: Text(
+                    isArabic
+                        ? '\u0627\u0644\u062f\u0631\u062f\u0634\u0629 \u0633\u062a\u0641\u0639\u0644 \u0641\u064a \u0645\u0631\u062d\u0644\u0629 \u0644\u0627\u062d\u0642\u0629'
+                        : 'Chat input will be enabled in a later phase',
+                    textAlign: textAlign,
+                    style: const TextStyle(
+                      color: Color(0xFFD8CFEA),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Icon(Icons.chat_bubble_rounded, color: Color(0xFFF0C15A)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LiveChatBubble extends StatelessWidget {
+  const _LiveChatBubble({
+    required this.isArabic,
+    required this.icon,
+    required this.title,
+    required this.message,
+    required this.highlighted,
+  });
+
+  final bool isArabic;
+  final IconData icon;
+  final String title;
+  final String message;
+  final bool highlighted;
+
+  @override
+  Widget build(BuildContext context) {
+    final textAlign = isArabic ? TextAlign.right : TextAlign.left;
+    final crossAxisAlignment = isArabic
+        ? CrossAxisAlignment.end
+        : CrossAxisAlignment.start;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: highlighted ? const Color(0xFF3A174F) : const Color(0xFF1B102B),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: highlighted
+              ? const Color(0xFFF0C15A).withValues(alpha: 0.45)
+              : const Color(0xFF4A3470),
+        ),
+      ),
+      child: Row(
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            color: highlighted
+                ? const Color(0xFFF0C15A)
+                : const Color(0xFFD8CFEA),
+            size: 22,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: crossAxisAlignment,
+              children: [
+                Text(
+                  title,
+                  textAlign: textAlign,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  message,
+                  textAlign: textAlign,
+                  style: const TextStyle(
+                    color: Color(0xFFD8CFEA),
+                    fontWeight: FontWeight.w600,
+                    height: 1.25,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LiveBottomActionBar extends StatelessWidget {
+  const _LiveBottomActionBar({
+    required this.isArabic,
+    required this.connectedAudio,
+    required this.connectingAudio,
+    required this.micEnabled,
+    required this.canUseMic,
+    required this.leaving,
+    required this.onConnectAudio,
+    required this.onToggleMic,
+    required this.onDisconnectAudio,
+    required this.onLeaveRoom,
+  });
+
+  final bool isArabic;
+  final bool connectedAudio;
+  final bool connectingAudio;
+  final bool micEnabled;
+  final bool canUseMic;
+  final bool leaving;
+  final VoidCallback onConnectAudio;
+  final VoidCallback onToggleMic;
+  final VoidCallback onDisconnectAudio;
+  final VoidCallback onLeaveRoom;
+
+  @override
+  Widget build(BuildContext context) {
+    final micLabel = connectedAudio
+        ? (micEnabled
+              ? (isArabic ? '\u0643\u062a\u0645' : 'Mute')
+              : (isArabic ? '\u0641\u062a\u062d' : 'Unmute'))
+        : (isArabic ? '\u062a\u0634\u063a\u064a\u0644' : 'Connect');
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF241638), Color(0xFF160B26)],
+        ),
+        border: Border.all(color: const Color(0xFF5A3A86)),
+      ),
+      child: Row(
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        children: [
+          _LiveActionButton(
+            icon: connectedAudio
+                ? (micEnabled ? Icons.mic_rounded : Icons.mic_off_rounded)
+                : Icons.wifi_tethering_rounded,
+            label: micLabel,
+            highlighted: true,
+            busy: connectingAudio,
+            disabled: !canUseMic || connectingAudio,
+            onPressed: connectedAudio ? onToggleMic : onConnectAudio,
+          ),
+          const SizedBox(width: 8),
+          _LiveActionButton(
+            icon: Icons.link_off_rounded,
+            label: isArabic ? '\u0641\u0635\u0644' : 'Off',
+            highlighted: false,
+            busy: false,
+            disabled: !connectedAudio,
+            onPressed: onDisconnectAudio,
+          ),
+          const SizedBox(width: 8),
+          _LiveActionButton(
+            icon: Icons.card_giftcard_rounded,
+            label: isArabic ? '\u0647\u062f\u064a\u0629' : 'Gift',
+            highlighted: false,
+            busy: false,
+            disabled: false,
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    isArabic
+                        ? '\u0627\u0644\u0647\u062f\u0627\u064a\u0627 \u0633\u062a\u0636\u0627\u0641 \u0641\u064a \u0645\u0631\u062d\u0644\u0629 \u0644\u0627\u062d\u0642\u0629.'
+                        : 'Gifts will be added in a later phase.',
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+          _LiveActionButton(
+            icon: Icons.logout_rounded,
+            label: isArabic ? '\u062e\u0631\u0648\u062c' : 'Leave',
+            highlighted: false,
+            danger: true,
+            busy: leaving,
+            disabled: leaving,
+            onPressed: onLeaveRoom,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LiveActionButton extends StatelessWidget {
+  const _LiveActionButton({
+    required this.icon,
+    required this.label,
+    required this.highlighted,
+    required this.busy,
+    required this.disabled,
+    required this.onPressed,
+    this.danger = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool highlighted;
+  final bool busy;
+  final bool disabled;
+  final bool danger;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = danger
+        ? const Color(0xFFFF5C7A)
+        : highlighted
+        ? const Color(0xFFF0C15A)
+        : const Color(0xFFD8CFEA);
+
+    return Expanded(
+      child: Opacity(
+        opacity: disabled ? 0.45 : 1,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: disabled ? null : onPressed,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 11),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              color: highlighted
+                  ? const Color(0xFFF0C15A).withValues(alpha: 0.16)
+                  : const Color(0xFF12091D),
+              border: Border.all(
+                color: highlighted
+                    ? const Color(0xFFF0C15A)
+                    : const Color(0xFF4A3470),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (busy)
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  Icon(icon, color: color, size: 21),
+                const SizedBox(height: 5),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
