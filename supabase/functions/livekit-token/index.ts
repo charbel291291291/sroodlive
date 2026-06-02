@@ -1,4 +1,4 @@
-﻿import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -111,7 +111,7 @@ serve(async (req) => {
 
     const { data: room, error: roomError } = await supabase
       .from("rooms")
-      .select("id, livekit_room_name")
+      .select("id, owner_id, livekit_room_name")
       .eq("id", roomId)
       .single();
 
@@ -122,15 +122,39 @@ serve(async (req) => {
       });
     }
 
-    await supabase.from("room_members").upsert(
-      {
-        room_id: roomId,
-        user_id: user.id,
-        role: "listener",
-        left_at: null,
-      },
-      { onConflict: "room_id,user_id" },
-    );
+    const { data: existingMember } = await supabase
+      .from("room_members")
+      .select("role")
+      .eq("room_id", roomId)
+      .eq("user_id", user.id)
+      .filter("left_at", "is", null)
+      .maybeSingle();
+
+    let role = existingMember?.role ?? null;
+
+    if (!role) {
+      role = room.owner_id === user.id ? "host" : "listener";
+
+      const { error: joinError } = await supabase.from("room_members").upsert(
+        {
+          room_id: roomId,
+          user_id: user.id,
+          role,
+          is_muted: true,
+          left_at: null,
+        },
+        { onConflict: "room_id,user_id" },
+      );
+
+      if (joinError) {
+        return new Response(JSON.stringify({ error: joinError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    const canPublish = role === "host" || role === "speaker";
 
     const now = Math.floor(Date.now() / 1000);
     const livekitRoomName = room.livekit_room_name || `srood_${room.id}`;
@@ -145,7 +169,7 @@ serve(async (req) => {
         video: {
           roomJoin: true,
           room: livekitRoomName,
-          canPublish: true,
+          canPublish,
           canSubscribe: true,
           canPublishData: true,
         },
@@ -158,6 +182,8 @@ serve(async (req) => {
         token,
         url: livekitWsUrl,
         roomName: livekitRoomName,
+        role,
+        canPublish,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

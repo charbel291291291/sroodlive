@@ -1,4 +1,4 @@
-﻿import 'package:livekit_client/livekit_client.dart';
+import 'package:livekit_client/livekit_client.dart';
 
 import 'livekit_token_service.dart';
 
@@ -15,6 +15,7 @@ class LiveKitRoomService {
 
   Future<Room> connect({
     required String roomId,
+    bool microphoneEnabled = true,
   }) async {
     final tokenResponse = await _tokenService.getToken(roomId: roomId);
 
@@ -30,7 +31,7 @@ class LiveKitRoomService {
       tokenResponse.token,
     );
 
-    await room.localParticipant?.setMicrophoneEnabled(true);
+    await room.localParticipant?.setMicrophoneEnabled(microphoneEnabled);
 
     _room = room;
 
@@ -46,3 +47,4 @@ class LiveKitRoomService {
     _room = null;
   }
 }
+

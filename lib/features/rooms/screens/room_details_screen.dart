@@ -39,6 +39,28 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   String? get _currentUserId =>
       SupabaseService.requiredClient.auth.currentUser?.id;
 
+  RoomMember? get _myMember {
+    final currentUserId = _currentUserId;
+
+    if (currentUserId == null) {
+      return null;
+    }
+
+    for (final member in _members) {
+      if (member.userId == currentUserId) {
+        return member;
+      }
+    }
+
+    return null;
+  }
+
+  bool _memberCanUseMic(RoomMember? member) {
+    return member?.role == 'host' || member?.role == 'speaker';
+  }
+
+  bool get _iCanUseMic => _memberCanUseMic(_myMember);
+
   bool get _iAmHost {
     final currentUserId = _currentUserId;
 
@@ -76,6 +98,43 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       setState(() {
         _members = members;
       });
+
+      RoomMember? currentMember;
+      final currentUserId = _currentUserId;
+
+      if (currentUserId != null) {
+        for (final member in members) {
+          if (member.userId == currentUserId) {
+            currentMember = member;
+            break;
+          }
+        }
+      }
+
+      if (_connectedAudio && !_memberCanUseMic(currentMember)) {
+        await _liveKitRoomService.disconnect();
+        await _roomsService.setMyMuteStatus(
+          roomId: widget.room.id,
+          isMuted: true,
+        );
+
+        if (!mounted) return;
+
+        setState(() {
+          _connectedAudio = false;
+          _micEnabled = true;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              widget.isArabic
+                  ? '?? ??? ????? ???? ????? ????'
+                  : 'Audio disconnected because you are now a listener',
+            ),
+          ),
+        );
+      }
     } catch (error) {
       if (!mounted) return;
 
@@ -169,6 +228,19 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   }
 
   Future<void> _connectAudio() async {
+    if (!_iCanUseMic) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.isArabic
+                ? '???? ?? ?????? ?????? ??? ????? ?????? ??????'
+                : 'Ask the host to make you a speaker to use the mic',
+          ),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _connectingAudio = true;
     });
@@ -176,6 +248,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     try {
       await _liveKitRoomService.connect(
         roomId: widget.room.id,
+        microphoneEnabled: true,
       );
 
       await _roomsService.setMyMuteStatus(
@@ -501,6 +574,29 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                       ),
                     ),
                     const SizedBox(height: 18),
+                    if (!_iCanUseMic)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF232332),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: const Color(0xFF303044),
+                          ),
+                        ),
+                        child: Text(
+                          widget.isArabic
+                              ? '??? ????? ?????. ???? ?? ?????? ?????? ??? ????? ?????? ??????.'
+                              : 'You are a listener. Ask the host to make you a speaker to use the mic.',
+                          textAlign: textAlign,
+                          style: const TextStyle(
+                            color: Color(0xFFB8B8C7),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 18),
                     Icon(
                       _connectedAudio
                           ? Icons.graphic_eq_rounded
@@ -510,7 +606,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                     ),
                     const SizedBox(height: 18),
                     FilledButton.icon(
-                      onPressed: _connectedAudio || _connectingAudio
+                      onPressed: _connectedAudio || _connectingAudio || !_iCanUseMic
                           ? null
                           : _connectAudio,
                       icon: _connectingAudio
@@ -786,3 +882,4 @@ class _RoomDetailPill extends StatelessWidget {
     );
   }
 }
+
