@@ -671,117 +671,6 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                 isArabic: widget.isArabic,
               ),
               const SizedBox(height: 18),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF171125),
-                  borderRadius: BorderRadius.circular(26),
-                  border: Border.all(color: const Color(0xFF4A3470)),
-                ),
-                child: Column(
-                  crossAxisAlignment: crossAxisAlignment,
-                  children: [
-                    Text(
-                      widget.isArabic
-                          ? '\u0627\u0644\u0635\u0648\u062a \u0627\u0644\u0645\u0628\u0627\u0634\u0631'
-                          : 'Live audio',
-                      textAlign: textAlign,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      widget.isArabic
-                          ? '\u0627\u062a\u0635\u0644 \u0628\u063a\u0631\u0641\u0629 \u0627\u0644\u0635\u0648\u062a \u0627\u0644\u0645\u0628\u0627\u0634\u0631.'
-                          : 'Connect to the live audio room.',
-                      textAlign: textAlign,
-                      style: const TextStyle(color: Color(0xFFD8CFEA)),
-                    ),
-                    const SizedBox(height: 18),
-                    if (!_iCanUseMic)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF241638),
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: const Color(0xFF5A3A86)),
-                        ),
-                        child: Text(
-                          widget.isArabic
-                              ? '\u0623\u0646\u062a \u0645\u0633\u062a\u0645\u0639 \u062d\u0627\u0644\u064a\u0627\u064b. \u0627\u0637\u0644\u0628 \u0645\u0646 \u0627\u0644\u0645\u0636\u064a\u0641 \u062a\u0631\u0642\u064a\u062a\u0643 \u0625\u0644\u0649 \u0645\u062a\u062d\u062f\u062b \u0644\u0627\u0633\u062a\u062e\u062f\u0627\u0645 \u0627\u0644\u0645\u0627\u064a\u0643.'
-                              : 'You are a listener. Ask the host to make you a speaker to use the mic.',
-                          textAlign: textAlign,
-                          style: const TextStyle(
-                            color: Color(0xFFD8CFEA),
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 18),
-                    Icon(
-                      _connectedAudio
-                          ? Icons.graphic_eq_rounded
-                          : Icons.mic_none_rounded,
-                      color: const Color(0xFFF0C15A),
-                      size: 52,
-                    ),
-                    const SizedBox(height: 18),
-                    FilledButton.icon(
-                      onPressed:
-                          _connectedAudio || _connectingAudio || !_iCanUseMic
-                          ? null
-                          : _connectAudio,
-                      icon: _connectingAudio
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.wifi_tethering_rounded),
-                      label: Text(
-                        widget.isArabic
-                            ? '\u062a\u0634\u063a\u064a\u0644 \u0627\u0644\u0635\u0648\u062a'
-                            : 'Connect audio',
-                      ),
-                    ),
-                    if (_connectedAudio) ...[
-                      const SizedBox(height: 12),
-                      OutlinedButton.icon(
-                        onPressed: _toggleMic,
-                        icon: Icon(
-                          _micEnabled
-                              ? Icons.mic_rounded
-                              : Icons.mic_off_rounded,
-                        ),
-                        label: Text(
-                          _micEnabled
-                              ? (widget.isArabic
-                                    ? '\u0643\u062a\u0645 \u0627\u0644\u0645\u0627\u064a\u0643'
-                                    : 'Mute mic')
-                              : (widget.isArabic
-                                    ? '\u0641\u062a\u062d \u0627\u0644\u0645\u0627\u064a\u0643'
-                                    : 'Unmute mic'),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      OutlinedButton.icon(
-                        onPressed: _disconnectAudio,
-                        icon: const Icon(Icons.link_off_rounded),
-                        label: Text(
-                          widget.isArabic
-                              ? '\u0641\u0635\u0644 \u0627\u0644\u0635\u0648\u062a'
-                              : 'Disconnect audio',
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
               _LiveBottomActionBar(
                 isArabic: widget.isArabic,
                 connectedAudio: _connectedAudio,
@@ -1207,120 +1096,53 @@ class _LiveChatPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textAlign = isArabic ? TextAlign.right : TextAlign.left;
-    final crossAxisAlignment = isArabic
-        ? CrossAxisAlignment.end
-        : CrossAxisAlignment.start;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
         color: const Color(0xFF12091D),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFF4A3470)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF8B26D9).withValues(alpha: 0.14),
-            blurRadius: 22,
-            offset: const Offset(0, 12),
-          ),
-        ],
       ),
-      child: Column(
-        crossAxisAlignment: crossAxisAlignment,
+      child: Row(
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
         children: [
-          Row(
-            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-            children: [
-              Expanded(
-                child: Text(
-                  isArabic
-                      ? '\u0627\u0644\u062f\u0631\u062f\u0634\u0629'
-                      : 'Room Chat',
-                  textAlign: textAlign,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
+          const Icon(
+            Icons.chat_bubble_rounded,
+            color: Color(0xFFF0C15A),
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              isArabic
+                  ? '\u0627\u0644\u062f\u0631\u062f\u0634\u0629 \u0633\u062a\u0641\u0639\u0644 \u0644\u0627\u062d\u0642\u0627\u064b'
+                  : 'Chat will be enabled later',
+              textAlign: textAlign,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFFD8CFEA),
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF241638),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: const Color(0xFF5A3A86)),
-                ),
-                child: Text(
-                  isArabic ? '\u0645\u0628\u0627\u0634\u0631' : 'Live',
-                  style: const TextStyle(
-                    color: Color(0xFFF0C15A),
-                    fontWeight: FontWeight.w900,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: 14),
-          _LiveChatBubble(
-            isArabic: isArabic,
-            icon: Icons.campaign_rounded,
-            title: isArabic ? '\u062f\u0639\u0648\u0629' : 'Invite',
-            message: isArabic
-                ? '\u0627\u062f\u0639\u064f \u0623\u0635\u062f\u0642\u0627\u0621\u0643 \u0625\u0644\u0649 \u0627\u0644\u063a\u0631\u0641\u0629.'
-                : 'Invite friends into your room.',
-            highlighted: true,
-          ),
-          const SizedBox(height: 10),
-          _LiveChatBubble(
-            isArabic: isArabic,
-            icon: Icons.shield_rounded,
-            title: isArabic ? '\u062a\u0646\u0628\u064a\u0647' : 'Notice',
-            message: isArabic
-                ? '\u0627\u062d\u062a\u0631\u0645 \u0627\u0644\u0645\u0636\u064a\u0641 \u0648\u0627\u0644\u0645\u0633\u062a\u0645\u0639\u064a\u0646. \u0627\u0644\u0645\u062e\u0627\u0644\u0641\u0627\u062a \u0642\u062f \u062a\u0624\u062f\u064a \u0625\u0644\u0649 \u062d\u0638\u0631.'
-                : 'Respect the host and listeners. Violations can lead to a ban.',
-            highlighted: false,
-          ),
-          const SizedBox(height: 10),
-          _LiveChatBubble(
-            isArabic: isArabic,
-            icon: Icons.login_rounded,
-            title: roomName,
-            message: isArabic
-                ? '\u062f\u062e\u0644\u062a \u0627\u0644\u063a\u0631\u0641\u0629.'
-                : 'You entered the room.',
-            highlighted: false,
-          ),
-          const SizedBox(height: 14),
+          const SizedBox(width: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: const Color(0xFF241638),
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: const Color(0xFF5A3A86)),
             ),
-            child: Row(
-              textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-              children: [
-                Expanded(
-                  child: Text(
-                    isArabic
-                        ? '\u0627\u0644\u062f\u0631\u062f\u0634\u0629 \u0633\u062a\u0641\u0639\u0644 \u0641\u064a \u0645\u0631\u062d\u0644\u0629 \u0644\u0627\u062d\u0642\u0629'
-                        : 'Chat input will be enabled in a later phase',
-                    textAlign: textAlign,
-                    style: const TextStyle(
-                      color: Color(0xFFD8CFEA),
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                const Icon(Icons.chat_bubble_rounded, color: Color(0xFFF0C15A)),
-              ],
+            child: Text(
+              isArabic ? '\u0642\u0631\u064a\u0628\u0627\u064b' : 'Soon',
+              style: const TextStyle(
+                color: Color(0xFFF0C15A),
+                fontWeight: FontWeight.w900,
+                fontSize: 10,
+              ),
             ),
           ),
         ],
