@@ -551,96 +551,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
           child: ListView(
             padding: const EdgeInsets.all(24),
             children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF171125),
-                  borderRadius: BorderRadius.circular(26),
-                  border: Border.all(color: const Color(0xFF4A3470)),
-                ),
-                child: Column(
-                  crossAxisAlignment: crossAxisAlignment,
-                  children: [
-                    Container(
-                      width: 58,
-                      height: 58,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF0C15A).withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Icon(
-                        Icons.mic_rounded,
-                        color: Color(0xFFF0C15A),
-                        size: 30,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Text(
-                      widget.room.name,
-                      textAlign: textAlign,
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      widget.room.description?.isNotEmpty == true
-                          ? widget.room.description!
-                          : (widget.isArabic
-                                ? '\u0644\u0627 \u064a\u0648\u062c\u062f \u0648\u0635\u0641'
-                                : 'No description'),
-                      textAlign: textAlign,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Color(0xFFD8CFEA),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Wrap(
-                      textDirection: widget.isArabic
-                          ? TextDirection.rtl
-                          : TextDirection.ltr,
-                      spacing: 8,
-                      runSpacing: 10,
-                      children: [
-                        _RoomDetailPill(
-                          icon: Icons.language_rounded,
-                          label: widget.room.language.toUpperCase(),
-                        ),
-                        _RoomDetailPill(
-                          icon: Icons.event_seat_rounded,
-                          label: '$_activeSpeakerCount/${widget.room.maxSeats}',
-                        ),
-                        _RoomDetailPill(
-                          icon: _roomLocked
-                              ? Icons.lock_rounded
-                              : Icons.lock_open_rounded,
-                          label: widget.isArabic
-                              ? (_roomLocked
-                                    ? '\u0645\u0642\u0641\u0644\u0629'
-                                    : '\u0645\u0641\u062a\u0648\u062d\u0629')
-                              : (_roomLocked ? 'Locked' : 'Open'),
-                        ),
-                      ],
-                    ),
-                    if (_iAmHost) ...[
-                      const SizedBox(height: 12),
-                      Align(
-                        alignment: widget.isArabic
-                            ? Alignment.centerRight
-                            : Alignment.centerLeft,
-                        child: _RoomDetailPill(
-                          icon: Icons.admin_panel_settings_rounded,
-                          label: widget.isArabic
-                              ? '\u0623\u0646\u062a \u0627\u0644\u0645\u0636\u064a\u0641'
-                              : 'You host',
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
+              _CompactRoomHeader(
+                room: widget.room,
+                activeSpeakerCount: _activeSpeakerCount,
+                isLocked: _roomLocked,
+                isHost: _iAmHost,
+                isArabic: widget.isArabic,
               ),
               const SizedBox(height: 18),
               _LiveRoomStage(
@@ -881,6 +797,144 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _CompactRoomHeader extends StatelessWidget {
+  const _CompactRoomHeader({
+    required this.room,
+    required this.activeSpeakerCount,
+    required this.isLocked,
+    required this.isHost,
+    required this.isArabic,
+  });
+
+  final Room room;
+  final int activeSpeakerCount;
+  final bool isLocked;
+  final bool isHost;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    final textAlign = isArabic ? TextAlign.right : TextAlign.left;
+    final crossAxisAlignment = isArabic
+        ? CrossAxisAlignment.end
+        : CrossAxisAlignment.start;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: const Color(0xFF12091D),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF4A3470)),
+      ),
+      child: Row(
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0C15A).withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: const Icon(
+              Icons.mic_rounded,
+              color: Color(0xFFF0C15A),
+              size: 21,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: crossAxisAlignment,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  room.name,
+                  textAlign: textAlign,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  room.description?.isNotEmpty == true
+                      ? room.description!
+                      : (isArabic
+                            ? '\u0644\u0627 \u064a\u0648\u062c\u062f \u0648\u0635\u0641'
+                            : 'No description'),
+                  textAlign: textAlign,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFFCFC6DE),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          _MiniRoomStatusPill(
+            icon: Icons.event_seat_rounded,
+            label: '$activeSpeakerCount/${room.maxSeats}',
+          ),
+          const SizedBox(width: 6),
+          _MiniRoomStatusPill(
+            icon: isLocked ? Icons.lock_rounded : Icons.lock_open_rounded,
+            label: isArabic
+                ? (isLocked
+                      ? '\u0645\u0642\u0641\u0644\u0629'
+                      : '\u0645\u0641\u062a\u0648\u062d\u0629')
+                : (isLocked ? 'Locked' : 'Open'),
+          ),
+          if (isHost) ...[
+            const SizedBox(width: 6),
+            _MiniRoomStatusPill(
+              icon: Icons.admin_panel_settings_rounded,
+              label: isArabic ? '\u0645\u0636\u064a\u0641' : 'Host',
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniRoomStatusPill extends StatelessWidget {
+  const _MiniRoomStatusPill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF241638),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: const Color(0xFFF0C15A)),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+          ),
+        ],
       ),
     );
   }
@@ -1699,35 +1753,6 @@ class _SmallStatusPill extends StatelessWidget {
           fontWeight: FontWeight.w800,
           color: Color(0xFFF0C15A),
         ),
-      ),
-    );
-  }
-}
-
-class _RoomDetailPill extends StatelessWidget {
-  const _RoomDetailPill({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF241638),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: const Color(0xFFF0C15A)),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
-          ),
-        ],
       ),
     );
   }
