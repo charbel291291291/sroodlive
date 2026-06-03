@@ -5,7 +5,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
 import '../models/room.dart';
+import '../models/room_gift.dart';
 import '../models/room_member.dart';
+import '../services/gifts_service.dart';
 import '../services/livekit_room_service.dart';
 import '../services/rooms_service.dart';
 
@@ -25,6 +27,7 @@ class RoomDetailsScreen extends StatefulWidget {
 
 class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   final RoomsService _roomsService = const RoomsService();
+  final GiftsService _giftsService = const GiftsService();
   final LiveKitRoomService _liveKitRoomService = LiveKitRoomService();
 
   bool _leaving = false;
@@ -43,6 +46,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   final List<_RoomGiftEvent> _giftEvents = [];
   final List<Timer> _giftEventTimers = [];
   final Map<String, int> _giftSupportByUserId = {};
+  RoomMember? _selectedMicMoveMember;
   int _giftEventSeed = 0;
 
   String? get _currentUserId =>
@@ -347,13 +351,34 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   }
 
   Future<void> _pickListenerForSeat(int seatNumber) async {
-    if (!_iAmHost) {
+    if (_myMember == null) {
       return;
     }
 
-    final availableMembers = _members
-        .where((member) => member.role != 'host')
-        .toList();
+    final selectedMicMoveMember = _iAmHost ? _selectedMicMoveMember : null;
+    if (_iAmHost && selectedMicMoveMember != null) {
+      setState(() {
+        _selectedMicMoveMember = null;
+      });
+
+      if (selectedMicMoveMember.role == 'speaker') {
+        await _moveMemberToSeat(
+          member: selectedMicMoveMember,
+          seatNumber: seatNumber,
+        );
+      } else {
+        await _changeMemberRole(
+          member: selectedMicMoveMember,
+          role: 'speaker',
+          seatNumber: seatNumber,
+        );
+      }
+      return;
+    }
+
+    final availableMembers = _iAmHost
+        ? _members.where((member) => member.role != 'host').toList()
+        : <RoomMember>[];
 
     final selected = await showModalBottomSheet<_EmptySeatAction>(
       context: context,
@@ -373,8 +398,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
               children: [
                 Text(
                   widget.isArabic
-                      ? '\u0646\u0642\u0644 \u0645\u0633\u062a\u0645\u0639 \u0625\u0644\u0649 \u0645\u0627\u064a\u0643 $seatNumber'
-                      : 'Move listener to Mic $seatNumber',
+                      ? '\u0627\u0644\u0627\u0646\u062a\u0642\u0627\u0644 \u0625\u0644\u0649 \u0645\u0627\u064a\u0643 $seatNumber'
+                      : 'Move to Mic $seatNumber',
                   textAlign: widget.isArabic ? TextAlign.right : TextAlign.left,
                   style: const TextStyle(
                     fontSize: 20,
@@ -399,7 +424,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                if (availableMembers.isEmpty)
+                if (_iAmHost && availableMembers.isEmpty)
                   Text(
                     widget.isArabic
                         ? '\u0644\u0627 \u064a\u0648\u062c\u062f \u0623\u0639\u0636\u0627\u0621 \u0645\u062a\u0627\u062d\u0648\u0646 \u0644\u0647\u0630\u0627 \u0627\u0644\u0645\u0627\u064a\u0643.'
@@ -412,36 +437,36 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                ...availableMembers.map(
-                  (member) => ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const CircleAvatar(
-                      backgroundColor: Color(0xFF241638),
-                      child: Icon(
-                        Icons.person_rounded,
-                        color: Color(0xFFF0C15A),
+                if (_iAmHost)
+                  ...availableMembers.map(
+                    (member) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: _RoomAvatar(
+                        avatarUrl: member.avatarUrl,
+                        size: 42,
+                        selected: false,
+                        fallbackIcon: Icons.person_rounded,
                       ),
+                      title: Text(
+                        member.fallbackName(widget.isArabic),
+                        textAlign: widget.isArabic
+                            ? TextAlign.right
+                            : TextAlign.left,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      subtitle: Text(
+                        _roleLabel(member.role),
+                        textAlign: widget.isArabic
+                            ? TextAlign.right
+                            : TextAlign.left,
+                      ),
+                      onTap: () {
+                        Navigator.of(
+                          sheetContext,
+                        ).pop(_EmptySeatAction.moveMember(member));
+                      },
                     ),
-                    title: Text(
-                      member.fallbackName(widget.isArabic),
-                      textAlign: widget.isArabic
-                          ? TextAlign.right
-                          : TextAlign.left,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                    subtitle: Text(
-                      _roleLabel(member.role),
-                      textAlign: widget.isArabic
-                          ? TextAlign.right
-                          : TextAlign.left,
-                    ),
-                    onTap: () {
-                      Navigator.of(
-                        sheetContext,
-                      ).pop(_EmptySeatAction.moveMember(member));
-                    },
                   ),
-                ),
               ],
             ),
           ),
@@ -471,14 +496,77 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     );
   }
 
-  Future<void> _moveMyselfToSeat(int seatNumber) async {
+  Future<void> _moveMemberToSeat({
+    required RoomMember member,
+    required int seatNumber,
+  }) async {
+    if (!_iAmHost || member.role == 'host') {
+      return;
+    }
+
+    setState(() {
+      _roleBusyUserId = member.userId;
+      _selectedMicMoveMember = null;
+    });
+
     try {
-      await _roomsService.updateMySeatNumber(
+      await _roomsService.updateMemberSeatNumber(
         roomId: widget.room.id,
+        userId: member.userId,
         seatNumber: seatNumber,
       );
 
-      _replaceMemberLocally(_myMember, seatNumber: seatNumber);
+      _replaceMemberLocally(member, seatNumber: seatNumber);
+
+      await _loadMembers(showLoading: false);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.isArabic
+                ? '\u062a\u0645 \u0646\u0642\u0644\u0647 \u0625\u0644\u0649 \u0645\u0627\u064a\u0643 $seatNumber.'
+                : 'Moved to Mic $seatNumber.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _roleBusyUserId = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _moveMyselfToSeat(int seatNumber) async {
+    try {
+      final myMember = _myMember;
+
+      if (myMember?.role == 'host') {
+        await _roomsService.updateMySeatNumber(
+          roomId: widget.room.id,
+          seatNumber: seatNumber,
+        );
+      } else {
+        await _roomsService.moveMeToSpeakerSeat(
+          roomId: widget.room.id,
+          seatNumber: seatNumber,
+        );
+      }
+
+      _replaceMemberLocally(
+        myMember,
+        role: myMember?.role == 'host' ? null : 'speaker',
+        seatNumber: seatNumber,
+      );
 
       await _loadMembers(showLoading: false);
 
@@ -561,6 +649,21 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                   ),
                 ),
                 const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () => Navigator.of(
+                      sheetContext,
+                    ).pop(const _OccupiedSeatAction.selectForMove()),
+                    icon: const Icon(Icons.touch_app_rounded),
+                    label: Text(
+                      widget.isArabic
+                          ? '\u0627\u062e\u062a\u0631\u0647 \u062b\u0645 \u0627\u0636\u063a\u0637 \u0645\u0627\u064a\u0643 \u0641\u0627\u0631\u063a'
+                          : 'Select, then tap empty mic',
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
                 if (emptySeats.isNotEmpty) ...[
                   Text(
                     widget.isArabic
@@ -630,16 +733,62 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       return;
     }
 
+    if (action.selectForMove) {
+      _selectMicMoveMember(member);
+      return;
+    }
+
     if (action.seatNumber != null) {
-      await _changeMemberRole(
-        member: member,
-        role: 'speaker',
-        seatNumber: action.seatNumber,
-      );
+      if (member.role == 'speaker') {
+        await _moveMemberToSeat(member: member, seatNumber: action.seatNumber!);
+      } else {
+        await _changeMemberRole(
+          member: member,
+          role: 'speaker',
+          seatNumber: action.seatNumber,
+        );
+      }
       return;
     }
 
     await _changeMemberRole(member: member, role: 'listener');
+  }
+
+  void _handleOccupiedSeatTap(RoomMember member, int seatNumber) {
+    if (!_iAmHost) {
+      return;
+    }
+
+    if (member.role == 'host') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.isArabic
+                ? '\u0644\u0627 \u064a\u0645\u0643\u0646 \u0646\u0642\u0644 \u0645\u0642\u0639\u062f \u0627\u0644\u0645\u0636\u064a\u0641.'
+                : 'Host seat cannot be moved.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    _selectMicMoveMember(member);
+  }
+
+  void _selectMicMoveMember(RoomMember member) {
+    setState(() {
+      _selectedMicMoveMember = member;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          widget.isArabic
+              ? '\u0627\u0636\u063a\u0637 \u0639\u0644\u0649 \u0645\u0627\u064a\u0643 \u0641\u0627\u0631\u063a \u0644\u0646\u0642\u0644 ${member.fallbackName(widget.isArabic)}.'
+              : 'Tap an empty mic to move ${member.fallbackName(widget.isArabic)}.',
+        ),
+      ),
+    );
   }
 
   List<int> _emptySeatNumbers({String? exceptUserId}) {
@@ -754,8 +903,15 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
           joinedAt: item.joinedAt,
           leftAt: item.leftAt,
           displayName: item.displayName,
+          username: item.username,
+          publicUserId: item.publicUserId,
+          avatarUrl: item.avatarUrl,
         );
       }).toList();
+
+      if (_selectedMicMoveMember?.userId == member.userId) {
+        _selectedMicMoveMember = null;
+      }
     });
   }
 
@@ -919,6 +1075,29 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                 _giftReceiverRank(a.role).compareTo(_giftReceiverRank(b.role)),
           );
 
+    var gifts = _fallbackRoomGifts;
+
+    try {
+      final remoteGifts = await _giftsService.fetchActiveGifts();
+      if (remoteGifts.isNotEmpty) {
+        gifts = remoteGifts;
+      }
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.isArabic
+                ? '\u062a\u0639\u0630\u0631 \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0647\u062f\u0627\u064a\u0627. \u0633\u064a\u062a\u0645 \u0627\u0633\u062a\u062e\u062f\u0627\u0645 \u0627\u0644\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0645\u062d\u0644\u064a\u0629.'
+                : 'Could not load gifts. Using local gifts.',
+          ),
+        ),
+      );
+    }
+
+    if (!mounted) return;
+
     final result = await showModalBottomSheet<_GiftSendResult>(
       context: context,
       backgroundColor: const Color(0xFF12091D),
@@ -930,6 +1109,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         return _GiftSheet(
           isArabic: widget.isArabic,
           receivers: receivers,
+          gifts: gifts,
           roleLabel: _roleLabel,
         );
       },
@@ -938,6 +1118,29 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     if (result == null || !mounted) {
       return;
     }
+
+    try {
+      await _giftsService.sendGift(
+        roomId: widget.room.id,
+        receiverId: result.receiverUserId,
+        gift: result.gift,
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.isArabic
+                ? '\u062a\u0639\u0630\u0631 \u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0647\u062f\u064a\u0629. \u062d\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.'
+                : 'Could not send gift. Please try again.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (!mounted) return;
 
     _showGiftEvent(result);
 
@@ -963,7 +1166,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     setState(() {
       _giftSupportByUserId[result.receiverUserId] =
           (_giftSupportByUserId[result.receiverUserId] ?? 0) +
-          (result.gift.price * result.quantity);
+          (result.gift.priceCoins * result.quantity);
       _giftEvents.insert(0, event);
       if (_giftEvents.length > 3) {
         _giftEvents.removeLast();
@@ -1031,8 +1234,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                     activeSpeakerCount: _activeSpeakerCount,
                     isHost: _iAmHost,
                     onEmptySeatTap: _pickListenerForSeat,
-                    onOccupiedSeatTap: _showMemberSeatActions,
+                    onOccupiedSeatTap: _handleOccupiedSeatTap,
+                    onOccupiedSeatLongPress: _showMemberSeatActions,
                     supportByUserId: _giftSupportByUserId,
+                    selectedMoveUserId: _selectedMicMoveMember?.userId,
                   ),
                   if (_iAmHost) ...[
                     const SizedBox(height: 12),
@@ -1114,6 +1319,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                           ..._members.map(
                             (member) => _ParticipantTile(
                               name: member.fallbackName(widget.isArabic),
+                              avatarUrl: member.avatarUrl,
+                              publicUserId: member.displayCode,
                               role: _roleLabel(member.role),
                               rawRole: member.role,
                               joinedAt: _joinedLabel(member.joinedAt),
@@ -1314,7 +1521,9 @@ class _LiveRoomStage extends StatelessWidget {
     required this.isHost,
     required this.onEmptySeatTap,
     required this.onOccupiedSeatTap,
+    required this.onOccupiedSeatLongPress,
     required this.supportByUserId,
+    required this.selectedMoveUserId,
   });
 
   final List<RoomMember> members;
@@ -1324,7 +1533,10 @@ class _LiveRoomStage extends StatelessWidget {
   final bool isHost;
   final ValueChanged<int> onEmptySeatTap;
   final void Function(RoomMember member, int seatNumber) onOccupiedSeatTap;
+  final void Function(RoomMember member, int seatNumber)
+  onOccupiedSeatLongPress;
   final Map<String, int> supportByUserId;
+  final String? selectedMoveUserId;
 
   @override
   Widget build(BuildContext context) {
@@ -1429,6 +1641,9 @@ class _LiveRoomStage extends StatelessWidget {
                 isHost: isHost,
                 onEmptySeatTap: onEmptySeatTap,
                 onOccupiedSeatTap: onOccupiedSeatTap,
+                onOccupiedSeatLongPress: onOccupiedSeatLongPress,
+                selectedForMove:
+                    seats[index].member?.userId == selectedMoveUserId,
               );
             },
           ),
@@ -1537,11 +1752,18 @@ class _EmptySeatAction {
 }
 
 class _OccupiedSeatAction {
-  const _OccupiedSeatAction.moveToListener() : seatNumber = null;
+  const _OccupiedSeatAction.selectForMove()
+    : seatNumber = null,
+      selectForMove = true;
 
-  const _OccupiedSeatAction.moveToSeat(this.seatNumber);
+  const _OccupiedSeatAction.moveToListener()
+    : seatNumber = null,
+      selectForMove = false;
+
+  const _OccupiedSeatAction.moveToSeat(this.seatNumber) : selectForMove = false;
 
   final int? seatNumber;
+  final bool selectForMove;
 }
 
 class _LiveSeatBubble extends StatelessWidget {
@@ -1551,6 +1773,8 @@ class _LiveSeatBubble extends StatelessWidget {
     required this.isHost,
     required this.onEmptySeatTap,
     required this.onOccupiedSeatTap,
+    required this.onOccupiedSeatLongPress,
+    required this.selectedForMove,
   });
 
   final _StageSeat seat;
@@ -1558,10 +1782,13 @@ class _LiveSeatBubble extends StatelessWidget {
   final bool isHost;
   final ValueChanged<int> onEmptySeatTap;
   final void Function(RoomMember member, int seatNumber) onOccupiedSeatTap;
+  final void Function(RoomMember member, int seatNumber)
+  onOccupiedSeatLongPress;
+  final bool selectedForMove;
 
   @override
   Widget build(BuildContext context) {
-    final canAssignSeat = seat.isEmpty && isHost;
+    final canAssignSeat = seat.isEmpty;
     final canManageSeat = !seat.isEmpty && isHost && seat.member != null;
     final occupiedByHost = seat.role == 'host';
     final label = seat.isEmpty
@@ -1569,7 +1796,9 @@ class _LiveSeatBubble extends StatelessWidget {
               ? '\u0645\u0627\u064a\u0643 ${seat.number}'
               : 'Mic ${seat.number}')
         : seat.name;
-    final badge = seat.isEmpty
+    final badge = selectedForMove
+        ? (isArabic ? '\u0646\u0642\u0644' : 'Move')
+        : seat.isEmpty
         ? (isArabic ? '\u0627\u0636\u063a\u0637' : 'Tap')
         : occupiedByHost
         ? (isArabic ? '\u0645\u0636\u064a\u0641' : 'Host')
@@ -1585,6 +1814,9 @@ class _LiveSeatBubble extends StatelessWidget {
               : canManageSeat
               ? () => onOccupiedSeatTap(seat.member!, seat.number)
               : null,
+          onLongPress: canManageSeat
+              ? () => onOccupiedSeatLongPress(seat.member!, seat.number)
+              : null,
           child: Container(
             width: 62,
             height: 62,
@@ -1598,12 +1830,22 @@ class _LiveSeatBubble extends StatelessWidget {
                       colors: [Color(0xFFF0C15A), Color(0xFF8B26D9)],
                     ),
               border: Border.all(
-                color: seat.isEmpty
+                color: selectedForMove
+                    ? const Color(0xFF67E8A5)
+                    : seat.isEmpty
                     ? const Color(0xFF5A3A86)
                     : const Color(0xFFFFD978),
-                width: 1.4,
+                width: selectedForMove ? 2.4 : 1.4,
               ),
-              boxShadow: seat.isEmpty
+              boxShadow: selectedForMove
+                  ? [
+                      BoxShadow(
+                        color: const Color(0xFF67E8A5).withValues(alpha: 0.42),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ]
+                  : seat.isEmpty
                   ? []
                   : [
                       BoxShadow(
@@ -1613,14 +1855,39 @@ class _LiveSeatBubble extends StatelessWidget {
                       ),
                     ],
             ),
-            child: Icon(
-              seat.isEmpty
-                  ? Icons.add_rounded
-                  : seat.isMuted
-                  ? Icons.mic_off_rounded
-                  : Icons.mic_rounded,
-              color: seat.isEmpty ? const Color(0xFFD8CFEA) : Colors.white,
-              size: 26,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (seat.isEmpty)
+                  const Icon(
+                    Icons.add_rounded,
+                    color: Color(0xFFD8CFEA),
+                    size: 26,
+                  )
+                else
+                  ClipOval(
+                    child: _RoomAvatarImage(
+                      avatarUrl: seat.member?.avatarUrl,
+                      fallbackIcon: seat.isMuted
+                          ? Icons.mic_off_rounded
+                          : Icons.person_rounded,
+                      iconColor: Colors.white,
+                      size: 62,
+                    ),
+                  ),
+                if (!seat.isEmpty && seat.isMuted)
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.black.withValues(alpha: 0.32),
+                    ),
+                    child: const Icon(
+                      Icons.mic_off_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
@@ -1644,10 +1911,14 @@ class _LiveSeatBubble extends StatelessWidget {
           decoration: BoxDecoration(
             color: canAssignSeat || occupiedByHost
                 ? const Color(0xFFF0C15A).withValues(alpha: 0.18)
+                : selectedForMove
+                ? const Color(0xFF67E8A5).withValues(alpha: 0.18)
                 : const Color(0xFF241638),
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
-              color: occupiedByHost
+              color: selectedForMove
+                  ? const Color(0xFF67E8A5)
+                  : occupiedByHost
                   ? const Color(0xFFF0C15A)
                   : const Color(0xFF5A3A86),
             ),
@@ -1657,7 +1928,9 @@ class _LiveSeatBubble extends StatelessWidget {
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w900,
-              color: occupiedByHost
+              color: selectedForMove
+                  ? const Color(0xFF67E8A5)
+                  : occupiedByHost
                   ? const Color(0xFFF0C15A)
                   : const Color(0xFFD8CFEA),
             ),
@@ -1851,21 +2124,44 @@ class _GiftEventBanner extends StatelessWidget {
   }
 }
 
-class _GiftItem {
-  const _GiftItem({
-    required this.name,
-    required this.arabicName,
-    required this.artwork,
-    required this.icon,
-    required this.price,
-  });
-
-  final String name;
-  final String arabicName;
-  final String artwork;
-  final IconData icon;
-  final int price;
-}
+const List<RoomGift> _fallbackRoomGifts = [
+  RoomGift(
+    id: 'local-rose',
+    code: 'rose',
+    name: 'Rose',
+    arabicName: '\u0648\u0631\u062f\u0629',
+    priceCoins: 10,
+    icon: '\uD83C\uDF39',
+    sortOrder: 1,
+  ),
+  RoomGift(
+    id: 'local-star',
+    code: 'star',
+    name: 'Star',
+    arabicName: '\u0646\u062c\u0645\u0629',
+    priceCoins: 50,
+    icon: '\u2B50',
+    sortOrder: 2,
+  ),
+  RoomGift(
+    id: 'local-crown',
+    code: 'crown',
+    name: 'Crown',
+    arabicName: '\u062a\u0627\u062c',
+    priceCoins: 250,
+    icon: '\uD83D\uDC51',
+    sortOrder: 3,
+  ),
+  RoomGift(
+    id: 'local-rocket',
+    code: 'rocket',
+    name: 'Rocket',
+    arabicName: '\u0635\u0627\u0631\u0648\u062e',
+    priceCoins: 1000,
+    icon: '\uD83D\uDE80',
+    sortOrder: 4,
+  ),
+];
 
 class _GiftSendResult {
   const _GiftSendResult({
@@ -1875,7 +2171,7 @@ class _GiftSendResult {
     required this.quantity,
   });
 
-  final _GiftItem gift;
+  final RoomGift gift;
   final String receiverUserId;
   final String receiverName;
   final int quantity;
@@ -1890,7 +2186,7 @@ class _RoomGiftEvent {
   });
 
   final int id;
-  final _GiftItem gift;
+  final RoomGift gift;
   final String receiverName;
   final int quantity;
 }
@@ -1899,11 +2195,13 @@ class _GiftSheet extends StatefulWidget {
   const _GiftSheet({
     required this.isArabic,
     required this.receivers,
+    required this.gifts,
     required this.roleLabel,
   });
 
   final bool isArabic;
   final List<RoomMember> receivers;
+  final List<RoomGift> gifts;
   final String Function(String role) roleLabel;
 
   @override
@@ -1911,42 +2209,12 @@ class _GiftSheet extends StatefulWidget {
 }
 
 class _GiftSheetState extends State<_GiftSheet> {
-  static const List<_GiftItem> _gifts = [
-    _GiftItem(
-      name: 'Rose',
-      arabicName: '\u0648\u0631\u062f\u0629',
-      artwork: '\uD83C\uDF39',
-      icon: Icons.local_florist_rounded,
-      price: 10,
-    ),
-    _GiftItem(
-      name: 'Star',
-      arabicName: '\u0646\u062c\u0645\u0629',
-      artwork: '\u2B50',
-      icon: Icons.star_rounded,
-      price: 50,
-    ),
-    _GiftItem(
-      name: 'Crown',
-      arabicName: '\u062a\u0627\u062c',
-      artwork: '\uD83D\uDC51',
-      icon: Icons.workspace_premium_rounded,
-      price: 250,
-    ),
-    _GiftItem(
-      name: 'Rocket',
-      arabicName: '\u0635\u0627\u0631\u0648\u062e',
-      artwork: '\uD83D\uDE80',
-      icon: Icons.rocket_launch_rounded,
-      price: 1000,
-    ),
-  ];
-
   RoomMember? _selectedReceiver;
-  _GiftItem? _selectedGift;
+  RoomGift? _selectedGift;
+  String _selectedCategoryKey = 'hot';
   int _quantity = 1;
 
-  void _chooseGift(_GiftItem gift) {
+  void _chooseGift(RoomGift gift) {
     setState(() {
       _selectedGift = gift;
     });
@@ -2004,6 +2272,10 @@ class _GiftSheetState extends State<_GiftSheet> {
   @override
   Widget build(BuildContext context) {
     final maxHeight = MediaQuery.sizeOf(context).height * 0.78;
+    final visibleGifts = widget.gifts
+        .where((gift) => gift.categoryKey == _selectedCategoryKey)
+        .toList();
+    final gifts = visibleGifts.isEmpty ? widget.gifts : visibleGifts;
 
     return SafeArea(
       child: ConstrainedBox(
@@ -2035,20 +2307,31 @@ class _GiftSheetState extends State<_GiftSheet> {
                 },
               ),
               const SizedBox(height: 12),
-              _GiftCategoryTabs(isArabic: widget.isArabic),
+              _GiftCategoryTabs(
+                isArabic: widget.isArabic,
+                selectedCategoryKey: _selectedCategoryKey,
+                onSelected: (key) {
+                  setState(() {
+                    _selectedCategoryKey = key;
+                    if (_selectedGift?.categoryKey != key) {
+                      _selectedGift = null;
+                    }
+                  });
+                },
+              ),
               const SizedBox(height: 10),
               Expanded(
                 child: GridView.builder(
                   padding: const EdgeInsets.only(bottom: 10),
-                  itemCount: _gifts.length,
+                  itemCount: gifts.length,
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 4,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 10,
-                    childAspectRatio: 0.78,
+                    mainAxisSpacing: 14,
+                    crossAxisSpacing: 8,
+                    childAspectRatio: 0.70,
                   ),
                   itemBuilder: (context, index) {
-                    final gift = _gifts[index];
+                    final gift = gifts[index];
 
                     return _GiftCard(
                       gift: gift,
@@ -2146,7 +2429,7 @@ class _GiftReceiverRail extends StatelessWidget {
     }
 
     return SizedBox(
-      height: 82,
+      height: 96,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         reverse: isArabic,
@@ -2160,6 +2443,8 @@ class _GiftReceiverRail extends StatelessWidget {
             receiver: receiver,
             selected: selected,
             isArabic: isArabic,
+            publicUserId: receiver.displayCode,
+            avatarUrl: receiver.avatarUrl,
             roleLabel: roleLabel(receiver.role),
             onTap: () => onSelected(receiver),
           );
@@ -2169,11 +2454,87 @@ class _GiftReceiverRail extends StatelessWidget {
   }
 }
 
+class _RoomAvatar extends StatelessWidget {
+  const _RoomAvatar({
+    required this.avatarUrl,
+    required this.size,
+    required this.selected,
+    required this.fallbackIcon,
+  });
+
+  final String? avatarUrl;
+  final double size;
+  final bool selected;
+  final IconData fallbackIcon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: selected
+              ? const [Color(0xFFB000FF), Color(0xFFF0C15A)]
+              : const [Color(0xFF2D1247), Color(0xFF12091D)],
+        ),
+        border: Border.all(
+          color: selected ? const Color(0xFFF0C15A) : const Color(0xFF4A3470),
+          width: 2,
+        ),
+      ),
+      child: _RoomAvatarImage(
+        avatarUrl: avatarUrl,
+        fallbackIcon: fallbackIcon,
+        iconColor: Colors.white,
+        size: size,
+      ),
+    );
+  }
+}
+
+class _RoomAvatarImage extends StatelessWidget {
+  const _RoomAvatarImage({
+    required this.avatarUrl,
+    required this.fallbackIcon,
+    required this.iconColor,
+    required this.size,
+  });
+
+  final String? avatarUrl;
+  final IconData fallbackIcon;
+  final Color iconColor;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = avatarUrl?.trim();
+
+    if (url != null && url.isNotEmpty) {
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        width: size,
+        height: size,
+        errorBuilder: (context, error, stackTrace) {
+          return Icon(fallbackIcon, color: iconColor, size: size * 0.50);
+        },
+      );
+    }
+
+    return Icon(fallbackIcon, color: iconColor, size: size * 0.50);
+  }
+}
+
 class _GiftReceiverBubble extends StatelessWidget {
   const _GiftReceiverBubble({
     required this.receiver,
     required this.selected,
     required this.isArabic,
+    required this.publicUserId,
+    required this.avatarUrl,
     required this.roleLabel,
     required this.onTap,
   });
@@ -2181,6 +2542,8 @@ class _GiftReceiverBubble extends StatelessWidget {
   final RoomMember receiver;
   final bool selected;
   final bool isArabic;
+  final String publicUserId;
+  final String? avatarUrl;
   final String roleLabel;
   final VoidCallback onTap;
 
@@ -2192,33 +2555,17 @@ class _GiftReceiverBubble extends StatelessWidget {
       borderRadius: BorderRadius.circular(22),
       onTap: onTap,
       child: SizedBox(
-        width: 68,
+        width: 82,
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: selected
-                      ? const [Color(0xFFB000FF), Color(0xFFF0C15A)]
-                      : const [Color(0xFF2D1247), Color(0xFF12091D)],
-                ),
-                border: Border.all(
-                  color: selected
-                      ? const Color(0xFFF0C15A)
-                      : const Color(0xFF4A3470),
-                  width: 2,
-                ),
-              ),
-              child: Icon(
-                receiver.role == 'listener'
-                    ? Icons.person_rounded
-                    : Icons.mic_rounded,
-                color: Colors.white,
-                size: 27,
-              ),
+            _RoomAvatar(
+              avatarUrl: avatarUrl,
+              size: 54,
+              selected: selected,
+              fallbackIcon: receiver.role == 'listener'
+                  ? Icons.person_rounded
+                  : Icons.mic_rounded,
             ),
             const SizedBox(height: 5),
             Text(
@@ -2233,7 +2580,7 @@ class _GiftReceiverBubble extends StatelessWidget {
               ),
             ),
             Text(
-              roleLabel,
+              publicUserId,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
@@ -2251,51 +2598,70 @@ class _GiftReceiverBubble extends StatelessWidget {
 }
 
 class _GiftCategoryTabs extends StatelessWidget {
-  const _GiftCategoryTabs({required this.isArabic});
+  const _GiftCategoryTabs({
+    required this.isArabic,
+    required this.selectedCategoryKey,
+    required this.onSelected,
+  });
 
   final bool isArabic;
+  final String selectedCategoryKey;
+  final ValueChanged<String> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    final labels = isArabic
-        ? const [
-            '\u062d\u062f\u062b',
-            '\u0631\u0627\u0626\u062c',
-            '\u062d\u0638',
-            'VIP',
-          ]
-        : const ['Event', 'Hot', 'Lucky', 'VIP'];
+    final categories = [
+      _GiftCategoryTabData(
+        key: 'event',
+        label: isArabic ? '\u062d\u062f\u062b' : 'Event',
+      ),
+      _GiftCategoryTabData(
+        key: 'hot',
+        label: isArabic ? '\u0631\u0627\u0626\u062c' : 'Hot',
+      ),
+      _GiftCategoryTabData(
+        key: 'lucky',
+        label: isArabic ? '\u062d\u0638' : 'Lucky',
+      ),
+      const _GiftCategoryTabData(key: 'vip', label: 'VIP'),
+    ];
 
     return Row(
       textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-      children: labels.map((label) {
-        final selected =
-            label == (isArabic ? '\u0631\u0627\u0626\u062c' : 'Hot');
+      children: categories.map((category) {
+        final selected = category.key == selectedCategoryKey;
 
         return Expanded(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: selected ? Colors.white : const Color(0xFF8C819E),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => onSelected(category.key),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 5),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    category.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: selected ? Colors.white : const Color(0xFF8C819E),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Container(
+                    width: selected ? 22 : 0,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0C15A),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 5),
-              Container(
-                width: selected ? 22 : 0,
-                height: 3,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF0C15A),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-            ],
+            ),
           ),
         );
       }).toList(),
@@ -2303,10 +2669,17 @@ class _GiftCategoryTabs extends StatelessWidget {
   }
 }
 
+class _GiftCategoryTabData {
+  const _GiftCategoryTabData({required this.key, required this.label});
+
+  final String key;
+  final String label;
+}
+
 class _GiftArtwork extends StatelessWidget {
   const _GiftArtwork({required this.gift, required this.size});
 
-  final _GiftItem gift;
+  final RoomGift gift;
   final double size;
 
   @override
@@ -2314,20 +2687,30 @@ class _GiftArtwork extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      alignment: Alignment.center,
+      padding: EdgeInsets.all(size * 0.10),
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(18),
         gradient: const RadialGradient(
-          colors: [Color(0xFFFFF1A8), Color(0xFFE0A83A), Color(0xFF8B26D9)],
+          colors: [Color(0xFF2B0B3E), Color(0xFF12091D), Color(0xFF06030A)],
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFF0C15A).withValues(alpha: 0.28),
-            blurRadius: 18,
+            color: const Color(0xFFD10DFF).withValues(alpha: 0.20),
+            blurRadius: 16,
           ),
         ],
       ),
-      child: Text(gift.artwork, style: TextStyle(fontSize: size * 0.52)),
+      child: Image.network(
+        gift.imageUrl,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return Icon(
+            gift.materialIcon,
+            color: const Color(0xFFF0C15A),
+            size: size * 0.56,
+          );
+        },
+      ),
     );
   }
 }
@@ -2340,7 +2723,7 @@ class _GiftCard extends StatelessWidget {
     required this.onTap,
   });
 
-  final _GiftItem gift;
+  final RoomGift gift;
   final bool isArabic;
   final bool selected;
   final VoidCallback onTap;
@@ -2371,9 +2754,9 @@ class _GiftCard extends StatelessWidget {
         child: Column(
           children: [
             Expanded(
-              child: Center(child: _GiftArtwork(gift: gift, size: 50)),
+              child: Center(child: _GiftArtwork(gift: gift, size: 54)),
             ),
-            const Spacer(),
+            const SizedBox(height: 5),
             Text(
               isArabic ? gift.arabicName : gift.name,
               textAlign: TextAlign.center,
@@ -2396,7 +2779,7 @@ class _GiftCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 3),
                 Text(
-                  gift.price.toString(),
+                  gift.priceCoins.toString(),
                   style: const TextStyle(
                     color: Color(0xFFD8CFEA),
                     fontWeight: FontWeight.w800,
@@ -2423,13 +2806,13 @@ class _GiftSendBar extends StatelessWidget {
 
   final bool isArabic;
   final int quantity;
-  final _GiftItem? selectedGift;
+  final RoomGift? selectedGift;
   final VoidCallback onQuantityTap;
   final VoidCallback onSend;
 
   @override
   Widget build(BuildContext context) {
-    final total = (selectedGift?.price ?? 0) * quantity;
+    final total = (selectedGift?.priceCoins ?? 0) * quantity;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(4, 10, 4, 2),
@@ -2690,6 +3073,8 @@ class _LiveActionButton extends StatelessWidget {
 class _ParticipantTile extends StatelessWidget {
   const _ParticipantTile({
     required this.name,
+    required this.avatarUrl,
+    required this.publicUserId,
     required this.role,
     required this.rawRole,
     required this.joinedAt,
@@ -2703,6 +3088,8 @@ class _ParticipantTile extends StatelessWidget {
   });
 
   final String name;
+  final String? avatarUrl;
+  final String publicUserId;
   final String role;
   final String rawRole;
   final String joinedAt;
@@ -2732,14 +3119,13 @@ class _ParticipantTile extends StatelessWidget {
           Row(
             textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
             children: [
-              CircleAvatar(
-                backgroundColor: const Color(
-                  0xFFF0C15A,
-                ).withValues(alpha: 0.18),
-                child: Icon(
-                  isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
-                  color: const Color(0xFFF0C15A),
-                ),
+              _RoomAvatar(
+                avatarUrl: avatarUrl,
+                size: 42,
+                selected: false,
+                fallbackIcon: isMuted
+                    ? Icons.mic_off_rounded
+                    : Icons.person_rounded,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -2763,6 +3149,16 @@ class _ParticipantTile extends StatelessWidget {
                       style: const TextStyle(
                         color: Color(0xFFD8CFEA),
                         fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      publicUserId,
+                      textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                      style: const TextStyle(
+                        color: Color(0xFF9E91B8),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                     const SizedBox(height: 5),

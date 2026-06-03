@@ -1,4 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/supabase/supabase_service.dart';
 import '../onboarding/onboarding_screen.dart';
 
@@ -14,9 +18,12 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final usernameController = TextEditingController();
   final displayNameController = TextEditingController();
+  final birthDateController = TextEditingController();
+  final bioController = TextEditingController();
 
   bool isLoading = true;
   bool isSaving = false;
+  bool isUploadingAvatar = false;
   String? errorMessage;
   String? successMessage;
   Map<String, dynamic>? profile;
@@ -31,6 +38,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void dispose() {
     usernameController.dispose();
     displayNameController.dispose();
+    birthDateController.dispose();
+    bioController.dispose();
     super.dispose();
   }
 
@@ -43,7 +52,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() {
           isLoading = false;
           errorMessage = widget.isArabic
-              ? 'لا يوجد مستخدم مسجل.'
+              ? 'Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ù…Ø³ØªØ®Ø¯Ù… Ù…Ø³Ø¬Ù„.'
               : 'No logged-in user found.';
         });
         return;
@@ -57,6 +66,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       usernameController.text = data['username']?.toString() ?? '';
       displayNameController.text = data['display_name']?.toString() ?? '';
+      birthDateController.text = data['date_of_birth']?.toString() ?? '';
+      bioController.text = data['bio']?.toString() ?? '';
 
       setState(() {
         profile = data;
@@ -66,23 +77,155 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         isLoading = false;
         errorMessage = widget.isArabic
-            ? 'فشل تحميل الملف الشخصي: $error'
+            ? 'ÙØ´Ù„ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠ: $error'
             : 'Failed to load profile: $error';
       });
     }
   }
 
+  String _avatarExtension(String fileName, String? mimeType) {
+    final lowerName = fileName.toLowerCase();
+
+    if (lowerName.endsWith('.png') || mimeType == 'image/png') {
+      return 'png';
+    }
+
+    if (lowerName.endsWith('.webp') || mimeType == 'image/webp') {
+      return 'webp';
+    }
+
+    if (lowerName.endsWith('.gif') || mimeType == 'image/gif') {
+      return 'gif';
+    }
+
+    return 'jpg';
+  }
+
+  String _avatarContentType(String extension, String? mimeType) {
+    if (mimeType != null && mimeType.startsWith('image/')) {
+      return mimeType;
+    }
+
+    return switch (extension) {
+      'png' => 'image/png',
+      'webp' => 'image/webp',
+      'gif' => 'image/gif',
+      _ => 'image/jpeg',
+    };
+  }
+
+  Future<void> _uploadAvatar() async {
+    final isArabic = widget.isArabic;
+
+    setState(() {
+      isUploadingAvatar = true;
+      errorMessage = null;
+      successMessage = null;
+    });
+
+    try {
+      final client = SupabaseService.requiredClient;
+      final user = client.auth.currentUser;
+
+      if (user == null) {
+        throw StateError('No logged-in user found.');
+      }
+
+      final picker = ImagePicker();
+      final image = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 82,
+        maxWidth: 900,
+        maxHeight: 900,
+      );
+
+      if (image == null) {
+        return;
+      }
+
+      final Uint8List bytes = await image.readAsBytes();
+      final extension = _avatarExtension(image.name, image.mimeType);
+      final path =
+          '${user.id}/avatar_${DateTime.now().millisecondsSinceEpoch}.$extension';
+      final contentType = _avatarContentType(extension, image.mimeType);
+
+      await client.storage
+          .from('avatars')
+          .uploadBinary(
+            path,
+            bytes,
+            fileOptions: FileOptions(contentType: contentType),
+          );
+
+      final publicUrl = client.storage.from('avatars').getPublicUrl(path);
+      final versionedUrl =
+          '$publicUrl?v=${DateTime.now().millisecondsSinceEpoch}';
+
+      await client
+          .from('profiles')
+          .update({
+            'avatar_url': versionedUrl,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', user.id);
+
+      await _loadProfile();
+
+      setState(() {
+        successMessage = isArabic
+            ? '\u062a\u0645 \u062a\u062d\u062f\u064a\u062b \u0627\u0644\u0635\u0648\u0631\u0629.'
+            : 'Profile image updated.';
+      });
+    } catch (error) {
+      setState(() {
+        errorMessage = isArabic
+            ? '\u0641\u0634\u0644 \u0631\u0641\u0639 \u0627\u0644\u0635\u0648\u0631\u0629: $error'
+            : 'Image upload failed: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          isUploadingAvatar = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _pickBirthDate() async {
+    final now = DateTime.now();
+    final existingValue = birthDateController.text.trim();
+    final initialDate =
+        DateTime.tryParse(existingValue) ??
+        DateTime(now.year - 18, now.month, now.day);
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(1940),
+      lastDate: now,
+    );
+
+    if (picked == null) {
+      return;
+    }
+
+    birthDateController.text =
+        '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+  }
+
   Future<void> _saveProfile() async {
     final isArabic = widget.isArabic;
-    final username = usernameController.text.trim();
+    final currentUsername = usernameController.text.trim();
     final displayName = displayNameController.text.trim();
+    final dateOfBirth = birthDateController.text.trim();
+    final bio = bioController.text.trim();
 
-    if (username.length < 3) {
+    if (displayName.length < 2) {
       setState(() {
         successMessage = null;
         errorMessage = isArabic
-            ? 'اسم المستخدم يجب أن يكون 3 أحرف أو أكثر.'
-            : 'Username must be 3 characters or more.';
+            ? '\u0627\u0644\u0644\u0642\u0628 \u064a\u062c\u0628 \u0623\u0646 \u064a\u0643\u0648\u0646 \u062d\u0631\u0641\u064a\u0646 \u0623\u0648 \u0623\u0643\u062b\u0631.'
+            : 'Nickname must be 2 characters or more.';
       });
       return;
     }
@@ -101,23 +244,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
         throw StateError('No logged-in user found.');
       }
 
-      await client
-          .from('profiles')
-          .update({
-            'username': username,
-            'display_name': displayName.isEmpty ? username : displayName,
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .eq('id', user.id);
+      final values = {
+        'username': currentUsername.isEmpty ? displayName : currentUsername,
+        'display_name': displayName,
+        'date_of_birth': dateOfBirth.isEmpty ? null : dateOfBirth,
+        'bio': bio.isEmpty ? null : bio,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      try {
+        await client.from('profiles').update(values).eq('id', user.id);
+      } catch (error) {
+        final message = error.toString();
+
+        if (!message.contains('date_of_birth') && !message.contains('bio')) {
+          rethrow;
+        }
+
+        await client
+            .from('profiles')
+            .update({
+              'username': currentUsername.isEmpty
+                  ? displayName
+                  : currentUsername,
+              'display_name': displayName,
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', user.id);
+      }
 
       await _loadProfile();
 
       setState(() {
-        successMessage = isArabic ? 'تم حفظ الملف الشخصي.' : 'Profile saved.';
+        successMessage = isArabic
+            ? '\u062a\u0645 \u062d\u0641\u0638 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0634\u062e\u0635\u064a.'
+            : 'Profile saved.';
       });
     } catch (error) {
       setState(() {
-        errorMessage = isArabic ? 'فشل الحفظ: $error' : 'Save failed: $error';
+        errorMessage = isArabic
+            ? '\u0641\u0634\u0644 \u0627\u0644\u062d\u0641\u0638: $error'
+            : 'Save failed: $error';
       });
     } finally {
       if (mounted) {
@@ -137,6 +304,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     final email = profile?['email']?.toString() ?? '-';
+    final avatarUrl = profile?['avatar_url']?.toString();
+    final publicUserId = profile?['public_user_id']?.toString() ?? '-';
     final role = profile?['role']?.toString() ?? 'user';
     final coins = profile?['coins_balance']?.toString() ?? '0';
     final vipLevel = profile?['vip_level']?.toString() ?? '0';
@@ -195,9 +364,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _ProfileHeroCard(
                 displayName: displayName,
                 email: email,
+                avatarUrl: avatarUrl,
+                publicUserId: publicUserId,
                 role: role,
                 vipLevel: vipLevel,
+                isUploadingAvatar: isUploadingAvatar,
                 isArabic: isArabic,
+                onAvatarTap: _uploadAvatar,
               ),
               const SizedBox(height: 18),
               _ProfileWalletGrid(
@@ -213,24 +386,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ? '\u062a\u0639\u062f\u064a\u0644 \u0627\u0644\u0645\u0644\u0641'
                     : 'Edit Profile',
                 subtitle: isArabic
-                    ? '\u062d\u062f\u062b \u0627\u0633\u0645 \u0627\u0644\u0645\u0633\u062a\u062e\u062f\u0645 \u0648\u0627\u0644\u0627\u0633\u0645 \u0627\u0644\u0638\u0627\u0647\u0631.'
-                    : 'Update your username and display name.',
+                    ? '\u062d\u062f\u062b \u0644\u0642\u0628\u0643\u060c \u062a\u0627\u0631\u064a\u062e \u0645\u064a\u0644\u0627\u062f\u0643\u060c \u0648\u0627\u0644\u0646\u0628\u0630\u0629.'
+                    : 'Update your nickname, date of birth, and bio.',
                 isArabic: isArabic,
                 child: Column(
                   children: [
                     _ProfileInput(
-                      controller: usernameController,
+                      controller: displayNameController,
                       label: isArabic
-                          ? '\u0627\u0633\u0645 \u0627\u0644\u0645\u0633\u062a\u062e\u062f\u0645'
-                          : 'Username',
+                          ? '\u0627\u0644\u0644\u0642\u0628'
+                          : 'Nickname',
                       isArabic: isArabic,
                     ),
                     _ProfileInput(
-                      controller: displayNameController,
+                      controller: birthDateController,
                       label: isArabic
-                          ? '\u0627\u0644\u0627\u0633\u0645 \u0627\u0644\u0638\u0627\u0647\u0631'
-                          : 'Display name',
+                          ? '\u062a\u0627\u0631\u064a\u062e \u0627\u0644\u0645\u064a\u0644\u0627\u062f'
+                          : 'Date of birth',
                       isArabic: isArabic,
+                      readOnly: true,
+                      onTap: _pickBirthDate,
+                    ),
+                    _ProfileInput(
+                      controller: bioController,
+                      label: isArabic
+                          ? '\u0627\u0644\u0646\u0628\u0630\u0629'
+                          : 'Bio',
+                      isArabic: isArabic,
+                      maxLines: 4,
                     ),
                     const SizedBox(height: 2),
                     SizedBox(
@@ -280,6 +463,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 isArabic: isArabic,
                 child: Column(
                   children: [
+                    _ProfileCard(
+                      label: isArabic
+                          ? '\u0631\u0642\u0645 \u0627\u0644\u0645\u0633\u062a\u062e\u062f\u0645'
+                          : 'User ID',
+                      value: publicUserId,
+                      icon: Icons.badge_rounded,
+                      isArabic: isArabic,
+                    ),
                     _ProfileCard(
                       label: isArabic
                           ? '\u0627\u0644\u0628\u0631\u064a\u062f'
@@ -336,16 +527,24 @@ class _ProfileHeroCard extends StatelessWidget {
   const _ProfileHeroCard({
     required this.displayName,
     required this.email,
+    required this.avatarUrl,
+    required this.publicUserId,
     required this.role,
     required this.vipLevel,
+    required this.isUploadingAvatar,
     required this.isArabic,
+    required this.onAvatarTap,
   });
 
   final String displayName;
   final String email;
+  final String? avatarUrl;
+  final String publicUserId;
   final String role;
   final String vipLevel;
+  final bool isUploadingAvatar;
   final bool isArabic;
+  final VoidCallback onAvatarTap;
 
   @override
   Widget build(BuildContext context) {
@@ -375,21 +574,41 @@ class _ProfileHeroCard extends StatelessWidget {
       child: Row(
         textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
         children: [
-          Container(
-            width: 76,
-            height: 76,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.black.withValues(alpha: 0.22),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.35),
-                width: 1.4,
-              ),
-            ),
-            child: const Icon(
-              Icons.person_rounded,
-              color: Colors.white,
-              size: 40,
+          InkWell(
+            customBorder: const CircleBorder(),
+            onTap: isUploadingAvatar ? null : onAvatarTap,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                _ProfileAvatar(
+                  avatarUrl: avatarUrl,
+                  size: 76,
+                  isUploading: isUploadingAvatar,
+                ),
+                Positioned(
+                  right: -2,
+                  bottom: -2,
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFFF0C15A),
+                      border: Border.all(
+                        color: const Color(0xFF241638),
+                        width: 2,
+                      ),
+                    ),
+                    child: Icon(
+                      isUploadingAvatar
+                          ? Icons.hourglass_top_rounded
+                          : Icons.camera_alt_rounded,
+                      size: 15,
+                      color: const Color(0xFF160B26),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(width: 16),
@@ -428,9 +647,14 @@ class _ProfileHeroCard extends StatelessWidget {
                   runSpacing: 8,
                   children: [
                     _ProfileBadge(
+                      icon: Icons.badge_rounded,
+                      label: publicUserId,
+                      highlighted: true,
+                    ),
+                    _ProfileBadge(
                       icon: Icons.diamond_rounded,
                       label: 'VIP $vipLevel',
-                      highlighted: true,
+                      highlighted: false,
                     ),
                     _ProfileBadge(
                       icon: Icons.admin_panel_settings_rounded,
@@ -491,6 +715,67 @@ class _ProfileBadge extends StatelessWidget {
               fontSize: 12,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileAvatar extends StatelessWidget {
+  const _ProfileAvatar({
+    required this.avatarUrl,
+    required this.size,
+    required this.isUploading,
+  });
+
+  final String? avatarUrl;
+  final double size;
+  final bool isUploading;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = avatarUrl?.trim();
+
+    return Container(
+      width: size,
+      height: size,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.black.withValues(alpha: 0.22),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.35),
+          width: 1.4,
+        ),
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (url != null && url.isNotEmpty)
+            Image.network(
+              url,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return const Icon(
+                  Icons.person_rounded,
+                  color: Colors.white,
+                  size: 40,
+                );
+              },
+            )
+          else
+            const Icon(Icons.person_rounded, color: Colors.white, size: 40),
+          if (isUploading)
+            Container(
+              color: Colors.black.withValues(alpha: 0.42),
+              child: const Center(
+                child: SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -746,11 +1031,17 @@ class _ProfileInput extends StatelessWidget {
     required this.controller,
     required this.label,
     required this.isArabic,
+    this.readOnly = false,
+    this.onTap,
+    this.maxLines = 1,
   });
 
   final TextEditingController controller;
   final String label;
   final bool isArabic;
+  final bool readOnly;
+  final VoidCallback? onTap;
+  final int maxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -758,6 +1049,9 @@ class _ProfileInput extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
         controller: controller,
+        readOnly: readOnly,
+        onTap: onTap,
+        maxLines: maxLines,
         textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
         decoration: InputDecoration(
           labelText: label,

@@ -1,0 +1,125 @@
+insert into public.gifts (
+  code,
+  name,
+  arabic_name,
+  price_coins,
+  icon,
+  is_active,
+  sort_order
+)
+values
+  (
+    'treasure',
+    'Treasure',
+    'كنز',
+    100,
+    'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f3c6.png',
+    true,
+    10
+  ),
+  (
+    'rose',
+    'Rose',
+    'وردة',
+    50,
+    'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f339.png',
+    true,
+    20
+  ),
+  (
+    'star',
+    'Star',
+    'نجمة',
+    50,
+    'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/2b50.png',
+    true,
+    30
+  ),
+  (
+    'crown',
+    'Crown',
+    'تاج',
+    250,
+    'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f451.png',
+    true,
+    40
+  ),
+  (
+    'rocket',
+    'Rocket',
+    'صاروخ',
+    1000,
+    'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f680.png',
+    true,
+    50
+  ),
+  (
+    'diamond',
+    'Diamond',
+    'ألماسة',
+    8000,
+    'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f48e.png',
+    true,
+    60
+  ),
+  (
+    'tiger',
+    'Tiger',
+    'نمر',
+    30000,
+    'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f405.png',
+    true,
+    70
+  ),
+  (
+    'lucky_bag',
+    'Lucky Bag',
+    'حقيبة الحظ',
+    75,
+    'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f381.png',
+    true,
+    80
+  ),
+  (
+    'motorcycle',
+    'Motorcycle',
+    'دراجة',
+    35000,
+    'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f3cd.png',
+    true,
+    90
+  ),
+  (
+    'slingshot',
+    'Slingshot',
+    'مقلاع',
+    125,
+    'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f3af.png',
+    true,
+    100
+  ),
+  (
+    'dragon',
+    'Dragon',
+    'تنين',
+    200000,
+    'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f409.png',
+    true,
+    110
+  ),
+  (
+    'castle',
+    'Castle',
+    'قلعة',
+    500000,
+    'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f3f0.png',
+    true,
+    120
+  )
+on conflict (code) do update set
+  name = excluded.name,
+  arabic_name = excluded.arabic_name,
+  price_coins = excluded.price_coins,
+  icon = excluded.icon,
+  is_active = excluded.is_active,
+  sort_order = excluded.sort_order;

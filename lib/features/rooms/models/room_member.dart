@@ -9,6 +9,9 @@ class RoomMember {
     required this.joinedAt,
     this.leftAt,
     this.displayName,
+    this.username,
+    this.publicUserId,
+    this.avatarUrl,
   });
 
   final String id;
@@ -20,6 +23,9 @@ class RoomMember {
   final DateTime joinedAt;
   final DateTime? leftAt;
   final String? displayName;
+  final String? username;
+  final String? publicUserId;
+  final String? avatarUrl;
 
   factory RoomMember.fromJson(Map<String, dynamic> json) {
     final profile = json['profiles'];
@@ -28,12 +34,19 @@ class RoomMember {
     if (profile is Map<String, dynamic>) {
       resolvedName =
           profile['display_name']?.toString() ??
-          profile['full_name']?.toString() ??
-          profile['username']?.toString() ??
-          profile['name']?.toString();
+          profile['username']?.toString();
     }
 
     resolvedName ??= json['display_name']?.toString();
+    final resolvedUsername = profile is Map<String, dynamic>
+        ? profile['username']?.toString()
+        : json['username']?.toString();
+    final resolvedPublicUserId = profile is Map<String, dynamic>
+        ? profile['public_user_id']?.toString()
+        : json['public_user_id']?.toString();
+    final resolvedAvatarUrl = profile is Map<String, dynamic>
+        ? profile['avatar_url']?.toString()
+        : json['avatar_url']?.toString();
 
     return RoomMember(
       id: json['id'].toString(),
@@ -47,6 +60,9 @@ class RoomMember {
           ? null
           : DateTime.parse(json['left_at'].toString()),
       displayName: resolvedName,
+      username: resolvedUsername,
+      publicUserId: resolvedPublicUserId,
+      avatarUrl: resolvedAvatarUrl,
     );
   }
 
@@ -56,6 +72,19 @@ class RoomMember {
     }
 
     final shortId = userId.length >= 8 ? userId.substring(0, 8) : userId;
-    return isArabic ? '?????? $shortId' : 'User $shortId';
+    return isArabic
+        ? '\u0645\u0633\u062a\u062e\u062f\u0645 $shortId'
+        : 'User $shortId';
+  }
+
+  String get displayCode {
+    final code = publicUserId?.trim();
+
+    if (code != null && code.isNotEmpty) {
+      return code;
+    }
+
+    final shortId = userId.length >= 8 ? userId.substring(0, 8) : userId;
+    return 'ID $shortId';
   }
 }

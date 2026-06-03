@@ -65,7 +65,9 @@ class RoomsService {
     try {
       final data = await client
           .from('room_members')
-          .select('*, profiles(display_name, full_name, username, name)')
+          .select(
+            '*, profiles(display_name, username, public_user_id, avatar_url)',
+          )
           .eq('room_id', roomId)
           .filter('left_at', 'is', null)
           .gte('last_seen_at', _activeSince.toIso8601String())
@@ -75,17 +77,31 @@ class RoomsService {
           .map((item) => RoomMember.fromJson(item as Map<String, dynamic>))
           .toList();
     } catch (_) {
-      final data = await client
-          .from('room_members')
-          .select()
-          .eq('room_id', roomId)
-          .filter('left_at', 'is', null)
-          .gte('last_seen_at', _activeSince.toIso8601String())
-          .order('joined_at', ascending: true);
+      try {
+        final data = await client
+            .from('room_members')
+            .select('*, profiles(display_name, username, avatar_url)')
+            .eq('room_id', roomId)
+            .filter('left_at', 'is', null)
+            .gte('last_seen_at', _activeSince.toIso8601String())
+            .order('joined_at', ascending: true);
 
-      return (data as List<dynamic>)
-          .map((item) => RoomMember.fromJson(item as Map<String, dynamic>))
-          .toList();
+        return (data as List<dynamic>)
+            .map((item) => RoomMember.fromJson(item as Map<String, dynamic>))
+            .toList();
+      } catch (_) {
+        final data = await client
+            .from('room_members')
+            .select()
+            .eq('room_id', roomId)
+            .filter('left_at', 'is', null)
+            .gte('last_seen_at', _activeSince.toIso8601String())
+            .order('joined_at', ascending: true);
+
+        return (data as List<dynamic>)
+            .map((item) => RoomMember.fromJson(item as Map<String, dynamic>))
+            .toList();
+      }
     }
   }
 
@@ -275,6 +291,38 @@ class RoomsService {
         .update({'seat_number': seatNumber})
         .eq('room_id', roomId)
         .eq('user_id', user.id)
+        .filter('left_at', 'is', null);
+  }
+
+  Future<void> moveMeToSpeakerSeat({
+    required String roomId,
+    required int seatNumber,
+  }) async {
+    final client = SupabaseService.requiredClient;
+    final user = client.auth.currentUser;
+
+    if (user == null) {
+      throw StateError('No logged-in user found.');
+    }
+
+    await client
+        .from('room_members')
+        .update({'role': 'speaker', 'seat_number': seatNumber})
+        .eq('room_id', roomId)
+        .eq('user_id', user.id)
+        .filter('left_at', 'is', null);
+  }
+
+  Future<void> updateMemberSeatNumber({
+    required String roomId,
+    required String userId,
+    required int seatNumber,
+  }) async {
+    await SupabaseService.requiredClient
+        .from('room_members')
+        .update({'seat_number': seatNumber})
+        .eq('room_id', roomId)
+        .eq('user_id', userId)
         .filter('left_at', 'is', null);
   }
 
