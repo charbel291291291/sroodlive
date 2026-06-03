@@ -7,7 +7,6 @@ import '../../../core/supabase/supabase_service.dart';
 import '../models/room.dart';
 import '../models/room_member.dart';
 import '../services/livekit_room_service.dart';
-import '../services/livekit_token_service.dart';
 import '../services/rooms_service.dart';
 
 class RoomDetailsScreen extends StatefulWidget {
@@ -26,11 +25,9 @@ class RoomDetailsScreen extends StatefulWidget {
 
 class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   final RoomsService _roomsService = const RoomsService();
-  final LiveKitTokenService _liveKitTokenService = const LiveKitTokenService();
   final LiveKitRoomService _liveKitRoomService = LiveKitRoomService();
 
   bool _leaving = false;
-  bool _testingToken = false;
   bool _connectingAudio = false;
   bool _connectedAudio = false;
   bool _micEnabled = true;
@@ -379,42 +376,6 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       if (mounted) {
         setState(() {
           _roleBusyUserId = null;
-        });
-      }
-    }
-  }
-
-  Future<void> _testLiveKitToken() async {
-    setState(() {
-      _testingToken = true;
-    });
-
-    try {
-      final response = await _liveKitTokenService.getToken(
-        roomId: widget.room.id,
-      );
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            widget.isArabic
-                ? 'LiveKit token \u062c\u0627\u0647\u0632: ${response.roomName}'
-                : 'LiveKit token ready: ${response.roomName}',
-          ),
-        ),
-      );
-    } catch (error) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
-    } finally {
-      if (mounted) {
-        setState(() {
-          _testingToken = false;
         });
       }
     }
@@ -916,38 +877,6 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                 onToggleMic: _toggleMic,
                 onDisconnectAudio: _disconnectAudio,
                 onLeaveRoom: _leaveRoom,
-              ),
-              const SizedBox(height: 24),
-              OutlinedButton.icon(
-                onPressed: _testingToken ? null : _testLiveKitToken,
-                icon: _testingToken
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.key_rounded),
-                label: Text(
-                  widget.isArabic
-                      ? '\u0627\u062e\u062a\u0628\u0627\u0631 LiveKit Token'
-                      : 'Test LiveKit Token',
-                ),
-              ),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: _leaving ? null : _leaveRoom,
-                icon: _leaving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.logout_rounded),
-                label: Text(
-                  widget.isArabic
-                      ? '\u0645\u063a\u0627\u062f\u0631\u0629 \u0627\u0644\u063a\u0631\u0641\u0629'
-                      : 'Leave room',
-                ),
               ),
             ],
           ),
