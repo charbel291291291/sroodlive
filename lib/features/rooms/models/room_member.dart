@@ -5,8 +5,8 @@ class RoomMember {
     required this.userId,
     required this.role,
     required this.isMuted,
-    required this.joinedAt,
     this.seatNumber,
+    required this.joinedAt,
     this.leftAt,
     this.displayName,
   });

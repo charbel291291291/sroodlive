@@ -39,6 +39,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   List<RoomMember> _members = const [];
   RealtimeChannel? _membersChannel;
   Timer? _heartbeatTimer;
+  Timer? _membersRefreshTimer;
 
   String? get _currentUserId =>
       SupabaseService.requiredClient.auth.currentUser?.id;
@@ -91,12 +92,14 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     _roomLocked = widget.room.isLocked;
     _loadMembers();
     _startHeartbeat();
+    _startMembersRefresh();
     _subscribeToMembers();
   }
 
   @override
   void dispose() {
     _heartbeatTimer?.cancel();
+    _membersRefreshTimer?.cancel();
 
     final membersChannel = _membersChannel;
 
@@ -116,6 +119,15 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       const Duration(seconds: 15),
       (_) => unawaited(_roomsService.heartbeatRoomMember(widget.room.id)),
     );
+  }
+
+  void _startMembersRefresh() {
+    _membersRefreshTimer?.cancel();
+
+    _membersRefreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!mounted) return;
+      unawaited(_loadMembers(showLoading: false));
+    });
   }
 
   void _subscribeToMembers() {
@@ -194,9 +206,11 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     } catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      if (showLoading) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
     } finally {
       if (mounted) {
         if (showLoading) {
@@ -325,9 +339,259 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     }
   }
 
+  Future<void> _pickListenerForSeat(int seatNumber) async {
+    if (!_iAmHost) {
+      return;
+    }
+
+    final availableMembers = _members
+        .where((member) => member.role != 'host')
+        .toList();
+
+    final selected = await showModalBottomSheet<_EmptySeatAction>(
+      context: context,
+      backgroundColor: const Color(0xFF12091D),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: widget.isArabic
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.isArabic
+                      ? '\u0646\u0642\u0644 \u0645\u0633\u062a\u0645\u0639 \u0625\u0644\u0649 \u0645\u0627\u064a\u0643 $seatNumber'
+                      : 'Move listener to Mic $seatNumber',
+                  textAlign: widget.isArabic ? TextAlign.right : TextAlign.left,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () {
+                      Navigator.of(
+                        sheetContext,
+                      ).pop(const _EmptySeatAction.moveSelf());
+                    },
+                    icon: const Icon(Icons.event_seat_rounded),
+                    label: Text(
+                      widget.isArabic
+                          ? '\u0627\u0646\u0642\u0644\u0646\u064a \u0625\u0644\u0649 \u0647\u0630\u0627 \u0627\u0644\u0645\u0627\u064a\u0643'
+                          : 'Move myself here',
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                if (availableMembers.isEmpty)
+                  Text(
+                    widget.isArabic
+                        ? '\u0644\u0627 \u064a\u0648\u062c\u062f \u0623\u0639\u0636\u0627\u0621 \u0645\u062a\u0627\u062d\u0648\u0646 \u0644\u0647\u0630\u0627 \u0627\u0644\u0645\u0627\u064a\u0643.'
+                        : 'No available users for this mic.',
+                    textAlign: widget.isArabic
+                        ? TextAlign.right
+                        : TextAlign.left,
+                    style: const TextStyle(
+                      color: Color(0xFFD8CFEA),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ...availableMembers.map(
+                  (member) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const CircleAvatar(
+                      backgroundColor: Color(0xFF241638),
+                      child: Icon(
+                        Icons.person_rounded,
+                        color: Color(0xFFF0C15A),
+                      ),
+                    ),
+                    title: Text(
+                      member.fallbackName(widget.isArabic),
+                      textAlign: widget.isArabic
+                          ? TextAlign.right
+                          : TextAlign.left,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    subtitle: Text(
+                      _roleLabel(member.role),
+                      textAlign: widget.isArabic
+                          ? TextAlign.right
+                          : TextAlign.left,
+                    ),
+                    onTap: () {
+                      Navigator.of(
+                        sheetContext,
+                      ).pop(_EmptySeatAction.moveMember(member));
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selected == null) {
+      return;
+    }
+
+    if (selected.moveSelf) {
+      await _moveMyselfToSeat(seatNumber);
+      return;
+    }
+
+    final selectedMember = selected.member;
+
+    if (selectedMember == null) {
+      return;
+    }
+
+    await _changeMemberRole(
+      member: selectedMember,
+      role: 'speaker',
+      seatNumber: seatNumber,
+    );
+  }
+
+  Future<void> _moveMyselfToSeat(int seatNumber) async {
+    try {
+      await _roomsService.updateMySeatNumber(
+        roomId: widget.room.id,
+        seatNumber: seatNumber,
+      );
+
+      await _loadMembers(showLoading: false);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.isArabic
+                ? '\u062a\u0645 \u0646\u0642\u0644\u0643 \u0625\u0644\u0649 \u0647\u0630\u0627 \u0627\u0644\u0645\u0627\u064a\u0643'
+                : 'Moved you to this mic.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
+  Future<void> _showMemberSeatActions(RoomMember member, int seatNumber) async {
+    if (!_iAmHost) {
+      return;
+    }
+
+    if (member.role == 'host') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.isArabic
+                ? '\u0644\u0627 \u064a\u0645\u0643\u0646 \u0646\u0642\u0644 \u0645\u0642\u0639\u062f \u0627\u0644\u0645\u0636\u064a\u0641.'
+                : 'Host seat cannot be moved.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final moveToListener = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: const Color(0xFF12091D),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) {
+        final textAlign = widget.isArabic ? TextAlign.right : TextAlign.left;
+        final crossAxisAlignment = widget.isArabic
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start;
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: crossAxisAlignment,
+              children: [
+                Text(
+                  member.fallbackName(widget.isArabic),
+                  textAlign: textAlign,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  widget.isArabic
+                      ? '${_roleLabel(member.role)} - \u0645\u0627\u064a\u0643 $seatNumber'
+                      : '${_roleLabel(member.role)} - Mic $seatNumber',
+                  textAlign: textAlign,
+                  style: const TextStyle(
+                    color: Color(0xFFD8CFEA),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () => Navigator.of(sheetContext).pop(true),
+                    icon: const Icon(Icons.hearing_rounded),
+                    label: Text(
+                      widget.isArabic
+                          ? '\u0625\u0639\u0627\u062f\u062a\u0647 \u0645\u0633\u062a\u0645\u0639\u0627\u064b'
+                          : 'Move to listener',
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(sheetContext).pop(false),
+                    child: Text(
+                      widget.isArabic
+                          ? '\u0625\u063a\u0644\u0627\u0642'
+                          : 'Close',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (moveToListener != true) {
+      return;
+    }
+
+    await _changeMemberRole(member: member, role: 'listener');
+  }
+
   Future<void> _changeMemberRole({
     required RoomMember member,
     required String role,
+    int? seatNumber,
   }) async {
     setState(() {
       _roleBusyUserId = member.userId;
@@ -351,6 +615,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         roomId: widget.room.id,
         userId: member.userId,
         role: role,
+        seatNumber: seatNumber,
       );
 
       await _loadMembers();
@@ -564,6 +829,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                 maxSeats: widget.room.maxSeats,
                 isArabic: widget.isArabic,
                 activeSpeakerCount: _activeSpeakerCount,
+                isHost: _iAmHost,
+                onEmptySeatTap: _pickListenerForSeat,
+                onOccupiedSeatTap: _showMemberSeatActions,
               ),
               if (_iAmHost) ...[
                 const SizedBox(height: 12),
@@ -835,12 +1103,18 @@ class _LiveRoomStage extends StatelessWidget {
     required this.maxSeats,
     required this.isArabic,
     required this.activeSpeakerCount,
+    required this.isHost,
+    required this.onEmptySeatTap,
+    required this.onOccupiedSeatTap,
   });
 
   final List<RoomMember> members;
   final int maxSeats;
   final bool isArabic;
   final int activeSpeakerCount;
+  final bool isHost;
+  final ValueChanged<int> onEmptySeatTap;
+  final void Function(RoomMember member, int seatNumber) onOccupiedSeatTap;
 
   @override
   Widget build(BuildContext context) {
@@ -939,7 +1213,13 @@ class _LiveRoomStage extends StatelessWidget {
               childAspectRatio: 0.58,
             ),
             itemBuilder: (context, index) {
-              return _LiveSeatBubble(seat: seats[index], isArabic: isArabic);
+              return _LiveSeatBubble(
+                seat: seats[index],
+                isArabic: isArabic,
+                isHost: isHost,
+                onEmptySeatTap: onEmptySeatTap,
+                onOccupiedSeatTap: onOccupiedSeatTap,
+              );
             },
           ),
         ],
@@ -948,105 +1228,175 @@ class _LiveRoomStage extends StatelessWidget {
   }
 
   List<_StageSeat> _buildSeats() {
+    final safeMaxSeats = maxSeats <= 0 ? 12 : maxSeats;
+    final seats = List<_StageSeat>.generate(
+      safeMaxSeats,
+      (index) => _StageSeat.empty(index + 1),
+    );
+
     final stageMembers = members
         .where((member) => member.role == 'host' || member.role == 'speaker')
         .toList();
 
-    final seats = <_StageSeat>[];
-
     for (final member in stageMembers) {
-      seats.add(
-        _StageSeat(
-          name: member.fallbackName(isArabic),
-          role: member.role,
-          isMuted: member.isMuted,
-          isEmpty: false,
-        ),
-      );
+      final preferredSeat = member.seatNumber;
+
+      if (preferredSeat != null &&
+          preferredSeat >= 1 &&
+          preferredSeat <= safeMaxSeats &&
+          seats[preferredSeat - 1].isEmpty) {
+        seats[preferredSeat - 1] = _StageSeat.fromMember(
+          number: preferredSeat,
+          member: member,
+          isArabic: isArabic,
+        );
+        continue;
+      }
+
+      final emptyIndex = seats.indexWhere((seat) => seat.isEmpty);
+      if (emptyIndex != -1) {
+        seats[emptyIndex] = _StageSeat.fromMember(
+          number: emptyIndex + 1,
+          member: member,
+          isArabic: isArabic,
+        );
+      }
     }
 
-    final safeMaxSeats = maxSeats <= 0 ? 12 : maxSeats;
-    while (seats.length < safeMaxSeats) {
-      seats.add(
-        const _StageSeat(name: '', role: 'empty', isMuted: true, isEmpty: true),
-      );
-    }
-
-    return seats.take(safeMaxSeats).toList();
+    return seats;
   }
 }
 
 class _StageSeat {
   const _StageSeat({
+    required this.number,
     required this.name,
     required this.role,
     required this.isMuted,
     required this.isEmpty,
+    this.member,
   });
 
+  factory _StageSeat.empty(int number) {
+    return _StageSeat(
+      number: number,
+      name: '',
+      role: 'empty',
+      isMuted: true,
+      isEmpty: true,
+    );
+  }
+
+  factory _StageSeat.fromMember({
+    required int number,
+    required RoomMember member,
+    required bool isArabic,
+  }) {
+    return _StageSeat(
+      number: number,
+      name: member.fallbackName(isArabic),
+      role: member.role,
+      isMuted: member.isMuted,
+      isEmpty: false,
+      member: member,
+    );
+  }
+
+  final int number;
   final String name;
   final String role;
   final bool isMuted;
   final bool isEmpty;
+  final RoomMember? member;
+}
+
+class _EmptySeatAction {
+  const _EmptySeatAction.moveSelf() : member = null, moveSelf = true;
+
+  const _EmptySeatAction.moveMember(this.member) : moveSelf = false;
+
+  final RoomMember? member;
+  final bool moveSelf;
 }
 
 class _LiveSeatBubble extends StatelessWidget {
-  const _LiveSeatBubble({required this.seat, required this.isArabic});
+  const _LiveSeatBubble({
+    required this.seat,
+    required this.isArabic,
+    required this.isHost,
+    required this.onEmptySeatTap,
+    required this.onOccupiedSeatTap,
+  });
 
   final _StageSeat seat;
   final bool isArabic;
+  final bool isHost;
+  final ValueChanged<int> onEmptySeatTap;
+  final void Function(RoomMember member, int seatNumber) onOccupiedSeatTap;
 
   @override
   Widget build(BuildContext context) {
-    final isHost = seat.role == 'host';
+    final canAssignSeat = seat.isEmpty && isHost;
+    final canManageSeat = !seat.isEmpty && isHost && seat.member != null;
+    final occupiedByHost = seat.role == 'host';
     final label = seat.isEmpty
-        ? (isArabic ? '\u0641\u0627\u0631\u063a' : 'Empty')
+        ? (isArabic
+              ? '\u0645\u0627\u064a\u0643 ${seat.number}'
+              : 'Mic ${seat.number}')
         : seat.name;
     final badge = seat.isEmpty
-        ? (isArabic ? '\u0645\u0642\u0639\u062f' : 'Seat')
-        : isHost
+        ? (isArabic ? '\u0627\u0636\u063a\u0637' : 'Tap')
+        : occupiedByHost
         ? (isArabic ? '\u0645\u0636\u064a\u0641' : 'Host')
         : (isArabic ? '\u0645\u062a\u062d\u062f\u062b' : 'Speaker');
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 62,
-          height: 62,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: seat.isEmpty
-                ? const LinearGradient(
-                    colors: [Color(0xFF241638), Color(0xFF130A20)],
-                  )
-                : const LinearGradient(
-                    colors: [Color(0xFFF0C15A), Color(0xFF8B26D9)],
-                  ),
-            border: Border.all(
-              color: seat.isEmpty
-                  ? const Color(0xFF5A3A86)
-                  : const Color(0xFFFFD978),
-              width: 1.4,
-            ),
-            boxShadow: seat.isEmpty
-                ? []
-                : [
-                    BoxShadow(
-                      color: const Color(0xFFF0C15A).withValues(alpha: 0.24),
-                      blurRadius: 18,
-                      offset: const Offset(0, 8),
+        InkWell(
+          customBorder: const CircleBorder(),
+          onTap: canAssignSeat
+              ? () => onEmptySeatTap(seat.number)
+              : canManageSeat
+              ? () => onOccupiedSeatTap(seat.member!, seat.number)
+              : null,
+          child: Container(
+            width: 62,
+            height: 62,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: seat.isEmpty
+                  ? const LinearGradient(
+                      colors: [Color(0xFF241638), Color(0xFF130A20)],
+                    )
+                  : const LinearGradient(
+                      colors: [Color(0xFFF0C15A), Color(0xFF8B26D9)],
                     ),
-                  ],
-          ),
-          child: Icon(
-            seat.isEmpty
-                ? Icons.add_rounded
-                : seat.isMuted
-                ? Icons.mic_off_rounded
-                : Icons.mic_rounded,
-            color: seat.isEmpty ? const Color(0xFFD8CFEA) : Colors.white,
-            size: 26,
+              border: Border.all(
+                color: seat.isEmpty
+                    ? const Color(0xFF5A3A86)
+                    : const Color(0xFFFFD978),
+                width: 1.4,
+              ),
+              boxShadow: seat.isEmpty
+                  ? []
+                  : [
+                      BoxShadow(
+                        color: const Color(0xFFF0C15A).withValues(alpha: 0.24),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+            ),
+            child: Icon(
+              seat.isEmpty
+                  ? Icons.add_rounded
+                  : seat.isMuted
+                  ? Icons.mic_off_rounded
+                  : Icons.mic_rounded,
+              color: seat.isEmpty ? const Color(0xFFD8CFEA) : Colors.white,
+              size: 26,
+            ),
           ),
         ),
         const SizedBox(height: 8),
@@ -1065,12 +1415,14 @@ class _LiveSeatBubble extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
-            color: isHost
+            color: canAssignSeat || occupiedByHost
                 ? const Color(0xFFF0C15A).withValues(alpha: 0.18)
                 : const Color(0xFF241638),
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
-              color: isHost ? const Color(0xFFF0C15A) : const Color(0xFF5A3A86),
+              color: occupiedByHost
+                  ? const Color(0xFFF0C15A)
+                  : const Color(0xFF5A3A86),
             ),
           ),
           child: Text(
@@ -1078,7 +1430,9 @@ class _LiveSeatBubble extends StatelessWidget {
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w900,
-              color: isHost ? const Color(0xFFF0C15A) : const Color(0xFFD8CFEA),
+              color: occupiedByHost
+                  ? const Color(0xFFF0C15A)
+                  : const Color(0xFFD8CFEA),
             ),
           ),
         ),

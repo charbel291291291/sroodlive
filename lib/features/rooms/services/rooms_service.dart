@@ -240,16 +240,41 @@ class RoomsService {
     required String roomId,
     required String userId,
     required String role,
+    int? seatNumber,
   }) async {
     if (role != 'speaker' && role != 'listener') {
       throw ArgumentError('Invalid role.');
     }
 
+    final values = {
+      'role': role,
+      'seat_number': role == 'speaker' ? seatNumber : null,
+    };
+
     await SupabaseService.requiredClient
         .from('room_members')
-        .update({'role': role})
+        .update(values)
         .eq('room_id', roomId)
         .eq('user_id', userId)
+        .filter('left_at', 'is', null);
+  }
+
+  Future<void> updateMySeatNumber({
+    required String roomId,
+    required int seatNumber,
+  }) async {
+    final client = SupabaseService.requiredClient;
+    final user = client.auth.currentUser;
+
+    if (user == null) {
+      throw StateError('No logged-in user found.');
+    }
+
+    await client
+        .from('room_members')
+        .update({'seat_number': seatNumber})
+        .eq('room_id', roomId)
+        .eq('user_id', user.id)
         .filter('left_at', 'is', null);
   }
 
