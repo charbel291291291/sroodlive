@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/supabase/supabase_service.dart';
+import '../../shared/widgets/avatar_with_frame.dart';
+import 'models/avatar_frame.dart';
 import '../onboarding/onboarding_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -14,6 +16,106 @@ class ProfileScreen extends StatefulWidget {
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
+
+const List<AvatarFrame> _fallbackAvatarFrames = [
+  AvatarFrame(
+    frameKey: 'normal_silver_ring',
+    name: 'Silver Ring',
+    category: 'normal',
+    sortOrder: 10,
+  ),
+  AvatarFrame(
+    frameKey: 'normal_blue_glow',
+    name: 'Blue Glow',
+    category: 'normal',
+    sortOrder: 20,
+  ),
+  AvatarFrame(
+    frameKey: 'normal_soft_gold',
+    name: 'Soft Gold',
+    category: 'normal',
+    sortOrder: 30,
+  ),
+  AvatarFrame(
+    frameKey: 'luxury_ruby_royal',
+    name: 'Ruby Royal Frame',
+    category: 'luxury',
+    assetUrl: 'assets/avatar_frames/luxury_ruby_royal.png',
+    sortOrder: 40,
+  ),
+  AvatarFrame(
+    frameKey: 'luxury_ruby_royal_dark',
+    name: 'Ruby Royal Dark Frame',
+    category: 'luxury',
+    assetUrl: 'assets/avatar_frames/luxury_ruby_royal_dark.png',
+    sortOrder: 41,
+  ),
+  AvatarFrame(
+    frameKey: 'luxury_royal_gold',
+    name: 'Royal Gold',
+    category: 'luxury',
+    sortOrder: 110,
+  ),
+  AvatarFrame(
+    frameKey: 'luxury_diamond_purple',
+    name: 'Diamond Purple',
+    category: 'luxury',
+    sortOrder: 120,
+  ),
+  AvatarFrame(
+    frameKey: 'luxury_black_gold_crown',
+    name: 'Black Gold Crown',
+    category: 'luxury',
+    sortOrder: 130,
+  ),
+  AvatarFrame(
+    frameKey: 'luxury_crystal_feather',
+    name: 'Crystal Feather',
+    category: 'luxury',
+    sortOrder: 140,
+  ),
+  AvatarFrame(
+    frameKey: 'luxury_autumn_bloom',
+    name: 'Autumn Bloom',
+    category: 'luxury',
+    sortOrder: 150,
+  ),
+  AvatarFrame(
+    frameKey: 'vip_bronze_star',
+    name: 'Bronze Star',
+    category: 'vip',
+    vipLevel: 1,
+    sortOrder: 210,
+  ),
+  AvatarFrame(
+    frameKey: 'vip_silver_flame',
+    name: 'Silver Flame',
+    category: 'vip',
+    vipLevel: 2,
+    sortOrder: 220,
+  ),
+  AvatarFrame(
+    frameKey: 'vip_gold_crown',
+    name: 'Gold Crown',
+    category: 'vip',
+    vipLevel: 3,
+    sortOrder: 230,
+  ),
+  AvatarFrame(
+    frameKey: 'vip_platinum_diamond',
+    name: 'Platinum Diamond',
+    category: 'vip',
+    vipLevel: 4,
+    sortOrder: 240,
+  ),
+  AvatarFrame(
+    frameKey: 'vip_royal_king',
+    name: 'Royal King',
+    category: 'vip',
+    vipLevel: 5,
+    sortOrder: 250,
+  ),
+];
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final usernameController = TextEditingController();
@@ -27,6 +129,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? errorMessage;
   String? successMessage;
   Map<String, dynamic>? profile;
+  List<AvatarFrame> avatarFrames = const [];
 
   @override
   void initState() {
@@ -63,6 +166,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .select()
           .eq('id', user.id)
           .single();
+      var frames = _fallbackAvatarFrames;
+
+      try {
+        final frameData = await client
+            .from('avatar_frames')
+            .select(
+              'frame_key, name, category, vip_level, asset_url, sort_order',
+            )
+            .eq('is_active', true)
+            .order('sort_order', ascending: true);
+
+        frames = (frameData as List<dynamic>)
+            .map((item) => AvatarFrame.fromJson(item as Map<String, dynamic>))
+            .toList();
+      } catch (_) {
+        frames = _fallbackAvatarFrames;
+      }
 
       usernameController.text = data['username']?.toString() ?? '';
       displayNameController.text = data['display_name']?.toString() ?? '';
@@ -71,6 +191,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       setState(() {
         profile = data;
+        avatarFrames = frames;
         isLoading = false;
       });
     } catch (error) {
@@ -213,6 +334,64 @@ class _ProfileScreenState extends State<ProfileScreen> {
         '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
   }
 
+  Future<void> _chooseAvatarFrame() async {
+    final selectedFrameKey = profile?['selected_avatar_frame_key']?.toString();
+    final avatarUrl = profile?['avatar_url']?.toString();
+    final vipLevel = int.tryParse(profile?['vip_level']?.toString() ?? '') ?? 0;
+    final selected = await showModalBottomSheet<String?>(
+      context: context,
+      backgroundColor: const Color(0xFF12091D),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) {
+        return _AvatarFramePickerSheet(
+          frames: avatarFrames,
+          selectedFrameKey: selectedFrameKey,
+          avatarUrl: avatarUrl,
+          vipLevel: vipLevel,
+          isArabic: widget.isArabic,
+        );
+      },
+    );
+
+    if (!mounted || selected == selectedFrameKey) {
+      return;
+    }
+
+    try {
+      final client = SupabaseService.requiredClient;
+      final user = client.auth.currentUser;
+
+      if (user == null) {
+        throw StateError('No logged-in user found.');
+      }
+
+      await client
+          .from('profiles')
+          .update({
+            'selected_avatar_frame_key': selected,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', user.id);
+
+      await _loadProfile();
+
+      setState(() {
+        successMessage = widget.isArabic
+            ? '\u062a\u0645 \u062d\u0641\u0638 \u0625\u0637\u0627\u0631 \u0627\u0644\u0635\u0648\u0631\u0629.'
+            : 'Avatar frame saved.';
+      });
+    } catch (error) {
+      setState(() {
+        errorMessage = widget.isArabic
+            ? '\u0641\u0634\u0644 \u062d\u0641\u0638 \u0627\u0644\u0625\u0637\u0627\u0631: $error'
+            : 'Frame save failed: $error';
+      });
+    }
+  }
+
   Future<void> _saveProfile() async {
     final isArabic = widget.isArabic;
     final currentUsername = usernameController.text.trim();
@@ -305,6 +484,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final email = profile?['email']?.toString() ?? '-';
     final avatarUrl = profile?['avatar_url']?.toString();
+    final selectedAvatarFrameKey = profile?['selected_avatar_frame_key']
+        ?.toString();
     final publicUserId = profile?['public_user_id']?.toString() ?? '-';
     final role = profile?['role']?.toString() ?? 'user';
     final coins = profile?['coins_balance']?.toString() ?? '0';
@@ -365,12 +546,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 displayName: displayName,
                 email: email,
                 avatarUrl: avatarUrl,
+                frameKey: selectedAvatarFrameKey,
                 publicUserId: publicUserId,
                 role: role,
                 vipLevel: vipLevel,
                 isUploadingAvatar: isUploadingAvatar,
                 isArabic: isArabic,
                 onAvatarTap: _uploadAvatar,
+              ),
+              const SizedBox(height: 18),
+              _ProfileFrameSection(
+                avatarUrl: avatarUrl,
+                selectedFrameKey: selectedAvatarFrameKey,
+                frames: avatarFrames,
+                vipLevel: int.tryParse(vipLevel) ?? 0,
+                isArabic: isArabic,
+                onChooseFrame: _chooseAvatarFrame,
               ),
               const SizedBox(height: 18),
               _ProfileWalletGrid(
@@ -528,6 +719,7 @@ class _ProfileHeroCard extends StatelessWidget {
     required this.displayName,
     required this.email,
     required this.avatarUrl,
+    required this.frameKey,
     required this.publicUserId,
     required this.role,
     required this.vipLevel,
@@ -539,6 +731,7 @@ class _ProfileHeroCard extends StatelessWidget {
   final String displayName;
   final String email;
   final String? avatarUrl;
+  final String? frameKey;
   final String publicUserId;
   final String role;
   final String vipLevel;
@@ -580,10 +773,12 @@ class _ProfileHeroCard extends StatelessWidget {
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                _ProfileAvatar(
-                  avatarUrl: avatarUrl,
-                  size: 76,
-                  isUploading: isUploadingAvatar,
+                AvatarWithFrame(
+                  imageUrl: avatarUrl,
+                  radius: 38,
+                  frameKey: frameKey,
+                  vipLevel: int.tryParse(vipLevel) ?? 0,
+                  showVipBadge: (int.tryParse(vipLevel) ?? 0) > 0,
                 ),
                 Positioned(
                   right: -2,
@@ -721,62 +916,328 @@ class _ProfileBadge extends StatelessWidget {
   }
 }
 
-class _ProfileAvatar extends StatelessWidget {
-  const _ProfileAvatar({
+class _ProfileFrameSection extends StatelessWidget {
+  const _ProfileFrameSection({
     required this.avatarUrl,
-    required this.size,
-    required this.isUploading,
+    required this.selectedFrameKey,
+    required this.frames,
+    required this.vipLevel,
+    required this.isArabic,
+    required this.onChooseFrame,
   });
 
   final String? avatarUrl;
-  final double size;
-  final bool isUploading;
+  final String? selectedFrameKey;
+  final List<AvatarFrame> frames;
+  final int vipLevel;
+  final bool isArabic;
+  final VoidCallback onChooseFrame;
 
   @override
   Widget build(BuildContext context) {
-    final url = avatarUrl?.trim();
+    AvatarFrame? selectedFrame;
 
-    return Container(
-      width: size,
-      height: size,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.black.withValues(alpha: 0.22),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.35),
-          width: 1.4,
-        ),
-      ),
-      child: Stack(
-        fit: StackFit.expand,
+    for (final frame in frames) {
+      if (frame.frameKey == selectedFrameKey) {
+        selectedFrame = frame;
+        break;
+      }
+    }
+
+    return _ProfileSectionCard(
+      title: isArabic
+          ? '\u0625\u0637\u0627\u0631 \u0627\u0644\u0635\u0648\u0631\u0629'
+          : 'Avatar Frame',
+      subtitle: isArabic
+          ? '\u0627\u062e\u062a\u0631 \u0625\u0637\u0627\u0631\u0627\u064b \u064a\u0638\u0647\u0631 \u062d\u0648\u0644 \u0635\u0648\u0631\u062a\u0643.'
+          : 'Choose a frame that wraps around your avatar.',
+      isArabic: isArabic,
+      child: Row(
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
         children: [
-          if (url != null && url.isNotEmpty)
-            Image.network(
-              url,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return const Icon(
-                  Icons.person_rounded,
-                  color: Colors.white,
-                  size: 40,
-                );
-              },
-            )
-          else
-            const Icon(Icons.person_rounded, color: Colors.white, size: 40),
-          if (isUploading)
-            Container(
-              color: Colors.black.withValues(alpha: 0.42),
-              child: const Center(
-                child: SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+          AvatarWithFrame(
+            imageUrl: avatarUrl,
+            radius: 34,
+            frameKey: selectedFrameKey,
+            vipLevel: vipLevel,
+            showVipBadge: vipLevel > 0,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: isArabic
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
+              children: [
+                Text(
+                  selectedFrame?.name ??
+                      (isArabic
+                          ? '\u0628\u062f\u0648\u0646 \u0625\u0637\u0627\u0631'
+                          : 'No Frame'),
+                  textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  isArabic ? 'VIP $vipLevel' : 'VIP Level $vipLevel',
+                  textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                  style: const TextStyle(
+                    color: Color(0xFFD8CFEA),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          FilledButton(
+            onPressed: onChooseFrame,
+            child: Text(isArabic ? '\u0627\u062e\u062a\u0631' : 'Choose Frame'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AvatarFramePickerSheet extends StatelessWidget {
+  const _AvatarFramePickerSheet({
+    required this.frames,
+    required this.selectedFrameKey,
+    required this.avatarUrl,
+    required this.vipLevel,
+    required this.isArabic,
+  });
+
+  final List<AvatarFrame> frames;
+  final String? selectedFrameKey;
+  final String? avatarUrl;
+  final int vipLevel;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.82;
+
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: const BoxDecoration(
+            color: Color(0xFF08030D),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: ListView(
+            children: [
+              Text(
+                isArabic
+                    ? '\u0625\u0637\u0627\u0631 \u0627\u0644\u0635\u0648\u0631\u0629'
+                    : 'Avatar Frame',
+                textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
+              const SizedBox(height: 14),
+              _AvatarFramePickerTile(
+                avatarUrl: avatarUrl,
+                frame: null,
+                selected: selectedFrameKey == null || selectedFrameKey!.isEmpty,
+                unlocked: true,
+                vipLevel: vipLevel,
+                isArabic: isArabic,
+              ),
+              _AvatarFrameGroup(
+                title: isArabic ? '\u0639\u0627\u062f\u064a' : 'Normal',
+                frames: frames
+                    .where((frame) => frame.category == 'normal')
+                    .toList(),
+                selectedFrameKey: selectedFrameKey,
+                avatarUrl: avatarUrl,
+                vipLevel: vipLevel,
+                isArabic: isArabic,
+              ),
+              _AvatarFrameGroup(
+                title: isArabic ? '\u0641\u0627\u062e\u0631' : 'Luxury',
+                frames: frames
+                    .where((frame) => frame.category == 'luxury')
+                    .toList(),
+                selectedFrameKey: selectedFrameKey,
+                avatarUrl: avatarUrl,
+                vipLevel: vipLevel,
+                isArabic: isArabic,
+              ),
+              _AvatarFrameGroup(
+                title: 'VIP',
+                frames: frames
+                    .where((frame) => frame.category == 'vip')
+                    .toList(),
+                selectedFrameKey: selectedFrameKey,
+                avatarUrl: avatarUrl,
+                vipLevel: vipLevel,
+                isArabic: isArabic,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AvatarFrameGroup extends StatelessWidget {
+  const _AvatarFrameGroup({
+    required this.title,
+    required this.frames,
+    required this.selectedFrameKey,
+    required this.avatarUrl,
+    required this.vipLevel,
+    required this.isArabic,
+  });
+
+  final String title;
+  final List<AvatarFrame> frames;
+  final String? selectedFrameKey;
+  final String? avatarUrl;
+  final int vipLevel;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    if (frames.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 18),
+      child: Column(
+        crossAxisAlignment: isArabic
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            textAlign: isArabic ? TextAlign.right : TextAlign.left,
+            style: const TextStyle(
+              color: Color(0xFFF0C15A),
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
             ),
+          ),
+          const SizedBox(height: 10),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: frames.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 0.78,
+            ),
+            itemBuilder: (context, index) {
+              final frame = frames[index];
+
+              return _AvatarFramePickerTile(
+                avatarUrl: avatarUrl,
+                frame: frame,
+                selected: selectedFrameKey == frame.frameKey,
+                unlocked: frame.isUnlockedFor(vipLevel),
+                vipLevel: vipLevel,
+                isArabic: isArabic,
+              );
+            },
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _AvatarFramePickerTile extends StatelessWidget {
+  const _AvatarFramePickerTile({
+    required this.avatarUrl,
+    required this.frame,
+    required this.selected,
+    required this.unlocked,
+    required this.vipLevel,
+    required this.isArabic,
+  });
+
+  final String? avatarUrl;
+  final AvatarFrame? frame;
+  final bool selected;
+  final bool unlocked;
+  final int vipLevel;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    final requiredVip = frame?.vipLevel;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: unlocked
+          ? () => Navigator.of(context).pop<String?>(frame?.frameKey)
+          : null,
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF2D1247) : const Color(0xFF12091D),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: selected ? const Color(0xFFF0C15A) : const Color(0xFF4A3470),
+          ),
+        ),
+        child: Column(
+          children: [
+            AvatarWithFrame(
+              imageUrl: avatarUrl,
+              radius: 28,
+              frameKey: frame?.frameKey,
+              vipLevel: vipLevel,
+              showVipBadge: false,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              frame?.name ??
+                  (isArabic
+                      ? '\u0628\u062f\u0648\u0646 \u0625\u0637\u0627\u0631'
+                      : 'No Frame'),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              unlocked
+                  ? (selected
+                        ? (isArabic ? '\u0645\u062d\u062f\u062f' : 'Selected')
+                        : '')
+                  : (isArabic
+                        ? 'VIP ${requiredVip ?? 1}'
+                        : 'Requires VIP ${requiredVip ?? 1}'),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: unlocked
+                    ? const Color(0xFFF0C15A)
+                    : const Color(0xFF9E91B8),
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

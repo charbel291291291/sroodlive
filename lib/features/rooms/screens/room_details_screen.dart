@@ -4,12 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
+import '../../../shared/widgets/avatar_with_frame.dart';
 import '../models/room.dart';
 import '../models/room_gift.dart';
 import '../models/room_member.dart';
 import '../services/gifts_service.dart';
 import '../services/livekit_room_service.dart';
 import '../services/rooms_service.dart';
+import '../utils/vip_room_features.dart';
+
+const double _micSeatAvatarSize = 59;
+const double _micSeatOuterSize = 64;
+const double _micSeatIconSize = 26;
+const double _micSeatBadgeHorizontalPadding = 8;
 
 class RoomDetailsScreen extends StatefulWidget {
   const RoomDetailsScreen({
@@ -41,11 +48,16 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
 
   List<RoomMember> _members = const [];
   RealtimeChannel? _membersChannel;
+  RealtimeChannel? _giftTransactionsChannel;
   Timer? _heartbeatTimer;
   Timer? _membersRefreshTimer;
+  Timer? _giftBannerTimer;
   final List<_RoomGiftEvent> _giftEvents = [];
   final List<Timer> _giftEventTimers = [];
   final Map<String, int> _giftSupportByUserId = {};
+  List<RoomGiftTransaction> _roomGifts = const [];
+  RoomGiftTransaction? _latestGiftBanner;
+  bool _loadingGifts = false;
   RoomMember? _selectedMicMoveMember;
   int _giftEventSeed = 0;
 
@@ -80,6 +92,36 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         .length;
   }
 
+  List<RoomMember> get _participantsForDisplay {
+    final members = [..._members];
+
+    members.sort((a, b) {
+      final vipCompare = b.vipLevel.compareTo(a.vipLevel);
+      if (vipCompare != 0) {
+        return vipCompare;
+      }
+
+      final roleCompare = _rolePriority(
+        b.role,
+      ).compareTo(_rolePriority(a.role));
+      if (roleCompare != 0) {
+        return roleCompare;
+      }
+
+      return a.joinedAt.compareTo(b.joinedAt);
+    });
+
+    return members;
+  }
+
+  int _rolePriority(String role) {
+    return switch (role) {
+      'host' => 3,
+      'speaker' => 2,
+      _ => 1,
+    };
+  }
+
   bool get _speakerSeatsFull => _activeSpeakerCount >= widget.room.maxSeats;
 
   bool get _iAmHost {
@@ -94,28 +136,42 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     );
   }
 
+  bool get _iAmRoomOwner => _currentUserId == widget.room.ownerId;
+
+  bool get _iAmSuperAdmin => false;
+
   @override
   void initState() {
     super.initState();
     _roomLocked = widget.room.isLocked;
     _loadMembers();
+    _loadRoomGifts();
     _startHeartbeat();
     _startMembersRefresh();
     _subscribeToMembers();
+    _subscribeToGiftTransactions();
   }
 
   @override
   void dispose() {
     _heartbeatTimer?.cancel();
     _membersRefreshTimer?.cancel();
+    _giftBannerTimer?.cancel();
     for (final timer in _giftEventTimers) {
       timer.cancel();
     }
 
     final membersChannel = _membersChannel;
+    final giftTransactionsChannel = _giftTransactionsChannel;
 
     if (membersChannel != null) {
       unawaited(SupabaseService.requiredClient.removeChannel(membersChannel));
+    }
+
+    if (giftTransactionsChannel != null) {
+      unawaited(
+        SupabaseService.requiredClient.removeChannel(giftTransactionsChannel),
+      );
     }
 
     _liveKitRoomService.disconnect();
@@ -160,6 +216,88 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
           },
         )
         .subscribe();
+  }
+
+  void _subscribeToGiftTransactions() {
+    _giftTransactionsChannel = SupabaseService.requiredClient
+        .channel('room_gifts_${widget.room.id}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'gift_transactions',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'room_id',
+            value: widget.room.id,
+          ),
+          callback: (_) {
+            if (!mounted) return;
+
+            unawaited(
+              _loadRoomGifts(showLoading: false, showNewestBanner: true),
+            );
+          },
+        )
+        .subscribe();
+  }
+
+  Future<void> _loadRoomGifts({
+    bool showLoading = true,
+    bool showNewestBanner = false,
+  }) async {
+    final previousLatestId = _roomGifts.isNotEmpty ? _roomGifts.first.id : null;
+
+    if (showLoading) {
+      setState(() {
+        _loadingGifts = true;
+      });
+    }
+
+    try {
+      final gifts = await _giftsService.getRoomGiftTransactions(widget.room.id);
+
+      if (!mounted) return;
+
+      setState(() {
+        _roomGifts = gifts;
+      });
+
+      if (showNewestBanner &&
+          gifts.isNotEmpty &&
+          gifts.first.id != previousLatestId) {
+        _showRoomGiftBanner(gifts.first);
+      }
+    } catch (error) {
+      if (!mounted || !showLoading) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted && showLoading) {
+        setState(() {
+          _loadingGifts = false;
+        });
+      }
+    }
+  }
+
+  void _showRoomGiftBanner(RoomGiftTransaction gift) {
+    _giftBannerTimer?.cancel();
+
+    setState(() {
+      _latestGiftBanner = gift;
+    });
+
+    _giftBannerTimer = Timer(const Duration(seconds: 3), () {
+      if (!mounted) return;
+
+      setState(() {
+        if (_latestGiftBanner?.id == gift.id) {
+          _latestGiftBanner = null;
+        }
+      });
+    });
   }
 
   Future<void> _loadMembers({bool showLoading = true}) async {
@@ -443,6 +581,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                       contentPadding: EdgeInsets.zero,
                       leading: _RoomAvatar(
                         avatarUrl: member.avatarUrl,
+                        frameKey: member.selectedAvatarFrameKey,
+                        vipLevel: member.vipLevel,
                         size: 42,
                         selected: false,
                         fallbackIcon: Icons.person_rounded,
@@ -878,6 +1018,108 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     }
   }
 
+  Future<bool> _confirmVipKick(RoomMember member) async {
+    if (!requiresKickConfirmation(member.vipLevel)) {
+      return true;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF171125),
+          title: const Text(
+            'VIP Protected User',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: const Text(
+            'This user has VIP kick protection. Are you sure you want to remove them from the room?',
+            style: TextStyle(color: Color(0xFFD8CFEA)),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Remove Anyway'),
+            ),
+          ],
+        );
+      },
+    );
+
+    return confirmed == true;
+  }
+
+  Future<void> _removeMemberFromRoom(RoomMember member) async {
+    if (hasAntiKickProtection(member.vipLevel) &&
+        !canKickVip5User(
+          isRoomOwner: _iAmRoomOwner,
+          isSuperAdmin: _iAmSuperAdmin,
+        )) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This VIP 5 user is protected from removal.'),
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await _confirmVipKick(member);
+    if (!mounted) {
+      return;
+    }
+
+    if (!confirmed) {
+      return;
+    }
+
+    setState(() {
+      _roleBusyUserId = member.userId;
+    });
+
+    try {
+      await _roomsService.removeMemberFromRoom(
+        roomId: widget.room.id,
+        userId: member.userId,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _members = _members
+            .where((item) => item.userId != member.userId)
+            .toList();
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.isArabic
+                ? '\u062a\u0645 \u0625\u0632\u0627\u0644\u0629 \u0627\u0644\u0639\u0636\u0648 \u0645\u0646 \u0627\u0644\u063a\u0631\u0641\u0629.'
+                : 'User removed from the room.',
+          ),
+        ),
+      );
+
+      await _loadMembers(showLoading: false);
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _roleBusyUserId = null;
+        });
+      }
+    }
+  }
+
   void _replaceMemberLocally(
     RoomMember? member, {
     String? role,
@@ -906,6 +1148,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
           username: item.username,
           publicUserId: item.publicUserId,
           avatarUrl: item.avatarUrl,
+          selectedAvatarFrameKey: item.selectedAvatarFrameKey,
+          vipLevel: item.vipLevel,
         );
       }).toList();
 
@@ -1142,6 +1386,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
 
     if (!mounted) return;
 
+    await _loadRoomGifts(showLoading: false, showNewestBanner: true);
+
+    if (!mounted) return;
+
     _showGiftEvent(result);
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1225,6 +1473,19 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                     isLocked: _roomLocked,
                     isHost: _iAmHost,
                     isArabic: widget.isArabic,
+                  ),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    child: _latestGiftBanner == null
+                        ? const SizedBox.shrink()
+                        : Padding(
+                            key: ValueKey(_latestGiftBanner!.id),
+                            padding: const EdgeInsets.only(top: 12),
+                            child: _GiftRoomBanner(
+                              gift: _latestGiftBanner!,
+                              isArabic: widget.isArabic,
+                            ),
+                          ),
                   ),
                   const SizedBox(height: 18),
                   _LiveRoomStage(
@@ -1316,10 +1577,13 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                             style: const TextStyle(color: Color(0xFFD8CFEA)),
                           )
                         else
-                          ..._members.map(
+                          ..._participantsForDisplay.map(
                             (member) => _ParticipantTile(
                               name: member.fallbackName(widget.isArabic),
                               avatarUrl: member.avatarUrl,
+                              selectedAvatarFrameKey:
+                                  member.selectedAvatarFrameKey,
+                              vipLevel: member.vipLevel,
                               publicUserId: member.displayCode,
                               role: _roleLabel(member.role),
                               rawRole: member.role,
@@ -1339,6 +1603,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                                 member: member,
                                 role: 'listener',
                               ),
+                              onRemove: () => _removeMemberFromRoom(member),
                             ),
                           ),
                       ],
@@ -1348,6 +1613,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                   _LiveChatPanel(
                     roomName: widget.room.name,
                     isArabic: widget.isArabic,
+                    gifts: _roomGifts,
+                    loadingGifts: _loadingGifts,
                   ),
                   const SizedBox(height: 18),
                   _LiveBottomActionBar(
@@ -1630,9 +1897,9 @@ class _LiveRoomStage extends StatelessWidget {
             itemCount: seats.length,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 4,
-              mainAxisSpacing: 26,
-              crossAxisSpacing: 12,
-              childAspectRatio: 0.50,
+              mainAxisSpacing: 18,
+              crossAxisSpacing: 10,
+              childAspectRatio: 0.58,
             ),
             itemBuilder: (context, index) {
               return _LiveSeatBubble(
@@ -1818,24 +2085,23 @@ class _LiveSeatBubble extends StatelessWidget {
               ? () => onOccupiedSeatLongPress(seat.member!, seat.number)
               : null,
           child: Container(
-            width: 62,
-            height: 62,
+            width: _micSeatOuterSize,
+            height: _micSeatOuterSize,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: seat.isEmpty
                   ? const LinearGradient(
                       colors: [Color(0xFF241638), Color(0xFF130A20)],
                     )
-                  : const LinearGradient(
-                      colors: [Color(0xFFF0C15A), Color(0xFF8B26D9)],
-                    ),
+                  : null,
               border: Border.all(
                 color: selectedForMove
                     ? const Color(0xFF67E8A5)
                     : seat.isEmpty
                     ? const Color(0xFF5A3A86)
-                    : const Color(0xFFFFD978),
-                width: selectedForMove ? 2.4 : 1.4,
+                    : Colors.transparent,
+                width: selectedForMove ? 2.4 : 0,
               ),
               boxShadow: selectedForMove
                   ? [
@@ -1847,13 +2113,7 @@ class _LiveSeatBubble extends StatelessWidget {
                     ]
                   : seat.isEmpty
                   ? []
-                  : [
-                      BoxShadow(
-                        color: const Color(0xFFF0C15A).withValues(alpha: 0.24),
-                        blurRadius: 18,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
+                  : [],
             ),
             child: Stack(
               fit: StackFit.expand,
@@ -1862,17 +2122,26 @@ class _LiveSeatBubble extends StatelessWidget {
                   const Icon(
                     Icons.add_rounded,
                     color: Color(0xFFD8CFEA),
-                    size: 26,
+                    size: _micSeatIconSize,
                   )
                 else
-                  ClipOval(
-                    child: _RoomAvatarImage(
-                      avatarUrl: seat.member?.avatarUrl,
-                      fallbackIcon: seat.isMuted
-                          ? Icons.mic_off_rounded
-                          : Icons.person_rounded,
-                      iconColor: Colors.white,
-                      size: 62,
+                  Center(
+                    child: SizedBox(
+                      width: _micSeatOuterSize,
+                      height: _micSeatOuterSize,
+                      child: Center(
+                        child: AvatarWithFrame(
+                          imageUrl: seat.member?.avatarUrl,
+                          radius: _micSeatAvatarSize / 2,
+                          frameKey: seat.member?.selectedAvatarFrameKey,
+                          vipLevel: seat.member?.vipLevel,
+                          showVipBadge: false,
+                          compact: true,
+                          fallbackIcon: seat.isMuted
+                              ? Icons.mic_off_rounded
+                              : Icons.person_rounded,
+                        ),
+                      ),
                     ),
                   ),
                 if (!seat.isEmpty && seat.isMuted)
@@ -1907,7 +2176,10 @@ class _LiveSeatBubble extends StatelessWidget {
         _SupportPill(amount: seat.supportAmount, compact: true),
         if (seat.supportAmount > 0) const SizedBox(height: 4),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          padding: const EdgeInsets.symmetric(
+            horizontal: _micSeatBadgeHorizontalPadding,
+            vertical: 3,
+          ),
           decoration: BoxDecoration(
             color: canAssignSeat || occupiedByHost
                 ? const Color(0xFFF0C15A).withValues(alpha: 0.18)
@@ -1925,6 +2197,9 @@ class _LiveSeatBubble extends StatelessWidget {
           ),
           child: Text(
             badge,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w900,
@@ -1942,60 +2217,229 @@ class _LiveSeatBubble extends StatelessWidget {
 }
 
 class _LiveChatPanel extends StatelessWidget {
-  const _LiveChatPanel({required this.roomName, required this.isArabic});
+  const _LiveChatPanel({
+    required this.roomName,
+    required this.isArabic,
+    required this.gifts,
+    required this.loadingGifts,
+  });
 
   final String roomName;
   final bool isArabic;
+  final List<RoomGiftTransaction> gifts;
+  final bool loadingGifts;
 
   @override
   Widget build(BuildContext context) {
     final textAlign = isArabic ? TextAlign.right : TextAlign.left;
+    final textDirection = isArabic ? TextDirection.rtl : TextDirection.ltr;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xFF12091D),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFF4A3470)),
       ),
-      child: Row(
-        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+      child: Column(
+        crossAxisAlignment: isArabic
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.chat_bubble_rounded,
-            color: Color(0xFFF0C15A),
-            size: 20,
+          Row(
+            textDirection: textDirection,
+            children: [
+              const Icon(
+                Icons.card_giftcard_rounded,
+                color: Color(0xFFF0C15A),
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  isArabic
+                      ? '\u0627\u0644\u0647\u062f\u0627\u064a\u0627'
+                      : 'Gifts',
+                  textAlign: textAlign,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+              if (loadingGifts)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
+          const SizedBox(height: 10),
+          if (gifts.isEmpty && !loadingGifts)
+            Text(
               isArabic
-                  ? '\u0627\u0644\u062f\u0631\u062f\u0634\u0629 \u0633\u062a\u0641\u0639\u0644 \u0644\u0627\u062d\u0642\u0627\u064b'
-                  : 'Chat will be enabled later',
+                  ? '\u0644\u0627 \u062a\u0648\u062c\u062f \u0647\u062f\u0627\u064a\u0627 \u0628\u0639\u062f'
+                  : 'No gifts yet',
               textAlign: textAlign,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Color(0xFFD8CFEA),
                 fontWeight: FontWeight.w800,
                 fontSize: 13,
               ),
+            )
+          else
+            ...gifts.map(
+              (gift) => _GiftFeedRow(gift: gift, isArabic: isArabic),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GiftRoomBanner extends StatelessWidget {
+  const _GiftRoomBanner({required this.gift, required this.isArabic});
+
+  final RoomGiftTransaction gift;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = isArabic
+        ? '${gift.senderLabel} \u062f\u0639\u0645 ${gift.receiverLabel} \u0628\u0647\u062f\u064a\u0629 ${gift.giftName}'
+        : '${gift.senderLabel} supported ${gift.receiverLabel} with ${gift.giftName}';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF3A174F), Color(0xFF20102F), Color(0xFF12091D)],
+        ),
+        border: Border.all(color: const Color(0xFFF0C15A)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF0C15A).withValues(alpha: 0.20),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        children: [
+          _RoomAvatar(
+            avatarUrl: gift.sender?.avatarUrl,
+            frameKey: gift.sender?.selectedAvatarFrameKey,
+            vipLevel: gift.sender?.vipLevel ?? 0,
+            size: 38,
+            selected: false,
+            fallbackIcon: Icons.person_rounded,
           ),
           const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFF241638),
-              borderRadius: BorderRadius.circular(999),
-            ),
+          _GiftMiniImage(gift: gift.giftPreview, size: 38),
+          const SizedBox(width: 8),
+          _RoomAvatar(
+            avatarUrl: gift.receiver?.avatarUrl,
+            frameKey: gift.receiver?.selectedAvatarFrameKey,
+            vipLevel: gift.receiver?.vipLevel ?? 0,
+            size: 38,
+            selected: true,
+            fallbackIcon: Icons.person_rounded,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
             child: Text(
-              isArabic ? '\u0642\u0631\u064a\u0628\u0627\u064b' : 'Soon',
+              text,
+              textAlign: isArabic ? TextAlign.right : TextAlign.left,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: Color(0xFFF0C15A),
+                color: Colors.white,
+                fontSize: 12,
+                height: 1.25,
                 fontWeight: FontWeight.w900,
-                fontSize: 10,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GiftMiniImage extends StatelessWidget {
+  const _GiftMiniImage({required this.gift, required this.size});
+
+  final RoomGift gift;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      padding: EdgeInsets.all(size * 0.14),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const RadialGradient(
+          colors: [Color(0xFFFFD978), Color(0xFFE0A83A), Color(0xFF8B26D9)],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF0C15A).withValues(alpha: 0.22),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: Image.network(
+        gift.imageUrl,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return Icon(
+            gift.materialIcon,
+            color: const Color(0xFF160B26),
+            size: size * 0.52,
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _GiftFeedRow extends StatelessWidget {
+  const _GiftFeedRow({required this.gift, required this.isArabic});
+
+  final RoomGiftTransaction gift;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = isArabic
+        ? '\u0623\u0631\u0633\u0644 ${gift.senderLabel} \u0647\u062f\u064a\u0629 ${gift.giftName} \u0625\u0644\u0649 ${gift.receiverLabel}'
+        : '${gift.senderLabel} sent ${gift.giftName} to ${gift.receiverLabel}';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        children: [
+          _GiftMiniImage(gift: gift.giftPreview, size: 28),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              textAlign: isArabic ? TextAlign.right : TextAlign.left,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFFD8CFEA),
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ),
@@ -2457,12 +2901,16 @@ class _GiftReceiverRail extends StatelessWidget {
 class _RoomAvatar extends StatelessWidget {
   const _RoomAvatar({
     required this.avatarUrl,
+    required this.frameKey,
+    required this.vipLevel,
     required this.size,
     required this.selected,
     required this.fallbackIcon,
   });
 
   final String? avatarUrl;
+  final String? frameKey;
+  final int vipLevel;
   final double size;
   final bool selected;
   final IconData fallbackIcon;
@@ -2472,59 +2920,23 @@ class _RoomAvatar extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      clipBehavior: Clip.antiAlias,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(
-          colors: selected
-              ? const [Color(0xFFB000FF), Color(0xFFF0C15A)]
-              : const [Color(0xFF2D1247), Color(0xFF12091D)],
-        ),
         border: Border.all(
-          color: selected ? const Color(0xFFF0C15A) : const Color(0xFF4A3470),
+          color: selected ? const Color(0xFFF0C15A) : Colors.transparent,
           width: 2,
         ),
       ),
-      child: _RoomAvatarImage(
-        avatarUrl: avatarUrl,
+      child: AvatarWithFrame(
+        imageUrl: avatarUrl,
+        radius: (size - 4) / 2,
+        frameKey: frameKey,
+        vipLevel: vipLevel,
+        showVipBadge: vipLevel > 0 && size >= 42,
         fallbackIcon: fallbackIcon,
-        iconColor: Colors.white,
-        size: size,
       ),
     );
-  }
-}
-
-class _RoomAvatarImage extends StatelessWidget {
-  const _RoomAvatarImage({
-    required this.avatarUrl,
-    required this.fallbackIcon,
-    required this.iconColor,
-    required this.size,
-  });
-
-  final String? avatarUrl;
-  final IconData fallbackIcon;
-  final Color iconColor;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final url = avatarUrl?.trim();
-
-    if (url != null && url.isNotEmpty) {
-      return Image.network(
-        url,
-        fit: BoxFit.cover,
-        width: size,
-        height: size,
-        errorBuilder: (context, error, stackTrace) {
-          return Icon(fallbackIcon, color: iconColor, size: size * 0.50);
-        },
-      );
-    }
-
-    return Icon(fallbackIcon, color: iconColor, size: size * 0.50);
   }
 }
 
@@ -2561,6 +2973,8 @@ class _GiftReceiverBubble extends StatelessWidget {
           children: [
             _RoomAvatar(
               avatarUrl: avatarUrl,
+              frameKey: receiver.selectedAvatarFrameKey,
+              vipLevel: receiver.vipLevel,
               size: 54,
               selected: selected,
               fallbackIcon: receiver.role == 'listener'
@@ -3074,6 +3488,8 @@ class _ParticipantTile extends StatelessWidget {
   const _ParticipantTile({
     required this.name,
     required this.avatarUrl,
+    required this.selectedAvatarFrameKey,
+    required this.vipLevel,
     required this.publicUserId,
     required this.role,
     required this.rawRole,
@@ -3085,10 +3501,13 @@ class _ParticipantTile extends StatelessWidget {
     required this.isBusy,
     required this.onPromote,
     required this.onMoveToListener,
+    required this.onRemove,
   });
 
   final String name;
   final String? avatarUrl;
+  final String? selectedAvatarFrameKey;
+  final int vipLevel;
   final String publicUserId;
   final String role;
   final String rawRole;
@@ -3100,11 +3519,13 @@ class _ParticipantTile extends StatelessWidget {
   final bool isBusy;
   final VoidCallback onPromote;
   final VoidCallback onMoveToListener;
+  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
     final canPromote = rawRole == 'listener';
     final canMoveToListener = rawRole == 'speaker';
+    final isVip5 = vipLevel >= 5;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -3121,6 +3542,8 @@ class _ParticipantTile extends StatelessWidget {
             children: [
               _RoomAvatar(
                 avatarUrl: avatarUrl,
+                frameKey: selectedAvatarFrameKey,
+                vipLevel: vipLevel,
                 size: 42,
                 selected: false,
                 fallbackIcon: isMuted
@@ -3137,11 +3560,21 @@ class _ParticipantTile extends StatelessWidget {
                     Text(
                       name,
                       textAlign: isArabic ? TextAlign.right : TextAlign.left,
-                      style: const TextStyle(
+                      style: TextStyle(
+                        color: vipLevel >= 3
+                            ? const Color(0xFFF0C15A)
+                            : Colors.white,
                         fontWeight: FontWeight.w900,
                         fontSize: 15,
                       ),
                     ),
+                    if (vipLevel > 0) ...[
+                      const SizedBox(height: 5),
+                      _VipNameBadge(
+                        level: vipLevel,
+                        isHostVisibleMarker: isVip5 && showHostControls,
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     Text(
                       joinedAt,
@@ -3228,6 +3661,21 @@ class _ParticipantTile extends StatelessWidget {
                       ),
                     ),
                   ),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: isBusy ? null : onRemove,
+                    icon: isBusy
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.person_remove_rounded),
+                    label: Text(
+                      isArabic ? '\u0625\u0632\u0627\u0644\u0629' : 'Remove',
+                    ),
+                  ),
+                ),
               ],
             ),
           ],
@@ -3281,6 +3729,57 @@ class _SupportPill extends StatelessWidget {
               color: const Color(0xFF160B26),
               fontWeight: FontWeight.w900,
               fontSize: compact ? 10 : 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VipNameBadge extends StatelessWidget {
+  const _VipNameBadge({required this.level, required this.isHostVisibleMarker});
+
+  final int level;
+  final bool isHostVisibleMarker;
+
+  @override
+  Widget build(BuildContext context) {
+    final isRoyal = level >= 5;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isRoyal
+              ? const [Color(0xFFFFD978), Color(0xFF7D2BFF)]
+              : const [Color(0xFFFFD978), Color(0xFFE0A83A)],
+        ),
+        borderRadius: BorderRadius.circular(999),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF0C15A).withValues(alpha: 0.20),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isRoyal
+                ? Icons.workspace_premium_rounded
+                : Icons.admin_panel_settings_rounded,
+            size: 11,
+            color: const Color(0xFF160B26),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            isHostVisibleMarker ? 'VIP $level Protected' : 'VIP $level',
+            style: const TextStyle(
+              color: Color(0xFF160B26),
+              fontWeight: FontWeight.w900,
+              fontSize: 10,
             ),
           ),
         ],

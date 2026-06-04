@@ -12,6 +12,8 @@ class RoomMember {
     this.username,
     this.publicUserId,
     this.avatarUrl,
+    this.selectedAvatarFrameKey,
+    this.vipLevel = 0,
   });
 
   final String id;
@@ -26,6 +28,8 @@ class RoomMember {
   final String? username;
   final String? publicUserId;
   final String? avatarUrl;
+  final String? selectedAvatarFrameKey;
+  final int vipLevel;
 
   factory RoomMember.fromJson(Map<String, dynamic> json) {
     final profile = json['profiles'];
@@ -47,6 +51,12 @@ class RoomMember {
     final resolvedAvatarUrl = profile is Map<String, dynamic>
         ? profile['avatar_url']?.toString()
         : json['avatar_url']?.toString();
+    final resolvedFrameKey = profile is Map<String, dynamic>
+        ? profile['selected_avatar_frame_key']?.toString()
+        : json['selected_avatar_frame_key']?.toString();
+    final resolvedVipLevel = profile is Map<String, dynamic>
+        ? (profile['vip_level'] as num?)?.toInt() ?? 0
+        : (json['vip_level'] as num?)?.toInt() ?? 0;
 
     return RoomMember(
       id: json['id'].toString(),
@@ -63,6 +73,8 @@ class RoomMember {
       username: resolvedUsername,
       publicUserId: resolvedPublicUserId,
       avatarUrl: resolvedAvatarUrl,
+      selectedAvatarFrameKey: resolvedFrameKey,
+      vipLevel: resolvedVipLevel,
     );
   }
 

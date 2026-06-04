@@ -66,7 +66,7 @@ class RoomsService {
       final data = await client
           .from('room_members')
           .select(
-            '*, profiles(display_name, username, public_user_id, avatar_url)',
+            '*, profiles(display_name, username, public_user_id, avatar_url, selected_avatar_frame_key, vip_level)',
           )
           .eq('room_id', roomId)
           .filter('left_at', 'is', null)
@@ -80,7 +80,9 @@ class RoomsService {
       try {
         final data = await client
             .from('room_members')
-            .select('*, profiles(display_name, username, avatar_url)')
+            .select(
+              '*, profiles(display_name, username, avatar_url, selected_avatar_frame_key, vip_level)',
+            )
             .eq('room_id', roomId)
             .filter('left_at', 'is', null)
             .gte('last_seen_at', _activeSince.toIso8601String())
@@ -321,6 +323,25 @@ class RoomsService {
     await SupabaseService.requiredClient
         .from('room_members')
         .update({'seat_number': seatNumber})
+        .eq('room_id', roomId)
+        .eq('user_id', userId)
+        .filter('left_at', 'is', null);
+  }
+
+  Future<void> removeMemberFromRoom({
+    required String roomId,
+    required String userId,
+  }) async {
+    final now = DateTime.now().toUtc().toIso8601String();
+
+    await SupabaseService.requiredClient
+        .from('room_members')
+        .update({
+          'is_muted': true,
+          'seat_number': null,
+          'left_at': now,
+          'last_seen_at': now,
+        })
         .eq('room_id', roomId)
         .eq('user_id', userId)
         .filter('left_at', 'is', null);
