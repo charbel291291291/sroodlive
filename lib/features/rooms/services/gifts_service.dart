@@ -1,4 +1,5 @@
 import '../../../core/supabase/supabase_service.dart';
+import '../../../shared/services/restrictions_service.dart';
 import '../models/room_gift.dart';
 
 class RoomGiftProfile {
@@ -144,6 +145,8 @@ class RoomGiftTransaction {
 class GiftsService {
   const GiftsService();
 
+  static const RestrictionsService _restrictions = RestrictionsService();
+
   Future<List<RoomGift>> fetchActiveGifts() async {
     final data = await SupabaseService.requiredClient
         .from('gifts')
@@ -166,6 +169,9 @@ class GiftsService {
     if (client.auth.currentUser == null) {
       throw StateError('No logged-in user found.');
     }
+
+    await _restrictions.throwIfRestricted('account_ban');
+    await _restrictions.throwIfRestricted('gift_block');
 
     if (!_looksLikeUuid(gift.id)) {
       throw StateError('gift_not_found');

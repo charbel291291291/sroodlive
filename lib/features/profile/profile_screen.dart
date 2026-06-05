@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -6,7 +6,6 @@ import '../../core/supabase/supabase_service.dart';
 import '../../shared/widgets/avatar_with_frame.dart';
 import '../../shared/widgets/vip_badge.dart';
 import '../wallet/models/wallet.dart';
-import '../wallet/screens/finance_recharge_admin_screen.dart';
 import '../wallet/screens/wallet_screen.dart';
 import '../wallet/services/wallet_service.dart';
 import '../rooms/utils/vip_room_features.dart';
@@ -55,6 +54,41 @@ const List<AvatarFrame> _fallbackAvatarFrames = [
     category: 'luxury',
     assetUrl: 'assets/avatar_frames/luxury_ruby_royal_dark.png',
     sortOrder: 41,
+  ),
+  AvatarFrame(
+    frameKey: 'custom_srood_live',
+    name: 'SrOOd Live Frame',
+    category: 'vip',
+    assetUrl: 'assets/avatar_frames/custom/srood_live_frame.png',
+    sortOrder: 42,
+  ),
+  AvatarFrame(
+    frameKey: 'custom_super_admin',
+    name: 'Super Admin Frame',
+    category: 'vip',
+    assetUrl: 'assets/avatar_frames/custom/super_admin_frame.png',
+    sortOrder: 43,
+  ),
+  AvatarFrame(
+    frameKey: 'custom_admin',
+    name: 'Admin Frame',
+    category: 'vip',
+    assetUrl: 'assets/avatar_frames/custom/admin_frame.png',
+    sortOrder: 44,
+  ),
+  AvatarFrame(
+    frameKey: 'custom_luxury_gold',
+    name: 'Luxury Gold Frame',
+    category: 'luxury',
+    assetUrl: 'assets/avatar_frames/custom/luxury_gold_frame.png',
+    sortOrder: 45,
+  ),
+  AvatarFrame(
+    frameKey: 'custom_luxury_diamond',
+    name: 'Luxury Diamond Frame',
+    category: 'luxury',
+    assetUrl: 'assets/avatar_frames/custom/luxury_diamond_frame.png',
+    sortOrder: 46,
   ),
   AvatarFrame(
     frameKey: 'luxury_royal_gold',
@@ -143,7 +177,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int giftsReceivedCount = 0;
   int visitorsCount = 0;
   UserWallet? wallet;
-  bool hasFinanceAccess = false;
 
   @override
   void initState() {
@@ -169,7 +202,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() {
           isLoading = false;
           errorMessage = widget.isArabic
-              ? 'Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ù…Ø³ØªØ®Ø¯Ù… Ù…Ø³Ø¬Ù„.'
+              ? 'Ã™â€žÃ˜Â§ Ã™Å Ã™Ë†Ã˜Â¬Ã˜Â¯ Ã™â€¦Ã˜Â³Ã˜ÂªÃ˜Â®Ã˜Â¯Ã™â€¦ Ã™â€¦Ã˜Â³Ã˜Â¬Ã™â€ž.'
               : 'No logged-in user found.';
         });
         return;
@@ -206,7 +239,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final following = await _followService.followingCount(user.id);
       final gifts = await _safeGiftCount(user.id);
       final loadedWallet = await _safeEnsureWallet(user.id);
-      final financeAccess = await _safeFinanceAccess();
 
       setState(() {
         profile = data;
@@ -228,14 +260,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
         visitorsCount = _intFromProfile(data, 'visitors_count');
         wallet = loadedWallet;
-        hasFinanceAccess = financeAccess;
         isLoading = false;
       });
     } catch (error) {
       setState(() {
         isLoading = false;
         errorMessage = widget.isArabic
-            ? 'ÙØ´Ù„ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠ: $error'
+            ? 'Ã™ÂÃ˜Â´Ã™â€ž Ã˜ÂªÃ˜Â­Ã™â€¦Ã™Å Ã™â€ž Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™Â Ã˜Â§Ã™â€žÃ˜Â´Ã˜Â®Ã˜ÂµÃ™Å : $error'
             : 'Failed to load profile: $error';
       });
     }
@@ -260,14 +291,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return await _walletService.ensureWallet();
     } catch (_) {
       return UserWallet.empty(userId);
-    }
-  }
-
-  Future<bool> _safeFinanceAccess() async {
-    try {
-      return await _walletService.hasFinanceAccess();
-    } catch (_) {
-      return false;
     }
   }
 
@@ -298,18 +321,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => WalletScreen(isArabic: widget.isArabic),
-      ),
-    );
-
-    if (mounted) {
-      await _loadProfile();
-    }
-  }
-
-  Future<void> _openFinanceScreen() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => FinanceRechargeAdminScreen(isArabic: widget.isArabic),
       ),
     );
 
@@ -978,8 +989,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           onFeedback: _showFeedbackDialog,
                           onSettings: () => _showSettingsSheet(publicUserId),
-                          showFinance: hasFinanceAccess,
-                          onFinance: _openFinanceScreen,
                         ),
                       ],
                     ),
@@ -1781,8 +1790,6 @@ class _ProfileMenuList extends StatelessWidget {
     required this.onBadge,
     required this.onFeedback,
     required this.onSettings,
-    required this.showFinance,
-    required this.onFinance,
   });
 
   final bool isArabic;
@@ -1792,8 +1799,6 @@ class _ProfileMenuList extends StatelessWidget {
   final VoidCallback onBadge;
   final VoidCallback onFeedback;
   final VoidCallback onSettings;
-  final bool showFinance;
-  final VoidCallback onFinance;
 
   @override
   Widget build(BuildContext context) {
@@ -1823,12 +1828,6 @@ class _ProfileMenuList extends StatelessWidget {
         isArabic ? '\u0645\u0644\u0627\u062d\u0638\u0627\u062a' : 'Feedback',
         onFeedback,
       ),
-      if (showFinance)
-        _MenuData(
-          Icons.admin_panel_settings_rounded,
-          isArabic ? '\u0627\u0644\u0645\u0627\u0644\u064a\u0629' : 'Finance',
-          onFinance,
-        ),
       _MenuData(
         Icons.settings_rounded,
         isArabic
@@ -2372,3 +2371,6 @@ class _ProfileInput extends StatelessWidget {
     );
   }
 }
+
+
+

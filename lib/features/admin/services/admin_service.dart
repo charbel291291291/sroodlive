@@ -1,0 +1,571 @@
+import '../../../core/supabase/supabase_service.dart';
+import '../models/admin_models.dart';
+
+class AdminService {
+  const AdminService();
+
+  String? get currentEmail =>
+      SupabaseService.requiredClient.auth.currentUser?.email;
+
+  Future<void> signIn({required String email, required String password}) async {
+    await SupabaseService.requiredClient.auth.signInWithPassword(
+      email: email,
+      password: password,
+    );
+  }
+
+  Future<void> signOut() async {
+    await SupabaseService.requiredClient.auth.signOut();
+  }
+
+  Future<AdminOverview> fetchOverview() async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_dashboard_overview',
+    );
+    final rows = data as List<dynamic>;
+    if (rows.isEmpty) {
+      throw StateError('not_authorized');
+    }
+    return AdminOverview.fromJson(rows.first as Map<String, dynamic>);
+  }
+
+  Future<List<AdminRechargeRequest>> fetchRechargeRequests({
+    String? status,
+    int limit = 50,
+  }) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_list_recharge_requests',
+      params: {'p_status': status, 'p_limit': limit},
+    );
+    return (data as List<dynamic>)
+        .map(
+          (item) => AdminRechargeRequest.fromJson(item as Map<String, dynamic>),
+        )
+        .toList();
+  }
+
+  Future<void> approveRecharge(String requestId, {String? note}) async {
+    await SupabaseService.requiredClient.rpc(
+      'approve_recharge_request',
+      params: {'p_request_id': requestId, 'p_admin_note': note},
+    );
+  }
+
+  Future<void> rejectRecharge(String requestId, String reason) async {
+    await SupabaseService.requiredClient.rpc(
+      'reject_recharge_request',
+      params: {'p_request_id': requestId, 'p_reject_reason': reason},
+    );
+  }
+
+  Future<AdminWalletSummary?> lookupWallet(String publicUserId) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_wallet_lookup_by_public_id',
+      params: {'p_public_user_id': publicUserId},
+    );
+    final rows = data as List<dynamic>;
+    if (rows.isEmpty) {
+      return null;
+    }
+    return AdminWalletSummary.fromJson(rows.first as Map<String, dynamic>);
+  }
+
+  Future<AdminWalletSummary?> adjustWallet({
+    required String userId,
+    required int coinsDelta,
+    required int diamondsDelta,
+    String? note,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_manual_wallet_adjustment',
+      params: {
+        'p_user_id': userId,
+        'p_coins_delta': coinsDelta,
+        'p_diamonds_delta': diamondsDelta,
+        'p_note': note,
+      },
+    );
+    return null;
+  }
+
+  Future<List<AdminWalletTransaction>> fetchWalletTransactions({
+    int limit = 50,
+  }) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_list_wallet_transactions',
+      params: {'p_limit': limit},
+    );
+    return (data as List<dynamic>)
+        .map(
+          (item) =>
+              AdminWalletTransaction.fromJson(item as Map<String, dynamic>),
+        )
+        .toList();
+  }
+
+  Future<List<AdminGiftTransaction>> fetchGiftTransactions({
+    int limit = 30,
+  }) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_list_gift_transactions',
+      params: {'p_limit': limit},
+    );
+    return (data as List<dynamic>)
+        .map(
+          (item) => AdminGiftTransaction.fromJson(item as Map<String, dynamic>),
+        )
+        .toList();
+  }
+
+  Future<List<AdminAgency>> fetchAgencies() async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_list_recharge_agencies',
+    );
+    return (data as List<dynamic>)
+        .map((item) => AdminAgency.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<AdminAgent>> fetchAgents() async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_list_recharge_agents',
+    );
+    return (data as List<dynamic>)
+        .map((item) => AdminAgent.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<AdminUserSummary>> searchUsers({
+    String? query,
+    int limit = 50,
+  }) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_search_users',
+      params: {'p_query': query, 'p_limit': limit},
+    );
+    return (data as List<dynamic>)
+        .map((item) => AdminUserSummary.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> assignUserRole({
+    required String userId,
+    required String role,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_assign_user_role',
+      params: {'p_user_id': userId, 'p_role': role},
+    );
+  }
+
+  Future<void> removeUserRole({
+    required String userId,
+    required String role,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_remove_user_role',
+      params: {'p_user_id': userId, 'p_role': role},
+    );
+  }
+
+  Future<List<AdminRoomSummary>> fetchRooms({int limit = 50}) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_list_rooms',
+      params: {'p_limit': limit},
+    );
+    return (data as List<dynamic>)
+        .map((item) => AdminRoomSummary.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<AdminGiftSummary>> fetchGifts({int limit = 100}) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_list_gifts',
+      params: {'p_limit': limit},
+    );
+    return (data as List<dynamic>)
+        .map((item) => AdminGiftSummary.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> setGiftActive({
+    required String giftId,
+    required bool isActive,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_set_gift_active',
+      params: {'p_gift_id': giftId, 'p_is_active': isActive},
+    );
+  }
+
+  Future<void> setAgencyActive({
+    required String agencyId,
+    required bool isActive,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_set_recharge_agency_active',
+      params: {'p_agency_id': agencyId, 'p_is_active': isActive},
+    );
+  }
+
+  Future<void> setAgentActive({
+    required String agentId,
+    required bool isActive,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_set_recharge_agent_active',
+      params: {'p_agent_id': agentId, 'p_is_active': isActive},
+    );
+  }
+
+  Future<List<AdminAuditLog>> fetchAuditLogs({int limit = 50}) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_list_audit_logs',
+      params: {'p_limit': limit},
+    );
+    return (data as List<dynamic>)
+        .map((item) => AdminAuditLog.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> createAgency({
+    required String name,
+    required String code,
+    String? country,
+    String? whatsapp,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_create_recharge_agency',
+      params: {
+        'p_name': name,
+        'p_code': code,
+        'p_country': country,
+        'p_whatsapp': whatsapp,
+        'p_commission_rate': 0,
+      },
+    );
+  }
+
+  Future<void> createAgent({
+    required String agencyCode,
+    required String name,
+    required String code,
+    String? whatsapp,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_create_recharge_agent',
+      params: {
+        'p_agency_code': agencyCode,
+        'p_name': name,
+        'p_code': code,
+        'p_whatsapp': whatsapp,
+        'p_commission_rate': 0,
+      },
+    );
+  }
+
+  Future<String> updateGift({
+    String? giftId,
+    String? code,
+    String? name,
+    String? arabicName,
+    int? priceCoins,
+    String? icon,
+    String category = 'hot',
+    bool isActive = true,
+    int sortOrder = 0,
+  }) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_update_gift',
+      params: {
+        'p_gift_id': giftId,
+        'p_code': code,
+        'p_name': name,
+        'p_arabic_name': arabicName,
+        'p_price_coins': priceCoins,
+        'p_icon': icon,
+        'p_category': category,
+        'p_is_active': isActive,
+        'p_sort_order': sortOrder,
+      },
+    );
+    return data.toString();
+  }
+
+  Future<AdminUserDetail?> fetchUserDetail(String userId) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_user_detail',
+      params: {'p_user_id': userId},
+    );
+    final rows = data as List<dynamic>;
+    if (rows.isEmpty) return null;
+    return AdminUserDetail.fromJson(rows.first as Map<String, dynamic>);
+  }
+
+  Future<void> updateUserProfile({
+    required String userId,
+    String? displayName,
+    String? username,
+    String? avatarUrl,
+    String? bio,
+    int? vipLevel,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_update_user_profile',
+      params: {
+        'p_user_id': userId,
+        'p_display_name': displayName,
+        'p_username': username,
+        'p_avatar_url': avatarUrl,
+        'p_bio': bio,
+        'p_vip_level': vipLevel,
+      },
+    );
+  }
+
+  Future<void> setUserRestriction({
+    required String userId,
+    required String restrictionType,
+    required bool isActive,
+    String? reason,
+    DateTime? expiresAt,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_set_user_restriction',
+      params: {
+        'p_user_id': userId,
+        'p_restriction_type': restrictionType,
+        'p_is_active': isActive,
+        'p_reason': reason,
+        'p_expires_at': expiresAt?.toUtc().toIso8601String(),
+      },
+    );
+  }
+
+  Future<List<AdminUserLedgerRow>> fetchUserWalletTransactions(
+    String userId, {
+    int limit = 50,
+  }) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_user_wallet_transactions',
+      params: {'p_user_id': userId, 'p_limit': limit},
+    );
+    return (data as List<dynamic>)
+        .map(
+          (item) => AdminUserLedgerRow.fromJson(item as Map<String, dynamic>),
+        )
+        .toList();
+  }
+
+  Future<List<AdminUserRechargeRow>> fetchUserRechargeRequests(
+    String userId, {
+    int limit = 50,
+  }) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_user_recharge_requests',
+      params: {'p_user_id': userId, 'p_limit': limit},
+    );
+    return (data as List<dynamic>)
+        .map(
+          (item) => AdminUserRechargeRow.fromJson(item as Map<String, dynamic>),
+        )
+        .toList();
+  }
+
+  Future<List<AdminUserGiftRow>> fetchUserGiftTransactions(
+    String userId, {
+    int limit = 50,
+  }) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_user_gift_transactions',
+      params: {'p_user_id': userId, 'p_limit': limit},
+    );
+    return (data as List<dynamic>)
+        .map((item) => AdminUserGiftRow.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> closeRoom({required String roomId, String? reason}) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_close_room',
+      params: {'p_room_id': roomId, 'p_reason': reason},
+    );
+  }
+
+  Future<void> kickRoomMember({
+    required String roomId,
+    required String userId,
+    String? reason,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_kick_room_member',
+      params: {'p_room_id': roomId, 'p_user_id': userId, 'p_reason': reason},
+    );
+  }
+
+  Future<AdminFinanceReport?> fetchFinanceReport({
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_finance_report',
+      params: {
+        'p_from': from?.toUtc().toIso8601String(),
+        'p_to': to?.toUtc().toIso8601String(),
+      },
+    );
+    final rows = data as List<dynamic>;
+    if (rows.isEmpty) return null;
+    return AdminFinanceReport.fromJson(rows.first as Map<String, dynamic>);
+  }
+
+  Future<List<AdminBdReportRow>> fetchBdReport({
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_bd_report',
+      params: {
+        'p_from': from?.toUtc().toIso8601String(),
+        'p_to': to?.toUtc().toIso8601String(),
+      },
+    );
+    return (data as List<dynamic>)
+        .map((item) => AdminBdReportRow.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<AdminAvatarFrameSummary>> fetchAvatarFrames({
+    int limit = 200,
+  }) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_list_avatar_frames',
+      params: {'p_limit': limit},
+    );
+    return (data as List<dynamic>)
+        .map(
+          (item) =>
+              AdminAvatarFrameSummary.fromJson(item as Map<String, dynamic>),
+        )
+        .toList();
+  }
+
+  Future<void> updateAvatarFrame({
+    required String frameKey,
+    required String name,
+    required String category,
+    int? vipLevel,
+    int? requiredVipLevel,
+    String? assetUrl,
+    bool isActive = true,
+    bool isFeatured = false,
+    int sortOrder = 0,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_update_avatar_frame',
+      params: {
+        'p_frame_key': frameKey,
+        'p_name': name,
+        'p_category': category,
+        'p_vip_level': vipLevel,
+        'p_required_vip_level': requiredVipLevel,
+        'p_asset_url': assetUrl,
+        'p_is_active': isActive,
+        'p_is_featured': isFeatured,
+        'p_sort_order': sortOrder,
+      },
+    );
+  }
+
+  Future<List<AdminVipPackage>> fetchVipPackages() async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_list_vip_packages',
+    );
+    return (data as List<dynamic>)
+        .map((item) => AdminVipPackage.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> updateVipPackage({
+    required int vipLevel,
+    required String code,
+    required String name,
+    String? arabicName,
+    int priceCoins = 0,
+    int durationDays = 30,
+    String? badgeLabel,
+    String? entranceBannerKey,
+    bool isActive = true,
+    int sortOrder = 0,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_update_vip_package',
+      params: {
+        'p_vip_level': vipLevel,
+        'p_code': code,
+        'p_name': name,
+        'p_arabic_name': arabicName,
+        'p_price_coins': priceCoins,
+        'p_duration_days': durationDays,
+        'p_badge_label': badgeLabel,
+        'p_entrance_banner_key': entranceBannerKey,
+        'p_is_active': isActive,
+        'p_sort_order': sortOrder,
+      },
+    );
+  }
+
+  Future<List<AdminEntranceBanner>> fetchEntranceBanners() async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_list_entrance_banners',
+    );
+    return (data as List<dynamic>)
+        .map(
+          (item) => AdminEntranceBanner.fromJson(item as Map<String, dynamic>),
+        )
+        .toList();
+  }
+
+  Future<List<AdminGiftCategory>> fetchGiftCategories() async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_list_gift_categories',
+    );
+    return (data as List<dynamic>)
+        .map((item) => AdminGiftCategory.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> grantVip({
+    required String userId,
+    required int vipLevel,
+    int days = 30,
+    String? title,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_grant_vip',
+      params: {
+        'p_user_id': userId,
+        'p_vip_level': vipLevel,
+        'p_days': days,
+        'p_title': title,
+      },
+    );
+  }
+
+  Future<void> setGoldenId({
+    required String userId,
+    required String publicUserId,
+    required bool isGolden,
+    DateTime? expiresAt,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_set_user_golden_id',
+      params: {
+        'p_user_id': userId,
+        'p_public_user_id': publicUserId,
+        'p_is_golden': isGolden,
+        'p_expires_at': expiresAt?.toUtc().toIso8601String(),
+      },
+    );
+  }
+}

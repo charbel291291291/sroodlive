@@ -1,8 +1,9 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/supabase_config.dart';
 import 'core/theme/app_theme.dart';
+import 'features/admin/screens/admin_dashboard_screen.dart';
 import 'features/splash/splash_screen.dart';
 import 'shared/widgets/app_viewport.dart';
 
@@ -37,6 +38,14 @@ class _SrOOdLiveAppState extends State<SrOOdLiveApp> {
 
   @override
   Widget build(BuildContext context) {
+    final initialRouteName =
+        WidgetsBinding.instance.platformDispatcher.defaultRouteName;
+    final initialUri = Uri.base;
+    final isAdminEntrypoint =
+        initialUri.path.startsWith('/admin') ||
+        initialUri.fragment.startsWith('/admin') ||
+        initialRouteName.startsWith('/admin');
+
     return AppLanguageController(
       locale: locale,
       setLocale: setLocale,
@@ -45,10 +54,7 @@ class _SrOOdLiveAppState extends State<SrOOdLiveApp> {
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
         locale: locale,
-        supportedLocales: const [
-          Locale('en'),
-          Locale('ar'),
-        ],
+        supportedLocales: const [Locale('en'), Locale('ar')],
         localizationsDelegates: const [
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,
@@ -59,12 +65,25 @@ class _SrOOdLiveAppState extends State<SrOOdLiveApp> {
             textDirection: locale.languageCode == 'ar'
                 ? TextDirection.rtl
                 : TextDirection.ltr,
-            child: AppViewport(
-              child: child ?? const SizedBox.shrink(),
-            ),
+            child: isAdminEntrypoint
+                ? child ?? const SizedBox.shrink()
+                : AppViewport(child: child ?? const SizedBox.shrink()),
           );
         },
-        home: const SplashScreen(),
+        onGenerateRoute: (settings) {
+          if (isAdminEntrypoint) {
+            return MaterialPageRoute<void>(
+              settings: const RouteSettings(name: '/admin'),
+              builder: (_) =>
+                  AdminDashboardScreen(isArabic: locale.languageCode == 'ar'),
+            );
+          }
+
+          return MaterialPageRoute<void>(
+            settings: const RouteSettings(name: '/'),
+            builder: (_) => const SplashScreen(),
+          );
+        },
       ),
     );
   }
@@ -82,8 +101,8 @@ class AppLanguageController extends InheritedWidget {
   final void Function(Locale locale) setLocale;
 
   static AppLanguageController of(BuildContext context) {
-    final controller =
-        context.dependOnInheritedWidgetOfExactType<AppLanguageController>();
+    final controller = context
+        .dependOnInheritedWidgetOfExactType<AppLanguageController>();
 
     if (controller == null) {
       throw FlutterError('AppLanguageController not found');

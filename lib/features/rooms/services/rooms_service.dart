@@ -1,4 +1,5 @@
 import '../../../core/supabase/supabase_service.dart';
+import '../../../shared/services/restrictions_service.dart';
 import '../models/room.dart';
 import '../models/room_member.dart';
 
@@ -25,6 +26,8 @@ class RoomPasswordRequiredException implements Exception {
 
 class RoomsService {
   const RoomsService();
+
+  static const RestrictionsService _restrictions = RestrictionsService();
 
   DateTime get _activeSince =>
       DateTime.now().toUtc().subtract(const Duration(seconds: 45));
@@ -147,6 +150,9 @@ class RoomsService {
       throw StateError('No logged-in user found.');
     }
 
+    await _restrictions.throwIfRestricted('account_ban');
+    await _restrictions.throwIfRestricted('room_ban');
+
     final room = await client
         .from('rooms')
         .select('owner_id')
@@ -169,6 +175,9 @@ class RoomsService {
     if (user == null) {
       throw StateError('No logged-in user found.');
     }
+
+    await _restrictions.throwIfRestricted('account_ban');
+    await _restrictions.throwIfRestricted('room_ban');
 
     final room = await client
         .from('rooms')
@@ -234,6 +243,9 @@ class RoomsService {
       throw StateError('No logged-in user found.');
     }
 
+    await _restrictions.throwIfRestricted('account_ban');
+    await _restrictions.throwIfRestricted('room_ban');
+
     try {
       await client.rpc(
         'set_room_lock',
@@ -288,6 +300,9 @@ class RoomsService {
       throw StateError('No logged-in user found.');
     }
 
+    await _restrictions.throwIfRestricted('account_ban');
+    await _restrictions.throwIfRestricted('room_ban');
+
     await client
         .from('room_members')
         .update({'seat_number': seatNumber})
@@ -306,6 +321,9 @@ class RoomsService {
     if (user == null) {
       throw StateError('No logged-in user found.');
     }
+
+    await _restrictions.throwIfRestricted('account_ban');
+    await _restrictions.throwIfRestricted('room_ban');
 
     await client
         .from('room_members')
