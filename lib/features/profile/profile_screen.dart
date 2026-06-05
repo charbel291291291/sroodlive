@@ -5,6 +5,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/supabase/supabase_service.dart';
 import '../../shared/widgets/avatar_with_frame.dart';
 import '../../shared/widgets/vip_badge.dart';
+import '../wallet/models/wallet.dart';
+import '../wallet/screens/finance_recharge_admin_screen.dart';
+import '../wallet/screens/wallet_screen.dart';
+import '../wallet/services/wallet_service.dart';
 import '../rooms/utils/vip_room_features.dart';
 import 'models/avatar_frame.dart';
 import 'services/follow_service.dart';
@@ -125,6 +129,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final birthDateController = TextEditingController();
   final bioController = TextEditingController();
   final FollowService _followService = const FollowService();
+  final WalletService _walletService = const WalletService();
 
   bool isLoading = true;
   bool isSaving = false;
@@ -137,6 +142,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int followingCount = 0;
   int giftsReceivedCount = 0;
   int visitorsCount = 0;
+  UserWallet? wallet;
+  bool hasFinanceAccess = false;
 
   @override
   void initState() {
@@ -198,6 +205,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final followers = await _followService.followersCount(user.id);
       final following = await _followService.followingCount(user.id);
       final gifts = await _safeGiftCount(user.id);
+      final loadedWallet = await _safeEnsureWallet(user.id);
+      final financeAccess = await _safeFinanceAccess();
 
       setState(() {
         profile = data;
@@ -218,6 +227,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           fallback: gifts,
         );
         visitorsCount = _intFromProfile(data, 'visitors_count');
+        wallet = loadedWallet;
+        hasFinanceAccess = financeAccess;
         isLoading = false;
       });
     } catch (error) {
@@ -244,6 +255,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return int.tryParse(value?.toString() ?? '') ?? fallback;
   }
 
+  Future<UserWallet> _safeEnsureWallet(String userId) async {
+    try {
+      return await _walletService.ensureWallet();
+    } catch (_) {
+      return UserWallet.empty(userId);
+    }
+  }
+
+  Future<bool> _safeFinanceAccess() async {
+    try {
+      return await _walletService.hasFinanceAccess();
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<int> _safeGiftCount(String userId) async {
     try {
       return await SupabaseService.requiredClient
@@ -253,16 +280,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (_) {
       return 0;
     }
-  }
-
-  int _profileInt(String key) {
-    final value = profile?[key];
-
-    if (value is num) {
-      return value.toInt();
-    }
-
-    return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
   String _profileText(String key, {String fallback = ''}) {
@@ -275,6 +292,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(widget.isArabic ? arabic : english)));
+  }
+
+  Future<void> _openWalletScreen() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => WalletScreen(isArabic: widget.isArabic),
+      ),
+    );
+
+    if (mounted) {
+      await _loadProfile();
+    }
+  }
+
+  Future<void> _openFinanceScreen() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FinanceRechargeAdminScreen(isArabic: widget.isArabic),
+      ),
+    );
+
+    if (mounted) {
+      await _loadProfile();
+    }
   }
 
   Future<void> _copyPublicId(String publicUserId) async {
@@ -804,9 +845,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ? currentUserId.substring(0, 8)
           : (currentUserId.isEmpty ? '-' : currentUserId),
     );
-    final coins = _profileInt('coins_balance');
     final effectiveVipLevel = _effectiveProfileVipLevel();
-    final diamonds = _profileInt('diamonds_balance');
+    final coins = wallet?.coinsBalance ?? 0;
+    final diamonds = wallet?.diamondsBalance ?? 0;
     final country = _profileText('country');
     final gender = _profileText('gender');
     final bio = _profileText('bio');
@@ -877,14 +918,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           coins: coins,
                           diamonds: diamonds,
                           isArabic: isArabic,
-                          onCoinsTap: () => _showSoon(
-                            'Recharge coming soon',
-                            '\u0627\u0644\u0634\u062d\u0646 \u0642\u0631\u064a\u0628\u0627\u064b',
-                          ),
-                          onDiamondsTap: () => _showSoon(
-                            'Diamonds wallet coming soon',
-                            '\u0645\u062d\u0641\u0638\u0629 \u0627\u0644\u0623\u0644\u0645\u0627\u0633 \u0642\u0631\u064a\u0628\u0627\u064b',
-                          ),
+                          onCoinsTap: _openWalletScreen,
+                          onDiamondsTap: _openWalletScreen,
                         ),
                         const SizedBox(height: 14),
                         _ShortcutGrid(
@@ -943,6 +978,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           onFeedback: _showFeedbackDialog,
                           onSettings: () => _showSettingsSheet(publicUserId),
+                          showFinance: hasFinanceAccess,
+                          onFinance: _openFinanceScreen,
                         ),
                       ],
                     ),
@@ -1010,17 +1047,23 @@ class _PremiumProfileHero extends StatelessWidget {
         ? CrossAxisAlignment.end
         : CrossAxisAlignment.start;
     final flag = _countryFlag(country);
+    final shortFlag = flag.contains('Lebanon') ? '\u{1F1F1}\u{1F1E7}' : '';
+    final statusText = bio.isNotEmpty
+        ? bio
+        : (isArabic
+              ? '\u0627\u0644\u0641\u062e\u0627\u0645\u0629'
+              : 'Royal room');
 
     return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 196),
-      padding: const EdgeInsets.fromLTRB(16, 16, 14, 16),
+      constraints: const BoxConstraints(minHeight: 202),
+      padding: const EdgeInsets.fromLTRB(18, 18, 14, 14),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(24),
         gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF341051), Color(0xFF180821), Color(0xFF4A174E)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF4B1665), Color(0xFF1C082D), Color(0xFF11051E)],
         ),
         border: Border.all(color: const Color(0xFF6F4A9B)),
         boxShadow: [
@@ -1033,29 +1076,59 @@ class _PremiumProfileHero extends StatelessWidget {
         ],
       ),
       child: Stack(
-        clipBehavior: Clip.none,
+        clipBehavior: Clip.hardEdge,
         children: [
           Positioned(
-            right: isArabic ? null : -18,
-            left: isArabic ? -18 : null,
-            top: -18,
+            left: -40,
+            right: -40,
+            top: -36,
+            height: 118,
             child: Container(
-              width: 132,
-              height: 132,
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFFF0C15A).withValues(alpha: 0.10),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    const Color(0xFF9B5BFF).withValues(alpha: 0.28),
+                    Colors.transparent,
+                  ],
+                ),
               ),
             ),
           ),
           Positioned(
-            left: isArabic ? null : 28,
-            right: isArabic ? 28 : null,
-            bottom: 8,
+            left: 16,
+            right: 16,
+            top: -14,
             child: Icon(
-              Icons.park_rounded,
-              size: 56,
-              color: Colors.white.withValues(alpha: 0.035),
+              Icons.account_balance_rounded,
+              size: 152,
+              color: const Color(0xFFF0C15A).withValues(alpha: 0.075),
+            ),
+          ),
+          Positioned(
+            left: isArabic ? 104 : null,
+            right: isArabic ? null : 104,
+            top: 74,
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: onEditTap,
+              child: Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.black.withValues(alpha: 0.22),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.edit_rounded,
+                  color: Color(0xFFCFC3DC),
+                  size: 18,
+                ),
+              ),
             ),
           ),
           Row(
@@ -1072,53 +1145,86 @@ class _PremiumProfileHero extends StatelessWidget {
                           ? TextDirection.rtl
                           : TextDirection.ltr,
                       children: [
-                        Flexible(
+                        Icon(
+                          Icons.local_fire_department_rounded,
+                          color: const Color(0xFFFF7B33),
+                          size: 24,
+                        ),
+                        if (shortFlag.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          Text(
+                            shortFlag,
+                            style: const TextStyle(fontSize: 23, height: 1),
+                          ),
+                        ],
+                        const SizedBox(width: 6),
+                        Expanded(
                           child: Text(
-                            displayName,
+                            statusText,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             textAlign: textAlign,
-                            style: TextStyle(
-                              color: vipLevel > 0
-                                  ? VipVisualStyle.nameColor(vipLevel, context)
-                                  : Colors.white,
-                              fontSize: 25,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
                               fontWeight: FontWeight.w900,
-                              height: 1.05,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        InkWell(
-                          borderRadius: BorderRadius.circular(999),
-                          onTap: onEditTap,
-                          child: const Padding(
-                            padding: EdgeInsets.all(4),
-                            child: Icon(
-                              Icons.edit_rounded,
-                              color: Color(0xFFF0C15A),
-                              size: 18,
+                              height: 1.1,
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 7),
+                    const SizedBox(height: 12),
+                    Text(
+                      displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: textAlign,
+                      style: TextStyle(
+                        color: vipLevel > 0
+                            ? VipVisualStyle.nameColor(vipLevel, context)
+                            : Colors.white,
+                        fontSize: 29,
+                        fontWeight: FontWeight.w900,
+                        height: 1.0,
+                      ),
+                    ),
+                    const SizedBox(height: 22),
                     InkWell(
                       borderRadius: BorderRadius.circular(999),
                       onTap: onCopyId,
-                      child: _ProfileBadge(
-                        icon: Icons.badge_rounded,
-                        label: 'ID $publicUserId',
-                        highlighted: true,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        textDirection: isArabic
+                            ? TextDirection.rtl
+                            : TextDirection.ltr,
+                        children: [
+                          Text(
+                            'ID:$publicUserId',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: textAlign,
+                            style: const TextStyle(
+                              color: Color(0xFFCFC3DC),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Icon(
+                            Icons.copy_rounded,
+                            color: Colors.white.withValues(alpha: 0.48),
+                            size: 15,
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     Wrap(
                       alignment: isArabic
                           ? WrapAlignment.end
                           : WrapAlignment.start,
-                      spacing: 8,
+                      spacing: 6,
                       runSpacing: 6,
                       children: [
                         if (flag.isNotEmpty)
@@ -1143,42 +1249,14 @@ class _PremiumProfileHero extends StatelessWidget {
                           ),
                       ],
                     ),
-                    const SizedBox(height: 9),
-                    Text(
-                      bio.isNotEmpty
-                          ? bio
-                          : (isArabic
-                                ? '\u0623\u0647\u0644\u0627\u064b \u0628\u0643 \u0641\u064a SrOOd Live.'
-                                : 'Welcome to SrOOd Live.'),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: textAlign,
-                      style: const TextStyle(
-                        color: Color(0xFFD8CFEA),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        height: 1.35,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      email,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: textAlign,
-                      style: const TextStyle(
-                        color: Color(0xFF9E91B8),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
                   ],
                 ),
               ),
               const SizedBox(width: 10),
               SizedBox(
-                width: 116,
+                width: 112,
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     InkWell(
                       customBorder: const CircleBorder(),
@@ -1188,7 +1266,7 @@ class _PremiumProfileHero extends StatelessWidget {
                         children: [
                           AvatarWithFrame(
                             imageUrl: avatarUrl,
-                            radius: 50,
+                            radius: 52,
                             frameKey: frameKey,
                             vipLevel: vipLevel,
                             showVipBadge: vipLevel > 0,
@@ -1224,8 +1302,8 @@ class _PremiumProfileHero extends StatelessWidget {
                     TextButton(
                       onPressed: onFrameTap,
                       style: TextButton.styleFrom(
-                        minimumSize: const Size(0, 30),
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        minimumSize: const Size(0, 28),
+                        padding: const EdgeInsets.symmetric(horizontal: 9),
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                       child: Text(
@@ -1510,7 +1588,7 @@ class _BalanceCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         height: 90,
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(22),
           gradient: LinearGradient(colors: colors),
@@ -1524,26 +1602,37 @@ class _BalanceCard extends StatelessWidget {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Icon(icon, color: const Color(0xFF160B26), size: 24),
-            const Spacer(),
-            Text(
-              _formatCount(value),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Color(0xFF160B26),
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Color(0xFF160B26),
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
+            Icon(icon, color: const Color(0xFF160B26), size: 22),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _formatCount(value),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF160B26),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    height: 1.0,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF160B26),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    height: 1.0,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -1671,6 +1760,8 @@ class _ProfileMenuList extends StatelessWidget {
     required this.onBadge,
     required this.onFeedback,
     required this.onSettings,
+    required this.showFinance,
+    required this.onFinance,
   });
 
   final bool isArabic;
@@ -1680,6 +1771,8 @@ class _ProfileMenuList extends StatelessWidget {
   final VoidCallback onBadge;
   final VoidCallback onFeedback;
   final VoidCallback onSettings;
+  final bool showFinance;
+  final VoidCallback onFinance;
 
   @override
   Widget build(BuildContext context) {
@@ -1709,6 +1802,12 @@ class _ProfileMenuList extends StatelessWidget {
         isArabic ? '\u0645\u0644\u0627\u062d\u0638\u0627\u062a' : 'Feedback',
         onFeedback,
       ),
+      if (showFinance)
+        _MenuData(
+          Icons.admin_panel_settings_rounded,
+          isArabic ? '\u0627\u0644\u0645\u0627\u0644\u064a\u0629' : 'Finance',
+          onFinance,
+        ),
       _MenuData(
         Icons.settings_rounded,
         isArabic

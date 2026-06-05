@@ -1494,15 +1494,18 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     } catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            widget.isArabic
+      final errorText = error.toString();
+      final message = errorText.contains('insufficient_coins')
+          ? (widget.isArabic
+                ? '\u0631\u0635\u064a\u062f\u0643 \u063a\u064a\u0631 \u0643\u0627\u0641\u064d'
+                : 'Not enough coins')
+          : (widget.isArabic
                 ? '\u062a\u0639\u0630\u0631 \u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0647\u062f\u064a\u0629. \u062d\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.'
-                : 'Could not send gift. Please try again.',
-          ),
-        ),
-      );
+                : 'Could not send gift. Please try again.');
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
       return;
     }
 

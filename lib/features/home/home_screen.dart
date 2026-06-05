@@ -3,6 +3,7 @@ import '../../core/supabase/supabase_service.dart';
 import '../../main.dart';
 import '../profile/profile_screen.dart';
 import '../rooms/screens/rooms_screen.dart';
+import '../wallet/screens/wallet_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,7 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final pages = [
       RoomsScreen(isArabic: isArabic),
-      WalletTab(isArabic: isArabic),
+      WalletScreen(isArabic: isArabic),
       ProfileScreen(isArabic: isArabic),
     ];
 

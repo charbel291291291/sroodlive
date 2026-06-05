@@ -162,21 +162,24 @@ class GiftsService {
     required RoomGift gift,
   }) async {
     final client = SupabaseService.requiredClient;
-    final user = client.auth.currentUser;
 
-    if (user == null) {
+    if (client.auth.currentUser == null) {
       throw StateError('No logged-in user found.');
     }
 
-    await client.from('gift_transactions').insert({
-      'room_id': roomId,
-      'sender_id': user.id,
-      'receiver_id': receiverId,
-      'gift_id': gift.id,
-      'gift_code': gift.code,
-      'gift_name': gift.name,
-      'gift_price_coins': gift.priceCoins,
-    });
+    if (!_looksLikeUuid(gift.id)) {
+      throw StateError('gift_not_found');
+    }
+
+    await client.rpc(
+      'send_gift_with_wallet',
+      params: {
+        'p_room_id': roomId,
+        'p_receiver_id': receiverId,
+        'p_gift_id': gift.id,
+        'p_quantity': 1,
+      },
+    );
   }
 
   Future<List<RoomGiftTransaction>> getRoomGiftTransactions(
@@ -224,5 +227,11 @@ class GiftsService {
           ),
         )
         .toList();
+  }
+
+  bool _looksLikeUuid(String value) {
+    return RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    ).hasMatch(value);
   }
 }
