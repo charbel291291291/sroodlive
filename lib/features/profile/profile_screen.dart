@@ -1047,25 +1047,26 @@ class _PremiumProfileHero extends StatelessWidget {
         ? CrossAxisAlignment.end
         : CrossAxisAlignment.start;
     final flag = _countryFlag(country);
-    final shortFlag = flag.contains('Lebanon') ? '\u{1F1F1}\u{1F1E7}' : '';
-    final statusText = bio.isNotEmpty
+    final subtitle = bio.isNotEmpty
         ? bio
         : (isArabic
-              ? '\u0627\u0644\u0641\u062e\u0627\u0645\u0629'
-              : 'Royal room');
+              ? '\u0623\u0647\u0644\u0627\u064b \u0628\u0643 \u0641\u064a SrOOd Live.'
+              : 'Welcome to SrOOd Live.');
 
     return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 202),
-      padding: const EdgeInsets.fromLTRB(18, 18, 14, 14),
+      constraints: const BoxConstraints(minHeight: 184),
+      padding: const EdgeInsets.fromLTRB(18, 16, 16, 16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF4B1665), Color(0xFF1C082D), Color(0xFF11051E)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF3B105A), Color(0xFF180821), Color(0xFF2A0B35)],
         ),
-        border: Border.all(color: const Color(0xFF6F4A9B)),
+        border: Border.all(
+          color: const Color(0xFFF0C15A).withValues(alpha: 0.32),
+        ),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF8B26D9).withValues(alpha: 0.28),
@@ -1079,37 +1080,22 @@ class _PremiumProfileHero extends StatelessWidget {
         clipBehavior: Clip.hardEdge,
         children: [
           Positioned(
-            left: -40,
-            right: -40,
-            top: -36,
-            height: 118,
+            right: isArabic ? null : -46,
+            left: isArabic ? -46 : null,
+            top: -42,
             child: Container(
+              width: 128,
+              height: 128,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    const Color(0xFF9B5BFF).withValues(alpha: 0.28),
-                    Colors.transparent,
-                  ],
-                ),
+                shape: BoxShape.circle,
+                color: const Color(0xFFC13BFF).withValues(alpha: 0.16),
               ),
             ),
           ),
           Positioned(
-            left: 16,
-            right: 16,
-            top: -14,
-            child: Icon(
-              Icons.account_balance_rounded,
-              size: 152,
-              color: const Color(0xFFF0C15A).withValues(alpha: 0.075),
-            ),
-          ),
-          Positioned(
-            left: isArabic ? 104 : null,
-            right: isArabic ? null : 104,
-            top: 74,
+            right: isArabic ? null : 0,
+            left: isArabic ? 0 : null,
+            top: 0,
             child: InkWell(
               customBorder: const CircleBorder(),
               onTap: onEditTap,
@@ -1118,17 +1104,27 @@ class _PremiumProfileHero extends StatelessWidget {
                 height: 34,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.black.withValues(alpha: 0.22),
+                  color: Colors.black.withValues(alpha: 0.28),
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.18),
+                    color: const Color(0xFFF0C15A).withValues(alpha: 0.35),
                   ),
                 ),
                 child: const Icon(
                   Icons.edit_rounded,
-                  color: Color(0xFFCFC3DC),
-                  size: 18,
+                  color: Color(0xFFF0C15A),
+                  size: 17,
                 ),
               ),
+            ),
+          ),
+          Positioned(
+            left: isArabic ? null : 52,
+            right: isArabic ? 52 : null,
+            bottom: 16,
+            child: Icon(
+              Icons.graphic_eq_rounded,
+              size: 54,
+              color: Colors.white.withValues(alpha: 0.045),
             ),
           ),
           Row(
@@ -1139,87 +1135,114 @@ class _PremiumProfileHero extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: crossAxisAlignment,
                   children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      textDirection: isArabic
-                          ? TextDirection.rtl
-                          : TextDirection.ltr,
-                      children: [
-                        Icon(
-                          Icons.local_fire_department_rounded,
-                          color: const Color(0xFFFF7B33),
-                          size: 24,
-                        ),
-                        if (shortFlag.isNotEmpty) ...[
-                          const SizedBox(width: 6),
-                          Text(
-                            shortFlag,
-                            style: const TextStyle(fontSize: 23, height: 1),
-                          ),
-                        ],
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            statusText,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: textAlign,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                              height: 1.1,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      displayName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: textAlign,
-                      style: TextStyle(
-                        color: vipLevel > 0
-                            ? VipVisualStyle.nameColor(vipLevel, context)
-                            : Colors.white,
-                        fontSize: 29,
-                        fontWeight: FontWeight.w900,
-                        height: 1.0,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
                       ),
-                    ),
-                    const SizedBox(height: 22),
-                    InkWell(
-                      borderRadius: BorderRadius.circular(999),
-                      onTap: onCopyId,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.22),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.14),
+                        ),
+                      ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         textDirection: isArabic
                             ? TextDirection.rtl
                             : TextDirection.ltr,
                         children: [
-                          Text(
-                            'ID:$publicUserId',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: textAlign,
-                            style: const TextStyle(
-                              color: Color(0xFFCFC3DC),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                            ),
+                          const Icon(
+                            Icons.workspace_premium_rounded,
+                            color: Color(0xFFF0C15A),
+                            size: 14,
                           ),
                           const SizedBox(width: 5),
-                          Icon(
-                            Icons.copy_rounded,
-                            color: Colors.white.withValues(alpha: 0.48),
-                            size: 15,
+                          Text(
+                            isArabic
+                                ? '\u0645\u0644\u0641 SrOOd'
+                                : 'SrOOd Profile',
+                            style: const TextStyle(
+                              color: Color(0xFFD8CFEA),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              height: 1.0,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 11),
+                    Row(
+                      textDirection: isArabic
+                          ? TextDirection.rtl
+                          : TextDirection.ltr,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: textAlign,
+                            style: TextStyle(
+                              color: vipLevel > 0
+                                  ? VipVisualStyle.nameColor(vipLevel, context)
+                                  : Colors.white,
+                              fontSize: 29,
+                              fontWeight: FontWeight.w900,
+                              height: 1.0,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 9),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(999),
+                      onTap: onCopyId,
+                      child: Container(
+                        height: 32,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF100718).withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: const Color(
+                              0xFFF0C15A,
+                            ).withValues(alpha: 0.22),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          textDirection: isArabic
+                              ? TextDirection.rtl
+                              : TextDirection.ltr,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                'ID:$publicUserId',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: textAlign,
+                                style: const TextStyle(
+                                  color: Color(0xFFCFC3DC),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Icon(
+                              Icons.copy_rounded,
+                              color: Colors.white.withValues(alpha: 0.58),
+                              size: 14,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
                     Wrap(
                       alignment: isArabic
                           ? WrapAlignment.end
@@ -1249,68 +1272,66 @@ class _PremiumProfileHero extends StatelessWidget {
                           ),
                       ],
                     ),
+                    const SizedBox(height: 9),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: textAlign,
+                      style: const TextStyle(
+                        color: Color(0xFFBCAED6),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        height: 1.1,
+                      ),
+                    ),
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               SizedBox(
-                width: 112,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                width: 106,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
                   children: [
                     InkWell(
                       customBorder: const CircleBorder(),
-                      onTap: isUploadingAvatar ? null : onAvatarTap,
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          AvatarWithFrame(
-                            imageUrl: avatarUrl,
-                            radius: 52,
-                            frameKey: frameKey,
-                            vipLevel: vipLevel,
-                            showVipBadge: vipLevel > 0,
-                            compact: true,
-                          ),
-                          Positioned(
-                            right: 3,
-                            bottom: 3,
-                            child: Container(
-                              width: 27,
-                              height: 27,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: const Color(0xFFF0C15A),
-                                border: Border.all(
-                                  color: const Color(0xFF160B26),
-                                  width: 2,
-                                ),
-                              ),
-                              child: Icon(
-                                isUploadingAvatar
-                                    ? Icons.hourglass_top_rounded
-                                    : Icons.camera_alt_rounded,
-                                color: const Color(0xFF160B26),
-                                size: 15,
-                              ),
-                            ),
-                          ),
-                        ],
+                      onTap: onFrameTap,
+                      child: AvatarWithFrame(
+                        imageUrl: avatarUrl,
+                        radius: 48,
+                        frameKey: frameKey,
+                        vipLevel: vipLevel,
+                        showVipBadge: vipLevel > 0,
+                        compact: true,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    TextButton(
-                      onPressed: onFrameTap,
-                      style: TextButton.styleFrom(
-                        minimumSize: const Size(0, 28),
-                        padding: const EdgeInsets.symmetric(horizontal: 9),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: Text(
-                        isArabic
-                            ? '\u0627\u0644\u0625\u0637\u0627\u0631'
-                            : 'Frame',
-                        style: const TextStyle(fontWeight: FontWeight.w900),
+                    Positioned(
+                      right: 1,
+                      bottom: 1,
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: isUploadingAvatar ? null : onAvatarTap,
+                        child: Container(
+                          width: 31,
+                          height: 31,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFFF0C15A),
+                            border: Border.all(
+                              color: const Color(0xFF160B26),
+                              width: 2,
+                            ),
+                          ),
+                          child: Icon(
+                            isUploadingAvatar
+                                ? Icons.hourglass_top_rounded
+                                : Icons.camera_alt_rounded,
+                            color: const Color(0xFF160B26),
+                            size: 15,
+                          ),
+                        ),
                       ),
                     ),
                   ],
