@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../features/rooms/utils/vip_room_features.dart';
+
 class AvatarWithFrame extends StatelessWidget {
   const AvatarWithFrame({
     required this.imageUrl,
@@ -28,7 +30,7 @@ class AvatarWithFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final frame = frameKey?.trim();
+    final frame = _effectiveFrameKey(frameKey?.trim());
     final hasFrame = frame != null && frame.isNotEmpty;
     final avatarSize = radius * 2;
     final frameSize = avatarSize * _frameScale(frame, compact: compact);
@@ -119,6 +121,18 @@ class AvatarWithFrame extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String? _effectiveFrameKey(String? value) {
+    if (value == null || value.isEmpty) {
+      return null;
+    }
+
+    if (!VipFeatures.canUseVipFrame(value, vipLevel ?? 0)) {
+      return null;
+    }
+
+    return value;
   }
 
   double _frameScale(String? frameKey, {required bool compact}) {

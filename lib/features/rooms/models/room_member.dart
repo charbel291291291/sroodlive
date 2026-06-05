@@ -1,3 +1,5 @@
+import '../utils/vip_room_features.dart';
+
 class RoomMember {
   const RoomMember({
     required this.id,
@@ -14,6 +16,8 @@ class RoomMember {
     this.avatarUrl,
     this.selectedAvatarFrameKey,
     this.vipLevel = 0,
+    this.vipStartedAt,
+    this.vipExpiresAt,
   });
 
   final String id;
@@ -30,6 +34,16 @@ class RoomMember {
   final String? avatarUrl;
   final String? selectedAvatarFrameKey;
   final int vipLevel;
+  final DateTime? vipStartedAt;
+  final DateTime? vipExpiresAt;
+
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+
+    return DateTime.tryParse(value.toString());
+  }
 
   factory RoomMember.fromJson(Map<String, dynamic> json) {
     final profile = json['profiles'];
@@ -57,6 +71,12 @@ class RoomMember {
     final resolvedVipLevel = profile is Map<String, dynamic>
         ? (profile['vip_level'] as num?)?.toInt() ?? 0
         : (json['vip_level'] as num?)?.toInt() ?? 0;
+    final resolvedVipStartedAt = profile is Map<String, dynamic>
+        ? _parseDate(profile['vip_started_at'])
+        : _parseDate(json['vip_started_at']);
+    final resolvedVipExpiresAt = profile is Map<String, dynamic>
+        ? _parseDate(profile['vip_expires_at'])
+        : _parseDate(json['vip_expires_at']);
 
     return RoomMember(
       id: json['id'].toString(),
@@ -75,6 +95,15 @@ class RoomMember {
       avatarUrl: resolvedAvatarUrl,
       selectedAvatarFrameKey: resolvedFrameKey,
       vipLevel: resolvedVipLevel,
+      vipStartedAt: resolvedVipStartedAt,
+      vipExpiresAt: resolvedVipExpiresAt,
+    );
+  }
+
+  int get effectiveVipLevel {
+    return VipFeatures.effectiveVipLevel(
+      vipLevel: vipLevel,
+      vipExpiresAt: vipExpiresAt,
     );
   }
 

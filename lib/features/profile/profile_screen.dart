@@ -1,11 +1,13 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/supabase/supabase_service.dart';
 import '../../shared/widgets/avatar_with_frame.dart';
+import '../../shared/widgets/vip_badge.dart';
+import '../rooms/utils/vip_room_features.dart';
 import 'models/avatar_frame.dart';
+import 'services/follow_service.dart';
 import '../onboarding/onboarding_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -122,6 +124,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final displayNameController = TextEditingController();
   final birthDateController = TextEditingController();
   final bioController = TextEditingController();
+  final FollowService _followService = const FollowService();
 
   bool isLoading = true;
   bool isSaving = false;
@@ -130,6 +133,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? successMessage;
   Map<String, dynamic>? profile;
   List<AvatarFrame> avatarFrames = const [];
+  int followersCount = 0;
+  int followingCount = 0;
+  int giftsReceivedCount = 0;
+  int visitorsCount = 0;
 
   @override
   void initState() {
@@ -188,10 +195,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
       displayNameController.text = data['display_name']?.toString() ?? '';
       birthDateController.text = data['date_of_birth']?.toString() ?? '';
       bioController.text = data['bio']?.toString() ?? '';
+      final followers = await _followService.followersCount(user.id);
+      final following = await _followService.followingCount(user.id);
+      final gifts = await _safeGiftCount(user.id);
 
       setState(() {
         profile = data;
         avatarFrames = frames;
+        followersCount = _intFromProfile(
+          data,
+          'followers_count',
+          fallback: followers,
+        );
+        followingCount = _intFromProfile(
+          data,
+          'following_count',
+          fallback: following,
+        );
+        giftsReceivedCount = _intFromProfile(
+          data,
+          'gifts_received_count',
+          fallback: gifts,
+        );
+        visitorsCount = _intFromProfile(data, 'visitors_count');
         isLoading = false;
       });
     } catch (error) {
@@ -202,6 +228,273 @@ class _ProfileScreenState extends State<ProfileScreen> {
             : 'Failed to load profile: $error';
       });
     }
+  }
+
+  int _intFromProfile(
+    Map<String, dynamic> data,
+    String key, {
+    int fallback = 0,
+  }) {
+    final value = data[key];
+
+    if (value is num) {
+      return value.toInt();
+    }
+
+    return int.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+
+  Future<int> _safeGiftCount(String userId) async {
+    try {
+      return await SupabaseService.requiredClient
+          .from('gift_transactions')
+          .count()
+          .eq('receiver_id', userId);
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  int _profileInt(String key) {
+    final value = profile?[key];
+
+    if (value is num) {
+      return value.toInt();
+    }
+
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  String _profileText(String key, {String fallback = ''}) {
+    final value = profile?[key]?.toString().trim();
+
+    return value == null || value.isEmpty ? fallback : value;
+  }
+
+  void _showSoon(String english, String arabic) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(widget.isArabic ? arabic : english)));
+  }
+
+  Future<void> _copyPublicId(String publicUserId) async {
+    await Clipboard.setData(ClipboardData(text: publicUserId));
+
+    if (!mounted) return;
+
+    _showSoon(
+      'ID copied',
+      '\u062a\u0645 \u0646\u0633\u062e \u0627\u0644\u0631\u0642\u0645',
+    );
+  }
+
+  Future<void> _showFeedbackDialog() async {
+    final controller = TextEditingController();
+
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF171125),
+          title: Text(
+            widget.isArabic
+                ? '\u0627\u0644\u0645\u0644\u0627\u062d\u0638\u0627\u062a'
+                : 'Feedback',
+          ),
+          content: TextField(
+            controller: controller,
+            maxLines: 4,
+            textDirection: widget.isArabic
+                ? TextDirection.rtl
+                : TextDirection.ltr,
+            decoration: InputDecoration(
+              hintText: widget.isArabic
+                  ? '\u0627\u0643\u062a\u0628 \u0645\u0644\u0627\u062d\u0638\u062a\u0643...'
+                  : 'Write your feedback...',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(
+                widget.isArabic ? '\u0625\u0644\u063a\u0627\u0621' : 'Cancel',
+              ),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(
+                widget.isArabic ? '\u0625\u0631\u0633\u0627\u0644' : 'Send',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    controller.dispose();
+
+    if (submitted != true || !mounted) {
+      return;
+    }
+
+    _showSoon(
+      'Thanks. Feedback system coming soon.',
+      '\u0634\u0643\u0631\u0627\u064b. \u0646\u0638\u0627\u0645 \u0627\u0644\u0645\u0644\u0627\u062d\u0638\u0627\u062a \u0642\u0631\u064a\u0628\u0627\u064b.',
+    );
+  }
+
+  Future<void> _showEditProfileSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF100718),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              18,
+              18,
+              18,
+              MediaQuery.viewInsetsOf(sheetContext).bottom + 18,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: widget.isArabic
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.isArabic
+                        ? '\u062a\u0639\u062f\u064a\u0644 \u0627\u0644\u0645\u0644\u0641'
+                        : 'Edit Profile',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _ProfileInput(
+                    controller: displayNameController,
+                    label: widget.isArabic
+                        ? '\u0627\u0644\u0644\u0642\u0628'
+                        : 'Nickname',
+                    isArabic: widget.isArabic,
+                  ),
+                  _ProfileInput(
+                    controller: birthDateController,
+                    label: widget.isArabic
+                        ? '\u062a\u0627\u0631\u064a\u062e \u0627\u0644\u0645\u064a\u0644\u0627\u062f'
+                        : 'Date of birth',
+                    isArabic: widget.isArabic,
+                    readOnly: true,
+                    onTap: _pickBirthDate,
+                  ),
+                  _ProfileInput(
+                    controller: bioController,
+                    label: widget.isArabic
+                        ? '\u0627\u0644\u0646\u0628\u0630\u0629'
+                        : 'Bio',
+                    isArabic: widget.isArabic,
+                    maxLines: 4,
+                  ),
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: FilledButton.icon(
+                      onPressed: isSaving
+                          ? null
+                          : () async {
+                              await _saveProfile();
+
+                              if (mounted && sheetContext.mounted) {
+                                Navigator.of(sheetContext).pop();
+                              }
+                            },
+                      icon: const Icon(Icons.save_rounded),
+                      label: Text(
+                        isSaving
+                            ? (widget.isArabic
+                                  ? '\u062c\u0627\u0631 \u0627\u0644\u062d\u0641\u0638...'
+                                  : 'Saving...')
+                            : (widget.isArabic
+                                  ? '\u062d\u0641\u0638 \u0627\u0644\u062a\u063a\u064a\u064a\u0631\u0627\u062a'
+                                  : 'Save changes'),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showSettingsSheet(String publicUserId) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF100718),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _SettingsSheetAction(
+                  icon: Icons.edit_rounded,
+                  label: widget.isArabic
+                      ? '\u062a\u0639\u062f\u064a\u0644 \u0627\u0644\u0645\u0644\u0641'
+                      : 'Edit profile',
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _showEditProfileSheet();
+                  },
+                ),
+                _SettingsSheetAction(
+                  icon: Icons.copy_rounded,
+                  label: widget.isArabic ? '\u0646\u0633\u062e ID' : 'Copy ID',
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _copyPublicId(publicUserId);
+                  },
+                ),
+                _SettingsSheetAction(
+                  icon: Icons.logout_rounded,
+                  label: widget.isArabic
+                      ? '\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062e\u0631\u0648\u062c'
+                      : 'Sign out',
+                  danger: true,
+                  onTap: () async {
+                    Navigator.of(sheetContext).pop();
+                    await SupabaseService.requiredClient.auth.signOut();
+
+                    if (!mounted) return;
+
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (_) => const OnboardingScreen(),
+                      ),
+                      (_) => false,
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   String _avatarExtension(String fileName, String? mimeType) {
@@ -337,7 +630,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _chooseAvatarFrame() async {
     final selectedFrameKey = profile?['selected_avatar_frame_key']?.toString();
     final avatarUrl = profile?['avatar_url']?.toString();
-    final vipLevel = int.tryParse(profile?['vip_level']?.toString() ?? '') ?? 0;
+    final vipLevel = _effectiveProfileVipLevel();
     final selected = await showModalBottomSheet<String?>(
       context: context,
       backgroundColor: const Color(0xFF12091D),
@@ -390,6 +683,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
             : 'Frame save failed: $error';
       });
     }
+  }
+
+  DateTime? _profileVipExpiresAt() {
+    final value = profile?['vip_expires_at'];
+
+    if (value == null) {
+      return null;
+    }
+
+    return DateTime.tryParse(value.toString());
+  }
+
+  int _effectiveProfileVipLevel() {
+    return VipFeatures.effectiveVipLevel(
+      vipLevel: int.tryParse(profile?['vip_level']?.toString() ?? '') ?? 0,
+      vipExpiresAt: _profileVipExpiresAt(),
+    );
   }
 
   Future<void> _saveProfile() async {
@@ -482,17 +792,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return const SafeArea(child: Center(child: CircularProgressIndicator()));
     }
 
+    final currentUserId =
+        SupabaseService.requiredClient.auth.currentUser?.id ?? '';
     final email = profile?['email']?.toString() ?? '-';
     final avatarUrl = profile?['avatar_url']?.toString();
     final selectedAvatarFrameKey = profile?['selected_avatar_frame_key']
         ?.toString();
-    final publicUserId = profile?['public_user_id']?.toString() ?? '-';
-    final role = profile?['role']?.toString() ?? 'user';
-    final coins = profile?['coins_balance']?.toString() ?? '0';
-    final vipLevel = profile?['vip_level']?.toString() ?? '0';
-    final diamonds = profile?['diamonds_balance']?.toString() ?? '0';
-    final income = profile?['income_balance']?.toString() ?? '0';
-    final agency = profile?['agency_name']?.toString() ?? '-';
+    final publicUserId = _profileText(
+      'public_user_id',
+      fallback: currentUserId.length >= 8
+          ? currentUserId.substring(0, 8)
+          : (currentUserId.isEmpty ? '-' : currentUserId),
+    );
+    final coins = _profileInt('coins_balance');
+    final effectiveVipLevel = _effectiveProfileVipLevel();
+    final diamonds = _profileInt('diamonds_balance');
+    final country = _profileText('country');
+    final gender = _profileText('gender');
+    final bio = _profileText('bio');
     final displayName = displayNameController.text.trim().isNotEmpty
         ? displayNameController.text.trim()
         : (usernameController.text.trim().isNotEmpty
@@ -510,234 +827,181 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
       child: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(22, 22, 22, 120),
-          child: Column(
-            crossAxisAlignment: isArabic
-                ? CrossAxisAlignment.end
-                : CrossAxisAlignment.start,
-            children: [
-              Text(
-                isArabic
-                    ? '\u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0634\u062e\u0635\u064a'
-                    : 'Profile',
-                textAlign: isArabic ? TextAlign.right : TextAlign.left,
-                style: const TextStyle(
-                  fontSize: 34,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.8,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                isArabic
-                    ? '\u0623\u062f\u0631 \u0645\u0644\u0641\u0643\u060c \u0631\u0635\u064a\u062f\u0643\u060c \u0648\u0645\u0643\u0627\u0646\u062a\u0643 \u062f\u0627\u062e\u0644 \u0633\u0647\u0631\u0648\u062f.'
-                    : 'Manage your profile, balance, and status inside SrOOd.',
-                textAlign: isArabic ? TextAlign.right : TextAlign.left,
-                style: const TextStyle(
-                  fontSize: 16,
-                  height: 1.35,
-                  color: Color(0xFFD8CFEA),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 22),
-              _ProfileHeroCard(
-                displayName: displayName,
-                email: email,
-                avatarUrl: avatarUrl,
-                frameKey: selectedAvatarFrameKey,
-                publicUserId: publicUserId,
-                role: role,
-                vipLevel: vipLevel,
-                isUploadingAvatar: isUploadingAvatar,
-                isArabic: isArabic,
-                onAvatarTap: _uploadAvatar,
-              ),
-              const SizedBox(height: 18),
-              _ProfileFrameSection(
-                avatarUrl: avatarUrl,
-                selectedFrameKey: selectedAvatarFrameKey,
-                frames: avatarFrames,
-                vipLevel: int.tryParse(vipLevel) ?? 0,
-                isArabic: isArabic,
-                onChooseFrame: _chooseAvatarFrame,
-              ),
-              const SizedBox(height: 18),
-              _ProfileWalletGrid(
-                coins: coins,
-                diamonds: diamonds,
-                income: income,
-                agency: agency,
-                isArabic: isArabic,
-              ),
-              const SizedBox(height: 18),
-              _ProfileSectionCard(
-                title: isArabic
-                    ? '\u062a\u0639\u062f\u064a\u0644 \u0627\u0644\u0645\u0644\u0641'
-                    : 'Edit Profile',
-                subtitle: isArabic
-                    ? '\u062d\u062f\u062b \u0644\u0642\u0628\u0643\u060c \u062a\u0627\u0631\u064a\u062e \u0645\u064a\u0644\u0627\u062f\u0643\u060c \u0648\u0627\u0644\u0646\u0628\u0630\u0629.'
-                    : 'Update your nickname, date of birth, and bio.',
-                isArabic: isArabic,
-                child: Column(
-                  children: [
-                    _ProfileInput(
-                      controller: displayNameController,
-                      label: isArabic
-                          ? '\u0627\u0644\u0644\u0642\u0628'
-                          : 'Nickname',
-                      isArabic: isArabic,
-                    ),
-                    _ProfileInput(
-                      controller: birthDateController,
-                      label: isArabic
-                          ? '\u062a\u0627\u0631\u064a\u062e \u0627\u0644\u0645\u064a\u0644\u0627\u062f'
-                          : 'Date of birth',
-                      isArabic: isArabic,
-                      readOnly: true,
-                      onTap: _pickBirthDate,
-                    ),
-                    _ProfileInput(
-                      controller: bioController,
-                      label: isArabic
-                          ? '\u0627\u0644\u0646\u0628\u0630\u0629'
-                          : 'Bio',
-                      isArabic: isArabic,
-                      maxLines: 4,
-                    ),
-                    const SizedBox(height: 2),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 54,
-                      child: FilledButton.icon(
-                        onPressed: isSaving ? null : _saveProfile,
-                        icon: const Icon(Icons.save_rounded),
-                        label: Text(
-                          isSaving
-                              ? (isArabic
-                                    ? '\u062c\u0627\u0631 \u0627\u0644\u062d\u0641\u0638...'
-                                    : 'Saving...')
-                              : (isArabic
-                                    ? '\u062d\u0641\u0638 \u0627\u0644\u062a\u063a\u064a\u064a\u0631\u0627\u062a'
-                                    : 'Save changes'),
+        child: Stack(
+          children: [
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: RefreshIndicator(
+                  onRefresh: _loadProfile,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 142),
+                    child: Column(
+                      children: [
+                        _PremiumProfileHero(
+                          displayName: displayName,
+                          publicUserId: publicUserId,
+                          avatarUrl: avatarUrl,
+                          frameKey: selectedAvatarFrameKey,
+                          vipLevel: effectiveVipLevel,
+                          country: country,
+                          gender: gender,
+                          bio: bio,
+                          email: email,
+                          isUploadingAvatar: isUploadingAvatar,
+                          isArabic: isArabic,
+                          onAvatarTap: _uploadAvatar,
+                          onEditTap: _showEditProfileSheet,
+                          onFrameTap: _chooseAvatarFrame,
+                          onCopyId: () => _copyPublicId(publicUserId),
                         ),
-                      ),
+                        const SizedBox(height: 14),
+                        _ProfileStatsRow(
+                          isArabic: isArabic,
+                          followers: followersCount,
+                          following: followingCount,
+                          gifts: giftsReceivedCount,
+                          visitors: visitorsCount,
+                        ),
+                        const SizedBox(height: 14),
+                        _VipUpgradeBanner(
+                          vipLevel: effectiveVipLevel,
+                          isArabic: isArabic,
+                          onTap: () => _showSoon(
+                            'VIP store coming soon',
+                            '\u0645\u062a\u062c\u0631 VIP \u0642\u0631\u064a\u0628\u0627\u064b',
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        _BalanceCards(
+                          coins: coins,
+                          diamonds: diamonds,
+                          isArabic: isArabic,
+                          onCoinsTap: () => _showSoon(
+                            'Recharge coming soon',
+                            '\u0627\u0644\u0634\u062d\u0646 \u0642\u0631\u064a\u0628\u0627\u064b',
+                          ),
+                          onDiamondsTap: () => _showSoon(
+                            'Diamonds wallet coming soon',
+                            '\u0645\u062d\u0641\u0638\u0629 \u0627\u0644\u0623\u0644\u0645\u0627\u0633 \u0642\u0631\u064a\u0628\u0627\u064b',
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        _ShortcutGrid(
+                          isArabic: isArabic,
+                          onStore: () => _showSoon(
+                            'Store coming soon',
+                            '\u0627\u0644\u0645\u062a\u062c\u0631 \u0642\u0631\u064a\u0628\u0627\u064b',
+                          ),
+                          onTask: () => _showSoon(
+                            'Daily tasks coming soon',
+                            '\u0627\u0644\u0645\u0647\u0627\u0645 \u0627\u0644\u064a\u0648\u0645\u064a\u0629 \u0642\u0631\u064a\u0628\u0627\u064b',
+                          ),
+                          onCheckIn: () => _showSoon(
+                            'Check-in rewards coming soon',
+                            '\u0645\u0643\u0627\u0641\u0622\u062a \u0627\u0644\u062d\u0636\u0648\u0631 \u0642\u0631\u064a\u0628\u0627\u064b',
+                          ),
+                          onBackpack: () => _showSoon(
+                            'Backpack coming soon',
+                            '\u0627\u0644\u062d\u0642\u064a\u0628\u0629 \u0642\u0631\u064a\u0628\u0627\u064b',
+                          ),
+                        ),
+                        if (errorMessage != null) ...[
+                          const SizedBox(height: 14),
+                          _ProfileNotice(
+                            message: errorMessage!,
+                            isSuccess: false,
+                            isArabic: isArabic,
+                          ),
+                        ],
+                        if (successMessage != null) ...[
+                          const SizedBox(height: 14),
+                          _ProfileNotice(
+                            message: successMessage!,
+                            isSuccess: true,
+                            isArabic: isArabic,
+                          ),
+                        ],
+                        const SizedBox(height: 14),
+                        _ProfileMenuList(
+                          isArabic: isArabic,
+                          onLevel: () => _showSoon(
+                            'Level system coming soon',
+                            '\u0646\u0638\u0627\u0645 \u0627\u0644\u0645\u0633\u062a\u0648\u0649 \u0642\u0631\u064a\u0628\u0627\u064b',
+                          ),
+                          onAgency: () => _showSoon(
+                            'Agency system coming soon',
+                            '\u0646\u0638\u0627\u0645 \u0627\u0644\u0648\u0643\u0627\u0644\u0627\u062a \u0642\u0631\u064a\u0628\u0627\u064b',
+                          ),
+                          onIncome: () => _showSoon(
+                            'Income wallet coming soon',
+                            '\u0645\u062d\u0641\u0638\u0629 \u0627\u0644\u062f\u062e\u0644 \u0642\u0631\u064a\u0628\u0627\u064b',
+                          ),
+                          onBadge: () => _showSoon(
+                            'Badges coming soon',
+                            '\u0627\u0644\u0634\u0627\u0631\u0627\u062a \u0642\u0631\u064a\u0628\u0627\u064b',
+                          ),
+                          onFeedback: _showFeedbackDialog,
+                          onSettings: () => _showSettingsSheet(publicUserId),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-              if (errorMessage != null) ...[
-                const SizedBox(height: 14),
-                _ProfileNotice(
-                  message: errorMessage!,
-                  isSuccess: false,
-                  isArabic: isArabic,
-                ),
-              ],
-              if (successMessage != null) ...[
-                const SizedBox(height: 14),
-                _ProfileNotice(
-                  message: successMessage!,
-                  isSuccess: true,
-                  isArabic: isArabic,
-                ),
-              ],
-              const SizedBox(height: 18),
-              _ProfileSectionCard(
-                title: isArabic
-                    ? '\u0645\u0639\u0644\u0648\u0645\u0627\u062a \u0627\u0644\u062d\u0633\u0627\u0628'
-                    : 'Account Info',
-                subtitle: isArabic
-                    ? '\u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u062d\u0633\u0627\u0628 \u0627\u0644\u0623\u0633\u0627\u0633\u064a\u0629.'
-                    : 'Your basic account information.',
-                isArabic: isArabic,
-                child: Column(
-                  children: [
-                    _ProfileCard(
-                      label: isArabic
-                          ? '\u0631\u0642\u0645 \u0627\u0644\u0645\u0633\u062a\u062e\u062f\u0645'
-                          : 'User ID',
-                      value: publicUserId,
-                      icon: Icons.badge_rounded,
-                      isArabic: isArabic,
-                    ),
-                    _ProfileCard(
-                      label: isArabic
-                          ? '\u0627\u0644\u0628\u0631\u064a\u062f'
-                          : 'Email',
-                      value: email,
-                      icon: Icons.email_rounded,
-                      isArabic: isArabic,
-                    ),
-                    _ProfileCard(
-                      label: isArabic
-                          ? '\u0627\u0644\u062f\u0648\u0631'
-                          : 'Role',
-                      value: role,
-                      icon: Icons.verified_user_rounded,
-                      isArabic: isArabic,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    await SupabaseService.requiredClient.auth.signOut();
-
-                    if (!context.mounted) return;
-
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(
-                        builder: (_) => const OnboardingScreen(),
-                      ),
-                      (_) => false,
-                    );
-                  },
-                  icon: const Icon(Icons.logout_rounded),
-                  label: Text(
-                    isArabic
-                        ? '\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062e\u0631\u0648\u062c'
-                        : 'Logout',
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+            Positioned(
+              right: isArabic ? null : 20,
+              left: isArabic ? 20 : null,
+              bottom: 90,
+              child: _ProfileSupportButton(
+                onTap: () => _showSoon(
+                  'Support chat coming soon',
+                  '\u062f\u0631\u062f\u0634\u0629 \u0627\u0644\u062f\u0639\u0645 \u0642\u0631\u064a\u0628\u0627\u064b',
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _ProfileHeroCard extends StatelessWidget {
-  const _ProfileHeroCard({
+class _PremiumProfileHero extends StatelessWidget {
+  const _PremiumProfileHero({
     required this.displayName,
-    required this.email,
+    required this.publicUserId,
     required this.avatarUrl,
     required this.frameKey,
-    required this.publicUserId,
-    required this.role,
     required this.vipLevel,
+    required this.country,
+    required this.gender,
+    required this.bio,
+    required this.email,
     required this.isUploadingAvatar,
     required this.isArabic,
     required this.onAvatarTap,
+    required this.onEditTap,
+    required this.onFrameTap,
+    required this.onCopyId,
   });
 
   final String displayName;
-  final String email;
+  final String publicUserId;
   final String? avatarUrl;
   final String? frameKey;
-  final String publicUserId;
-  final String role;
-  final String vipLevel;
+  final int vipLevel;
+  final String country;
+  final String gender;
+  final String bio;
+  final String email;
   final bool isUploadingAvatar;
   final bool isArabic;
   final VoidCallback onAvatarTap;
+  final VoidCallback onEditTap;
+  final VoidCallback onFrameTap;
+  final VoidCallback onCopyId;
 
   @override
   Widget build(BuildContext context) {
@@ -745,126 +1009,875 @@ class _ProfileHeroCard extends StatelessWidget {
     final crossAxisAlignment = isArabic
         ? CrossAxisAlignment.end
         : CrossAxisAlignment.start;
+    final flag = _countryFlag(country);
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      constraints: const BoxConstraints(minHeight: 196),
+      padding: const EdgeInsets.fromLTRB(16, 16, 14, 16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(26),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF4B168C), Color(0xFF241638), Color(0xFFE0A83A)],
+          colors: [Color(0xFF341051), Color(0xFF180821), Color(0xFF4A174E)],
         ),
+        border: Border.all(color: const Color(0xFF6F4A9B)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF8B26D9).withValues(alpha: 0.24),
-            blurRadius: 28,
-            offset: const Offset(0, 16),
+            color: const Color(0xFF8B26D9).withValues(alpha: 0.28),
+            blurRadius: 30,
+            offset: const Offset(0, 18),
+          ),
+          ...VipVisualStyle.glow(vipLevel),
+        ],
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            right: isArabic ? null : -18,
+            left: isArabic ? -18 : null,
+            top: -18,
+            child: Container(
+              width: 132,
+              height: 132,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFFF0C15A).withValues(alpha: 0.10),
+              ),
+            ),
+          ),
+          Positioned(
+            left: isArabic ? null : 28,
+            right: isArabic ? 28 : null,
+            bottom: 8,
+            child: Icon(
+              Icons.park_rounded,
+              size: 56,
+              color: Colors.white.withValues(alpha: 0.035),
+            ),
+          ),
+          Row(
+            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: crossAxisAlignment,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      textDirection: isArabic
+                          ? TextDirection.rtl
+                          : TextDirection.ltr,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: textAlign,
+                            style: TextStyle(
+                              color: vipLevel > 0
+                                  ? VipVisualStyle.nameColor(vipLevel, context)
+                                  : Colors.white,
+                              fontSize: 25,
+                              fontWeight: FontWeight.w900,
+                              height: 1.05,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(999),
+                          onTap: onEditTap,
+                          child: const Padding(
+                            padding: EdgeInsets.all(4),
+                            child: Icon(
+                              Icons.edit_rounded,
+                              color: Color(0xFFF0C15A),
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 7),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(999),
+                      onTap: onCopyId,
+                      child: _ProfileBadge(
+                        icon: Icons.badge_rounded,
+                        label: 'ID $publicUserId',
+                        highlighted: true,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      alignment: isArabic
+                          ? WrapAlignment.end
+                          : WrapAlignment.start,
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        if (flag.isNotEmpty)
+                          _ProfileBadge(
+                            icon: Icons.flag_rounded,
+                            label: flag,
+                            highlighted: false,
+                          ),
+                        if (vipLevel > 0) VipBadge(vipLevel: vipLevel),
+                        _ProfileBadge(
+                          icon: Icons.military_tech_rounded,
+                          label: isArabic
+                              ? '\u0645\u0633\u062a\u0648\u0649 1'
+                              : 'Lv. 1',
+                          highlighted: false,
+                        ),
+                        if (gender.isNotEmpty)
+                          _ProfileBadge(
+                            icon: Icons.person_rounded,
+                            label: gender,
+                            highlighted: false,
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 9),
+                    Text(
+                      bio.isNotEmpty
+                          ? bio
+                          : (isArabic
+                                ? '\u0623\u0647\u0644\u0627\u064b \u0628\u0643 \u0641\u064a SrOOd Live.'
+                                : 'Welcome to SrOOd Live.'),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: textAlign,
+                      style: const TextStyle(
+                        color: Color(0xFFD8CFEA),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      email,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: textAlign,
+                      style: const TextStyle(
+                        color: Color(0xFF9E91B8),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              SizedBox(
+                width: 116,
+                child: Column(
+                  children: [
+                    InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: isUploadingAvatar ? null : onAvatarTap,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          AvatarWithFrame(
+                            imageUrl: avatarUrl,
+                            radius: 50,
+                            frameKey: frameKey,
+                            vipLevel: vipLevel,
+                            showVipBadge: vipLevel > 0,
+                            compact: true,
+                          ),
+                          Positioned(
+                            right: 3,
+                            bottom: 3,
+                            child: Container(
+                              width: 27,
+                              height: 27,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: const Color(0xFFF0C15A),
+                                border: Border.all(
+                                  color: const Color(0xFF160B26),
+                                  width: 2,
+                                ),
+                              ),
+                              child: Icon(
+                                isUploadingAvatar
+                                    ? Icons.hourglass_top_rounded
+                                    : Icons.camera_alt_rounded,
+                                color: const Color(0xFF160B26),
+                                size: 15,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    TextButton(
+                      onPressed: onFrameTap,
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(0, 30),
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        isArabic
+                            ? '\u0627\u0644\u0625\u0637\u0627\u0631'
+                            : 'Frame',
+                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  String _countryFlag(String value) {
+    final country = value.trim().toLowerCase();
+
+    if (country.isEmpty) {
+      return '';
+    }
+
+    if (country.contains('leban') || country.contains('\u0644\u0628\u0646')) {
+      return '\u{1F1F1}\u{1F1E7} Lebanon';
+    }
+
+    return value;
+  }
+}
+
+class _ProfileStatsRow extends StatelessWidget {
+  const _ProfileStatsRow({
+    required this.isArabic,
+    required this.followers,
+    required this.following,
+    required this.gifts,
+    required this.visitors,
+  });
+
+  final bool isArabic;
+  final int followers;
+  final int following;
+  final int gifts;
+  final int visitors;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 86,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF12091D),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFF4A3470)),
       ),
       child: Row(
         textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
         children: [
-          InkWell(
-            customBorder: const CircleBorder(),
-            onTap: isUploadingAvatar ? null : onAvatarTap,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                AvatarWithFrame(
-                  imageUrl: avatarUrl,
-                  radius: 38,
-                  frameKey: frameKey,
-                  vipLevel: int.tryParse(vipLevel) ?? 0,
-                  showVipBadge: (int.tryParse(vipLevel) ?? 0) > 0,
-                ),
-                Positioned(
-                  right: -2,
-                  bottom: -2,
-                  child: Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFFF0C15A),
-                      border: Border.all(
-                        color: const Color(0xFF241638),
-                        width: 2,
-                      ),
-                    ),
-                    child: Icon(
-                      isUploadingAvatar
-                          ? Icons.hourglass_top_rounded
-                          : Icons.camera_alt_rounded,
-                      size: 15,
-                      color: const Color(0xFF160B26),
-                    ),
-                  ),
-                ),
-              ],
+          _ProfileStatItem(
+            value: followers,
+            label: isArabic
+                ? '\u0645\u062a\u0627\u0628\u0639\u0648\u0646'
+                : 'Followers',
+          ),
+          _ProfileStatItem(
+            value: following,
+            label: isArabic ? '\u064a\u062a\u0627\u0628\u0639' : 'Following',
+          ),
+          _ProfileStatItem(
+            value: gifts,
+            label: isArabic ? '\u0647\u062f\u0627\u064a\u0627' : 'Gifts',
+          ),
+          _ProfileStatItem(
+            value: visitors,
+            label: isArabic ? '\u0632\u0648\u0627\u0631' : 'Visitors',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileStatItem extends StatelessWidget {
+  const _ProfileStatItem({required this.value, required this.label});
+
+  final int value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            _formatCount(value),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 21,
+              fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: crossAxisAlignment,
-              children: [
-                Text(
-                  displayName,
-                  textAlign: textAlign,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  email,
-                  textAlign: textAlign,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.80),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  textDirection: isArabic
-                      ? TextDirection.rtl
-                      : TextDirection.ltr,
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _ProfileBadge(
-                      icon: Icons.badge_rounded,
-                      label: publicUserId,
-                      highlighted: true,
-                    ),
-                    _ProfileBadge(
-                      icon: Icons.diamond_rounded,
-                      label: 'VIP $vipLevel',
-                      highlighted: false,
-                    ),
-                    _ProfileBadge(
-                      icon: Icons.admin_panel_settings_rounded,
-                      label: role,
-                      highlighted: false,
-                    ),
-                  ],
-                ),
-              ],
+          const SizedBox(height: 3),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFFB9A9D4),
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
       ),
     );
   }
+}
+
+class _VipUpgradeBanner extends StatelessWidget {
+  const _VipUpgradeBanner({
+    required this.vipLevel,
+    required this.isArabic,
+    required this.onTap,
+  });
+
+  final int vipLevel;
+  final bool isArabic;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = vipLevel > 0;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(24),
+      onTap: onTap,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 96),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: LinearGradient(
+            colors: active
+                ? VipVisualStyle.gradient(vipLevel)
+                : const [Color(0xFF32194A), Color(0xFF7D2BFF)],
+          ),
+          border: Border.all(color: const Color(0xFFF0C15A)),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFB000FF).withValues(alpha: 0.22),
+              blurRadius: 22,
+              offset: const Offset(0, 12),
+            ),
+          ],
+        ),
+        child: Row(
+          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+          children: [
+            Container(
+              width: 48,
+              height: 46,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFFF0C15A),
+              ),
+              child: const Icon(
+                Icons.workspace_premium_rounded,
+                color: Color(0xFF160B26),
+              ),
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: isArabic
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    active ? 'VIP Lv$vipLevel Active' : 'VIP',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    isArabic
+                        ? '\u0627\u0641\u062a\u062d \u062a\u062c\u0631\u0628\u0629 \u0645\u0645\u064a\u0632\u0629'
+                        : 'Unlock Premium Experience',
+                    style: const TextStyle(
+                      color: Color(0xFFF7E9FF),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            _GoldMiniButton(label: active ? 'Manage' : 'Upgrade Now'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BalanceCards extends StatelessWidget {
+  const _BalanceCards({
+    required this.coins,
+    required this.diamonds,
+    required this.isArabic,
+    required this.onCoinsTap,
+    required this.onDiamondsTap,
+  });
+
+  final int coins;
+  final int diamonds;
+  final bool isArabic;
+  final VoidCallback onCoinsTap;
+  final VoidCallback onDiamondsTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+      children: [
+        Expanded(
+          child: _BalanceCard(
+            icon: Icons.monetization_on_rounded,
+            label: isArabic
+                ? '\u0627\u0644\u0639\u0645\u0644\u0627\u062a'
+                : 'Coins',
+            value: coins,
+            colors: const [Color(0xFFFFD978), Color(0xFFC9871C)],
+            onTap: onCoinsTap,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _BalanceCard(
+            icon: Icons.diamond_rounded,
+            label: isArabic
+                ? '\u0627\u0644\u0623\u0644\u0645\u0627\u0633'
+                : 'Diamonds',
+            value: diamonds,
+            colors: const [Color(0xFFE4B5FF), Color(0xFF7D2BFF)],
+            onTap: onDiamondsTap,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BalanceCard extends StatelessWidget {
+  const _BalanceCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.colors,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final int value;
+  final List<Color> colors;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(22),
+      onTap: onTap,
+      child: Container(
+        height: 90,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          gradient: LinearGradient(colors: colors),
+          boxShadow: [
+            BoxShadow(
+              color: colors.last.withValues(alpha: 0.22),
+              blurRadius: 18,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: const Color(0xFF160B26), size: 24),
+            const Spacer(),
+            Text(
+              _formatCount(value),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF160B26),
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF160B26),
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShortcutGrid extends StatelessWidget {
+  const _ShortcutGrid({
+    required this.isArabic,
+    required this.onStore,
+    required this.onTask,
+    required this.onCheckIn,
+    required this.onBackpack,
+  });
+
+  final bool isArabic;
+  final VoidCallback onStore;
+  final VoidCallback onTask;
+  final VoidCallback onCheckIn;
+  final VoidCallback onBackpack;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      _ShortcutData(
+        Icons.storefront_rounded,
+        isArabic ? '\u0627\u0644\u0645\u062a\u062c\u0631' : 'Store',
+        onStore,
+      ),
+      _ShortcutData(
+        Icons.task_alt_rounded,
+        isArabic ? '\u0645\u0647\u0627\u0645' : 'Task',
+        onTask,
+      ),
+      _ShortcutData(
+        Icons.event_available_rounded,
+        isArabic ? '\u062d\u0636\u0648\u0631' : 'Check in',
+        onCheckIn,
+      ),
+      _ShortcutData(
+        Icons.backpack_rounded,
+        isArabic ? '\u062d\u0642\u064a\u0628\u0629' : 'Backpack',
+        onBackpack,
+      ),
+    ];
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 116),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+      decoration: BoxDecoration(
+        color: const Color(0xFF12091D),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFF4A3470)),
+      ),
+      child: Row(
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        children: items
+            .map((item) => Expanded(child: _ShortcutTile(data: item)))
+            .toList(),
+      ),
+    );
+  }
+}
+
+class _ShortcutData {
+  const _ShortcutData(this.icon, this.label, this.onTap);
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+}
+
+class _ShortcutTile extends StatelessWidget {
+  const _ShortcutTile({required this.data});
+
+  final _ShortcutData data;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: data.onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF3A174F), Color(0xFF241638)],
+                ),
+                border: Border.all(color: const Color(0xFF5A3A86)),
+              ),
+              child: Icon(data.icon, color: const Color(0xFFF0C15A)),
+            ),
+            const SizedBox(height: 7),
+            Text(
+              data.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFFD8CFEA),
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileMenuList extends StatelessWidget {
+  const _ProfileMenuList({
+    required this.isArabic,
+    required this.onLevel,
+    required this.onAgency,
+    required this.onIncome,
+    required this.onBadge,
+    required this.onFeedback,
+    required this.onSettings,
+  });
+
+  final bool isArabic;
+  final VoidCallback onLevel;
+  final VoidCallback onAgency;
+  final VoidCallback onIncome;
+  final VoidCallback onBadge;
+  final VoidCallback onFeedback;
+  final VoidCallback onSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      _MenuData(
+        Icons.trending_up_rounded,
+        isArabic ? '\u0645\u0633\u062a\u0648\u0627\u064a' : 'My level',
+        onLevel,
+      ),
+      _MenuData(
+        Icons.groups_rounded,
+        isArabic ? '\u0648\u0643\u0627\u0644\u062a\u064a' : 'My agency',
+        onAgency,
+      ),
+      _MenuData(
+        Icons.account_balance_wallet_rounded,
+        isArabic ? '\u062f\u062e\u0644\u064a' : 'My income',
+        onIncome,
+      ),
+      _MenuData(
+        Icons.verified_rounded,
+        isArabic ? '\u0627\u0644\u0634\u0627\u0631\u0627\u062a' : 'Badge',
+        onBadge,
+      ),
+      _MenuData(
+        Icons.feedback_rounded,
+        isArabic ? '\u0645\u0644\u0627\u062d\u0638\u0627\u062a' : 'Feedback',
+        onFeedback,
+      ),
+      _MenuData(
+        Icons.settings_rounded,
+        isArabic
+            ? '\u0627\u0644\u0625\u0639\u062f\u0627\u062f\u0627\u062a'
+            : 'Settings',
+        onSettings,
+      ),
+    ];
+
+    return Column(
+      children: items
+          .map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _MenuRow(data: item, isArabic: isArabic),
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+class _MenuData {
+  const _MenuData(this.icon, this.title, this.onTap);
+
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
+}
+
+class _MenuRow extends StatelessWidget {
+  const _MenuRow({required this.data, required this.isArabic});
+
+  final _MenuData data;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: data.onTap,
+      child: Container(
+        height: 58,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF12091D),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFF3E285E)),
+        ),
+        child: Row(
+          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+          children: [
+            Icon(data.icon, color: const Color(0xFFF0C15A), size: 22),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                data.title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            Icon(
+              isArabic
+                  ? Icons.chevron_left_rounded
+                  : Icons.chevron_right_rounded,
+              color: const Color(0xFF9E91B8),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileSupportButton extends StatelessWidget {
+  const _ProfileSupportButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      customBorder: const CircleBorder(),
+      onTap: onTap,
+      child: Container(
+        width: 58,
+        height: 58,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const LinearGradient(
+            colors: [Color(0xFF7D2BFF), Color(0xFFF0C15A)],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFB000FF).withValues(alpha: 0.32),
+              blurRadius: 22,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: const Icon(Icons.support_agent_rounded, color: Colors.white),
+      ),
+    );
+  }
+}
+
+class _SettingsSheetAction extends StatelessWidget {
+  const _SettingsSheetAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.danger = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool danger;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = danger ? const Color(0xFFFF5C7A) : const Color(0xFFF0C15A);
+
+    return ListTile(
+      leading: Icon(icon, color: color),
+      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w900)),
+      onTap: onTap,
+    );
+  }
+}
+
+class _GoldMiniButton extends StatelessWidget {
+  const _GoldMiniButton({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0C15A),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFF160B26),
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+String _formatCount(int value) {
+  if (value >= 1000000) {
+    return '${(value / 1000000).toStringAsFixed(1)}M';
+  }
+
+  if (value >= 1000) {
+    return '${(value / 1000).toStringAsFixed(1)}K';
+  }
+
+  return value.toString();
 }
 
 class _ProfileBadge extends StatelessWidget {
@@ -881,7 +1894,7 @@ class _ProfileBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
         color: highlighted
             ? const Color(0xFFF0C15A).withValues(alpha: 0.18)
@@ -898,7 +1911,7 @@ class _ProfileBadge extends StatelessWidget {
         children: [
           Icon(
             icon,
-            size: 15,
+            size: 13,
             color: highlighted ? const Color(0xFFF0C15A) : Colors.white,
           ),
           const SizedBox(width: 5),
@@ -907,97 +1920,8 @@ class _ProfileBadge extends StatelessWidget {
             style: TextStyle(
               color: highlighted ? const Color(0xFFF0C15A) : Colors.white,
               fontWeight: FontWeight.w900,
-              fontSize: 12,
+              fontSize: 11,
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProfileFrameSection extends StatelessWidget {
-  const _ProfileFrameSection({
-    required this.avatarUrl,
-    required this.selectedFrameKey,
-    required this.frames,
-    required this.vipLevel,
-    required this.isArabic,
-    required this.onChooseFrame,
-  });
-
-  final String? avatarUrl;
-  final String? selectedFrameKey;
-  final List<AvatarFrame> frames;
-  final int vipLevel;
-  final bool isArabic;
-  final VoidCallback onChooseFrame;
-
-  @override
-  Widget build(BuildContext context) {
-    AvatarFrame? selectedFrame;
-
-    for (final frame in frames) {
-      if (frame.frameKey == selectedFrameKey) {
-        selectedFrame = frame;
-        break;
-      }
-    }
-
-    return _ProfileSectionCard(
-      title: isArabic
-          ? '\u0625\u0637\u0627\u0631 \u0627\u0644\u0635\u0648\u0631\u0629'
-          : 'Avatar Frame',
-      subtitle: isArabic
-          ? '\u0627\u062e\u062a\u0631 \u0625\u0637\u0627\u0631\u0627\u064b \u064a\u0638\u0647\u0631 \u062d\u0648\u0644 \u0635\u0648\u0631\u062a\u0643.'
-          : 'Choose a frame that wraps around your avatar.',
-      isArabic: isArabic,
-      child: Row(
-        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-        children: [
-          AvatarWithFrame(
-            imageUrl: avatarUrl,
-            radius: 34,
-            frameKey: selectedFrameKey,
-            vipLevel: vipLevel,
-            showVipBadge: vipLevel > 0,
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: isArabic
-                  ? CrossAxisAlignment.end
-                  : CrossAxisAlignment.start,
-              children: [
-                Text(
-                  selectedFrame?.name ??
-                      (isArabic
-                          ? '\u0628\u062f\u0648\u0646 \u0625\u0637\u0627\u0631'
-                          : 'No Frame'),
-                  textAlign: isArabic ? TextAlign.right : TextAlign.left,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  isArabic ? 'VIP $vipLevel' : 'VIP Level $vipLevel',
-                  textAlign: isArabic ? TextAlign.right : TextAlign.left,
-                  style: const TextStyle(
-                    color: Color(0xFFD8CFEA),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          FilledButton(
-            onPressed: onChooseFrame,
-            child: Text(isArabic ? '\u0627\u062e\u062a\u0631' : 'Choose Frame'),
           ),
         ],
       ),
@@ -1184,9 +2108,22 @@ class _AvatarFramePickerTile extends StatelessWidget {
 
     return InkWell(
       borderRadius: BorderRadius.circular(18),
-      onTap: unlocked
-          ? () => Navigator.of(context).pop<String?>(frame?.frameKey)
-          : null,
+      onTap: () {
+        if (unlocked) {
+          Navigator.of(context).pop<String?>(frame?.frameKey);
+          return;
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isArabic
+                  ? '\u0647\u0630\u0627 \u0627\u0644\u0625\u0637\u0627\u0631 \u0645\u062a\u0627\u062d \u0644\u0645\u0633\u062a\u0648\u0649 VIP \u0623\u0639\u0644\u0649'
+                  : 'This frame requires a higher VIP level',
+            ),
+          ),
+        );
+      },
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
@@ -1238,213 +2175,6 @@ class _AvatarFramePickerTile extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _ProfileWalletGrid extends StatelessWidget {
-  const _ProfileWalletGrid({
-    required this.coins,
-    required this.diamonds,
-    required this.income,
-    required this.agency,
-    required this.isArabic,
-  });
-
-  final String coins;
-  final String diamonds;
-  final String income;
-  final String agency;
-  final bool isArabic;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-          children: [
-            Expanded(
-              child: _ProfileStatCard(
-                icon: Icons.monetization_on_rounded,
-                label: isArabic
-                    ? '\u0627\u0644\u0639\u0645\u0644\u0627\u062a'
-                    : 'Coins',
-                value: coins,
-                highlighted: true,
-                isArabic: isArabic,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _ProfileStatCard(
-                icon: Icons.diamond_rounded,
-                label: isArabic
-                    ? '\u0627\u0644\u0623\u0644\u0645\u0627\u0633'
-                    : 'Diamonds',
-                value: diamonds,
-                highlighted: false,
-                isArabic: isArabic,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-          children: [
-            Expanded(
-              child: _ProfileStatCard(
-                icon: Icons.account_balance_wallet_rounded,
-                label: isArabic ? '\u0627\u0644\u062f\u062e\u0644' : 'Income',
-                value: income,
-                highlighted: false,
-                isArabic: isArabic,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _ProfileStatCard(
-                icon: Icons.groups_rounded,
-                label: isArabic
-                    ? '\u0627\u0644\u0648\u0643\u0627\u0644\u0629'
-                    : 'Agency',
-                value: agency,
-                highlighted: false,
-                isArabic: isArabic,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _ProfileStatCard extends StatelessWidget {
-  const _ProfileStatCard({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.highlighted,
-    required this.isArabic,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final bool highlighted;
-  final bool isArabic;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 128,
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: highlighted
-              ? const [Color(0xFF3A174F), Color(0xFF241638)]
-              : const [Color(0xFF171125), Color(0xFF12091D)],
-        ),
-        border: Border.all(
-          color: highlighted
-              ? const Color(0xFFF0C15A)
-              : const Color(0xFF4A3470),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: isArabic
-            ? CrossAxisAlignment.end
-            : CrossAxisAlignment.start,
-        children: [
-          Icon(
-            icon,
-            color: highlighted
-                ? const Color(0xFFF0C15A)
-                : const Color(0xFFD8CFEA),
-            size: 28,
-          ),
-          const Spacer(),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: isArabic ? TextAlign.right : TextAlign.left,
-            style: const TextStyle(
-              fontSize: 21,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            textAlign: isArabic ? TextAlign.right : TextAlign.left,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFFD8CFEA),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProfileSectionCard extends StatelessWidget {
-  const _ProfileSectionCard({
-    required this.title,
-    required this.subtitle,
-    required this.child,
-    required this.isArabic,
-  });
-
-  final String title;
-  final String subtitle;
-  final Widget child;
-  final bool isArabic;
-
-  @override
-  Widget build(BuildContext context) {
-    final textAlign = isArabic ? TextAlign.right : TextAlign.left;
-    final crossAxisAlignment = isArabic
-        ? CrossAxisAlignment.end
-        : CrossAxisAlignment.start;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFF12091D),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFF4A3470)),
-      ),
-      child: Column(
-        crossAxisAlignment: crossAxisAlignment,
-        children: [
-          Text(
-            title,
-            textAlign: textAlign,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            subtitle,
-            textAlign: textAlign,
-            style: const TextStyle(
-              color: Color(0xFFD8CFEA),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 16),
-          child,
-        ],
       ),
     );
   }
@@ -1518,69 +2248,6 @@ class _ProfileInput extends StatelessWidget {
           labelText: label,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
         ),
-      ),
-    );
-  }
-}
-
-class _ProfileCard extends StatelessWidget {
-  const _ProfileCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.isArabic,
-  });
-
-  final String label;
-  final String value;
-  final IconData icon;
-  final bool isArabic;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1B102B),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF4A3470)),
-      ),
-      child: Row(
-        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-        children: [
-          Icon(icon, color: const Color(0xFFF0C15A), size: 24),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: isArabic
-                  ? CrossAxisAlignment.end
-                  : CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  textAlign: isArabic ? TextAlign.right : TextAlign.left,
-                  style: const TextStyle(
-                    color: Color(0xFFD8CFEA),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  value,
-                  textAlign: isArabic ? TextAlign.right : TextAlign.left,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

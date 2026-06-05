@@ -9,6 +9,8 @@ class RoomGiftProfile {
     this.avatarUrl,
     this.selectedAvatarFrameKey,
     this.vipLevel = 0,
+    this.vipStartedAt,
+    this.vipExpiresAt,
   });
 
   final String userId;
@@ -17,6 +19,16 @@ class RoomGiftProfile {
   final String? avatarUrl;
   final String? selectedAvatarFrameKey;
   final int vipLevel;
+  final DateTime? vipStartedAt;
+  final DateTime? vipExpiresAt;
+
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+
+    return DateTime.tryParse(value.toString());
+  }
 
   factory RoomGiftProfile.fromJson(Map<String, dynamic> json) {
     return RoomGiftProfile(
@@ -26,6 +38,8 @@ class RoomGiftProfile {
       avatarUrl: json['avatar_url']?.toString(),
       selectedAvatarFrameKey: json['selected_avatar_frame_key']?.toString(),
       vipLevel: (json['vip_level'] as num?)?.toInt() ?? 0,
+      vipStartedAt: _parseDate(json['vip_started_at']),
+      vipExpiresAt: _parseDate(json['vip_expires_at']),
     );
   }
 
@@ -44,6 +58,18 @@ class RoomGiftProfile {
 
     final shortId = userId.length >= 8 ? userId.substring(0, 8) : userId;
     return 'ID $shortId';
+  }
+
+  int get effectiveVipLevel {
+    if (vipLevel <= 0) {
+      return 0;
+    }
+
+    if (vipExpiresAt != null && !vipExpiresAt!.isAfter(DateTime.now())) {
+      return 0;
+    }
+
+    return vipLevel.clamp(0, 5).toInt();
   }
 }
 
@@ -179,7 +205,7 @@ class GiftsService {
       final profileData = await client
           .from('profiles')
           .select(
-            'id, display_name, public_user_id, avatar_url, selected_avatar_frame_key, vip_level',
+            'id, display_name, public_user_id, avatar_url, selected_avatar_frame_key, vip_level, vip_started_at, vip_expires_at',
           )
           .inFilter('id', userIds);
 

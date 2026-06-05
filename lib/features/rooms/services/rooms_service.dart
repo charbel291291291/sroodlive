@@ -66,7 +66,7 @@ class RoomsService {
       final data = await client
           .from('room_members')
           .select(
-            '*, profiles(display_name, username, public_user_id, avatar_url, selected_avatar_frame_key, vip_level)',
+            '*, profiles(display_name, username, public_user_id, avatar_url, selected_avatar_frame_key, vip_level, vip_started_at, vip_expires_at)',
           )
           .eq('room_id', roomId)
           .filter('left_at', 'is', null)
@@ -81,7 +81,7 @@ class RoomsService {
         final data = await client
             .from('room_members')
             .select(
-              '*, profiles(display_name, username, avatar_url, selected_avatar_frame_key, vip_level)',
+              '*, profiles(display_name, username, avatar_url, selected_avatar_frame_key, vip_level, vip_started_at, vip_expires_at)',
             )
             .eq('room_id', roomId)
             .filter('left_at', 'is', null)

@@ -50,3 +50,10 @@ scripts/run-web.ps1
 
 # Local Supabase runtime secrets
 .env.local
+
+build-web.ps1
+run-web.ps1
+run-mobile.ps1
+add_luxury_gifts.sql
+gift_code_report.txt
+patch_luxury_gifts.py
