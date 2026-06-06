@@ -4,6 +4,19 @@ import 'package:flutter/material.dart';
 
 import '../../features/rooms/utils/vip_room_features.dart';
 
+const Map<String, String> avatarFrameAssetPaths = {
+  'luxury_ruby_royal': 'assets/avatar_frames/luxury_ruby_royal.png',
+  'luxury_ruby_royal_dark': 'assets/avatar_frames/luxury_ruby_royal_dark.png',
+  'custom_srood_live': 'assets/avatar_frames/custom/srood_live_frame_final.png',
+  'custom_super_admin':
+      'assets/avatar_frames/custom/super_admin_frame_transparent.png',
+  'custom_admin': 'assets/avatar_frames/custom/admin_frame_transparent.png',
+  'custom_luxury_gold':
+      'assets/avatar_frames/custom/luxury_gold_frame_transparent.png',
+  'custom_luxury_diamond':
+      'assets/avatar_frames/custom/luxury_diamond_frame_transparent.png',
+};
+
 class AvatarWithFrame extends StatelessWidget {
   const AvatarWithFrame({
     required this.imageUrl,
@@ -33,7 +46,9 @@ class AvatarWithFrame extends StatelessWidget {
     final frame = _effectiveFrameKey(frameKey?.trim());
     final hasFrame = frame != null && frame.isNotEmpty;
     final avatarSize = radius * 2;
-    final frameSize = avatarSize * _frameScale(frame, compact: compact);
+    final frameSize = hasFrame
+        ? avatarSize * _frameScale(frame, compact: compact)
+        : avatarSize;
     final frameAssetPath = _frameAssetPath(frame);
     final url = imageUrl?.trim();
 
@@ -44,33 +59,34 @@ class AvatarWithFrame extends StatelessWidget {
         clipBehavior: Clip.none,
         alignment: Alignment.center,
         children: [
-          Container(
+          SizedBox(
             width: avatarSize,
             height: avatarSize,
-            clipBehavior: Clip.antiAlias,
-            decoration: const BoxDecoration(shape: BoxShape.circle),
-            child: url != null && url.isNotEmpty
-                ? Image.network(
-                    url,
-                    fit: BoxFit.cover,
-                    width: avatarSize,
-                    height: avatarSize,
-                    errorBuilder: (context, error, stackTrace) =>
-                        _AvatarFallback(icon: fallbackIcon, size: avatarSize),
-                  )
-                : _AvatarFallback(icon: fallbackIcon, size: avatarSize),
+            child: ClipOval(
+              child: url != null && url.isNotEmpty
+                  ? Image.network(
+                      url,
+                      fit: BoxFit.cover,
+                      width: avatarSize,
+                      height: avatarSize,
+                      errorBuilder: (context, error, stackTrace) =>
+                          _AvatarFallback(icon: fallbackIcon, size: avatarSize),
+                    )
+                  : _AvatarFallback(icon: fallbackIcon, size: avatarSize),
+            ),
           ),
           if (hasFrame && frameAssetPath != null)
-            Positioned.fill(
+            Center(
               child: IgnorePointer(
-                child: Image.asset(
-                  frameAssetPath,
-                  width: frameSize,
-                  height: frameSize,
-                  fit: BoxFit.contain,
-                  filterQuality: FilterQuality.high,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const SizedBox.shrink(),
+                child: SizedBox.square(
+                  dimension: frameSize,
+                  child: Image.asset(
+                    frameAssetPath,
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.high,
+                    errorBuilder: (context, error, stackTrace) =>
+                        const SizedBox.shrink(),
+                  ),
                 ),
               ),
             )
@@ -136,20 +152,19 @@ class AvatarWithFrame extends StatelessWidget {
   }
 
   double _frameScale(String? frameKey, {required bool compact}) {
-    if (compact) {
-      return 1.08;
-    }
-
     return switch (frameKey) {
+      'custom_srood_live' ||
+      'custom_super_admin' ||
+      'custom_admin' ||
+      'custom_luxury_gold' ||
+      'custom_luxury_diamond' => compact ? 1.18 : 1.45,
       'luxury_ruby_royal' || 'luxury_ruby_royal_dark' => 1.42,
-      _ => 1.18,
+      _ => compact ? 1.08 : 1.18,
     };
   }
 
   String? _frameAssetPath(String? frameKey) {
-    return switch (frameKey) {
-      _ => null,
-    };
+    return avatarFrameAssetPaths[frameKey];
   }
 }
 
@@ -568,7 +583,7 @@ class _AvatarFramePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _AvatarFramePainter oldDelegate) {
-    return oldDelegate.frameKey != frameKey;
+    return oldDelegate.frameKey != frameKey || oldDelegate.compact != compact;
   }
 }
 

@@ -392,6 +392,13 @@ class AdminService {
     );
   }
 
+  Future<void> reopenRoom({required String roomId}) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_reopen_room',
+      params: {'p_room_id': roomId},
+    );
+  }
+
   Future<void> kickRoomMember({
     required String roomId,
     required String userId,
@@ -526,6 +533,35 @@ class AdminService {
         .toList();
   }
 
+  Future<void> updateEntranceBanner({
+    required String bannerKey,
+    required String name,
+    String? arabicName,
+    int? vipLevel,
+    String? assetUrl,
+    String? gradientStart,
+    String? gradientEnd,
+    String? messageTemplate,
+    bool isActive = true,
+    int sortOrder = 0,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_update_entrance_banner',
+      params: {
+        'p_banner_key': bannerKey,
+        'p_name': name,
+        'p_arabic_name': arabicName,
+        'p_vip_level': vipLevel,
+        'p_asset_url': assetUrl,
+        'p_gradient_start': gradientStart,
+        'p_gradient_end': gradientEnd,
+        'p_message_template': messageTemplate,
+        'p_is_active': isActive,
+        'p_sort_order': sortOrder,
+      },
+    );
+  }
+
   Future<List<AdminGiftCategory>> fetchGiftCategories() async {
     final data = await SupabaseService.requiredClient.rpc(
       'admin_list_gift_categories',
@@ -533,6 +569,27 @@ class AdminService {
     return (data as List<dynamic>)
         .map((item) => AdminGiftCategory.fromJson(item as Map<String, dynamic>))
         .toList();
+  }
+
+  Future<void> updateGiftCategory({
+    required String categoryKey,
+    required String name,
+    String? arabicName,
+    String? icon,
+    bool isActive = true,
+    int sortOrder = 0,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_update_gift_category',
+      params: {
+        'p_category_key': categoryKey,
+        'p_name': name,
+        'p_arabic_name': arabicName,
+        'p_icon': icon,
+        'p_is_active': isActive,
+        'p_sort_order': sortOrder,
+      },
+    );
   }
 
   Future<void> grantVip({

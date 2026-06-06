@@ -1,11 +1,11 @@
 {
-    "name": "srood_live",
-    "short_name": "srood_live",
+    "name": "SrOOd Live",
+    "short_name": "SrOOd",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#07030D",
+    "theme_color": "#8B26D9",
+    "description": "Lebanese and Arabic live voice rooms, gifts, VIP, and premium social features.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

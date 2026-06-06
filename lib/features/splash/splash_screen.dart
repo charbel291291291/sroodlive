@@ -1,7 +1,8 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import '../../core/supabase/supabase_service.dart';
+import '../../shared/branding/branding_assets.dart';
 import '../home/home_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 
@@ -31,9 +32,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
     if (client == null || user == null) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => const OnboardingScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
       );
       return;
     }
@@ -61,26 +60,20 @@ class _SplashScreenState extends State<SplashScreen> {
         if (!mounted) return;
 
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => const OnboardingScreen(),
-          ),
+          MaterialPageRoute(builder: (_) => const OnboardingScreen()),
         );
 
         return;
       }
 
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => const HomeScreen(),
-        ),
-      );
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
     } catch (_) {
       if (!mounted) return;
 
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => const OnboardingScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
       );
     }
   }
@@ -93,11 +86,7 @@ class _SplashScreenState extends State<SplashScreen> {
         padding: const EdgeInsets.all(24),
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              Color(0xFF08080B),
-              Color(0xFF11111A),
-              Color(0xFF08080B),
-            ],
+            colors: [Color(0xFF08080B), Color(0xFF11111A), Color(0xFF08080B)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -105,28 +94,24 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.mic_rounded,
-              size: 72,
-              color: Color(0xFFD6A84F),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'SrOOd Live',
-              style: TextStyle(
-                fontSize: 34,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.2,
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 360),
+              child: Image.asset(
+                BrandingAssets.logoWide,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.high,
+                errorBuilder: (context, error, stackTrace) => const Icon(
+                  Icons.mic_rounded,
+                  size: 72,
+                  color: Color(0xFFD6A84F),
+                ),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 18),
             Text(
               message ?? 'Voice rooms. Gifts. Prestige.',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 15,
-                color: Color(0xFFB8B8C7),
-              ),
+              style: const TextStyle(fontSize: 15, color: Color(0xFFB8B8C7)),
             ),
           ],
         ),

@@ -6,14 +6,19 @@ enum VipLevel {
   vip2(2),
   vip3(3),
   vip4(4),
-  vip5(5);
+  vip5(5),
+  vip6(6),
+  vip7(7),
+  vip8(8),
+  vip9(9),
+  vip10(10);
 
   const VipLevel(this.value);
 
   final int value;
 
   static VipLevel fromInt(int level) {
-    final normalized = level.clamp(0, 5).toInt();
+    final normalized = level.clamp(0, 10).toInt();
 
     return switch (normalized) {
       1 => VipLevel.vip1,
@@ -21,6 +26,11 @@ enum VipLevel {
       3 => VipLevel.vip3,
       4 => VipLevel.vip4,
       5 => VipLevel.vip5,
+      6 => VipLevel.vip6,
+      7 => VipLevel.vip7,
+      8 => VipLevel.vip8,
+      9 => VipLevel.vip9,
+      10 => VipLevel.vip10,
       _ => VipLevel.none,
     };
   }
@@ -49,11 +59,11 @@ class VipFeatures {
       return 0;
     }
 
-    return vipLevel.clamp(0, 5).toInt();
+    return vipLevel.clamp(0, 10).toInt();
   }
 
   static String vipLabel(int level) {
-    final effectiveLevel = level.clamp(0, 5);
+    final effectiveLevel = level.clamp(0, 10);
     return effectiveLevel <= 0 ? '' : 'VIP $effectiveLevel';
   }
 
@@ -64,6 +74,11 @@ class VipFeatures {
       'vip_gold_crown' || 'vip_3' => 3,
       'vip_platinum_diamond' || 'vip_4' => 4,
       'vip_royal_king' || 'vip_5' => 5,
+      'vip_elite' || 'vip_6' => 6,
+      'vip_mythic' || 'vip_7' => 7,
+      'vip_emperor' || 'vip_8' => 8,
+      'vip_celestial' || 'vip_9' => 9,
+      'vip_srood_legend' || 'vip_10' => 10,
       _ => 0,
     };
 
@@ -71,7 +86,7 @@ class VipFeatures {
   }
 
   static bool hasSilentEntry(int effectiveVipLevel) {
-    return effectiveVipLevel >= 4;
+    return effectiveVipLevel >= 6;
   }
 
   static bool hasKickProtection(int effectiveVipLevel) {
@@ -83,7 +98,7 @@ class VipFeatures {
   }
 
   static bool requiresKickConfirmation(int effectiveVipLevel) {
-    return effectiveVipLevel == 4;
+    return effectiveVipLevel >= 4 && effectiveVipLevel < 6;
   }
 
   static bool hasProfileGlow(int effectiveVipLevel) {
@@ -116,6 +131,11 @@ class VipVisualStyle {
       3 => const Color(0xFFE4B5FF),
       4 => const Color(0xFF9BE8FF),
       5 => const Color(0xFFFFD15C),
+      6 => const Color(0xFF5DDCFF),
+      7 => const Color(0xFFC875FF),
+      8 => const Color(0xFFFFB44C),
+      9 => const Color(0xFF75FFE8),
+      10 => const Color(0xFFFF4FD8),
       _ => DefaultTextStyle.of(context).style.color ?? Colors.white,
     };
   }
@@ -127,6 +147,11 @@ class VipVisualStyle {
       3 => const [Color(0xFFFFD978), Color(0xFF8B26D9)],
       4 => const [Color(0xFFD8F6FF), Color(0xFF4CC9F0)],
       5 => const [Color(0xFFFFD978), Color(0xFFE0002B), Color(0xFF7D2BFF)],
+      6 => const [Color(0xFFBFF6FF), Color(0xFF0099FF)],
+      7 => const [Color(0xFFFFD7FF), Color(0xFF7D2BFF)],
+      8 => const [Color(0xFFFFE1A3), Color(0xFFFF6F00)],
+      9 => const [Color(0xFFC8FFF5), Color(0xFF00BFA6)],
+      10 => const [Color(0xFFFFD978), Color(0xFFFF4FD8), Color(0xFF7D2BFF)],
       _ => const [Color(0xFF5A3A86), Color(0xFF241638)],
     };
   }
@@ -144,6 +169,11 @@ class VipVisualStyle {
       3 => const Color(0xFFE4B5FF),
       4 => const Color(0xFF9BE8FF),
       5 => const Color(0xFFFFD15C),
+      6 => const Color(0xFF5DDCFF),
+      7 => const Color(0xFFC875FF),
+      8 => const Color(0xFFFFB44C),
+      9 => const Color(0xFF75FFE8),
+      10 => const Color(0xFFFF4FD8),
       _ => Colors.transparent,
     };
 

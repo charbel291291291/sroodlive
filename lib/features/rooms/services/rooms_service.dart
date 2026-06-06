@@ -24,6 +24,13 @@ class RoomPasswordRequiredException implements Exception {
   String toString() => 'room_password_required';
 }
 
+class ClosedRoomException implements Exception {
+  const ClosedRoomException();
+
+  @override
+  String toString() => 'closed_room';
+}
+
 class RoomsService {
   const RoomsService();
 
@@ -36,6 +43,7 @@ class RoomsService {
     final data = await SupabaseService.requiredClient
         .from('rooms')
         .select()
+        .eq('is_closed', false)
         .order('created_at', ascending: false);
 
     return (data as List<dynamic>)
@@ -181,13 +189,18 @@ class RoomsService {
 
     final room = await client
         .from('rooms')
-        .select('owner_id,is_locked')
+        .select('owner_id,is_locked,is_closed')
         .eq('id', roomId)
         .single();
 
     final ownerId = room['owner_id']?.toString();
     final role = ownerId == user.id ? 'host' : 'listener';
     final isLocked = room['is_locked'] == true;
+    final isClosed = room['is_closed'] == true;
+
+    if (isClosed) {
+      throw const ClosedRoomException();
+    }
 
     if (isLocked &&
         role == 'listener' &&
@@ -209,6 +222,10 @@ class RoomsService {
 
       if (message.contains('locked_room')) {
         throw const LockedRoomException();
+      }
+
+      if (message.contains('closed_room')) {
+        throw const ClosedRoomException();
       }
 
       rethrow;

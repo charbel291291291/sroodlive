@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/recharge_package.dart';
 import '../models/recharge_request.dart';
 import '../models/wallet.dart';
 import '../models/wallet_transaction.dart';
@@ -22,6 +23,7 @@ class _WalletScreenState extends State<WalletScreen> {
   UserWallet? _wallet;
   List<WalletTransaction> _transactions = const [];
   List<RechargeRequest> _rechargeRequests = const [];
+  List<RechargePackage> _rechargePackages = const [];
   bool _isLoading = true;
   bool _isSubmitting = false;
   String? _error;
@@ -42,6 +44,7 @@ class _WalletScreenState extends State<WalletScreen> {
       final wallet = await _walletService.ensureWallet();
       final transactions = await _walletService.fetchTransactions();
       final rechargeRequests = await _walletService.fetchRechargeRequests();
+      final rechargePackages = await _walletService.fetchRechargePackages();
 
       if (!mounted) return;
 
@@ -49,6 +52,7 @@ class _WalletScreenState extends State<WalletScreen> {
         _wallet = wallet;
         _transactions = transactions;
         _rechargeRequests = rechargeRequests;
+        _rechargePackages = rechargePackages;
         _isLoading = false;
       });
     } catch (error) {
@@ -69,7 +73,10 @@ class _WalletScreenState extends State<WalletScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder: (_) => RechargeRequestSheet(isArabic: widget.isArabic),
+      builder: (_) => RechargeRequestSheet(
+        isArabic: widget.isArabic,
+        packages: _rechargePackages,
+      ),
     );
 
     if (input == null || !mounted) {
@@ -83,6 +90,7 @@ class _WalletScreenState extends State<WalletScreen> {
         coins: input.coins,
         method: input.method,
         amountUsd: input.amountUsd,
+        packageId: input.packageId,
         referenceCode: input.referenceCode,
         agentCode: input.agentCode,
       );
@@ -620,27 +628,30 @@ class _WalletActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: onTap,
-      child: _WalletGlassCard(
-        height: 64,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
-        child: Column(
-          children: [
-            Icon(icon, color: const Color(0xFFF4C95D), size: 21),
-            const Spacer(),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: _WalletGlassCard(
+          height: 64,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+          child: Column(
+            children: [
+              Icon(icon, color: const Color(0xFFF4C95D), size: 21),
+              const Spacer(),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -695,7 +706,7 @@ class _RechargeRequestTile extends StatelessWidget {
 
     return _WalletListTile(
       icon: Icons.add_card_rounded,
-      title: '${request.methodLabel} • ${request.requestedCoins} coins',
+      title: '${request.methodLabel} â€¢ ${request.requestedCoins} coins',
       subtitle: detail,
       trailing: _StatusPill(
         label: request.statusLabel,

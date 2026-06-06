@@ -414,11 +414,14 @@ class AdminRoomSummary {
     required this.maxSeats,
     required this.isPrivate,
     required this.isLocked,
+    required this.isClosed,
     required this.activeMembers,
     this.description,
     this.ownerPublicUserId,
     this.ownerName,
     this.language,
+    this.closedAt,
+    this.closedReason,
     this.createdAt,
   });
 
@@ -432,6 +435,9 @@ class AdminRoomSummary {
   final int maxSeats;
   final bool isPrivate;
   final bool isLocked;
+  final bool isClosed;
+  final DateTime? closedAt;
+  final String? closedReason;
   final int activeMembers;
   final DateTime? createdAt;
 
@@ -447,6 +453,9 @@ class AdminRoomSummary {
       maxSeats: _intValue(json['max_seats']),
       isPrivate: json['is_private'] == true,
       isLocked: json['is_locked'] == true,
+      isClosed: json['is_closed'] == true,
+      closedAt: _dateValue(json['closed_at']),
+      closedReason: json['closed_reason']?.toString(),
       activeMembers: _intValue(json['active_members']),
       createdAt: _dateValue(json['created_at']),
     );

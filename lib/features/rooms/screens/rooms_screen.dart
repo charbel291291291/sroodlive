@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../shared/branding/branding_assets.dart';
 import '../models/room.dart';
 import '../services/rooms_service.dart';
 import 'room_details_screen.dart';
@@ -164,6 +165,10 @@ class _RoomsScreenState extends State<RoomsScreen> {
           ? (widget.isArabic
                 ? '\u0627\u0644\u063a\u0631\u0641\u0629 \u0645\u0642\u0641\u0644\u0629 \u0645\u0646 \u0627\u0644\u0645\u0636\u064a\u0641.'
                 : 'This room is locked by the host.')
+          : error is ClosedRoomException
+          ? (widget.isArabic
+                ? '\u062a\u0645 \u0625\u063a\u0644\u0627\u0642 \u0647\u0630\u0647 \u0627\u0644\u063a\u0631\u0641\u0629.'
+                : 'This room is closed.')
           : error.toString();
 
       ScaffoldMessenger.of(
@@ -336,11 +341,23 @@ class _RoomsHeroBanner extends StatelessWidget {
           Positioned(
             right: isArabic ? null : -10,
             left: isArabic ? -10 : null,
-            top: -18,
-            child: Icon(
-              Icons.auto_awesome_rounded,
-              size: 92,
-              color: Colors.white.withValues(alpha: 0.13),
+            top: -12,
+            child: Opacity(
+              opacity: 0.28,
+              child: SizedBox(
+                width: 120,
+                height: 120,
+                child: Image.asset(
+                  BrandingAssets.logoSquare,
+                  fit: BoxFit.contain,
+                  filterQuality: FilterQuality.high,
+                  errorBuilder: (context, error, stackTrace) => Icon(
+                    Icons.auto_awesome_rounded,
+                    size: 92,
+                    color: Colors.white.withValues(alpha: 0.44),
+                  ),
+                ),
+              ),
             ),
           ),
           Align(

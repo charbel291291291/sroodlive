@@ -1,4 +1,4 @@
-﻿import '../../../core/supabase/supabase_service.dart';
+import '../../../core/supabase/supabase_service.dart';
 
 class LiveKitTokenResponse {
   const LiveKitTokenResponse({
@@ -23,16 +23,12 @@ class LiveKitTokenResponse {
 class LiveKitTokenService {
   const LiveKitTokenService();
 
-  Future<LiveKitTokenResponse> getToken({
-    required String roomId,
-  }) async {
+  Future<LiveKitTokenResponse> getToken({required String roomId}) async {
     final client = SupabaseService.requiredClient;
 
     final response = await client.functions.invoke(
       'livekit-token',
-      body: {
-        'room_id': roomId,
-      },
+      body: {'room_id': roomId},
     );
 
     final data = response.data;
@@ -45,8 +41,6 @@ class LiveKitTokenService {
       throw StateError(data['error'].toString());
     }
 
-    return LiveKitTokenResponse.fromJson(
-      Map<String, dynamic>.from(data),
-    );
+    return LiveKitTokenResponse.fromJson(Map<String, dynamic>.from(data));
   }
 }

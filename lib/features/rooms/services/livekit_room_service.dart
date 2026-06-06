@@ -3,9 +3,8 @@ import 'package:livekit_client/livekit_client.dart';
 import 'livekit_token_service.dart';
 
 class LiveKitRoomService {
-  LiveKitRoomService({
-    LiveKitTokenService? tokenService,
-  }) : _tokenService = tokenService ?? const LiveKitTokenService();
+  LiveKitRoomService({LiveKitTokenService? tokenService})
+    : _tokenService = tokenService ?? const LiveKitTokenService();
 
   final LiveKitTokenService _tokenService;
 
@@ -20,16 +19,10 @@ class LiveKitRoomService {
     final tokenResponse = await _tokenService.getToken(roomId: roomId);
 
     final room = Room(
-      roomOptions: const RoomOptions(
-        adaptiveStream: true,
-        dynacast: true,
-      ),
+      roomOptions: const RoomOptions(adaptiveStream: true, dynacast: true),
     );
 
-    await room.connect(
-      tokenResponse.url,
-      tokenResponse.token,
-    );
+    await room.connect(tokenResponse.url, tokenResponse.token);
 
     await room.localParticipant?.setMicrophoneEnabled(microphoneEnabled);
 
@@ -47,4 +40,3 @@ class LiveKitRoomService {
     _room = null;
   }
 }
-

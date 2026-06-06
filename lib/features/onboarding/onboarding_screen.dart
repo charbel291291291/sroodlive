@@ -1,5 +1,6 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../main.dart';
+import '../../shared/branding/branding_assets.dart';
 import '../auth/login_screen.dart';
 
 class OnboardingScreen extends StatelessWidget {
@@ -42,19 +43,31 @@ class OnboardingScreen extends StatelessWidget {
               ),
               const Spacer(),
               Container(
-                width: 110,
-                height: 110,
+                width: 156,
+                height: 156,
+                clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFD6A84F).withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: const Color(0xFFD6A84F).withValues(alpha: 0.45),
-                  ),
+                  borderRadius: BorderRadius.circular(36),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFB000FF).withValues(alpha: 0.26),
+                      blurRadius: 30,
+                      offset: const Offset(0, 16),
+                    ),
+                  ],
                 ),
-                child: const Icon(
-                  Icons.graphic_eq_rounded,
-                  size: 56,
-                  color: Color(0xFFD6A84F),
+                child: Image.asset(
+                  BrandingAssets.appIcon,
+                  fit: BoxFit.cover,
+                  filterQuality: FilterQuality.high,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    color: const Color(0xFFD6A84F).withValues(alpha: 0.12),
+                    child: const Icon(
+                      Icons.graphic_eq_rounded,
+                      size: 56,
+                      color: Color(0xFFD6A84F),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 32),
@@ -85,9 +98,7 @@ class OnboardingScreen extends StatelessWidget {
                 child: FilledButton(
                   onPressed: () {
                     Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const LoginScreen(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
                     );
                   },
                   child: Text(
@@ -101,11 +112,10 @@ class OnboardingScreen extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               Text(
-                isArabic ? 'إعداد نسخة SrOOd Live التجريبية' : 'SrOOd Live beta setup',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF77778A),
-                ),
+                isArabic
+                    ? 'إعداد نسخة SrOOd Live التجريبية'
+                    : 'SrOOd Live beta setup',
+                style: const TextStyle(fontSize: 13, color: Color(0xFF77778A)),
               ),
             ],
           ),

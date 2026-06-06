@@ -1,4 +1,4 @@
-﻿class Room {
+class Room {
   const Room({
     required this.id,
     required this.ownerId,
@@ -7,6 +7,7 @@
     required this.maxSeats,
     required this.isPrivate,
     required this.isLocked,
+    required this.isClosed,
     required this.createdAt,
     this.description,
     this.language = 'ar',
@@ -21,6 +22,7 @@
   final int maxSeats;
   final bool isPrivate;
   final bool isLocked;
+  final bool isClosed;
   final DateTime createdAt;
 
   factory Room.fromJson(Map<String, dynamic> json) {
@@ -34,6 +36,7 @@
       maxSeats: json['max_seats'] as int? ?? 12,
       isPrivate: json['is_private'] as bool? ?? false,
       isLocked: json['is_locked'] as bool? ?? false,
+      isClosed: json['is_closed'] as bool? ?? false,
       createdAt: DateTime.parse(json['created_at'].toString()),
     );
   }

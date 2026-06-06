@@ -1,17 +1,24 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/supabase/supabase_service.dart';
 import '../../shared/widgets/avatar_with_frame.dart';
 import '../../shared/widgets/vip_badge.dart';
+import '../profile_hub/screens/badge_screen.dart';
+import '../profile_hub/screens/customer_service_screen.dart';
+import '../profile_hub/screens/feedback_screen.dart';
+import '../profile_hub/screens/my_agency_screen.dart';
+import '../profile_hub/screens/my_income_screen.dart';
+import '../profile_hub/screens/my_level_screen.dart';
+import '../profile_hub/screens/settings_screen.dart';
+import '../profile_hub/widgets/profile_hub_widgets.dart';
 import '../wallet/models/wallet.dart';
 import '../wallet/screens/wallet_screen.dart';
 import '../wallet/services/wallet_service.dart';
 import '../rooms/utils/vip_room_features.dart';
 import 'models/avatar_frame.dart';
 import 'services/follow_service.dart';
-import '../onboarding/onboarding_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({required this.isArabic, super.key});
@@ -23,24 +30,6 @@ class ProfileScreen extends StatefulWidget {
 }
 
 const List<AvatarFrame> _fallbackAvatarFrames = [
-  AvatarFrame(
-    frameKey: 'normal_silver_ring',
-    name: 'Silver Ring',
-    category: 'normal',
-    sortOrder: 10,
-  ),
-  AvatarFrame(
-    frameKey: 'normal_blue_glow',
-    name: 'Blue Glow',
-    category: 'normal',
-    sortOrder: 20,
-  ),
-  AvatarFrame(
-    frameKey: 'normal_soft_gold',
-    name: 'Soft Gold',
-    category: 'normal',
-    sortOrder: 30,
-  ),
   AvatarFrame(
     frameKey: 'luxury_ruby_royal',
     name: 'Ruby Royal Frame',
@@ -59,101 +48,37 @@ const List<AvatarFrame> _fallbackAvatarFrames = [
     frameKey: 'custom_srood_live',
     name: 'SrOOd Live Frame',
     category: 'vip',
-    assetUrl: 'assets/avatar_frames/custom/srood_live_frame.png',
+    assetUrl: 'assets/avatar_frames/custom/srood_live_frame_v2.png',
     sortOrder: 42,
   ),
   AvatarFrame(
     frameKey: 'custom_super_admin',
     name: 'Super Admin Frame',
     category: 'vip',
-    assetUrl: 'assets/avatar_frames/custom/super_admin_frame.png',
+    assetUrl: 'assets/avatar_frames/custom/super_admin_frame_transparent.png',
     sortOrder: 43,
   ),
   AvatarFrame(
     frameKey: 'custom_admin',
     name: 'Admin Frame',
     category: 'vip',
-    assetUrl: 'assets/avatar_frames/custom/admin_frame.png',
+    assetUrl: 'assets/avatar_frames/custom/admin_frame_transparent.png',
     sortOrder: 44,
   ),
   AvatarFrame(
     frameKey: 'custom_luxury_gold',
     name: 'Luxury Gold Frame',
     category: 'luxury',
-    assetUrl: 'assets/avatar_frames/custom/luxury_gold_frame.png',
+    assetUrl: 'assets/avatar_frames/custom/luxury_gold_frame_transparent.png',
     sortOrder: 45,
   ),
   AvatarFrame(
     frameKey: 'custom_luxury_diamond',
     name: 'Luxury Diamond Frame',
     category: 'luxury',
-    assetUrl: 'assets/avatar_frames/custom/luxury_diamond_frame.png',
+    assetUrl:
+        'assets/avatar_frames/custom/luxury_diamond_frame_transparent.png',
     sortOrder: 46,
-  ),
-  AvatarFrame(
-    frameKey: 'luxury_royal_gold',
-    name: 'Royal Gold',
-    category: 'luxury',
-    sortOrder: 110,
-  ),
-  AvatarFrame(
-    frameKey: 'luxury_diamond_purple',
-    name: 'Diamond Purple',
-    category: 'luxury',
-    sortOrder: 120,
-  ),
-  AvatarFrame(
-    frameKey: 'luxury_black_gold_crown',
-    name: 'Black Gold Crown',
-    category: 'luxury',
-    sortOrder: 130,
-  ),
-  AvatarFrame(
-    frameKey: 'luxury_crystal_feather',
-    name: 'Crystal Feather',
-    category: 'luxury',
-    sortOrder: 140,
-  ),
-  AvatarFrame(
-    frameKey: 'luxury_autumn_bloom',
-    name: 'Autumn Bloom',
-    category: 'luxury',
-    sortOrder: 150,
-  ),
-  AvatarFrame(
-    frameKey: 'vip_bronze_star',
-    name: 'Bronze Star',
-    category: 'vip',
-    vipLevel: 1,
-    sortOrder: 210,
-  ),
-  AvatarFrame(
-    frameKey: 'vip_silver_flame',
-    name: 'Silver Flame',
-    category: 'vip',
-    vipLevel: 2,
-    sortOrder: 220,
-  ),
-  AvatarFrame(
-    frameKey: 'vip_gold_crown',
-    name: 'Gold Crown',
-    category: 'vip',
-    vipLevel: 3,
-    sortOrder: 230,
-  ),
-  AvatarFrame(
-    frameKey: 'vip_platinum_diamond',
-    name: 'Platinum Diamond',
-    category: 'vip',
-    vipLevel: 4,
-    sortOrder: 240,
-  ),
-  AvatarFrame(
-    frameKey: 'vip_royal_king',
-    name: 'Royal King',
-    category: 'vip',
-    vipLevel: 5,
-    sortOrder: 250,
   ),
 ];
 
@@ -202,7 +127,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() {
           isLoading = false;
           errorMessage = widget.isArabic
-              ? 'Ã™â€žÃ˜Â§ Ã™Å Ã™Ë†Ã˜Â¬Ã˜Â¯ Ã™â€¦Ã˜Â³Ã˜ÂªÃ˜Â®Ã˜Â¯Ã™â€¦ Ã™â€¦Ã˜Â³Ã˜Â¬Ã™â€ž.'
+              ? 'Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â§ Ãƒâ„¢Ã…Â Ãƒâ„¢Ã‹â€ ÃƒËœÃ‚Â¬ÃƒËœÃ‚Â¯ Ãƒâ„¢Ã¢â‚¬Â¦ÃƒËœÃ‚Â³ÃƒËœÃ‚ÂªÃƒËœÃ‚Â®ÃƒËœÃ‚Â¯Ãƒâ„¢Ã¢â‚¬Â¦ Ãƒâ„¢Ã¢â‚¬Â¦ÃƒËœÃ‚Â³ÃƒËœÃ‚Â¬Ãƒâ„¢Ã¢â‚¬Å¾.'
               : 'No logged-in user found.';
         });
         return;
@@ -226,7 +151,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         frames = (frameData as List<dynamic>)
             .map((item) => AvatarFrame.fromJson(item as Map<String, dynamic>))
+            .where(_hasBundledFrameAsset)
             .toList();
+
+        if (frames.isEmpty) {
+          frames = _fallbackAvatarFrames;
+        }
       } catch (_) {
         frames = _fallbackAvatarFrames;
       }
@@ -266,7 +196,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         isLoading = false;
         errorMessage = widget.isArabic
-            ? 'Ã™ÂÃ˜Â´Ã™â€ž Ã˜ÂªÃ˜Â­Ã™â€¦Ã™Å Ã™â€ž Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™Â Ã˜Â§Ã™â€žÃ˜Â´Ã˜Â®Ã˜ÂµÃ™Å : $error'
+            ? 'Ãƒâ„¢Ã‚ÂÃƒËœÃ‚Â´Ãƒâ„¢Ã¢â‚¬Å¾ ÃƒËœÃ‚ÂªÃƒËœÃ‚Â­Ãƒâ„¢Ã¢â‚¬Â¦Ãƒâ„¢Ã…Â Ãƒâ„¢Ã¢â‚¬Å¾ ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾Ãƒâ„¢Ã¢â‚¬Â¦Ãƒâ„¢Ã¢â‚¬Å¾Ãƒâ„¢Ã‚Â ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â´ÃƒËœÃ‚Â®ÃƒËœÃ‚ÂµÃƒâ„¢Ã…Â : $error'
             : 'Failed to load profile: $error';
       });
     }
@@ -284,6 +214,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     return int.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+
+  bool _hasBundledFrameAsset(AvatarFrame frame) {
+    return avatarFrameAssetPaths.containsKey(frame.frameKey);
   }
 
   Future<UserWallet> _safeEnsureWallet(String userId) async {
@@ -329,6 +263,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _openProfileHub(Widget screen) async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+
+    if (mounted) {
+      await _loadProfile();
+    }
+  }
+
   Future<void> _copyPublicId(String publicUserId) async {
     await Clipboard.setData(ClipboardData(text: publicUserId));
 
@@ -337,61 +279,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _showSoon(
       'ID copied',
       '\u062a\u0645 \u0646\u0633\u062e \u0627\u0644\u0631\u0642\u0645',
-    );
-  }
-
-  Future<void> _showFeedbackDialog() async {
-    final controller = TextEditingController();
-
-    final submitted = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF171125),
-          title: Text(
-            widget.isArabic
-                ? '\u0627\u0644\u0645\u0644\u0627\u062d\u0638\u0627\u062a'
-                : 'Feedback',
-          ),
-          content: TextField(
-            controller: controller,
-            maxLines: 4,
-            textDirection: widget.isArabic
-                ? TextDirection.rtl
-                : TextDirection.ltr,
-            decoration: InputDecoration(
-              hintText: widget.isArabic
-                  ? '\u0627\u0643\u062a\u0628 \u0645\u0644\u0627\u062d\u0638\u062a\u0643...'
-                  : 'Write your feedback...',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: Text(
-                widget.isArabic ? '\u0625\u0644\u063a\u0627\u0621' : 'Cancel',
-              ),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: Text(
-                widget.isArabic ? '\u0625\u0631\u0633\u0627\u0644' : 'Send',
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    controller.dispose();
-
-    if (submitted != true || !mounted) {
-      return;
-    }
-
-    _showSoon(
-      'Thanks. Feedback system coming soon.',
-      '\u0634\u0643\u0631\u0627\u064b. \u0646\u0638\u0627\u0645 \u0627\u0644\u0645\u0644\u0627\u062d\u0638\u0627\u062a \u0642\u0631\u064a\u0628\u0627\u064b.',
     );
   }
 
@@ -482,66 +369,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ],
               ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _showSettingsSheet(String publicUserId) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: const Color(0xFF100718),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _SettingsSheetAction(
-                  icon: Icons.edit_rounded,
-                  label: widget.isArabic
-                      ? '\u062a\u0639\u062f\u064a\u0644 \u0627\u0644\u0645\u0644\u0641'
-                      : 'Edit profile',
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    _showEditProfileSheet();
-                  },
-                ),
-                _SettingsSheetAction(
-                  icon: Icons.copy_rounded,
-                  label: widget.isArabic ? '\u0646\u0633\u062e ID' : 'Copy ID',
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    _copyPublicId(publicUserId);
-                  },
-                ),
-                _SettingsSheetAction(
-                  icon: Icons.logout_rounded,
-                  label: widget.isArabic
-                      ? '\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062e\u0631\u0648\u062c'
-                      : 'Sign out',
-                  danger: true,
-                  onTap: () async {
-                    Navigator.of(sheetContext).pop();
-                    await SupabaseService.requiredClient.auth.signOut();
-
-                    if (!mounted) return;
-
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(
-                        builder: (_) => const OnboardingScreen(),
-                      ),
-                      (_) => false,
-                    );
-                  },
-                ),
-              ],
             ),
           ),
         );
@@ -971,39 +798,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const SizedBox(height: 14),
                         _ProfileMenuList(
                           isArabic: isArabic,
-                          onLevel: () => _showSoon(
-                            'Level system coming soon',
-                            '\u0646\u0638\u0627\u0645 \u0627\u0644\u0645\u0633\u062a\u0648\u0649 \u0642\u0631\u064a\u0628\u0627\u064b',
+                          onLevel: () => _openProfileHub(
+                            MyLevelScreen(isArabic: isArabic),
                           ),
-                          onAgency: () => _showSoon(
-                            'Agency system coming soon',
-                            '\u0646\u0638\u0627\u0645 \u0627\u0644\u0648\u0643\u0627\u0644\u0627\u062a \u0642\u0631\u064a\u0628\u0627\u064b',
+                          onAgency: () => _openProfileHub(
+                            MyAgencyScreen(isArabic: isArabic),
                           ),
-                          onIncome: () => _showSoon(
-                            'Income wallet coming soon',
-                            '\u0645\u062d\u0641\u0638\u0629 \u0627\u0644\u062f\u062e\u0644 \u0642\u0631\u064a\u0628\u0627\u064b',
+                          onIncome: () => _openProfileHub(
+                            MyIncomeScreen(isArabic: isArabic),
                           ),
-                          onBadge: () => _showSoon(
-                            'Badges coming soon',
-                            '\u0627\u0644\u0634\u0627\u0631\u0627\u062a \u0642\u0631\u064a\u0628\u0627\u064b',
+                          onBadge: () =>
+                              _openProfileHub(BadgeScreen(isArabic: isArabic)),
+                          onFeedback: () => _openProfileHub(
+                            FeedbackScreen(isArabic: isArabic),
                           ),
-                          onFeedback: _showFeedbackDialog,
-                          onSettings: () => _showSettingsSheet(publicUserId),
+                          onCustomerService: () => _openProfileHub(
+                            CustomerServiceScreen(isArabic: isArabic),
+                          ),
+                          onSettings: () => _openProfileHub(
+                            SettingsScreen(isArabic: isArabic),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                ),
-              ),
-            ),
-            Positioned(
-              right: isArabic ? null : 20,
-              left: isArabic ? 20 : null,
-              bottom: 90,
-              child: _ProfileSupportButton(
-                onTap: () => _showSoon(
-                  'Support chat coming soon',
-                  '\u062f\u0631\u062f\u0634\u0629 \u0627\u0644\u062f\u0639\u0645 \u0642\u0631\u064a\u0628\u0627\u064b',
                 ),
               ),
             ),
@@ -1789,6 +1607,7 @@ class _ProfileMenuList extends StatelessWidget {
     required this.onIncome,
     required this.onBadge,
     required this.onFeedback,
+    required this.onCustomerService,
     required this.onSettings,
   });
 
@@ -1798,6 +1617,7 @@ class _ProfileMenuList extends StatelessWidget {
   final VoidCallback onIncome;
   final VoidCallback onBadge;
   final VoidCallback onFeedback;
+  final VoidCallback onCustomerService;
   final VoidCallback onSettings;
 
   @override
@@ -1829,6 +1649,17 @@ class _ProfileMenuList extends StatelessWidget {
         onFeedback,
       ),
       _MenuData(
+        Icons.support_agent_rounded,
+        isArabic
+            ? '\u062e\u062f\u0645\u0629 \u0627\u0644\u0639\u0645\u0644\u0627\u0621'
+            : 'Customer Service',
+        onCustomerService,
+        subtitle: isArabic
+            ? '\u0645\u0633\u0627\u0639\u062f\u0629\u060c \u0634\u062d\u0646\u060c \u0648\u0628\u0644\u0627\u063a\u0627\u062a'
+            : 'Help, recharge support, reports',
+        gradientIcon: true,
+      ),
+      _MenuData(
         Icons.settings_rounded,
         isArabic
             ? '\u0627\u0644\u0625\u0639\u062f\u0627\u062f\u0627\u062a'
@@ -1842,7 +1673,14 @@ class _ProfileMenuList extends StatelessWidget {
           .map(
             (item) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: _MenuRow(data: item, isArabic: isArabic),
+              child: ProfileMenuItem(
+                icon: item.icon,
+                title: item.title,
+                subtitle: item.subtitle,
+                isArabic: isArabic,
+                gradientIcon: item.gradientIcon,
+                onTap: item.onTap,
+              ),
             ),
           )
           .toList(),
@@ -1851,115 +1689,19 @@ class _ProfileMenuList extends StatelessWidget {
 }
 
 class _MenuData {
-  const _MenuData(this.icon, this.title, this.onTap);
+  const _MenuData(
+    this.icon,
+    this.title,
+    this.onTap, {
+    this.subtitle,
+    this.gradientIcon = false,
+  });
 
   final IconData icon;
   final String title;
   final VoidCallback onTap;
-}
-
-class _MenuRow extends StatelessWidget {
-  const _MenuRow({required this.data, required this.isArabic});
-
-  final _MenuData data;
-  final bool isArabic;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(20),
-      onTap: data.onTap,
-      child: Container(
-        height: 58,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          color: const Color(0xFF12091D),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFF3E285E)),
-        ),
-        child: Row(
-          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-          children: [
-            Icon(data.icon, color: const Color(0xFFF0C15A), size: 22),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                data.title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-            Icon(
-              isArabic
-                  ? Icons.chevron_left_rounded
-                  : Icons.chevron_right_rounded,
-              color: const Color(0xFF9E91B8),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ProfileSupportButton extends StatelessWidget {
-  const _ProfileSupportButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      customBorder: const CircleBorder(),
-      onTap: onTap,
-      child: Container(
-        width: 58,
-        height: 58,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const LinearGradient(
-            colors: [Color(0xFF7D2BFF), Color(0xFFF0C15A)],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFB000FF).withValues(alpha: 0.32),
-              blurRadius: 22,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: const Icon(Icons.support_agent_rounded, color: Colors.white),
-      ),
-    );
-  }
-}
-
-class _SettingsSheetAction extends StatelessWidget {
-  const _SettingsSheetAction({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.danger = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final bool danger;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = danger ? const Color(0xFFFF5C7A) : const Color(0xFFF0C15A);
-
-    return ListTile(
-      leading: Icon(icon, color: color),
-      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w900)),
-      onTap: onTap,
-    );
-  }
+  final String? subtitle;
+  final bool gradientIcon;
 }
 
 class _GoldMiniButton extends StatelessWidget {
@@ -2371,6 +2113,3 @@ class _ProfileInput extends StatelessWidget {
     );
   }
 }
-
-
-

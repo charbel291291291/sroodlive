@@ -1,4 +1,5 @@
 import '../../../core/supabase/supabase_service.dart';
+import '../models/recharge_package.dart';
 import '../models/recharge_request.dart';
 import '../models/wallet.dart';
 import '../models/wallet_transaction.dart';
@@ -56,6 +57,29 @@ class WalletService {
         .toList();
   }
 
+  Future<List<RechargePackage>> fetchRechargePackages() async {
+    try {
+      final data = await SupabaseService.requiredClient
+          .from('recharge_packages')
+          .select()
+          .eq('is_active', true)
+          .order('sort_order', ascending: true);
+
+      final packages = (data as List<dynamic>)
+          .map((item) => RechargePackage.fromJson(item as Map<String, dynamic>))
+          .where((package) => package.totalCoins > 0 && package.priceUsd > 0)
+          .toList();
+
+      if (packages.isNotEmpty) {
+        return packages;
+      }
+    } catch (_) {
+      // The app can run before the latest economy migration is applied.
+    }
+
+    return RechargePackage.fallbackPackages();
+  }
+
   Future<List<RechargeRequest>> fetchPendingRechargeRequests({
     int limit = 50,
   }) async {
@@ -77,7 +101,25 @@ class WalletService {
     double? amountUsd,
     String? referenceCode,
     String? agentCode,
+    String? packageId,
   }) async {
+    if (packageId != null && !packageId.startsWith('fallback_')) {
+      try {
+        final data = await SupabaseService.requiredClient.rpc(
+          'create_recharge_transaction',
+          params: {
+            'p_package_id': packageId,
+            'p_payment_method': _canonicalMethodKey(method),
+            'p_payment_reference': referenceCode,
+          },
+        );
+
+        return data.toString();
+      } catch (_) {
+        // Fall back to the legacy request RPC until the new RPC is deployed.
+      }
+    }
+
     final data = await SupabaseService.requiredClient.rpc(
       'request_recharge',
       params: {
@@ -122,6 +164,17 @@ class WalletService {
       RechargeMethod.agent => 'agent',
       RechargeMethod.cash => 'cash',
       RechargeMethod.adminManual => 'admin_manual',
+    };
+  }
+
+  String _canonicalMethodKey(RechargeMethod method) {
+    return switch (method) {
+      RechargeMethod.omt => 'omt',
+      RechargeMethod.wish => 'wish',
+      RechargeMethod.usdt => 'usdt',
+      RechargeMethod.agent => 'cash',
+      RechargeMethod.cash => 'cash',
+      RechargeMethod.adminManual => 'manual_admin',
     };
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../shared/branding/branding_assets.dart';
 import '../models/admin_models.dart';
 import '../services/admin_access_service.dart';
 import '../services/admin_service.dart';
@@ -551,7 +552,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Future<void> _grantVip(AdminUserDetail detail) async {
     final levelText = await _askForText(
       title: 'Grant VIP',
-      label: 'VIP level 0-5',
+      label: 'VIP level 0-10',
     );
     if (levelText == null) return;
     final daysText = await _askForText(title: 'Grant VIP', label: 'Days');
@@ -609,6 +610,136 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     } catch (error) {
       if (!mounted) return;
       _showSnack('Close room failed: $error');
+    }
+  }
+
+  Future<void> _reopenRoom(AdminRoomSummary room) async {
+    final confirmed = await _confirm(
+      title: 'Reopen room',
+      body: 'Reopen ${room.name} so users can join again?',
+      action: 'Reopen',
+    );
+    if (!confirmed) return;
+
+    try {
+      await _adminService.reopenRoom(roomId: room.id);
+      await _load();
+      if (!mounted) return;
+      _showSnack('Room reopened');
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack('Reopen room failed: $error');
+    }
+  }
+
+  Future<void> _editGiftCategory(AdminGiftCategory category) async {
+    final result = await showDialog<_GiftCategoryEditResult>(
+      context: context,
+      builder: (context) => _GiftCategoryEditDialog(category: category),
+    );
+    if (result == null) return;
+
+    try {
+      await _adminService.updateGiftCategory(
+        categoryKey: result.categoryKey,
+        name: result.name,
+        arabicName: result.arabicName,
+        icon: result.icon,
+        isActive: result.isActive,
+        sortOrder: result.sortOrder,
+      );
+      await _load();
+      if (!mounted) return;
+      _showSnack('Gift category saved');
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack('Gift category save failed: $error');
+    }
+  }
+
+  Future<void> _editVipPackage(AdminVipPackage vip) async {
+    final result = await showDialog<_VipPackageEditResult>(
+      context: context,
+      builder: (context) => _VipPackageEditDialog(vip: vip),
+    );
+    if (result == null) return;
+
+    try {
+      await _adminService.updateVipPackage(
+        vipLevel: result.vipLevel,
+        code: result.code,
+        name: result.name,
+        arabicName: result.arabicName,
+        priceCoins: result.priceCoins,
+        durationDays: result.durationDays,
+        badgeLabel: result.badgeLabel,
+        entranceBannerKey: result.entranceBannerKey,
+        isActive: result.isActive,
+        sortOrder: result.sortOrder,
+      );
+      await _load();
+      if (!mounted) return;
+      _showSnack('VIP package saved');
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack('VIP package save failed: $error');
+    }
+  }
+
+  Future<void> _editEntranceBanner(AdminEntranceBanner banner) async {
+    final result = await showDialog<_EntranceBannerEditResult>(
+      context: context,
+      builder: (context) => _EntranceBannerEditDialog(banner: banner),
+    );
+    if (result == null) return;
+
+    try {
+      await _adminService.updateEntranceBanner(
+        bannerKey: result.bannerKey,
+        name: result.name,
+        arabicName: result.arabicName,
+        vipLevel: result.vipLevel,
+        assetUrl: result.assetUrl,
+        gradientStart: result.gradientStart,
+        gradientEnd: result.gradientEnd,
+        messageTemplate: result.messageTemplate,
+        isActive: result.isActive,
+        sortOrder: result.sortOrder,
+      );
+      await _load();
+      if (!mounted) return;
+      _showSnack('Entrance banner saved');
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack('Entrance banner save failed: $error');
+    }
+  }
+
+  Future<void> _editAvatarFrame(AdminAvatarFrameSummary frame) async {
+    final result = await showDialog<_AvatarFrameEditResult>(
+      context: context,
+      builder: (context) => _AvatarFrameEditDialog(frame: frame),
+    );
+    if (result == null) return;
+
+    try {
+      await _adminService.updateAvatarFrame(
+        frameKey: result.frameKey,
+        name: result.name,
+        category: result.category,
+        vipLevel: result.vipLevel,
+        requiredVipLevel: result.requiredVipLevel,
+        assetUrl: result.assetUrl,
+        isActive: result.isActive,
+        isFeatured: result.isFeatured,
+        sortOrder: result.sortOrder,
+      );
+      await _load();
+      if (!mounted) return;
+      _showSnack('Avatar frame saved');
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack('Avatar frame save failed: $error');
     }
   }
 
@@ -1003,6 +1134,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           title: category.name,
                           subtitle: category.categoryKey,
                           active: category.isActive,
+                          onTap: _canContent
+                              ? () => _editGiftCategory(category)
+                              : null,
                         ),
                       )
                       .toList(),
@@ -1026,8 +1160,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             title: '${vip.name} - ${vip.priceCoins} coins',
                             subtitle:
                                 '${vip.durationDays} days - ${vip.entranceBannerKey ?? '-'}',
-                            trailing: _RoleChip(
-                              label: vip.isActive ? 'active' : 'off',
+                            trailing: Wrap(
+                              spacing: 6,
+                              children: [
+                                _RoleChip(
+                                  label: vip.isActive ? 'active' : 'off',
+                                ),
+                                if (_canContent)
+                                  TextButton(
+                                    onPressed: () => _editVipPackage(vip),
+                                    child: const Text('Edit'),
+                                  ),
+                              ],
                             ),
                           ),
                         )
@@ -1050,8 +1194,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             title: banner.name,
                             subtitle:
                                 '${banner.bannerKey} - VIP ${banner.vipLevel ?? '-'}',
-                            trailing: _RoleChip(
-                              label: banner.isActive ? 'active' : 'off',
+                            trailing: Wrap(
+                              spacing: 6,
+                              children: [
+                                _RoleChip(
+                                  label: banner.isActive ? 'active' : 'off',
+                                ),
+                                if (_canContent)
+                                  TextButton(
+                                    onPressed: () =>
+                                        _editEntranceBanner(banner),
+                                    child: const Text('Edit'),
+                                  ),
+                              ],
                             ),
                           ),
                         )
@@ -1078,6 +1233,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           subtitle:
                               '${frame.category} - used ${frame.usageCount}',
                           active: frame.isActive,
+                          onTap: _canContent
+                              ? () => _editAvatarFrame(frame)
+                              : null,
                         ),
                       )
                       .toList(),
@@ -1160,6 +1318,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           room,
                           canManage: _canRooms,
                           onClose: () => _closeRoom(room),
+                          onReopen: () => _reopenRoom(room),
                         ),
                       )
                       .toList(),
@@ -1804,6 +1963,593 @@ class _GiftEditDialogState extends State<_GiftEditDialog> {
   }
 }
 
+class _GiftCategoryEditResult {
+  const _GiftCategoryEditResult({
+    required this.categoryKey,
+    required this.name,
+    required this.arabicName,
+    required this.icon,
+    required this.isActive,
+    required this.sortOrder,
+  });
+
+  final String categoryKey;
+  final String name;
+  final String? arabicName;
+  final String? icon;
+  final bool isActive;
+  final int sortOrder;
+}
+
+class _GiftCategoryEditDialog extends StatefulWidget {
+  const _GiftCategoryEditDialog({required this.category});
+
+  final AdminGiftCategory category;
+
+  @override
+  State<_GiftCategoryEditDialog> createState() =>
+      _GiftCategoryEditDialogState();
+}
+
+class _GiftCategoryEditDialogState extends State<_GiftCategoryEditDialog> {
+  late final TextEditingController _key;
+  late final TextEditingController _name;
+  late final TextEditingController _arabicName;
+  late final TextEditingController _icon;
+  late final TextEditingController _sortOrder;
+  late bool _isActive;
+
+  @override
+  void initState() {
+    super.initState();
+    _key = TextEditingController(text: widget.category.categoryKey);
+    _name = TextEditingController(text: widget.category.name);
+    _arabicName = TextEditingController(text: widget.category.arabicName);
+    _icon = TextEditingController(text: widget.category.icon);
+    _sortOrder = TextEditingController(
+      text: widget.category.sortOrder.toString(),
+    );
+    _isActive = widget.category.isActive;
+  }
+
+  @override
+  void dispose() {
+    _key.dispose();
+    _name.dispose();
+    _arabicName.dispose();
+    _icon.dispose();
+    _sortOrder.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _CatalogEditDialogShell(
+      title: 'Edit gift category',
+      fields: [
+        TextField(
+          controller: _key,
+          decoration: const InputDecoration(labelText: 'Category key'),
+        ),
+        TextField(
+          controller: _name,
+          decoration: const InputDecoration(labelText: 'Name'),
+        ),
+        TextField(
+          controller: _arabicName,
+          decoration: const InputDecoration(labelText: 'Arabic name'),
+        ),
+        TextField(
+          controller: _icon,
+          decoration: const InputDecoration(labelText: 'Icon'),
+        ),
+        TextField(
+          controller: _sortOrder,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Sort order'),
+        ),
+        SwitchListTile(
+          value: _isActive,
+          onChanged: (value) => setState(() => _isActive = value),
+          title: const Text('Active'),
+        ),
+      ],
+      onSave: () {
+        final key = _key.text.trim();
+        final name = _name.text.trim();
+        if (key.isEmpty || name.isEmpty) return;
+        Navigator.of(context).pop(
+          _GiftCategoryEditResult(
+            categoryKey: key,
+            name: name,
+            arabicName: _nullIfEmpty(_arabicName.text),
+            icon: _nullIfEmpty(_icon.text),
+            isActive: _isActive,
+            sortOrder: int.tryParse(_sortOrder.text.trim()) ?? 0,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _VipPackageEditResult {
+  const _VipPackageEditResult({
+    required this.vipLevel,
+    required this.code,
+    required this.name,
+    required this.arabicName,
+    required this.priceCoins,
+    required this.durationDays,
+    required this.badgeLabel,
+    required this.entranceBannerKey,
+    required this.isActive,
+    required this.sortOrder,
+  });
+
+  final int vipLevel;
+  final String code;
+  final String name;
+  final String? arabicName;
+  final int priceCoins;
+  final int durationDays;
+  final String? badgeLabel;
+  final String? entranceBannerKey;
+  final bool isActive;
+  final int sortOrder;
+}
+
+class _VipPackageEditDialog extends StatefulWidget {
+  const _VipPackageEditDialog({required this.vip});
+
+  final AdminVipPackage vip;
+
+  @override
+  State<_VipPackageEditDialog> createState() => _VipPackageEditDialogState();
+}
+
+class _VipPackageEditDialogState extends State<_VipPackageEditDialog> {
+  late final TextEditingController _level;
+  late final TextEditingController _code;
+  late final TextEditingController _name;
+  late final TextEditingController _arabicName;
+  late final TextEditingController _price;
+  late final TextEditingController _duration;
+  late final TextEditingController _badge;
+  late final TextEditingController _banner;
+  late final TextEditingController _sortOrder;
+  late bool _isActive;
+
+  @override
+  void initState() {
+    super.initState();
+    final vip = widget.vip;
+    _level = TextEditingController(text: vip.vipLevel.toString());
+    _code = TextEditingController(text: vip.code);
+    _name = TextEditingController(text: vip.name);
+    _arabicName = TextEditingController(text: vip.arabicName);
+    _price = TextEditingController(text: vip.priceCoins.toString());
+    _duration = TextEditingController(text: vip.durationDays.toString());
+    _badge = TextEditingController(text: vip.badgeLabel);
+    _banner = TextEditingController(text: vip.entranceBannerKey);
+    _sortOrder = TextEditingController(text: vip.sortOrder.toString());
+    _isActive = vip.isActive;
+  }
+
+  @override
+  void dispose() {
+    _level.dispose();
+    _code.dispose();
+    _name.dispose();
+    _arabicName.dispose();
+    _price.dispose();
+    _duration.dispose();
+    _badge.dispose();
+    _banner.dispose();
+    _sortOrder.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _CatalogEditDialogShell(
+      title: 'Edit VIP package',
+      fields: [
+        TextField(
+          controller: _level,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'VIP level'),
+        ),
+        TextField(
+          controller: _code,
+          decoration: const InputDecoration(labelText: 'Code'),
+        ),
+        TextField(
+          controller: _name,
+          decoration: const InputDecoration(labelText: 'Name'),
+        ),
+        TextField(
+          controller: _arabicName,
+          decoration: const InputDecoration(labelText: 'Arabic name'),
+        ),
+        TextField(
+          controller: _price,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Price coins'),
+        ),
+        TextField(
+          controller: _duration,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Duration days'),
+        ),
+        TextField(
+          controller: _badge,
+          decoration: const InputDecoration(labelText: 'Badge label'),
+        ),
+        TextField(
+          controller: _banner,
+          decoration: const InputDecoration(labelText: 'Entrance banner key'),
+        ),
+        TextField(
+          controller: _sortOrder,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Sort order'),
+        ),
+        SwitchListTile(
+          value: _isActive,
+          onChanged: (value) => setState(() => _isActive = value),
+          title: const Text('Active'),
+        ),
+      ],
+      onSave: () {
+        final code = _code.text.trim();
+        final name = _name.text.trim();
+        if (code.isEmpty || name.isEmpty) return;
+        Navigator.of(context).pop(
+          _VipPackageEditResult(
+            vipLevel: int.tryParse(_level.text.trim()) ?? 1,
+            code: code,
+            name: name,
+            arabicName: _nullIfEmpty(_arabicName.text),
+            priceCoins: int.tryParse(_price.text.trim()) ?? 0,
+            durationDays: int.tryParse(_duration.text.trim()) ?? 30,
+            badgeLabel: _nullIfEmpty(_badge.text),
+            entranceBannerKey: _nullIfEmpty(_banner.text),
+            isActive: _isActive,
+            sortOrder: int.tryParse(_sortOrder.text.trim()) ?? 0,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _EntranceBannerEditResult {
+  const _EntranceBannerEditResult({
+    required this.bannerKey,
+    required this.name,
+    required this.arabicName,
+    required this.vipLevel,
+    required this.assetUrl,
+    required this.gradientStart,
+    required this.gradientEnd,
+    required this.messageTemplate,
+    required this.isActive,
+    required this.sortOrder,
+  });
+
+  final String bannerKey;
+  final String name;
+  final String? arabicName;
+  final int? vipLevel;
+  final String? assetUrl;
+  final String? gradientStart;
+  final String? gradientEnd;
+  final String? messageTemplate;
+  final bool isActive;
+  final int sortOrder;
+}
+
+class _EntranceBannerEditDialog extends StatefulWidget {
+  const _EntranceBannerEditDialog({required this.banner});
+
+  final AdminEntranceBanner banner;
+
+  @override
+  State<_EntranceBannerEditDialog> createState() =>
+      _EntranceBannerEditDialogState();
+}
+
+class _EntranceBannerEditDialogState extends State<_EntranceBannerEditDialog> {
+  late final TextEditingController _key;
+  late final TextEditingController _name;
+  late final TextEditingController _arabicName;
+  late final TextEditingController _vipLevel;
+  late final TextEditingController _assetUrl;
+  late final TextEditingController _gradientStart;
+  late final TextEditingController _gradientEnd;
+  late final TextEditingController _message;
+  late final TextEditingController _sortOrder;
+  late bool _isActive;
+
+  @override
+  void initState() {
+    super.initState();
+    final banner = widget.banner;
+    _key = TextEditingController(text: banner.bannerKey);
+    _name = TextEditingController(text: banner.name);
+    _arabicName = TextEditingController(text: banner.arabicName);
+    _vipLevel = TextEditingController(text: banner.vipLevel?.toString());
+    _assetUrl = TextEditingController(text: banner.assetUrl);
+    _gradientStart = TextEditingController(text: banner.gradientStart);
+    _gradientEnd = TextEditingController(text: banner.gradientEnd);
+    _message = TextEditingController(text: banner.messageTemplate);
+    _sortOrder = TextEditingController(text: banner.sortOrder.toString());
+    _isActive = banner.isActive;
+  }
+
+  @override
+  void dispose() {
+    _key.dispose();
+    _name.dispose();
+    _arabicName.dispose();
+    _vipLevel.dispose();
+    _assetUrl.dispose();
+    _gradientStart.dispose();
+    _gradientEnd.dispose();
+    _message.dispose();
+    _sortOrder.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _CatalogEditDialogShell(
+      title: 'Edit entrance banner',
+      fields: [
+        TextField(
+          controller: _key,
+          decoration: const InputDecoration(labelText: 'Banner key'),
+        ),
+        TextField(
+          controller: _name,
+          decoration: const InputDecoration(labelText: 'Name'),
+        ),
+        TextField(
+          controller: _arabicName,
+          decoration: const InputDecoration(labelText: 'Arabic name'),
+        ),
+        TextField(
+          controller: _vipLevel,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'VIP level'),
+        ),
+        TextField(
+          controller: _assetUrl,
+          decoration: const InputDecoration(labelText: 'Asset URL'),
+        ),
+        TextField(
+          controller: _gradientStart,
+          decoration: const InputDecoration(labelText: 'Gradient start'),
+        ),
+        TextField(
+          controller: _gradientEnd,
+          decoration: const InputDecoration(labelText: 'Gradient end'),
+        ),
+        TextField(
+          controller: _message,
+          decoration: const InputDecoration(labelText: 'Message template'),
+        ),
+        TextField(
+          controller: _sortOrder,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Sort order'),
+        ),
+        SwitchListTile(
+          value: _isActive,
+          onChanged: (value) => setState(() => _isActive = value),
+          title: const Text('Active'),
+        ),
+      ],
+      onSave: () {
+        final key = _key.text.trim();
+        final name = _name.text.trim();
+        if (key.isEmpty || name.isEmpty) return;
+        Navigator.of(context).pop(
+          _EntranceBannerEditResult(
+            bannerKey: key,
+            name: name,
+            arabicName: _nullIfEmpty(_arabicName.text),
+            vipLevel: int.tryParse(_vipLevel.text.trim()),
+            assetUrl: _nullIfEmpty(_assetUrl.text),
+            gradientStart: _nullIfEmpty(_gradientStart.text),
+            gradientEnd: _nullIfEmpty(_gradientEnd.text),
+            messageTemplate: _nullIfEmpty(_message.text),
+            isActive: _isActive,
+            sortOrder: int.tryParse(_sortOrder.text.trim()) ?? 0,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AvatarFrameEditResult {
+  const _AvatarFrameEditResult({
+    required this.frameKey,
+    required this.name,
+    required this.category,
+    required this.vipLevel,
+    required this.requiredVipLevel,
+    required this.assetUrl,
+    required this.isActive,
+    required this.isFeatured,
+    required this.sortOrder,
+  });
+
+  final String frameKey;
+  final String name;
+  final String category;
+  final int? vipLevel;
+  final int? requiredVipLevel;
+  final String? assetUrl;
+  final bool isActive;
+  final bool isFeatured;
+  final int sortOrder;
+}
+
+class _AvatarFrameEditDialog extends StatefulWidget {
+  const _AvatarFrameEditDialog({required this.frame});
+
+  final AdminAvatarFrameSummary frame;
+
+  @override
+  State<_AvatarFrameEditDialog> createState() => _AvatarFrameEditDialogState();
+}
+
+class _AvatarFrameEditDialogState extends State<_AvatarFrameEditDialog> {
+  late final TextEditingController _key;
+  late final TextEditingController _name;
+  late final TextEditingController _category;
+  late final TextEditingController _vipLevel;
+  late final TextEditingController _requiredVipLevel;
+  late final TextEditingController _assetUrl;
+  late final TextEditingController _sortOrder;
+  late bool _isActive;
+  late bool _isFeatured;
+
+  @override
+  void initState() {
+    super.initState();
+    final frame = widget.frame;
+    _key = TextEditingController(text: frame.frameKey);
+    _name = TextEditingController(text: frame.name);
+    _category = TextEditingController(text: frame.category);
+    _vipLevel = TextEditingController(text: frame.vipLevel?.toString());
+    _requiredVipLevel = TextEditingController(
+      text: frame.requiredVipLevel?.toString(),
+    );
+    _assetUrl = TextEditingController(text: frame.assetUrl);
+    _sortOrder = TextEditingController(text: frame.sortOrder.toString());
+    _isActive = frame.isActive;
+    _isFeatured = frame.isFeatured;
+  }
+
+  @override
+  void dispose() {
+    _key.dispose();
+    _name.dispose();
+    _category.dispose();
+    _vipLevel.dispose();
+    _requiredVipLevel.dispose();
+    _assetUrl.dispose();
+    _sortOrder.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _CatalogEditDialogShell(
+      title: 'Edit avatar frame',
+      fields: [
+        TextField(
+          controller: _key,
+          decoration: const InputDecoration(labelText: 'Frame key'),
+        ),
+        TextField(
+          controller: _name,
+          decoration: const InputDecoration(labelText: 'Name'),
+        ),
+        TextField(
+          controller: _category,
+          decoration: const InputDecoration(labelText: 'Category'),
+        ),
+        TextField(
+          controller: _vipLevel,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'VIP level'),
+        ),
+        TextField(
+          controller: _requiredVipLevel,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Required VIP level'),
+        ),
+        TextField(
+          controller: _assetUrl,
+          decoration: const InputDecoration(labelText: 'Asset URL'),
+        ),
+        TextField(
+          controller: _sortOrder,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Sort order'),
+        ),
+        SwitchListTile(
+          value: _isActive,
+          onChanged: (value) => setState(() => _isActive = value),
+          title: const Text('Active'),
+        ),
+        SwitchListTile(
+          value: _isFeatured,
+          onChanged: (value) => setState(() => _isFeatured = value),
+          title: const Text('Featured'),
+        ),
+      ],
+      onSave: () {
+        final key = _key.text.trim();
+        final name = _name.text.trim();
+        final category = _category.text.trim();
+        if (key.isEmpty || name.isEmpty || category.isEmpty) return;
+        Navigator.of(context).pop(
+          _AvatarFrameEditResult(
+            frameKey: key,
+            name: name,
+            category: category,
+            vipLevel: int.tryParse(_vipLevel.text.trim()),
+            requiredVipLevel: int.tryParse(_requiredVipLevel.text.trim()),
+            assetUrl: _nullIfEmpty(_assetUrl.text),
+            isActive: _isActive,
+            isFeatured: _isFeatured,
+            sortOrder: int.tryParse(_sortOrder.text.trim()) ?? 0,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CatalogEditDialogShell extends StatelessWidget {
+  const _CatalogEditDialogShell({
+    required this.title,
+    required this.fields,
+    required this.onSave,
+  });
+
+  final String title;
+  final List<Widget> fields;
+  final VoidCallback onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: const Color(0xFF140820),
+      title: Text(title),
+      content: SizedBox(
+        width: 500,
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: fields),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(onPressed: onSave, child: const Text('Save')),
+      ],
+    );
+  }
+}
+
 class _AdminSideNav extends StatelessWidget {
   const _AdminSideNav({
     required this.selected,
@@ -1941,12 +2687,18 @@ class _AdminBrand extends StatelessWidget {
         Container(
           width: compact ? 38 : 46,
           height: compact ? 38 : 46,
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: const Color(0xFFF0C15A).withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(compact ? 12 : 14),
             border: Border.all(color: const Color(0xFFF0C15A)),
           ),
-          child: const Icon(Icons.graphic_eq_rounded, color: Color(0xFFF0C15A)),
+          child: Image.asset(
+            BrandingAssets.appIcon,
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.high,
+            errorBuilder: (context, error, stackTrace) =>
+                const Icon(Icons.graphic_eq_rounded, color: Color(0xFFF0C15A)),
+          ),
         ),
         const SizedBox(width: 10),
         Column(
@@ -2635,57 +3387,81 @@ class _CatalogChip extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.active,
+    this.onTap,
   });
 
   final String title;
   final String subtitle;
   final bool active;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 190,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1B102B),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: active ? const Color(0xFFF0C15A) : const Color(0xFF5A3A86),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: 190,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1B102B),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: active ? const Color(0xFFF0C15A) : const Color(0xFF5A3A86),
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w900,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                if (onTap != null)
+                  const Icon(
+                    Icons.edit_rounded,
+                    color: Color(0xFFF0C15A),
+                    size: 16,
+                  ),
+              ],
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: _mutedStyle.copyWith(fontSize: 12),
-          ),
-          const SizedBox(height: 8),
-          _RoleChip(label: active ? 'active' : 'off'),
-        ],
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: _mutedStyle.copyWith(fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            _RoleChip(label: active ? 'active' : 'off'),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _RoomTile extends StatelessWidget {
-  const _RoomTile(this.room, {required this.canManage, required this.onClose});
+  const _RoomTile(
+    this.room, {
+    required this.canManage,
+    required this.onClose,
+    required this.onReopen,
+  });
 
   final AdminRoomSummary room;
   final bool canManage;
   final VoidCallback onClose;
+  final VoidCallback onReopen;
 
   @override
   Widget build(BuildContext context) {
@@ -2693,14 +3469,18 @@ class _RoomTile extends StatelessWidget {
       icon: Icons.meeting_room_rounded,
       title: room.name,
       subtitle:
-          'Owner ${room.ownerName ?? room.ownerPublicUserId ?? room.ownerId} - ${room.activeMembers}/${room.maxSeats} active',
+          'Owner ${room.ownerName ?? room.ownerPublicUserId ?? room.ownerId} - ${room.activeMembers}/${room.maxSeats} active${room.closedReason == null ? '' : ' - ${room.closedReason}'}',
       trailing: Wrap(
         spacing: 6,
         children: [
+          _RoleChip(label: room.isClosed ? 'closed' : 'live'),
           _RoleChip(label: room.isLocked ? 'locked' : 'open'),
           if (room.isPrivate) const _RoleChip(label: 'private'),
           if (canManage)
-            TextButton(onPressed: onClose, child: const Text('Close')),
+            TextButton(
+              onPressed: room.isClosed ? onReopen : onClose,
+              child: Text(room.isClosed ? 'Reopen' : 'Close'),
+            ),
         ],
       ),
     );

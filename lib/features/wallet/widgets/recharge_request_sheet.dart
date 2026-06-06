@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/recharge_package.dart';
 import '../models/recharge_request.dart';
 
 class RechargeRequestInput {
@@ -7,6 +8,7 @@ class RechargeRequestInput {
     required this.coins,
     required this.method,
     this.amountUsd,
+    this.packageId,
     this.referenceCode,
     this.agentCode,
   });
@@ -14,30 +16,51 @@ class RechargeRequestInput {
   final int coins;
   final RechargeMethod method;
   final double? amountUsd;
+  final String? packageId;
   final String? referenceCode;
   final String? agentCode;
 }
 
 class RechargeRequestSheet extends StatefulWidget {
-  const RechargeRequestSheet({required this.isArabic, super.key});
+  const RechargeRequestSheet({
+    required this.isArabic,
+    required this.packages,
+    super.key,
+  });
 
   final bool isArabic;
+  final List<RechargePackage> packages;
 
   @override
   State<RechargeRequestSheet> createState() => _RechargeRequestSheetState();
 }
 
 class _RechargeRequestSheetState extends State<RechargeRequestSheet> {
-  final TextEditingController _coinsController = TextEditingController(
-    text: '1000',
-  );
-  final TextEditingController _amountController = TextEditingController(
-    text: '1',
-  );
+  late final TextEditingController _coinsController;
+  late final TextEditingController _amountController;
   final TextEditingController _referenceController = TextEditingController();
   final TextEditingController _agentController = TextEditingController();
   RechargeMethod _method = RechargeMethod.omt;
+  RechargePackage? _selectedPackage;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final packages = widget.packages.isEmpty
+        ? RechargePackage.fallbackPackages()
+        : widget.packages;
+    _selectedPackage = packages.firstWhere(
+      (package) => package.isFeatured,
+      orElse: () => packages.first,
+    );
+    _coinsController = TextEditingController(
+      text: _selectedPackage!.totalCoins.toString(),
+    );
+    _amountController = TextEditingController(
+      text: _selectedPackage!.priceUsd.toStringAsFixed(0),
+    );
+  }
 
   @override
   void dispose() {
@@ -48,10 +71,11 @@ class _RechargeRequestSheetState extends State<RechargeRequestSheet> {
     super.dispose();
   }
 
-  void _setPackage(int coins) {
+  void _setPackage(RechargePackage package) {
     setState(() {
-      _coinsController.text = coins.toString();
-      _amountController.text = (coins / 1000).toStringAsFixed(0);
+      _selectedPackage = package;
+      _coinsController.text = package.totalCoins.toString();
+      _amountController.text = _formatUsd(package.priceUsd);
     });
   }
 
@@ -73,6 +97,7 @@ class _RechargeRequestSheetState extends State<RechargeRequestSheet> {
         coins: coins,
         method: _method,
         amountUsd: amount,
+        packageId: _selectedPackage?.id,
         referenceCode: _blankToNull(_referenceController.text),
         agentCode: _blankToNull(_agentController.text),
       ),
@@ -88,6 +113,9 @@ class _RechargeRequestSheetState extends State<RechargeRequestSheet> {
   Widget build(BuildContext context) {
     final isArabic = widget.isArabic;
     final textDirection = isArabic ? TextDirection.rtl : TextDirection.ltr;
+    final packages = widget.packages.isEmpty
+        ? RechargePackage.fallbackPackages()
+        : widget.packages;
 
     return SafeArea(
       child: Padding(
@@ -129,14 +157,28 @@ class _RechargeRequestSheetState extends State<RechargeRequestSheet> {
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: [1000, 5000, 10000, 50000]
+                  children: packages
                       .map(
-                        (coins) => ActionChip(
-                          label: Text('$coins'),
-                          onPressed: () => _setPackage(coins),
+                        (package) => ChoiceChip(
+                          selected: _selectedPackage?.id == package.id,
+                          label: Text(
+                            '${_formatUsd(package.priceUsd)} USD - ${_formatCoins(package.totalCoins)}',
+                          ),
+                          onSelected: (_) => _setPackage(package),
                         ),
                       )
                       .toList(),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  isArabic
+                      ? '\u0627\u0644\u0633\u0639\u0631 \u0627\u0644\u0623\u0633\u0627\u0633\u064a: 1 USD = 10,000 \u0639\u0645\u0644\u0629'
+                      : 'Base rate: 1 USD = 10,000 SrOOd Coins',
+                  style: const TextStyle(
+                    color: Color(0xFFF0C15A),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
                 const SizedBox(height: 14),
                 _WalletSheetField(
@@ -232,6 +274,26 @@ class _RechargeRequestSheetState extends State<RechargeRequestSheet> {
         ),
       ),
     );
+  }
+
+  String _formatUsd(double value) {
+    if (value == value.roundToDouble()) {
+      return value.toStringAsFixed(0);
+    }
+
+    return value.toStringAsFixed(2);
+  }
+
+  String _formatCoins(int value) {
+    if (value >= 1000000) {
+      return '${(value / 1000000).toStringAsFixed(value % 1000000 == 0 ? 0 : 1)}M';
+    }
+
+    if (value >= 1000) {
+      return '${(value / 1000).toStringAsFixed(value % 1000 == 0 ? 0 : 1)}K';
+    }
+
+    return value.toString();
   }
 }
 

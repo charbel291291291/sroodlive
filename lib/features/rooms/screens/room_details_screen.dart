@@ -1137,7 +1137,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
           content: Text(
             widget.isArabic
                 ? '\u0644\u0627 \u064a\u0645\u0643\u0646\u0643 \u0637\u0631\u062f \u0645\u0633\u062a\u062e\u062f\u0645 VIP \u0628\u0647\u0630\u0627 \u0627\u0644\u0645\u0633\u062a\u0648\u0649'
-                : 'This VIP 5 user is protected from removal.',
+                : 'This VIP 5+ user is protected from removal.',
           ),
         ),
       );

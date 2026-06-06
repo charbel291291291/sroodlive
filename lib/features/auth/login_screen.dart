@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/supabase/supabase_service.dart';
 import '../../main.dart';
+import '../../shared/branding/branding_assets.dart';
 import '../home/home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -208,6 +209,27 @@ class _LoginScreenState extends State<LoginScreen> {
                           : CrossAxisAlignment.start,
                       children: [
                         SizedBox(height: topSpacing),
+                        Align(
+                          alignment: isArabic
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          child: SizedBox(
+                            width: 118,
+                            height: 118,
+                            child: Image.asset(
+                              BrandingAssets.owlMark,
+                              fit: BoxFit.contain,
+                              filterQuality: FilterQuality.high,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(
+                                    Icons.graphic_eq_rounded,
+                                    size: 64,
+                                    color: Color(0xFFF0C15A),
+                                  ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
                         Text(
                           isArabic ? 'ادخل إلى SrOOd Live' : 'Enter SrOOd Live',
                           textAlign: isArabic
