@@ -33,6 +33,51 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
 
   void _retry() => setState(() => _future = _load());
 
+  String _titleForType(String type) {
+    return switch (type) {
+      'join_agency' => widget.isArabic ? 'انضم إلى وكالة' : 'Join Agency',
+      'create_agency' => widget.isArabic ? 'أنشئ وكالة' : 'Create Agency',
+      'become_host' => widget.isArabic ? 'كن مضيفا' : 'Become Host',
+      _ => type,
+    };
+  }
+
+  String _subtitleForType(String type) {
+    return switch (type) {
+      'join_agency' =>
+        widget.isArabic
+            ? 'انضم إلى وكالة موجودة عبر دعوة أو موافقة.'
+            : 'Join an existing agency by invitation or approval.',
+      'create_agency' =>
+        widget.isArabic
+            ? 'ابدأ وكالتك الخاصة وأدر المضيفين.'
+            : 'Start your own agency and manage hosts.',
+      'become_host' =>
+        widget.isArabic
+            ? 'قدم لتصبح مضيف غرف صوتية وتربح من نشاطك.'
+            : 'Apply to become a live room host and earn from activity.',
+      _ => widget.isArabic ? 'طلب وكالة' : 'Agency application',
+    };
+  }
+
+  String _defaultMessageForType(String type) {
+    return switch (type) {
+      'join_agency' =>
+        widget.isArabic
+            ? 'أريد الانضمام إلى وكالة موجودة.'
+            : 'I want to join an existing agency.',
+      'create_agency' =>
+        widget.isArabic
+            ? 'أريد إنشاء وكالة جديدة وإدارة المضيفين.'
+            : 'I want to create a new agency and manage hosts.',
+      'become_host' =>
+        widget.isArabic
+            ? 'أريد أن أصبح مضيف غرف صوتية.'
+            : 'I want to become a live room host.',
+      _ => widget.isArabic ? 'طلب وكالة' : 'Agency application',
+    };
+  }
+
   Future<void> _openApplication(String type) async {
     final messageController = TextEditingController();
     final phoneController = TextEditingController();
@@ -55,41 +100,51 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: widget.isArabic
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.isArabic
-                        ? 'ÃƒËœÃ‚Â·Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â¨ Ãƒâ„¢Ã‹â€ Ãƒâ„¢Ã†â€™ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â©'
-                        : 'Agency application',
+                    _titleForType(type),
+                    textAlign: widget.isArabic
+                        ? TextAlign.right
+                        : TextAlign.left,
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 6),
+                  Text(
+                    _subtitleForType(type),
+                    textAlign: widget.isArabic
+                        ? TextAlign.right
+                        : TextAlign.left,
+                    style: const TextStyle(
+                      color: profileHubMuted,
+                      fontWeight: FontWeight.w700,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   TextField(
                     controller: phoneController,
                     decoration: InputDecoration(
-                      labelText: widget.isArabic
-                          ? 'ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾Ãƒâ„¢Ã¢â‚¬Â¡ÃƒËœÃ‚Â§ÃƒËœÃ‚ÂªÃƒâ„¢Ã‚Â'
-                          : 'Phone',
+                      labelText: widget.isArabic ? 'الهاتف' : 'Phone',
                     ),
                   ),
                   const SizedBox(height: 10),
                   TextField(
                     controller: countryController,
                     decoration: InputDecoration(
-                      labelText: widget.isArabic
-                          ? 'ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â¯Ãƒâ„¢Ã‹â€ Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â©'
-                          : 'Country',
+                      labelText: widget.isArabic ? 'الدولة' : 'Country',
                     ),
                   ),
                   const SizedBox(height: 10),
                   TextField(
                     controller: experienceController,
                     decoration: InputDecoration(
-                      labelText: widget.isArabic
-                          ? 'ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â®ÃƒËœÃ‚Â¨ÃƒËœÃ‚Â±ÃƒËœÃ‚Â©'
-                          : 'Experience',
+                      labelText: widget.isArabic ? 'الخبرة' : 'Experience',
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -97,9 +152,8 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
                     controller: messageController,
                     maxLines: 4,
                     decoration: InputDecoration(
-                      labelText: widget.isArabic
-                          ? 'ÃƒËœÃ‚Â±ÃƒËœÃ‚Â³ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚ÂªÃƒâ„¢Ã†â€™'
-                          : 'Message',
+                      labelText: widget.isArabic ? 'رسالتك' : 'Message',
+                      hintText: _defaultMessageForType(type),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -108,9 +162,7 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
                     child: FilledButton(
                       onPressed: () => Navigator.of(context).pop(true),
                       child: Text(
-                        widget.isArabic
-                            ? 'ÃƒËœÃ‚Â¥ÃƒËœÃ‚Â±ÃƒËœÃ‚Â³ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾'
-                            : 'Submit',
+                        widget.isArabic ? 'إرسال الطلب' : 'Submit application',
                       ),
                     ),
                   ),
@@ -126,7 +178,7 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
       await _service.submitApplication(
         applicationType: type,
         message: messageController.text.trim().isEmpty
-            ? _agencyApplicationDefaultMessage(type)
+            ? _defaultMessageForType(type)
             : messageController.text.trim(),
         phone: phoneController.text.trim(),
         country: countryController.text.trim(),
@@ -141,50 +193,13 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
     experienceController.dispose();
   }
 
-  String _agencyApplicationTitle(String type) {
-    return switch (type) {
-      'join_agency' =>
-        widget.isArabic
-            ? 'Ã˜Â§Ã™â€ Ã˜Â¶Ã™â€¦Ã˜Â§Ã™â€¦ Ã˜Â¥Ã™â€žÃ™â€° Ã™Ë†Ã™Æ’Ã˜Â§Ã™â€žÃ˜Â©'
-            : 'Join Agency',
-      'create_agency' =>
-        widget.isArabic
-            ? 'Ã˜Â¥Ã™â€ Ã˜Â´Ã˜Â§Ã˜Â¡ Ã™Ë†Ã™Æ’Ã˜Â§Ã™â€žÃ˜Â©'
-            : 'Create Agency',
-      'become_host' =>
-        widget.isArabic ? 'Ã˜Â·Ã™â€žÃ˜Â¨ Ã™â€¦Ã˜Â¶Ã™Å Ã™Â' : 'Become Host',
-      _ => type,
-    };
-  }
-
-  String _agencyApplicationDefaultMessage(String type) {
-    return switch (type) {
-      'join_agency' =>
-        widget.isArabic
-            ? 'Ã˜Â£Ã˜Â±Ã™Å Ã˜Â¯ Ã˜Â§Ã™â€žÃ˜Â§Ã™â€ Ã˜Â¶Ã™â€¦Ã˜Â§Ã™â€¦ Ã˜Â¥Ã™â€žÃ™â€° Ã™Ë†Ã™Æ’Ã˜Â§Ã™â€žÃ˜Â© Ã™â€¦Ã™Ë†Ã˜Â¬Ã™Ë†Ã˜Â¯Ã˜Â©.'
-            : 'I want to join an existing agency.',
-      'create_agency' =>
-        widget.isArabic
-            ? 'Ã˜Â£Ã˜Â±Ã™Å Ã˜Â¯ Ã˜Â¥Ã™â€ Ã˜Â´Ã˜Â§Ã˜Â¡ Ã™Ë†Ã™Æ’Ã˜Â§Ã™â€žÃ˜Â© Ã˜Â¬Ã˜Â¯Ã™Å Ã˜Â¯Ã˜Â© Ã™Ë†Ã˜Â¥Ã˜Â¯Ã˜Â§Ã˜Â±Ã˜Â© Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â¶Ã™Å Ã™ÂÃ™Å Ã™â€ .'
-            : 'I want to create a new agency and manage hosts.',
-      'become_host' =>
-        widget.isArabic
-            ? 'Ã˜Â£Ã˜Â±Ã™Å Ã˜Â¯ Ã˜Â£Ã™â€  Ã˜Â£Ã˜ÂµÃ˜Â¨Ã˜Â­ Ã™â€¦Ã˜Â¶Ã™Å Ã™Â Ã˜ÂºÃ˜Â±Ã™Â Ã˜ÂµÃ™Ë†Ã˜ÂªÃ™Å Ã˜Â©.'
-            : 'I want to become a live room host.',
-      _ =>
-        widget.isArabic
-            ? 'Ã˜Â·Ã™â€žÃ˜Â¨ Ã™Ë†Ã™Æ’Ã˜Â§Ã™â€žÃ˜Â©'
-            : 'Agency application',
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
+    final isArabic = widget.isArabic;
+
     return ProfileHubScaffold(
-      title: widget.isArabic
-          ? 'Ãƒâ„¢Ã‹â€ Ãƒâ„¢Ã†â€™ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚ÂªÃƒâ„¢Ã…Â '
-          : 'My agency',
-      isArabic: widget.isArabic,
+      title: isArabic ? 'وكالتي' : 'My agency',
+      isArabic: isArabic,
       children: [
         FutureBuilder<
           ({AgencyMembership? membership, List<AgencyApplication> apps})
@@ -204,7 +219,7 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
               return ProfileErrorState(
                 message: snapshot.error?.toString() ?? 'Failed to load agency.',
                 onRetry: _retry,
-                isArabic: widget.isArabic,
+                isArabic: isArabic,
               );
             }
 
@@ -216,77 +231,74 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
                 if (membership == null)
                   ProfileEmptyState(
                     icon: Icons.groups_rounded,
-                    title: widget.isArabic
-                        ? 'Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â§ ÃƒËœÃ‚ÂªÃƒâ„¢Ã‹â€ ÃƒËœÃ‚Â¬ÃƒËœÃ‚Â¯ Ãƒâ„¢Ã‹â€ Ãƒâ„¢Ã†â€™ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â© ÃƒËœÃ‚Â¨ÃƒËœÃ‚Â¹ÃƒËœÃ‚Â¯'
-                        : 'No agency yet',
-                    description: widget.isArabic
-                        ? 'Ãƒâ„¢Ã…Â Ãƒâ„¢Ã¢â‚¬Â¦Ãƒâ„¢Ã†â€™Ãƒâ„¢Ã¢â‚¬Â Ãƒâ„¢Ã†â€™ ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Â ÃƒËœÃ‚Â¶Ãƒâ„¢Ã¢â‚¬Â¦ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Â¦ ÃƒËœÃ‚Â¥Ãƒâ„¢Ã¢â‚¬Å¾Ãƒâ„¢Ã¢â‚¬Â° Ãƒâ„¢Ã‹â€ Ãƒâ„¢Ã†â€™ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â©ÃƒËœÃ…â€™ ÃƒËœÃ‚Â¥Ãƒâ„¢Ã¢â‚¬Â ÃƒËœÃ‚Â´ÃƒËœÃ‚Â§ÃƒËœÃ‚Â¡ Ãƒâ„¢Ã‹â€ Ãƒâ„¢Ã†â€™ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â©ÃƒËœÃ…â€™ ÃƒËœÃ‚Â£Ãƒâ„¢Ã‹â€  ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚ÂªÃƒâ„¢Ã¢â‚¬Å¡ÃƒËœÃ‚Â¯Ãƒâ„¢Ã…Â Ãƒâ„¢Ã¢â‚¬Â¦ Ãƒâ„¢Ã†â€™Ãƒâ„¢Ã¢â‚¬Â¦ÃƒËœÃ‚Â¶Ãƒâ„¢Ã…Â Ãƒâ„¢Ã‚Â.'
-                        : 'Apply to join an agency, create one, or become a host.',
-                    isArabic: widget.isArabic,
+                    title: isArabic ? 'لا توجد وكالة بعد' : 'No agency yet',
+                    description: isArabic
+                        ? 'اختر بين الانضمام إلى وكالة إنشاء وكالة أو التقديم كمضيف.'
+                        : 'Choose to join an agency, create one, or apply as a host.',
+                    isArabic: isArabic,
                   )
                 else
                   ProfileInfoCard(
                     icon: Icons.apartment_rounded,
                     title: membership.agencyName,
                     body:
-                        '${widget.isArabic ? 'ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â¯Ãƒâ„¢Ã‹â€ ÃƒËœÃ‚Â±' : 'Role'}: ${membership.role}\n'
-                        '${widget.isArabic ? 'ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â­ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â©' : 'Status'}: ${membership.status}\n'
-                        '${widget.isArabic ? 'ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â¹Ãƒâ„¢Ã¢â‚¬Â¦Ãƒâ„¢Ã‹â€ Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â©' : 'Commission'}: ${(membership.commissionRate * 100).toStringAsFixed(1)}%\n'
-                        '${widget.isArabic ? 'Ãƒâ„¢Ã¢â‚¬Â¡ÃƒËœÃ‚Â¯Ãƒâ„¢Ã‚Â ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â¹Ãƒâ„¢Ã¢â‚¬Â¦Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â§ÃƒËœÃ‚Âª' : 'Coin target'}: ${membership.monthlyTargetCoins}\n'
-                        '${widget.isArabic ? 'Ãƒâ„¢Ã¢â‚¬Â¡ÃƒËœÃ‚Â¯Ãƒâ„¢Ã‚Â ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â³ÃƒËœÃ‚Â§ÃƒËœÃ‚Â¹ÃƒËœÃ‚Â§ÃƒËœÃ‚Âª' : 'Hour target'}: ${membership.monthlyTargetHours}',
-                    isArabic: widget.isArabic,
+                        '${isArabic ? 'الدور' : 'Role'}: ${membership.role}\n'
+                        '${isArabic ? 'الحالة' : 'Status'}: ${membership.status}\n'
+                        '${isArabic ? 'العمولة' : 'Commission'}: ${(membership.commissionRate * 100).toStringAsFixed(1)}%\n'
+                        '${isArabic ? 'هدف العملات' : 'Coin target'}: ${membership.monthlyTargetCoins}\n'
+                        '${isArabic ? 'هدف الساعات' : 'Hour target'}: ${membership.monthlyTargetHours}',
+                    isArabic: isArabic,
                   ),
                 if (membership == null) ...[
                   ProfileMenuItem(
                     icon: Icons.group_add_rounded,
-                    title: widget.isArabic
-                        ? 'ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Â ÃƒËœÃ‚Â¶Ãƒâ„¢Ã¢â‚¬Â¦ ÃƒËœÃ‚Â¥Ãƒâ„¢Ã¢â‚¬Å¾Ãƒâ„¢Ã¢â‚¬Â° Ãƒâ„¢Ã‹â€ Ãƒâ„¢Ã†â€™ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â©'
-                        : 'Join Agency',
-                    isArabic: widget.isArabic,
+                    title: isArabic ? 'انضم إلى وكالة' : 'Join Agency',
+                    subtitle: isArabic
+                        ? 'انضم إلى وكالة موجودة عبر دعوة أو موافقة.'
+                        : 'Join an existing agency by invitation or approval.',
+                    isArabic: isArabic,
                     onTap: () => _openApplication('join_agency'),
                   ),
                   ProfileMenuItem(
                     icon: Icons.add_business_rounded,
-                    title: widget.isArabic
-                        ? 'ÃƒËœÃ‚Â£Ãƒâ„¢Ã¢â‚¬Â ÃƒËœÃ‚Â´ÃƒËœÃ‚Â¦ Ãƒâ„¢Ã‹â€ Ãƒâ„¢Ã†â€™ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â©'
-                        : 'Create Agency',
-                    isArabic: widget.isArabic,
+                    title: isArabic ? 'أنشئ وكالة' : 'Create Agency',
+                    subtitle: isArabic
+                        ? 'ابدأ وكالتك الخاصة وأدر المضيفين.'
+                        : 'Start your own agency and manage hosts.',
+                    isArabic: isArabic,
                     onTap: () => _openApplication('create_agency'),
                   ),
                   ProfileMenuItem(
                     icon: Icons.mic_external_on_rounded,
-                    title: widget.isArabic
-                        ? 'Ãƒâ„¢Ã†â€™Ãƒâ„¢Ã¢â‚¬Â  Ãƒâ„¢Ã¢â‚¬Â¦ÃƒËœÃ‚Â¶Ãƒâ„¢Ã…Â Ãƒâ„¢Ã‚ÂÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Â¹'
-                        : 'Become Host',
-                    isArabic: widget.isArabic,
+                    title: isArabic ? 'كن مضيفا' : 'Become Host',
+                    subtitle: isArabic
+                        ? 'قدم لتصبح مضيف غرف صوتية وتربح من نشاطك.'
+                        : 'Apply to become a live room host and earn from activity.',
+                    isArabic: isArabic,
                     onTap: () => _openApplication('become_host'),
                   ),
                 ],
                 ProfileSectionTitle(
-                  title: widget.isArabic
-                      ? 'ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â·Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â¨ÃƒËœÃ‚Â§ÃƒËœÃ‚Âª'
-                      : 'Applications',
-                  isArabic: widget.isArabic,
+                  title: isArabic ? 'الطلبات' : 'Applications',
+                  isArabic: isArabic,
                 ),
                 if (applications.isEmpty)
                   ProfileEmptyState(
-                    icon: Icons.inbox_rounded,
-                    title: widget.isArabic
-                        ? 'Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â§ ÃƒËœÃ‚ÂªÃƒâ„¢Ã‹â€ ÃƒËœÃ‚Â¬ÃƒËœÃ‚Â¯ ÃƒËœÃ‚Â·Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â¨ÃƒËœÃ‚Â§ÃƒËœÃ‚Âª'
-                        : 'No applications',
-                    description: widget.isArabic
-                        ? 'ÃƒËœÃ‚Â³ÃƒËœÃ‚ÂªÃƒËœÃ‚Â¸Ãƒâ„¢Ã¢â‚¬Â¡ÃƒËœÃ‚Â± ÃƒËœÃ‚Â·Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â¨ÃƒËœÃ‚Â§ÃƒËœÃ‚ÂªÃƒâ„¢Ã†â€™ Ãƒâ„¢Ã¢â‚¬Â¡Ãƒâ„¢Ã¢â‚¬Â ÃƒËœÃ‚Â§ ÃƒËœÃ‚Â¨ÃƒËœÃ‚Â¹ÃƒËœÃ‚Â¯ ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â¥ÃƒËœÃ‚Â±ÃƒËœÃ‚Â³ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾.'
-                        : 'Your applications will appear here after submission.',
-                    isArabic: widget.isArabic,
+                    icon: Icons.assignment_rounded,
+                    title: isArabic ? 'لا توجد طلبات' : 'No applications',
+                    description: isArabic
+                        ? 'طلبات الوكالة أو المضيف ستظهر هنا بعد إرسالها.'
+                        : 'Agency and host applications will appear here after submission.',
+                    isArabic: isArabic,
                   )
                 else
                   ...applications.map(
                     (app) => TicketCard(
-                      title: _agencyApplicationTitle(app.applicationType),
+                      title: _titleForType(app.applicationType),
                       status: app.status,
                       message: app.message ?? '',
                       date: app.createdAt,
-                      isArabic: widget.isArabic,
+                      isArabic: isArabic,
                     ),
                   ),
               ],
