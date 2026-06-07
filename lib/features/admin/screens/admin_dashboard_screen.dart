@@ -2896,10 +2896,11 @@ class _AdminStatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return _AdminCard(
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, color: const Color(0xFFF0C15A), size: 22),
-          const Spacer(),
+          const SizedBox(height: 14),
           Text(
             _formatAdminCount(value),
             style: _titleStyle.copyWith(fontSize: 24),
