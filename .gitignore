@@ -48,8 +48,11 @@ supabase/.temp/
 
 scripts/run-web.ps1
 
-# Local Supabase runtime secrets
+# Environment variables and secrets
+.env
 .env.local
+.env.*
+!.env.example
 
 build-web.ps1
 run-web.ps1

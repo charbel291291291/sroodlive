@@ -1,3 +1,4 @@
+import '../../../core/config/supabase_config.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../models/room_user_profile.dart';
 import 'follow_service.dart';
@@ -146,6 +147,6 @@ class RoomUserProfileService {
       return null;
     }
 
-    return 'https://xwcldazsjauaeywklukb.supabase.co/storage/v1/object/public/gift-assets/$code.png';
+    return SupabaseConfig.getPublicStorageUrl('gift-assets', '$code.png');
   }
 }
