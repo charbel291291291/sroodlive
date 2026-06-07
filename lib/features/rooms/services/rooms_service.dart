@@ -293,17 +293,16 @@ class RoomsService {
       throw ArgumentError('Invalid role.');
     }
 
-    final values = {
-      'role': role,
-      'seat_number': role == 'speaker' ? seatNumber : null,
-    };
-
-    await SupabaseService.requiredClient
-        .from('room_members')
-        .update(values)
-        .eq('room_id', roomId)
-        .eq('user_id', userId)
-        .filter('left_at', 'is', null);
+    // Use safe RPC function that verifies room ownership
+    await SupabaseService.requiredClient.rpc(
+      'update_room_member_role',
+      params: {
+        'p_room_id': roomId,
+        'p_user_id': userId,
+        'p_role': role,
+        'p_seat_number': role == 'speaker' ? seatNumber : null,
+      },
+    );
   }
 
   Future<void> updateMySeatNumber({
@@ -355,31 +354,29 @@ class RoomsService {
     required String userId,
     required int seatNumber,
   }) async {
-    await SupabaseService.requiredClient
-        .from('room_members')
-        .update({'seat_number': seatNumber})
-        .eq('room_id', roomId)
-        .eq('user_id', userId)
-        .filter('left_at', 'is', null);
+    // Use safe RPC function that verifies room ownership
+    await SupabaseService.requiredClient.rpc(
+      'update_room_member_seat',
+      params: {
+        'p_room_id': roomId,
+        'p_user_id': userId,
+        'p_seat_number': seatNumber,
+      },
+    );
   }
 
   Future<void> removeMemberFromRoom({
     required String roomId,
     required String userId,
   }) async {
-    final now = DateTime.now().toUtc().toIso8601String();
-
-    await SupabaseService.requiredClient
-        .from('room_members')
-        .update({
-          'is_muted': true,
-          'seat_number': null,
-          'left_at': now,
-          'last_seen_at': now,
-        })
-        .eq('room_id', roomId)
-        .eq('user_id', userId)
-        .filter('left_at', 'is', null);
+    // Use safe RPC function that verifies room ownership
+    await SupabaseService.requiredClient.rpc(
+      'remove_room_member',
+      params: {
+        'p_room_id': roomId,
+        'p_user_id': userId,
+      },
+    );
   }
 
   Future<void> setMyMuteStatus({
