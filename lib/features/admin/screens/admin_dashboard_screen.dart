@@ -3037,70 +3037,99 @@ class _WalletLookupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final item = wallet;
+
     return _AdminSectionCard(
       title: 'Wallet Lookup',
       child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _SearchRow(
+          TextField(
             controller: lookupController,
-            label: 'Public user ID',
-            onSearch: onSearch,
+            onSubmitted: (_) => onSearch(),
+            decoration: const InputDecoration(
+              labelText: 'Public user ID',
+              prefixIcon: Icon(Icons.search_rounded),
+            ),
           ),
-          if (wallet != null) ...[
+          const SizedBox(height: 10),
+          FilledButton.icon(
+            onPressed: onSearch,
+            icon: const Icon(Icons.search_rounded),
+            label: const Text('Search wallet'),
+          ),
+          if (item != null) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0B0612),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFF3E285E)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.account_balance_wallet_rounded,
+                        color: Color(0xFFF0C15A),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          item.nickname ?? item.publicUserId ?? item.userId,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: _titleStyle.copyWith(fontSize: 16),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Public ID: ${item.publicUserId ?? '-'}',
+                    style: _mutedStyle,
+                  ),
+                  const SizedBox(height: 4),
+                  Text('Coins: ${item.coinsBalance}', style: _mutedStyle),
+                  const SizedBox(height: 4),
+                  Text('Diamonds: ${item.diamondsBalance}', style: _mutedStyle),
+                ],
+              ),
+            ),
             const SizedBox(height: 12),
-            _AdminListTile(
-              icon: Icons.account_balance_wallet_rounded,
-              title: wallet!.nickname ?? wallet!.publicUserId ?? wallet!.userId,
-              subtitle:
-                  'Coins ${wallet!.coinsBalance} - Diamonds ${wallet!.diamondsBalance}',
-              trailing: _RoleChip(label: wallet!.publicUserId ?? 'wallet'),
+            TextField(
+              controller: coinsController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Coins delta',
+                helperText: 'Use positive or negative number',
+              ),
             ),
             const SizedBox(height: 10),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final narrow = constraints.maxWidth < 480;
-                final fields = [
-                  Expanded(
-                    child: TextField(
-                      controller: coinsController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Coins delta',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8, height: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: diamondsController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Diamonds delta',
-                      ),
-                    ),
-                  ),
-                ];
-                if (narrow) {
-                  return Column(
-                    children: [fields[0], const SizedBox(height: 8), fields[2]],
-                  );
-                }
-                return Row(children: fields);
-              },
+            TextField(
+              controller: diamondsController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Diamonds delta',
+                helperText: 'Use positive or negative number',
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             TextField(
               controller: noteController,
-              decoration: const InputDecoration(labelText: 'Note'),
+              maxLines: 2,
+              decoration: const InputDecoration(labelText: 'Admin note'),
             ),
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: canFinance ? onAdjust : null,
-                icon: const Icon(Icons.tune_rounded),
-                label: const Text('Apply adjustment'),
-              ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: canFinance ? onAdjust : null,
+              icon: const Icon(Icons.tune_rounded),
+              label: const Text('Apply adjustment'),
             ),
           ],
         ],
