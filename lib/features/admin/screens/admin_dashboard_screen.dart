@@ -31,6 +31,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   _AdminModule _module = _AdminModule.overview;
   bool _isLoading = true;
   bool _canAccess = false;
+  bool _actionInProgress = false;
   List<String> _roles = const [];
   String? _error;
 
@@ -179,6 +180,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Future<void> _approve(AdminRechargeRequest request) async {
+    if (_actionInProgress) return;
+    setState(() => _actionInProgress = true);
     try {
       await _adminService.approveRecharge(request.id);
       if (!mounted) return;
@@ -187,13 +190,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     } catch (error) {
       if (!mounted) return;
       _showSnack('Approval failed: $error');
+    } finally {
+      if (mounted) setState(() => _actionInProgress = false);
     }
   }
 
   Future<void> _reject(AdminRechargeRequest request) async {
+    if (_actionInProgress) return;
     final reason = await _askForText(title: 'Reject recharge', label: 'Reason');
     if (reason == null || reason.trim().isEmpty) return;
 
+    setState(() => _actionInProgress = true);
     try {
       await _adminService.rejectRecharge(request.id, reason.trim());
       if (!mounted) return;
@@ -202,6 +209,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     } catch (error) {
       if (!mounted) return;
       _showSnack('Rejection failed: $error');
+    } finally {
+      if (mounted) setState(() => _actionInProgress = false);
     }
   }
 
@@ -221,6 +230,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Future<void> _applyAdjustment() async {
+    if (_actionInProgress) return;
     final wallet = _walletLookup;
     if (wallet == null || !_canFinance) return;
 
@@ -233,6 +243,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       return;
     }
 
+    setState(() => _actionInProgress = true);
     try {
       await _adminService.adjustWallet(
         userId: wallet.userId,
@@ -250,6 +261,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     } catch (error) {
       if (!mounted) return;
       _showSnack('Adjustment failed: $error');
+    } finally {
+      if (mounted) setState(() => _actionInProgress = false);
     }
   }
 
@@ -550,6 +563,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Future<void> _grantVip(AdminUserDetail detail) async {
+    if (_actionInProgress) return;
     final levelText = await _askForText(
       title: 'Grant VIP',
       label: 'VIP level 0-10',
@@ -557,6 +571,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     if (levelText == null) return;
     final daysText = await _askForText(title: 'Grant VIP', label: 'Days');
     if (daysText == null) return;
+
+    setState(() => _actionInProgress = true);
     try {
       await _adminService.grantVip(
         userId: detail.userId,
@@ -569,6 +585,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     } catch (error) {
       if (!mounted) return;
       _showSnack('VIP update failed: $error');
+    } finally {
+      if (mounted) setState(() => _actionInProgress = false);
     }
   }
 

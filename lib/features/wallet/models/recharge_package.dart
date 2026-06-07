@@ -1,3 +1,5 @@
+import '../../../core/constants/coin_constants.dart';
+
 class RechargePackage {
   const RechargePackage({
     required this.id,
@@ -36,7 +38,7 @@ class RechargePackage {
   }
 
   static List<RechargePackage> fallbackPackages() {
-    const rate = 10000;
+    const rate = CoinConstants.coinsPerUsd;
     const prices = [1, 2, 5, 10, 20, 50, 100];
 
     return [

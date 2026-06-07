@@ -1,3 +1,4 @@
+import '../../../core/constants/coin_constants.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../models/recharge_package.dart';
 import '../models/recharge_request.dart';
@@ -103,6 +104,13 @@ class WalletService {
     String? agentCode,
     String? packageId,
   }) async {
+    if (coins <= 0) {
+      throw ArgumentError('invalid_requested_coins');
+    }
+    if (coins > CoinConstants.maximumRechargeCoins) {
+      throw ArgumentError('coins_exceeds_maximum');
+    }
+
     if (packageId != null && !packageId.startsWith('fallback_')) {
       try {
         final data = await SupabaseService.requiredClient.rpc(

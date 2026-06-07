@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/constants/coin_constants.dart';
 import '../models/recharge_package.dart';
 import '../models/recharge_request.dart';
 
@@ -43,6 +44,7 @@ class _RechargeRequestSheetState extends State<RechargeRequestSheet> {
   RechargeMethod _method = RechargeMethod.omt;
   RechargePackage? _selectedPackage;
   String? _error;
+  bool _submitting = false;
 
   @override
   void initState() {
@@ -80,6 +82,8 @@ class _RechargeRequestSheetState extends State<RechargeRequestSheet> {
   }
 
   void _submit() {
+    if (_submitting) return;
+
     final coins = int.tryParse(_coinsController.text.trim()) ?? 0;
     final amount = double.tryParse(_amountController.text.trim());
 
@@ -92,6 +96,16 @@ class _RechargeRequestSheetState extends State<RechargeRequestSheet> {
       return;
     }
 
+    if (coins > CoinConstants.maximumRechargeCoins) {
+      setState(() {
+        _error = widget.isArabic
+            ? '\u0627\u0644\u0643\u0645\u064a\u0629 \u062a\u062a\u062c\u0627\u0648\u0632 \u0627\u0644\u062d\u062f \u0627\u0644\u0645\u0633\u0645\u0648\u062d.'
+            : 'Amount exceeds the maximum per request.';
+      });
+      return;
+    }
+
+    setState(() => _submitting = true);
     Navigator.of(context).pop(
       RechargeRequestInput(
         coins: coins,
@@ -172,8 +186,8 @@ class _RechargeRequestSheetState extends State<RechargeRequestSheet> {
                 const SizedBox(height: 8),
                 Text(
                   isArabic
-                      ? '\u0627\u0644\u0633\u0639\u0631 \u0627\u0644\u0623\u0633\u0627\u0633\u064a: 1 USD = 10,000 \u0639\u0645\u0644\u0629'
-                      : 'Base rate: 1 USD = 10,000 SrOOd Coins',
+                      ? '\u0627\u0644\u0633\u0639\u0631 \u0627\u0644\u0623\u0633\u0627\u0633\u064a: 1 USD = 500,000 \u0639\u0645\u0644\u0629'
+                      : 'Base rate: 1 USD = 500,000 SrOOd Coins',
                   style: const TextStyle(
                     color: Color(0xFFF0C15A),
                     fontSize: 12,

@@ -68,6 +68,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   _ActiveLuxuryGiftVideo? _activeLuxuryGiftVideo;
   Timer? _luxuryGiftVideoTimer;
   bool _loadingGifts = false;
+  bool _isSendingGift = false;
   RoomMember? _selectedMicMoveMember;
   int _giftEventSeed = 0;
 
@@ -1426,6 +1427,16 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   }
 
   Future<void> _openGiftSheet({String? targetUserId}) async {
+    if (_isSendingGift) return;
+    setState(() => _isSendingGift = true);
+    try {
+      await _openGiftSheetImpl(targetUserId: targetUserId);
+    } finally {
+      if (mounted) setState(() => _isSendingGift = false);
+    }
+  }
+
+  Future<void> _openGiftSheetImpl({String? targetUserId}) async {
     final currentUserId = _currentUserId;
     final receivers =
         _members.where((member) => member.userId != currentUserId).toList()
