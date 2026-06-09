@@ -60,7 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (email.isEmpty || password.isEmpty) {
         setState(() {
           message = isArabic
-              ? 'اكتب البريد الإلكتروني وكلمة المرور أولا.'
+              ? '\u0627\u0643\u062a\u0628 \u0627\u0644\u0628\u0631\u064a\u062f \u0627\u0644\u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a \u0648\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u0623\u0648\u0644\u0627.'
               : 'Enter email and password first.';
         });
         return;
@@ -69,7 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (password.length < 6) {
         setState(() {
           message = isArabic
-              ? 'كلمة المرور يجب أن تكون 6 أحرف أو أكثر.'
+              ? '\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u064a\u062c\u0628 \u0623\u0646 \u062a\u0643\u0648\u0646 6 \u0623\u062d\u0631\u0641 \u0623\u0648 \u0623\u0643\u062b\u0631.'
               : 'Password must be 6 characters or more.';
         });
         return;
@@ -88,7 +88,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (!mounted) return;
 
         setState(() {
-          message = isArabic ? 'تم حظر هذا الحساب.' : 'This account is banned.';
+          message = isArabic ? '\u062a\u0645 \u062d\u0638\u0631 \u0647\u0630\u0627 \u0627\u0644\u062d\u0633\u0627\u0628.' : 'This account is banned.';
         });
 
         return;
@@ -102,13 +102,13 @@ class _LoginScreenState extends State<LoginScreen> {
     } on AuthException catch (error) {
       setState(() {
         message = isArabic
-            ? 'فشل تسجيل الدخول: ${error.message}'
+            ? '\u0641\u0634\u0644 \u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644: ${error.message}'
             : 'Login failed: ${error.message}';
       });
     } catch (error) {
       setState(() {
         message = isArabic
-            ? 'فشل تسجيل الدخول: $error'
+            ? '\u0641\u0634\u0644 \u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644: $error'
             : 'Login failed: $error';
       });
     } finally {
@@ -135,7 +135,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (email.isEmpty || password.isEmpty) {
         setState(() {
           message = isArabic
-              ? 'اكتب البريد الإلكتروني وكلمة المرور أولا.'
+              ? '\u0627\u0643\u062a\u0628 \u0627\u0644\u0628\u0631\u064a\u062f \u0627\u0644\u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a \u0648\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u0623\u0648\u0644\u0627.'
               : 'Enter email and password first.';
         });
         return;
@@ -144,7 +144,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (password.length < 6) {
         setState(() {
           message = isArabic
-              ? 'كلمة المرور يجب أن تكون 6 أحرف أو أكثر.'
+              ? '\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u064a\u062c\u0628 \u0623\u0646 \u062a\u0643\u0648\u0646 6 \u0623\u062d\u0631\u0641 \u0623\u0648 \u0623\u0643\u062b\u0631.'
               : 'Password must be 6 characters or more.';
         });
         return;
@@ -159,19 +159,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
       setState(() {
         message = isArabic
-            ? 'تم إنشاء الحساب. اضغط دخول.'
+            ? '\u062a\u0645 \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u062d\u0633\u0627\u0628. \u0627\u0636\u063a\u0637 \u062f\u062e\u0648\u0644.'
             : 'Account created. Press Login.';
       });
     } on AuthException catch (error) {
       setState(() {
         message = isArabic
-            ? 'فشل إنشاء الحساب: ${error.message}'
+            ? '\u0641\u0634\u0644 \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u062d\u0633\u0627\u0628: ${error.message}'
             : 'Account creation failed: ${error.message}';
       });
     } catch (error) {
       setState(() {
         message = isArabic
-            ? 'فشل إنشاء الحساب: $error'
+            ? '\u0641\u0634\u0644 \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u062d\u0633\u0627\u0628: $error'
             : 'Account creation failed: $error';
       });
     } finally {
@@ -188,7 +188,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final isArabic = _isArabic(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(isArabic ? 'تسجيل الدخول' : 'Login')),
+      appBar: AppBar(title: Text(isArabic ? '\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644' : 'Login')),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -231,7 +231,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 18),
                         Text(
-                          isArabic ? 'ادخل إلى SrOOd Live' : 'Enter SrOOd Live',
+                          isArabic ? '\u0627\u062f\u062e\u0644 \u0625\u0644\u0649 SrOOd Live' : 'Enter SrOOd Live',
                           textAlign: isArabic
                               ? TextAlign.right
                               : TextAlign.left,
@@ -243,7 +243,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 10),
                         Text(
                           isArabic
-                              ? 'سجل دخولك أو أنشئ حسابا للتجربة.'
+                              ? '\u0633\u062c\u0644 \u062f\u062e\u0648\u0644\u0643 \u0623\u0648 \u0623\u0646\u0634\u0626 \u062d\u0633\u0627\u0628\u0627 \u0644\u0644\u062a\u062c\u0631\u0628\u0629.'
                               : 'Login or create a test account.',
                           textAlign: isArabic
                               ? TextAlign.right
@@ -262,7 +262,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ? TextDirection.rtl
                               : TextDirection.ltr,
                           decoration: InputDecoration(
-                            labelText: isArabic ? 'البريد الإلكتروني' : 'Email',
+                            labelText: isArabic ? '\u0627\u0644\u0628\u0631\u064a\u062f \u0627\u0644\u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a' : 'Email',
                             prefixIcon: const Icon(Icons.email_rounded),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(18),
@@ -277,7 +277,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ? TextDirection.rtl
                               : TextDirection.ltr,
                           decoration: InputDecoration(
-                            labelText: isArabic ? 'كلمة المرور' : 'Password',
+                            labelText: isArabic ? '\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631' : 'Password',
                             prefixIcon: const Icon(Icons.lock_rounded),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(18),
@@ -304,8 +304,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             onPressed: isLoading ? null : _login,
                             child: Text(
                               isLoading
-                                  ? (isArabic ? 'انتظر...' : 'Loading...')
-                                  : (isArabic ? 'دخول' : 'Login'),
+                                  ? (isArabic ? '\u0627\u0646\u062a\u0638\u0631...' : 'Loading...')
+                                  : (isArabic ? '\u062f\u062e\u0648\u0644' : 'Login'),
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
@@ -320,7 +320,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: OutlinedButton(
                             onPressed: isLoading ? null : _createAccount,
                             child: Text(
-                              isArabic ? 'إنشاء حساب' : 'Create account',
+                              isArabic ? '\u0625\u0646\u0634\u0627\u0621 \u062d\u0633\u0627\u0628' : 'Create account',
                             ),
                           ),
                         ),
