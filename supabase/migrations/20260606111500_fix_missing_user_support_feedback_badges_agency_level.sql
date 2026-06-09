@@ -508,12 +508,12 @@ with check (public.profile_hub_admin_access());
 
 insert into public.badges (badge_key, name, description, icon, category, rarity, required_level, required_vip_level, price_coins, is_active, sort_order)
 values
-  ('new_member', 'New Member', 'Welcome badge for new SrOOd Live members.', 'person_add', 'achievement', 'common', 1, 0, 0, true, 10),
+  ('new_member', 'New Member', 'Welcome badge for new SrOOd Live members.', 'person_add', 'achievement', 'common', 1, null, 0, true, 10),
   ('vip_member', 'VIP Member', 'Granted to active VIP members.', 'workspace_premium', 'vip', 'rare', 0, 1, 0, true, 20),
-  ('gift_sender', 'Gift Sender', 'For users who support rooms with gifts.', 'card_giftcard', 'achievement', 'common', 2, 0, 0, true, 30),
-  ('room_host', 'Room Host', 'For creators and room hosts.', 'mic', 'achievement', 'rare', 3, 0, 0, true, 40),
-  ('agency_member', 'Agency Member', 'Granted to active agency members.', 'groups', 'agency', 'rare', 0, 0, 0, true, 50),
-  ('top_supporter', 'Top Supporter', 'Premium supporter badge.', 'favorite', 'premium', 'epic', 0, 0, 0, true, 60)
+  ('gift_sender', 'Gift Sender', 'For users who support rooms with gifts.', 'card_giftcard', 'achievement', 'common', 2, null, 0, true, 30),
+  ('room_host', 'Room Host', 'For creators and room hosts.', 'mic', 'achievement', 'rare', 3, null, 0, true, 40),
+  ('agency_member', 'Agency Member', 'Granted to active agency members.', 'groups', 'agency', 'rare', 0, null, 0, true, 50),
+  ('top_supporter', 'Top Supporter', 'Premium supporter badge.', 'favorite', 'premium', 'epic', 0, null, 0, true, 60)
 on conflict (badge_key) do update set
   name = excluded.name,
   description = excluded.description,
@@ -566,6 +566,8 @@ begin
 end;
 $$;
 
+drop function if exists public.ensure_user_settings(uuid);
+
 create or replace function public.ensure_user_settings(p_user_id uuid)
 returns public.user_settings
 language plpgsql
@@ -614,6 +616,8 @@ begin
   return v_level;
 end;
 $$;
+
+drop function if exists public.ensure_user_level(uuid);
 
 create or replace function public.ensure_user_level(p_user_id uuid)
 returns public.user_levels
@@ -711,6 +715,8 @@ begin
   return v_account;
 end;
 $$;
+
+drop function if exists public.ensure_income_account(uuid);
 
 create or replace function public.ensure_income_account(p_user_id uuid)
 returns public.income_accounts

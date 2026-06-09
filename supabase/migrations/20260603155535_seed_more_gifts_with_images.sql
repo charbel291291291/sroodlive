@@ -11,7 +11,7 @@ values
   (
     'treasure',
     'Treasure',
-    'كنز',
+    'ÙƒÙ†Ø²',
     100,
     'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f3c6.png',
     true,
@@ -20,7 +20,7 @@ values
   (
     'rose',
     'Rose',
-    'وردة',
+    'ÙˆØ±Ø¯Ø©',
     50,
     'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f339.png',
     true,
@@ -29,7 +29,7 @@ values
   (
     'star',
     'Star',
-    'نجمة',
+    'Ù†Ø¬Ù…Ø©',
     50,
     'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/2b50.png',
     true,
@@ -38,7 +38,7 @@ values
   (
     'crown',
     'Crown',
-    'تاج',
+    'ØªØ§Ø¬',
     250,
     'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f451.png',
     true,
@@ -47,7 +47,7 @@ values
   (
     'rocket',
     'Rocket',
-    'صاروخ',
+    'ØµØ§Ø±ÙˆØ®',
     1000,
     'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f680.png',
     true,
@@ -56,7 +56,7 @@ values
   (
     'diamond',
     'Diamond',
-    'ألماسة',
+    'Ø£Ù„Ù…Ø§Ø³Ø©',
     8000,
     'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f48e.png',
     true,
@@ -65,7 +65,7 @@ values
   (
     'tiger',
     'Tiger',
-    'نمر',
+    'Ù†Ù…Ø±',
     30000,
     'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f405.png',
     true,
@@ -74,7 +74,7 @@ values
   (
     'lucky_bag',
     'Lucky Bag',
-    'حقيبة الحظ',
+    'Ø­Ù‚ÙŠØ¨Ø© Ø§Ù„Ø­Ø¸',
     75,
     'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f381.png',
     true,
@@ -83,7 +83,7 @@ values
   (
     'motorcycle',
     'Motorcycle',
-    'دراجة',
+    'Ø¯Ø±Ø§Ø¬Ø©',
     35000,
     'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f3cd.png',
     true,
@@ -92,7 +92,7 @@ values
   (
     'slingshot',
     'Slingshot',
-    'مقلاع',
+    'Ù…Ù‚Ù„Ø§Ø¹',
     125,
     'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f3af.png',
     true,
@@ -101,7 +101,7 @@ values
   (
     'dragon',
     'Dragon',
-    'تنين',
+    'ØªÙ†ÙŠÙ†',
     200000,
     'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f409.png',
     true,
@@ -110,7 +110,7 @@ values
   (
     'castle',
     'Castle',
-    'قلعة',
+    'Ù‚Ù„Ø¹Ø©',
     500000,
     'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f3f0.png',
     true,

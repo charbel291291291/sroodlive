@@ -2,7 +2,7 @@
 -- Adds upper-bound caps and audit logging to coin operations.
 -- All functions use SECURITY DEFINER set search_path = public.
 
--- ─── 1. request_recharge: add maximum coin cap ───────────────────────────────
+-- â”€â”€â”€ 1. request_recharge: add maximum coin cap â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 create or replace function public.request_recharge(
   p_requested_coins integer,
@@ -84,7 +84,7 @@ begin
 end;
 $$;
 
--- ─── 2. approve_recharge_request: add admin_record_audit ─────────────────────
+-- â”€â”€â”€ 2. approve_recharge_request: add admin_record_audit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 create or replace function public.approve_recharge_request(
   p_request_id uuid,
@@ -182,7 +182,7 @@ begin
 end;
 $$;
 
--- ─── 3. admin_manual_wallet_adjustment: add cap + admin_record_audit ──────────
+-- â”€â”€â”€ 3. admin_manual_wallet_adjustment: add cap + admin_record_audit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 create or replace function public.admin_manual_wallet_adjustment(
   p_user_id uuid,
@@ -296,7 +296,7 @@ begin
 end;
 $$;
 
--- Grants (unchanged from original — functions already existed and were granted)
+-- Grants (unchanged from original â€” functions already existed and were granted)
 grant execute on function public.request_recharge(integer, text, numeric, text, text) to authenticated;
 grant execute on function public.approve_recharge_request(uuid, text) to authenticated;
 grant execute on function public.admin_manual_wallet_adjustment(uuid, integer, integer, text) to authenticated;

@@ -108,9 +108,9 @@ insert into public.gift_categories (
   sort_order
 )
 values
-  ('event', 'Event', 'فعاليات', 'event', true, 10),
-  ('hot', 'Hot', 'الأكثر رواجاً', 'local_fire_department', true, 20),
-  ('lucky', 'Lucky', 'الحظ', 'casino', true, 30),
+  ('event', 'Event', 'ÙØ¹Ø§Ù„ÙŠØ§Øª', 'event', true, 10),
+  ('hot', 'Hot', 'Ø§Ù„Ø£ÙƒØ«Ø± Ø±ÙˆØ§Ø¬Ø§Ù‹', 'local_fire_department', true, 20),
+  ('lucky', 'Lucky', 'Ø§Ù„Ø­Ø¸', 'casino', true, 30),
   ('vip', 'VIP', 'VIP', 'workspace_premium', true, 40)
 on conflict (category_key) do update set
   name = excluded.name,
@@ -132,11 +132,11 @@ insert into public.entrance_banners (
   sort_order
 )
 values
-  ('vip_1_gold', 'VIP Gold Entry', 'دخول ذهبي', 1, '#3A2408', '#DDAA3B', '{name} entered with VIP shine', true, 10),
-  ('vip_2_flame', 'VIP Flame Entry', 'دخول ناري', 2, '#401018', '#FF6F7E', '{name} entered with flame energy', true, 20),
-  ('vip_3_royal', 'VIP Royal Entry', 'دخول ملكي', 3, '#2A1042', '#8B26D9', '{name} entered like royalty', true, 30),
-  ('vip_4_diamond', 'VIP Diamond Entry', 'دخول ألماسي', 4, '#0D2B3A', '#4CC9F0', '{name} entered silently', true, 40),
-  ('vip_5_king', 'VIP King Entry', 'دخول الملك', 5, '#31000B', '#FFD15C', '{name} entered with royal power', true, 50)
+  ('vip_1_gold', 'VIP Gold Entry', 'Ø¯Ø®ÙˆÙ„ Ø°Ù‡Ø¨ÙŠ', 1, '#3A2408', '#DDAA3B', '{name} entered with VIP shine', true, 10),
+  ('vip_2_flame', 'VIP Flame Entry', 'Ø¯Ø®ÙˆÙ„ Ù†Ø§Ø±ÙŠ', 2, '#401018', '#FF6F7E', '{name} entered with flame energy', true, 20),
+  ('vip_3_royal', 'VIP Royal Entry', 'Ø¯Ø®ÙˆÙ„ Ù…Ù„ÙƒÙŠ', 3, '#2A1042', '#8B26D9', '{name} entered like royalty', true, 30),
+  ('vip_4_diamond', 'VIP Diamond Entry', 'Ø¯Ø®ÙˆÙ„ Ø£Ù„Ù…Ø§Ø³ÙŠ', 4, '#0D2B3A', '#4CC9F0', '{name} entered silently', true, 40),
+  ('vip_5_king', 'VIP King Entry', 'Ø¯Ø®ÙˆÙ„ Ø§Ù„Ù…Ù„Ùƒ', 5, '#31000B', '#FFD15C', '{name} entered with royal power', true, 50)
 on conflict (banner_key) do update set
   name = excluded.name,
   arabic_name = excluded.arabic_name,
@@ -161,11 +161,11 @@ insert into public.vip_packages (
   sort_order
 )
 values
-  (1, 'vip_1_bronze', 'VIP 1 Bronze', 'VIP 1 برونزي', 1000, 30, 'VIP 1', 'vip_1_gold', true, 10),
-  (2, 'vip_2_silver', 'VIP 2 Silver', 'VIP 2 فضي', 3000, 30, 'VIP 2', 'vip_2_flame', true, 20),
-  (3, 'vip_3_gold', 'VIP 3 Gold', 'VIP 3 ذهبي', 8000, 30, 'VIP 3', 'vip_3_royal', true, 30),
-  (4, 'vip_4_diamond', 'VIP 4 Diamond', 'VIP 4 ألماسي', 18000, 30, 'VIP 4', 'vip_4_diamond', true, 40),
-  (5, 'vip_5_royal', 'VIP 5 Royal King', 'VIP 5 ملكي', 40000, 30, 'VIP 5', 'vip_5_king', true, 50)
+  (1, 'vip_1_bronze', 'VIP 1 Bronze', 'VIP 1 Ø¨Ø±ÙˆÙ†Ø²ÙŠ', 1000, 30, 'VIP 1', 'vip_1_gold', true, 10),
+  (2, 'vip_2_silver', 'VIP 2 Silver', 'VIP 2 ÙØ¶ÙŠ', 3000, 30, 'VIP 2', 'vip_2_flame', true, 20),
+  (3, 'vip_3_gold', 'VIP 3 Gold', 'VIP 3 Ø°Ù‡Ø¨ÙŠ', 8000, 30, 'VIP 3', 'vip_3_royal', true, 30),
+  (4, 'vip_4_diamond', 'VIP 4 Diamond', 'VIP 4 Ø£Ù„Ù…Ø§Ø³ÙŠ', 18000, 30, 'VIP 4', 'vip_4_diamond', true, 40),
+  (5, 'vip_5_royal', 'VIP 5 Royal King', 'VIP 5 Ù…Ù„ÙƒÙŠ', 40000, 30, 'VIP 5', 'vip_5_king', true, 50)
 on conflict (vip_level) do update set
   code = excluded.code,
   name = excluded.name,

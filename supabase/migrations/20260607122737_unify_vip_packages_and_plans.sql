@@ -1,4 +1,4 @@
-﻿-- Unify SrOOd Live VIP system.
+-- Unify SrOOd Live VIP system.
 -- Official pricing follows 1 USD = 500,000 coins.
 -- vip_packages is used by Admin Dashboard.
 -- vip_plans is used by user purchase flow.
