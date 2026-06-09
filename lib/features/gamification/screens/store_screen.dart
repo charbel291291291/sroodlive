@@ -53,7 +53,7 @@ class _StoreScreenState extends State<StoreScreen> {
       await _service.purchaseStoreItem(item.id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(widget.isArabic ? 'تم الشراء بنجاح!' : 'Purchased!'),
+        content: Text(widget.isArabic ? '\u062a\u0645 \u0627\u0644\u0634\u0631\u0627\u0621 \u0628\u0646\u062c\u0627\u062d!' : 'Purchased!'),
         backgroundColor: const Color(0xFF2ECC71),
       ));
       await _load();
@@ -101,7 +101,7 @@ class _StoreScreenState extends State<StoreScreen> {
               icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
             ),
             Text(
-              widget.isArabic ? 'المتجر' : 'Store',
+              widget.isArabic ? '\u0627\u0644\u0645\u062a\u062c\u0631' : 'Store',
               style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
             ),
           ],
@@ -110,9 +110,9 @@ class _StoreScreenState extends State<StoreScreen> {
 
   Widget _buildFilters() {
     final chips = [
-      ('all', widget.isArabic ? 'الكل' : 'All'),
-      ('avatar_frame', widget.isArabic ? 'الإطارات' : 'Frames'),
-      ('badge', widget.isArabic ? 'الشارات' : 'Badges'),
+      ('all', widget.isArabic ? '\u0627\u0644\u0643\u0644' : 'All'),
+      ('avatar_frame', widget.isArabic ? '\u0627\u0644\u0625\u0637\u0627\u0631\u0627\u062a' : 'Frames'),
+      ('badge', widget.isArabic ? '\u0627\u0644\u0634\u0627\u0631\u0627\u062a' : 'Badges'),
     ];
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
@@ -247,7 +247,7 @@ class _StoreItemCard extends StatelessWidget {
                           border: Border.all(color: const Color(0xFF2ECC71).withValues(alpha: 0.5)),
                         ),
                         child: Text(
-                          isArabic ? '✓ مملوك' : '✓ Owned',
+                          isArabic ? '\u2713 \u0645\u0645\u0644\u0648\u0643' : '\u2713 Owned',
                           style: const TextStyle(color: Color(0xFF2ECC71), fontSize: 12, fontWeight: FontWeight.w800),
                         ),
                       )
@@ -263,7 +263,7 @@ class _StoreItemCard extends StatelessWidget {
                             elevation: 0,
                           ),
                           child: Text(
-                            isArabic ? 'شراء' : 'Buy',
+                            isArabic ? '\u0634\u0631\u0627\u0621' : 'Buy',
                             style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
                           ),
                         ),
@@ -333,7 +333,7 @@ class _ConfirmBuyDialog extends StatelessWidget {
       backgroundColor: const Color(0xFF1B102A),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: Text(
-        isArabic ? 'تأكيد الشراء' : 'Confirm Purchase',
+        isArabic ? '\u062a\u0623\u0643\u064a\u062f \u0627\u0644\u0634\u0631\u0627\u0621' : 'Confirm Purchase',
         style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
       ),
       content: Column(
@@ -361,7 +361,7 @@ class _ConfirmBuyDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: Text(isArabic ? 'إلغاء' : 'Cancel', style: const TextStyle(color: Color(0xFF7A6890))),
+          child: Text(isArabic ? '\u0625\u0644\u063a\u0627\u0621' : 'Cancel', style: const TextStyle(color: Color(0xFF7A6890))),
         ),
         ElevatedButton(
           onPressed: () => Navigator.pop(context, true),
@@ -370,7 +370,7 @@ class _ConfirmBuyDialog extends StatelessWidget {
             foregroundColor: const Color(0xFF160B26),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
-          child: Text(isArabic ? 'شراء' : 'Buy', style: const TextStyle(fontWeight: FontWeight.w900)),
+          child: Text(isArabic ? '\u0634\u0631\u0627\u0621' : 'Buy', style: const TextStyle(fontWeight: FontWeight.w900)),
         ),
       ],
     );
@@ -399,7 +399,7 @@ class _ErrorView extends StatelessWidget {
             const SizedBox(height: 16),
             TextButton(
               onPressed: onRetry,
-              child: Text(isArabic ? 'إعادة المحاولة' : 'Retry',
+              child: Text(isArabic ? '\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629' : 'Retry',
                   style: const TextStyle(color: Color(0xFFF0C15A))),
             ),
           ],
@@ -419,7 +419,7 @@ class _EmptyView extends StatelessWidget {
             const Icon(Icons.storefront_rounded, color: Color(0xFF4A3470), size: 56),
             const SizedBox(height: 12),
             Text(
-              isArabic ? 'المتجر فارغ حالياً' : 'No items available',
+              isArabic ? '\u0627\u0644\u0645\u062a\u062c\u0631 \u0641\u0627\u0631\u063a \u062d\u0627\u0644\u064a\u0627\u064b' : 'No items available',
               style: const TextStyle(color: Color(0xFF7A6890), fontSize: 15),
             ),
           ],
