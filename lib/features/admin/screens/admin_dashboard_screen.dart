@@ -3081,13 +3081,15 @@ class _OverviewGrid extends StatelessWidget {
         final cols = constraints.maxWidth > 900 ? 6
             : constraints.maxWidth > 580 ? 3
             : 2;
-        return GridView.count(
-          crossAxisCount: cols,
+        return GridView(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 10,
-          crossAxisSpacing: 10,
-          childAspectRatio: cols == 6 ? 1.2 : cols == 3 ? 1.7 : 1.4,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: cols,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            mainAxisExtent: 110,
+          ),
           children: items
               .map((item) => _AdminStatCard(
                     label: item.$1,
@@ -3117,53 +3119,58 @@ class _AdminStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
-      decoration: BoxDecoration(
-        color: _kSurface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _kBorder),
-        // Colored left accent bar
-        gradient: LinearGradient(
-          begin: Alignment.centerLeft,
-          end: const Alignment(0.08, 0),
-          colors: [color.withValues(alpha: 0.18), Colors.transparent],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: _kSurface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _kBorder),
+          gradient: LinearGradient(
+            begin: Alignment.centerLeft,
+            end: const Alignment(0.08, 0),
+            colors: [color.withValues(alpha: 0.18), Colors.transparent],
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Icon chip top-left
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(7),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: Icon(icon, color: color, size: 13),
             ),
-            child: Icon(icon, color: color, size: 14),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _formatAdminCount(value),
-            style: const TextStyle(
-              color: _kTxt,
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-              height: 1,
+            const SizedBox(height: 7),
+            Text(
+              _formatAdminCount(value),
+              style: const TextStyle(
+                color: _kTxt,
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+                height: 1.0,
+              ),
             ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: _kMuted, fontSize: 11, fontWeight: FontWeight.w500),
-          ),
-        ],
+            const SizedBox(height: 4),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: _kMuted,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                height: 1.2,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
