@@ -6,6 +6,7 @@ import '../models/wallet.dart';
 import '../models/wallet_transaction.dart';
 import '../services/wallet_service.dart';
 import '../widgets/recharge_request_sheet.dart';
+import 'recharge_help_screen.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({required this.isArabic, super.key});
@@ -133,13 +134,10 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   void _showHelp() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          widget.isArabic
-              ? '\u062f\u0639\u0645 \u0627\u0644\u0634\u062d\u0646 \u0642\u0631\u064a\u0628\u0627\u064b'
-              : 'Recharge support coming soon',
-        ),
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => RechargeHelpScreen(isArabic: widget.isArabic),
       ),
     );
   }
