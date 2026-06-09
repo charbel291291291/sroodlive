@@ -3087,7 +3087,7 @@ class _OverviewGrid extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           mainAxisSpacing: 10,
           crossAxisSpacing: 10,
-          childAspectRatio: cols == 2 ? 1.45 : 1.4,
+          childAspectRatio: cols == 6 ? 1.2 : cols == 3 ? 1.7 : 1.4,
           children: items
               .map((item) => _AdminStatCard(
                     label: item.$1,
@@ -3118,7 +3118,7 @@ class _AdminStatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
       decoration: BoxDecoration(
         color: _kSurface,
         borderRadius: BorderRadius.circular(14),
@@ -3136,15 +3136,15 @@ class _AdminStatCard extends StatelessWidget {
         children: [
           // Icon chip top-left
           Container(
-            width: 32,
-            height: 32,
+            width: 28,
+            height: 28,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(7),
             ),
-            child: Icon(icon, color: color, size: 16),
+            child: Icon(icon, color: color, size: 14),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             _formatAdminCount(value),
             style: const TextStyle(
