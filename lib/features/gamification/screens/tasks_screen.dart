@@ -53,7 +53,7 @@ class _TasksScreenState extends State<TasksScreen> with SingleTickerProviderStat
           const Icon(Icons.monetization_on_rounded, color: Color(0xFFF0C15A)),
           const SizedBox(width: 8),
           Text(widget.isArabic
-              ? 'تم استلام ${_fmt(task.rewardAmount)} عملة!'
+              ? '\u062a\u0645 \u0627\u0633\u062a\u0644\u0627\u0645 ${_fmt(task.rewardAmount)} \u0639\u0645\u0644\u0629!'
               : '${_fmt(task.rewardAmount)} coins claimed!'),
         ]),
         backgroundColor: const Color(0xFF1B102A),
@@ -109,7 +109,7 @@ class _TasksScreenState extends State<TasksScreen> with SingleTickerProviderStat
               icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
             ),
             Text(
-              widget.isArabic ? 'المهام' : 'Tasks',
+              widget.isArabic ? '\u0627\u0644\u0645\u0647\u0627\u0645' : 'Tasks',
               style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
             ),
           ],
@@ -136,8 +136,8 @@ class _TasksScreenState extends State<TasksScreen> with SingleTickerProviderStat
           labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
           dividerColor: Colors.transparent,
           tabs: [
-            Tab(text: widget.isArabic ? 'يومية' : 'Daily'),
-            Tab(text: widget.isArabic ? 'أسبوعية' : 'Weekly'),
+            Tab(text: widget.isArabic ? '\u064a\u0648\u0645\u064a\u0629' : 'Daily'),
+            Tab(text: widget.isArabic ? '\u0623\u0633\u0628\u0648\u0639\u064a\u0629' : 'Weekly'),
           ],
         ),
       );
@@ -169,7 +169,7 @@ class _TasksScreenState extends State<TasksScreen> with SingleTickerProviderStat
             const SizedBox(height: 16),
             TextButton(
               onPressed: _load,
-              child: Text(widget.isArabic ? 'إعادة المحاولة' : 'Retry',
+              child: Text(widget.isArabic ? '\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629' : 'Retry',
                   style: const TextStyle(color: Color(0xFFF0C15A))),
             ),
           ],
@@ -199,7 +199,7 @@ class _TaskList extends StatelessWidget {
     if (tasks.isEmpty) {
       return Center(
         child: Text(
-          isArabic ? 'لا توجد مهام' : 'No tasks',
+          isArabic ? '\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u0647\u0627\u0645' : 'No tasks',
           style: const TextStyle(color: Color(0xFF7A6890), fontSize: 15),
         ),
       );
@@ -312,7 +312,7 @@ class _TaskCard extends StatelessWidget {
                 children: [
                   Text(
                     isArabic
-                        ? '${task.progress}/${task.requirementCount} مكتمل'
+                        ? '${task.progress}/${task.requirementCount} \u0645\u0643\u062a\u0645\u0644'
                         : '${task.progress}/${task.requirementCount} done',
                     style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 12),
                   ),
@@ -349,7 +349,7 @@ class _TaskCard extends StatelessWidget {
                         border: Border.all(color: const Color(0xFF2ECC71).withValues(alpha: 0.3)),
                       ),
                       child: Text(
-                        isArabic ? '✓ تم الاستلام' : '✓ Collected',
+                        isArabic ? '\u2713 \u062a\u0645 \u0627\u0644\u0627\u0633\u062a\u0644\u0627\u0645' : '\u2713 Collected',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                             color: Color(0xFF2ECC71), fontWeight: FontWeight.w900, fontSize: 13),
@@ -365,7 +365,7 @@ class _TaskCard extends StatelessWidget {
                         elevation: 0,
                       ),
                       child: Text(
-                        isArabic ? 'استلام المكافأة' : 'Claim Reward',
+                        isArabic ? '\u0627\u0633\u062a\u0644\u0627\u0645 \u0627\u0644\u0645\u0643\u0627\u0641\u0623\u0629' : 'Claim Reward',
                         style: const TextStyle(fontWeight: FontWeight.w900),
                       ),
                     ),
