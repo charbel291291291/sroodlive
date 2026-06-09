@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
 import '../../../shared/widgets/avatar_with_frame.dart';
@@ -29,6 +32,9 @@ class _PrivateChatSheetState extends State<PrivateChatSheet> {
   final PrivateMessageService _service = const PrivateMessageService();
   final TextEditingController _controller = TextEditingController();
 
+  final ScrollController _scrollController = ScrollController();
+  RealtimeChannel? _messagesChannel;
+
   bool _loading = true;
   bool _sending = false;
   String? _conversationId;
@@ -44,6 +50,8 @@ class _PrivateChatSheetState extends State<PrivateChatSheet> {
   @override
   void dispose() {
     _controller.dispose();
+    _scrollController.dispose();
+    _messagesChannel?.unsubscribe();
     super.dispose();
   }
 
@@ -53,6 +61,8 @@ class _PrivateChatSheetState extends State<PrivateChatSheet> {
         widget.targetUserId,
       );
       final messages = await _service.fetchMessages(conversationId);
+      // Mark all received messages in this conversation as read.
+      unawaited(_service.markConversationRead(conversationId));
 
       if (!mounted) return;
 
@@ -62,6 +72,12 @@ class _PrivateChatSheetState extends State<PrivateChatSheet> {
         _loading = false;
         _error = null;
       });
+
+      // Scroll to the latest message after the list renders.
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+
+      // Subscribe to new messages in real time.
+      _subscribeToMessages(conversationId);
     } catch (error) {
       if (!mounted) return;
 
@@ -69,6 +85,47 @@ class _PrivateChatSheetState extends State<PrivateChatSheet> {
         _error = error.toString();
         _loading = false;
       });
+    }
+  }
+
+  void _subscribeToMessages(String conversationId) {
+    _messagesChannel = SupabaseService.requiredClient
+        .channel('chat_$conversationId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'private_messages',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'conversation_id',
+            value: conversationId,
+          ),
+          callback: (_) {
+            if (!mounted) return;
+            unawaited(_reloadMessages());
+          },
+        )
+        .subscribe();
+  }
+
+  Future<void> _reloadMessages() async {
+    final cid = _conversationId;
+    if (cid == null) return;
+    final messages = await _service.fetchMessages(cid);
+    unawaited(_service.markConversationRead(cid));
+    if (!mounted) return;
+    setState(() => _messages = messages);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients &&
+        _scrollController.position.hasContentDimensions) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
     }
   }
 
@@ -90,9 +147,8 @@ class _PrivateChatSheetState extends State<PrivateChatSheet> {
       if (conversationId != null) {
         final messages = await _service.fetchMessages(conversationId);
         if (mounted) {
-          setState(() {
-            _messages = messages;
-          });
+          setState(() => _messages = messages);
+          WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
         }
       } else {
         await _load();
@@ -190,6 +246,7 @@ class _PrivateChatSheetState extends State<PrivateChatSheet> {
                           ),
                         )
                       : ListView.builder(
+                          controller: _scrollController,
                           itemCount: _messages.length,
                           itemBuilder: (context, index) {
                             final message = _messages[index];

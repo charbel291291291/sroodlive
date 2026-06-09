@@ -130,7 +130,7 @@ class PrivateMessageService {
       final profileData = await client
           .from('profiles')
           .select(
-            'id, display_name, username, avatar_url, selected_avatar_frame_key',
+            'id, display_name, username, avatar_url, selected_avatar_frame_key, vip_level',
           )
           .inFilter('id', otherIds);
 
@@ -138,6 +138,19 @@ class PrivateMessageService {
         final profile = item as Map<String, dynamic>;
         profiles[profile['id'].toString()] = profile;
       }
+    }
+
+    // Fetch unread counts for all conversations in a single query (no N+1).
+    final unreadRows = await client
+        .from('private_messages')
+        .select('conversation_id')
+        .eq('receiver_id', user.id)
+        .filter('read_at', 'is', null);
+
+    final unreadMap = <String, int>{};
+    for (final item in unreadRows as List<dynamic>) {
+      final cid = (item as Map<String, dynamic>)['conversation_id']?.toString() ?? '';
+      if (cid.isNotEmpty) unreadMap[cid] = (unreadMap[cid] ?? 0) + 1;
     }
 
     return rows.map((item) {
@@ -152,19 +165,51 @@ class PrivateMessageService {
           : (profile?['username']?.toString().trim().isNotEmpty == true
                 ? profile!['username'].toString()
                 : _fallbackUserLabel(otherId));
+      final convId = row['id']?.toString() ?? '';
 
       return PrivateConversationPreview(
-        conversationId: row['id']?.toString() ?? '',
+        conversationId: convId,
         otherUserId: otherId,
         otherNickname: nickname,
         otherAvatarUrl: profile?['avatar_url']?.toString(),
         otherFrameId: profile?['selected_avatar_frame_key']?.toString(),
+        otherVipLevel: profile?['vip_level'] as int?,
         lastMessage: row['last_message']?.toString(),
         lastMessageAt: DateTime.tryParse(
           row['last_message_at']?.toString() ?? '',
         ),
+        unreadCount: unreadMap[convId] ?? 0,
       );
     }).toList();
+  }
+
+  /// Mark all unread messages in [conversationId] as read for the current user.
+  Future<void> markConversationRead(String conversationId) async {
+    final client = SupabaseService.requiredClient;
+    final user = client.auth.currentUser;
+    if (user == null) return;
+
+    await client
+        .from('private_messages')
+        .update({'read_at': DateTime.now().toUtc().toIso8601String()})
+        .eq('conversation_id', conversationId)
+        .eq('receiver_id', user.id)
+        .filter('read_at', 'is', null);
+  }
+
+  /// Returns total number of unread messages across all conversations.
+  Future<int> fetchTotalUnreadCount() async {
+    final client = SupabaseService.requiredClient;
+    final user = client.auth.currentUser;
+    if (user == null) return 0;
+
+    final data = await client
+        .from('private_messages')
+        .select('id')
+        .eq('receiver_id', user.id)
+        .filter('read_at', 'is', null);
+
+    return (data as List<dynamic>).length;
   }
 
   String _fallbackUserLabel(String userId) {

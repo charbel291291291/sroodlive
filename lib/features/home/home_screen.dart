@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/supabase/supabase_service.dart';
 import '../../main.dart';
+import '../messages/screens/messages_screen.dart';
 import '../profile/profile_screen.dart';
 import '../rooms/screens/rooms_screen.dart';
 import '../wallet/screens/wallet_screen.dart';
@@ -14,6 +15,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int selectedIndex = 0;
+  int _messagesUnread = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +24,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final pages = [
       RoomsScreen(isArabic: isArabic),
+      MessagesScreen(
+        isArabic: isArabic,
+        onUnreadChanged: (count) {
+          if (_messagesUnread != count) {
+            setState(() => _messagesUnread = count);
+          }
+        },
+      ),
       WalletScreen(isArabic: isArabic),
       ProfileScreen(isArabic: isArabic),
     ];
@@ -87,6 +97,25 @@ class _HomeScreenState extends State<HomeScreen> {
                   selectedIcon: const Icon(Icons.meeting_room_rounded),
                   icon: const Icon(Icons.meeting_room_outlined),
                   label: isArabic ? 'الغرف' : 'Rooms',
+                ),
+                NavigationDestination(
+                  selectedIcon: Badge(
+                    isLabelVisible: _messagesUnread > 0,
+                    label: Text(_messagesUnread > 99
+                        ? '99+'
+                        : '$_messagesUnread'),
+                    backgroundColor: const Color(0xFFFF4D6D),
+                    child: const Icon(Icons.chat_bubble_rounded),
+                  ),
+                  icon: Badge(
+                    isLabelVisible: _messagesUnread > 0,
+                    label: Text(_messagesUnread > 99
+                        ? '99+'
+                        : '$_messagesUnread'),
+                    backgroundColor: const Color(0xFFFF4D6D),
+                    child: const Icon(Icons.chat_bubble_outline_rounded),
+                  ),
+                  label: isArabic ? 'رسائل' : 'Messages',
                 ),
                 NavigationDestination(
                   selectedIcon: const Icon(
