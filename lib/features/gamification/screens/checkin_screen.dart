@@ -52,7 +52,7 @@ class _CheckinScreenState extends State<CheckinScreen> {
               color: isDiamond ? const Color(0xFF60A5FA) : const Color(0xFFF0C15A)),
           const SizedBox(width: 8),
           Text(widget.isArabic
-              ? 'تم تسجيل الحضور! +$rewardAmount ${isDiamond ? 'ماسة' : 'عملة'}'
+              ? '\u062a\u0645 \u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062d\u0636\u0648\u0631! +$rewardAmount ${isDiamond ? '\u0645\u0627\u0633\u0629' : '\u0639\u0645\u0644\u0629'}'
               : 'Checked in! +$rewardAmount ${isDiamond ? 'diamonds' : 'coins'}'),
         ]),
         backgroundColor: const Color(0xFF1B102A),
@@ -103,7 +103,7 @@ class _CheckinScreenState extends State<CheckinScreen> {
               icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
             ),
             Text(
-              widget.isArabic ? 'تسجيل الحضور' : 'Daily Check-in',
+              widget.isArabic ? '\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062d\u0636\u0648\u0631' : 'Daily Check-in',
               style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
             ),
           ],
@@ -146,7 +146,7 @@ class _CheckinScreenState extends State<CheckinScreen> {
             const SizedBox(height: 16),
             TextButton(
               onPressed: _load,
-              child: Text(widget.isArabic ? 'إعادة المحاولة' : 'Retry',
+              child: Text(widget.isArabic ? '\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629' : 'Retry',
                   style: const TextStyle(color: Color(0xFFF0C15A))),
             ),
           ],
@@ -185,7 +185,7 @@ class _StreakCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Text('🔥', style: TextStyle(fontSize: 48)),
+          const Text('\u{1F381}', style: TextStyle(fontSize: 34)),
           const SizedBox(height: 8),
           Text(
             '$streak',
@@ -198,7 +198,7 @@ class _StreakCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            isArabic ? 'يوم متتالي' : streak == 1 ? 'day streak' : 'day streak',
+            isArabic ? '\u064a\u0648\u0645 \u0645\u062a\u062a\u0627\u0644\u064a' : streak == 1 ? 'day streak' : 'day streak',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.8),
               fontSize: 16,
@@ -226,7 +226,7 @@ class _RewardCalendar extends StatelessWidget {
       crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
         Text(
-          isArabic ? 'مكافآت الأسبوع' : 'Weekly Rewards',
+          isArabic ? '\u0645\u0643\u0627\u0641\u0622\u062a \u0627\u0644\u0623\u0633\u0628\u0648\u0639' : 'Weekly Rewards',
           style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900),
         ),
         const SizedBox(height: 12),
@@ -299,7 +299,7 @@ class _DayCell extends StatelessWidget {
         child: Column(
           children: [
             Text(
-              isArabic ? 'ي${reward.day}' : 'D${reward.day}',
+              isArabic ? '\u064a${reward.day}' : 'D${reward.day}',
               style: TextStyle(
                 color: isToday ? const Color(0xFFF0C15A) : const Color(0xFF7A6890),
                 fontSize: 10,
@@ -359,7 +359,7 @@ class _CheckinButton extends StatelessWidget {
     final amt = r.rewardAmount >= 1000
         ? '${(r.rewardAmount / 1000).toStringAsFixed(r.rewardAmount % 1000 == 0 ? 0 : 1)}K'
         : '${r.rewardAmount}';
-    if (ar) return '+$amt ${isDiamond ? 'ماسة' : 'عملة'}';
+    if (ar) return '+$amt ${isDiamond ? '\u0645\u0627\u0633\u0629' : '\u0639\u0645\u0644\u0629'}';
     return '+$amt ${isDiamond ? 'diamonds' : 'coins'}';
   }
 
@@ -378,7 +378,7 @@ class _CheckinButton extends StatelessWidget {
           const Icon(Icons.check_circle_rounded, color: Color(0xFF2ECC71), size: 32),
           const SizedBox(height: 6),
           Text(
-            isArabic ? 'تم تسجيل حضورك اليوم ✓' : 'Already checked in today ✓',
+            isArabic ? '\u062a\u0645 \u062a\u0633\u062c\u064a\u0644 \u062d\u0636\u0648\u0631\u0643 \u0627\u0644\u064a\u0648\u0645 \u2713' : 'Already checked in today \u2713',
             style: const TextStyle(color: Color(0xFF2ECC71), fontSize: 15, fontWeight: FontWeight.w900),
           ),
           if (todayReward != null)
@@ -394,7 +394,7 @@ class _CheckinButton extends StatelessWidget {
       children: [
         if (todayReward != null) ...[
           Text(
-            isArabic ? "مكافأة اليوم" : "Today's reward",
+            isArabic ? '\u0645\u0643\u0627\u0641\u0623\u0629 \u0627\u0644\u064a\u0648\u0645' : "Today's reward",
             style: const TextStyle(color: Color(0xFF7A6890), fontSize: 13),
           ),
           const SizedBox(height: 4),
@@ -434,7 +434,7 @@ class _CheckinButton extends StatelessWidget {
                     child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFF160B26)),
                   )
                 : Text(
-                    isArabic ? 'تسجيل الحضور' : 'Check In',
+                    isArabic ? '\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062d\u0636\u0648\u0631' : 'Check In',
                     style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
                   ),
           ),
