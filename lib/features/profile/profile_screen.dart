@@ -15,6 +15,11 @@ import '../profile_hub/screens/my_income_screen.dart';
 import '../profile_hub/screens/my_level_screen.dart';
 import '../profile_hub/screens/settings_screen.dart';
 import '../profile_hub/widgets/profile_hub_widgets.dart';
+import '../gamification/screens/backpack_screen.dart';
+import '../gamification/screens/checkin_screen.dart';
+import '../gamification/screens/store_screen.dart';
+import '../gamification/screens/tasks_screen.dart';
+import '../gamification/screens/vip_center_screen.dart';
 import '../wallet/models/wallet.dart';
 import '../wallet/screens/wallet_screen.dart';
 import '../wallet/services/wallet_service.dart';
@@ -271,6 +276,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (mounted) {
       await _loadProfile();
     }
+  }
+
+  Future<void> _openStore() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => StoreScreen(isArabic: widget.isArabic)),
+    );
+    if (mounted) await _loadProfile();
+  }
+
+  Future<void> _openTasks() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => TasksScreen(isArabic: widget.isArabic)),
+    );
+  }
+
+  Future<void> _openCheckin() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => CheckinScreen(isArabic: widget.isArabic)),
+    );
+    if (mounted) await _loadProfile();
+  }
+
+  Future<void> _openBackpack() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => BackpackScreen(isArabic: widget.isArabic)),
+    );
+    if (mounted) await _loadProfile();
+  }
+
+  Future<void> _openVipCenter() async {
+    final expiresAt = DateTime.tryParse(
+      profile?['vip_expires_at']?.toString() ?? '',
+    );
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => VipCenterScreen(
+          isArabic: widget.isArabic,
+          currentVipLevel: _effectiveProfileVipLevel(),
+          vipExpiresAt: expiresAt,
+        ),
+      ),
+    );
   }
 
   Future<void> _copyPublicId(String publicUserId) async {
@@ -753,10 +800,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         _VipUpgradeBanner(
                           vipLevel: effectiveVipLevel,
                           isArabic: isArabic,
-                          onTap: () => _showSoon(
-                            'VIP store coming soon',
-                            '\u0645\u062a\u062c\u0631 VIP \u0642\u0631\u064a\u0628\u0627\u064b',
-                          ),
+                          onTap: _openVipCenter,
                         ),
                         const SizedBox(height: 14),
                         _BalanceCards(
@@ -769,22 +813,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const SizedBox(height: 14),
                         _ShortcutGrid(
                           isArabic: isArabic,
-                          onStore: () => _showSoon(
-                            'Store coming soon',
-                            '\u0627\u0644\u0645\u062a\u062c\u0631 \u0642\u0631\u064a\u0628\u0627\u064b',
-                          ),
-                          onTask: () => _showSoon(
-                            'Daily tasks coming soon',
-                            '\u0627\u0644\u0645\u0647\u0627\u0645 \u0627\u0644\u064a\u0648\u0645\u064a\u0629 \u0642\u0631\u064a\u0628\u0627\u064b',
-                          ),
-                          onCheckIn: () => _showSoon(
-                            'Check-in rewards coming soon',
-                            '\u0645\u0643\u0627\u0641\u0622\u062a \u0627\u0644\u062d\u0636\u0648\u0631 \u0642\u0631\u064a\u0628\u0627\u064b',
-                          ),
-                          onBackpack: () => _showSoon(
-                            'Backpack coming soon',
-                            '\u0627\u0644\u062d\u0642\u064a\u0628\u0629 \u0642\u0631\u064a\u0628\u0627\u064b',
-                          ),
+                          onStore: _openStore,
+                          onTask: _openTasks,
+                          onCheckIn: _openCheckin,
+                          onBackpack: _openBackpack,
                         ),
                         if (errorMessage != null) ...[
                           const SizedBox(height: 14),
