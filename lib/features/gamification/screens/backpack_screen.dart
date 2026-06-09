@@ -47,7 +47,7 @@ class _BackpackScreenState extends State<BackpackScreen> {
       await _service.equipBackpackItem(bp.id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(widget.isArabic ? 'تم التفعيل!' : 'Equipped!'),
+        content: Text(widget.isArabic ? '\u062a\u0645 \u0627\u0644\u062a\u0641\u0639\u064a\u0644!' : 'Equipped!'),
         backgroundColor: const Color(0xFF2ECC71),
       ));
       await _load();
@@ -95,7 +95,7 @@ class _BackpackScreenState extends State<BackpackScreen> {
               icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
             ),
             Text(
-              widget.isArabic ? 'الحقيبة' : 'Backpack',
+              widget.isArabic ? '\u0627\u0644\u062d\u0642\u064a\u0628\u0629' : 'Backpack',
               style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
             ),
           ],
@@ -104,9 +104,9 @@ class _BackpackScreenState extends State<BackpackScreen> {
 
   Widget _buildFilters() {
     final chips = [
-      ('all', widget.isArabic ? 'الكل' : 'All'),
-      ('avatar_frame', widget.isArabic ? 'الإطارات' : 'Frames'),
-      ('badge', widget.isArabic ? 'الشارات' : 'Badges'),
+      ('all', widget.isArabic ? '\u0627\u0644\u0643\u0644' : 'All'),
+      ('avatar_frame', widget.isArabic ? '\u0627\u0644\u0625\u0637\u0627\u0631\u0627\u062a' : 'Frames'),
+      ('badge', widget.isArabic ? '\u0627\u0644\u0634\u0627\u0631\u0627\u062a' : 'Badges'),
     ];
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
@@ -177,7 +177,7 @@ class _BackpackScreenState extends State<BackpackScreen> {
             const SizedBox(height: 16),
             TextButton(
               onPressed: _load,
-              child: Text(widget.isArabic ? 'إعادة المحاولة' : 'Retry',
+              child: Text(widget.isArabic ? '\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629' : 'Retry',
                   style: const TextStyle(color: Color(0xFFF0C15A))),
             ),
           ],
@@ -191,12 +191,12 @@ class _BackpackScreenState extends State<BackpackScreen> {
             const Icon(Icons.backpack_rounded, color: Color(0xFF4A3470), size: 56),
             const SizedBox(height: 12),
             Text(
-              widget.isArabic ? 'حقيبتك فارغة' : 'Your backpack is empty',
+              widget.isArabic ? '\u062d\u0642\u064a\u0628\u062a\u0643 \u0641\u0627\u0631\u063a\u0629' : 'Your backpack is empty',
               style: const TextStyle(color: Color(0xFF7A6890), fontSize: 15, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 6),
             Text(
-              widget.isArabic ? 'اشترِ عناصر من المتجر' : 'Buy items from the Store',
+              widget.isArabic ? '\u0627\u0634\u062a\u0631\u064a \u0648\u0641\u0639\u0651\u0644' : 'Equipped',
               style: const TextStyle(color: Color(0xFF4A3470), fontSize: 13),
             ),
           ],
@@ -277,7 +277,7 @@ class _BackpackItemCard extends StatelessWidget {
                           border: Border.all(color: const Color(0xFFF0C15A).withValues(alpha: 0.5)),
                         ),
                         child: Text(
-                          isArabic ? 'مفعّل' : 'Equipped',
+                          isArabic ? '\u0645\u0641\u0639\u0651\u0644' : 'Equipped',
                           style: const TextStyle(
                             color: Color(0xFFF0C15A), fontSize: 11, fontWeight: FontWeight.w900),
                         ),
@@ -305,7 +305,7 @@ class _BackpackItemCard extends StatelessWidget {
                         elevation: 0,
                       ),
                       child: Text(
-                        isArabic ? 'تفعيل' : 'Equip',
+                        isArabic ? '\u062a\u0641\u0639\u064a\u0644' : 'Equip',
                         style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12),
                       ),
                     ),
