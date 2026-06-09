@@ -3078,17 +3078,20 @@ class _OverviewGrid extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final cols = constraints.maxWidth > 900 ? 6
-            : constraints.maxWidth > 580 ? 3
-            : 2;
+        final w = constraints.maxWidth;
+        final cols = _statColumns(w);
+        // Fixed pixel height per cell — robust equivalent of an aspect
+        // ratio that can never derive a height smaller than the content,
+        // so RenderFlex overflow is structurally impossible at any width.
+        final cellHeight = cols == 1 ? 132.0 : 162.0;
         return GridView(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: cols,
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            mainAxisExtent: 110,
+            mainAxisSpacing: 14,
+            crossAxisSpacing: 14,
+            mainAxisExtent: cellHeight,
           ),
           children: items
               .map((item) => _AdminStatCard(
@@ -3096,11 +3099,20 @@ class _OverviewGrid extends StatelessWidget {
                     value: item.$2,
                     icon: item.$3,
                     color: item.$4,
+                    wide: cols == 1,
                   ))
               .toList(),
         );
       },
     );
+  }
+
+  /// Responsive column count for the stat grid.
+  static int _statColumns(double width) {
+    if (width >= 1300) return 6;
+    if (width >= 900) return 3;
+    if (width >= 600) return 2;
+    return 1;
   }
 }
 
@@ -3110,6 +3122,7 @@ class _AdminStatCard extends StatelessWidget {
     required this.value,
     required this.icon,
     this.color = _kGold,
+    this.wide = false,
   });
 
   final String label;
@@ -3117,60 +3130,99 @@ class _AdminStatCard extends StatelessWidget {
   final IconData icon;
   final Color color;
 
+  /// Full-width single-column layout (very small screens).
+  final bool wide;
+
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: _kSurface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: _kBorder),
-          gradient: LinearGradient(
-            begin: Alignment.centerLeft,
-            end: const Alignment(0.08, 0),
-            colors: [color.withValues(alpha: 0.18), Colors.transparent],
+    const iconBox = 44.0;
+    final number = FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Text(
+        _formatAdminCount(value),
+        maxLines: 1,
+        style: const TextStyle(
+          color: _kTxt,
+          fontSize: 30,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.8,
+          height: 1.0,
+        ),
+      ),
+    );
+    final caption = Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        color: _kMuted,
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        height: 1.2,
+      ),
+    );
+    final iconChip = Container(
+      width: iconBox,
+      height: iconBox,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(13),
+      ),
+      child: Icon(icon, color: color, size: 22),
+    );
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _kBorder),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [color.withValues(alpha: 0.10), Colors.transparent],
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33000000),
+            blurRadius: 18,
+            offset: Offset(0, 8),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 26,
-              height: 26,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(7),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        // Single-column screens: icon beside the number (compact height).
+        // Multi-column: stacked vertically with the icon on top.
+        child: wide
+            ? Row(
+                children: [
+                  iconChip,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Align(
+                            alignment: Alignment.centerLeft, child: number),
+                        const SizedBox(height: 4),
+                        caption,
+                      ],
+                    ),
+                  ),
+                ],
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  iconChip,
+                  const Spacer(),
+                  number,
+                  const SizedBox(height: 6),
+                  caption,
+                ],
               ),
-              child: Icon(icon, color: color, size: 13),
-            ),
-            const SizedBox(height: 7),
-            Text(
-              _formatAdminCount(value),
-              style: const TextStyle(
-                color: _kTxt,
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-                height: 1.0,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: _kMuted,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                height: 1.2,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
