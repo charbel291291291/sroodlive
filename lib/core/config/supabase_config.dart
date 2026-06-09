@@ -1,6 +1,16 @@
 class SupabaseConfig {
-  static const String url = String.fromEnvironment('SUPABASE_URL');
-  static const String anonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+  // The anon/publishable key is intentionally public — Supabase security
+  // relies on Row Level Security, not key secrecy.  These defaults let the
+  // app run without --dart-define flags.  Override via dart-define in CI/CD:
+  //   flutter build ... --dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=...
+  static const String url = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: 'https://xwcldazsjauaeywklukb.supabase.co',
+  );
+  static const String anonKey = String.fromEnvironment(
+    'SUPABASE_ANON_KEY',
+    defaultValue: 'sb_publishable_sVE1mM17eltYmn6y9nRdGg_WNXEC3qx',
+  );
 
   static bool get isConfigured {
     return url.isNotEmpty && anonKey.isNotEmpty;
