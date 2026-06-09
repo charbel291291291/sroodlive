@@ -704,7 +704,7 @@ class _RechargeRequestTile extends StatelessWidget {
 
     return _WalletListTile(
       icon: Icons.add_card_rounded,
-      title: '${request.methodLabel} â€¢ ${request.requestedCoins} coins',
+      title: '${request.methodLabel} • ${request.requestedCoins} coins',
       subtitle: detail,
       trailing: _StatusPill(
         label: request.statusLabel,

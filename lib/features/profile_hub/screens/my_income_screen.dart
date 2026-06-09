@@ -58,7 +58,7 @@ class _MyIncomeScreenState extends State<MyIncomeScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      isArabic ? 'Ø·Ù„Ø¨ Ø³Ø­Ø¨' : 'Payout request',
+                      isArabic ? 'طلب سحب' : 'Payout request',
                       style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
@@ -71,7 +71,7 @@ class _MyIncomeScreenState extends State<MyIncomeScreen> {
                         decimal: true,
                       ),
                       decoration: InputDecoration(
-                        labelText: isArabic ? 'Ø§Ù„Ù…Ø¨Ù„Øº USD' : 'Amount USD',
+                        labelText: isArabic ? 'المبلغ USD' : 'Amount USD',
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -88,7 +88,7 @@ class _MyIncomeScreenState extends State<MyIncomeScreen> {
                       onChanged: (value) =>
                           setSheetState(() => method = value ?? 'OMT'),
                       decoration: InputDecoration(
-                        labelText: isArabic ? 'Ø§Ù„Ø·Ø±ÙŠÙ‚Ø©' : 'Method',
+                        labelText: isArabic ? 'الطريقة' : 'Method',
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -97,7 +97,7 @@ class _MyIncomeScreenState extends State<MyIncomeScreen> {
                       maxLines: 3,
                       decoration: InputDecoration(
                         labelText: isArabic
-                            ? 'ØªÙØ§ØµÙŠÙ„ Ø§Ù„Ø­Ø³Ø§Ø¨'
+                            ? 'تفاصيل الحساب'
                             : 'Account details',
                       ),
                     ),
@@ -106,7 +106,7 @@ class _MyIncomeScreenState extends State<MyIncomeScreen> {
                       width: double.infinity,
                       child: FilledButton(
                         onPressed: () => Navigator.of(context).pop(true),
-                        child: Text(isArabic ? 'Ø¥Ø±Ø³Ø§Ù„' : 'Submit'),
+                        child: Text(isArabic ? 'إرسال' : 'Submit'),
                       ),
                     ),
                   ],
@@ -137,7 +137,7 @@ class _MyIncomeScreenState extends State<MyIncomeScreen> {
     final isArabic = widget.isArabic;
 
     return ProfileHubScaffold(
-      title: isArabic ? 'Ø¯Ø®Ù„ÙŠ' : 'My income',
+      title: isArabic ? 'دخلي' : 'My income',
       isArabic: isArabic,
       children: [
         FutureBuilder<
@@ -170,34 +170,34 @@ class _MyIncomeScreenState extends State<MyIncomeScreen> {
                 ProfileInfoCard(
                   icon: Icons.account_balance_wallet_rounded,
                   title: isArabic
-                      ? 'Ø§Ù„Ø±ØµÙŠØ¯ Ø§Ù„Ù…ØªØ§Ø­'
+                      ? 'الرصيد المتاح'
                       : 'Available income',
                   body:
                       '\$${account.availableBalanceUsd.toStringAsFixed(2)}\n'
-                      '${isArabic ? 'Ù‚ÙŠØ¯ Ø§Ù„Ù…Ø±Ø§Ø¬Ø¹Ø©' : 'Pending'}: \$${account.pendingBalanceUsd.toStringAsFixed(2)}\n'
-                      '${isArabic ? 'Ù…Ø¯Ù‰ Ø§Ù„Ø­ÙŠØ§Ø©' : 'Lifetime'}: \$${account.lifetimeIncomeUsd.toStringAsFixed(2)}\n'
-                      '${isArabic ? 'Ù…ÙƒØ§ÙØ¢Øª Ø§Ù„Ø¹Ù…Ù„Ø§Øª' : 'Coin rewards'}: ${account.availableCoinsReward}',
+                      '${isArabic ? 'قيد المراجعة' : 'Pending'}: \$${account.pendingBalanceUsd.toStringAsFixed(2)}\n'
+                      '${isArabic ? 'مدى الحياة' : 'Lifetime'}: \$${account.lifetimeIncomeUsd.toStringAsFixed(2)}\n'
+                      '${isArabic ? 'مكافآت العملات' : 'Coin rewards'}: ${account.availableCoinsReward}',
                   isArabic: isArabic,
                   action: FilledButton.icon(
                     onPressed: account.availableBalanceUsd > 0
                         ? () => _requestPayout(account.availableBalanceUsd)
                         : null,
                     icon: const Icon(Icons.payments_rounded),
-                    label: Text(isArabic ? 'Ø·Ù„Ø¨ Ø³Ø­Ø¨' : 'Request payout'),
+                    label: Text(isArabic ? 'طلب سحب' : 'Request payout'),
                   ),
                 ),
                 ProfileSectionTitle(
-                  title: isArabic ? 'Ø³Ø¬Ù„ Ø§Ù„Ø¯Ø®Ù„' : 'Income history',
+                  title: isArabic ? 'سجل الدخل' : 'Income history',
                   isArabic: isArabic,
                 ),
                 if (transactions.isEmpty)
                   ProfileEmptyState(
                     icon: Icons.savings_rounded,
                     title: isArabic
-                        ? 'Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ø¯Ø®Ù„ Ø¨Ø¹Ø¯'
+                        ? 'لا يوجد دخل بعد'
                         : 'No income yet',
                     description: isArabic
-                        ? 'Ø³ØªØ¸Ù‡Ø± Ù…ÙƒØ§ÙØ¢Øª Ø§Ù„Ù…Ø¶ÙŠÙ ÙˆØ§Ù„ÙˆÙƒØ§Ù„Ø© Ù‡Ù†Ø§ Ø¨Ø¹Ø¯ Ø§Ù„Ø§Ø¹ØªÙ…Ø§Ø¯.'
+                        ? 'ستظهر مكافآت المضيف والوكالة هنا بعد الاعتماد.'
                         : 'Host and agency rewards will appear here after approval.',
                     isArabic: isArabic,
                   )

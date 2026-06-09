@@ -35,7 +35,7 @@ class _BadgeScreenState extends State<BadgeScreen> {
     final isArabic = widget.isArabic;
 
     return ProfileHubScaffold(
-      title: isArabic ? 'Ø§Ù„Ø´Ø§Ø±Ø§Øª' : 'Badge',
+      title: isArabic ? 'الشارات' : 'Badge',
       isArabic: isArabic,
       children: [
         FutureBuilder<List<BadgeItem>>(
@@ -62,9 +62,9 @@ class _BadgeScreenState extends State<BadgeScreen> {
             if (badges.isEmpty) {
               return ProfileEmptyState(
                 icon: Icons.verified_rounded,
-                title: isArabic ? 'Ù„Ø§ ØªÙˆØ¬Ø¯ Ø´Ø§Ø±Ø§Øª' : 'No badges yet',
+                title: isArabic ? 'لا توجد شارات' : 'No badges yet',
                 description: isArabic
-                    ? 'Ø³ØªØ¸Ù‡Ø± Ø§Ù„Ø´Ø§Ø±Ø§Øª Ø§Ù„Ù…ØªØ§Ø­Ø© ÙˆØ§Ù„Ù…Ù‚ÙÙ„Ø© Ù‡Ù†Ø§.'
+                    ? 'ستظهر الشارات المتاحة والمقفلة هنا.'
                     : 'Owned and locked badges will appear here.',
                 isArabic: isArabic,
               );
@@ -81,13 +81,13 @@ class _BadgeScreenState extends State<BadgeScreen> {
                   ProfileInfoCard(
                     icon: Icons.workspace_premium_rounded,
                     title: isArabic
-                        ? 'Ø§Ù„Ø´Ø§Ø±Ø© Ø§Ù„Ù…Ø¬Ù‡Ø²Ø©'
+                        ? 'الشارة المجهزة'
                         : 'Equipped badge',
                     body: equipped.first.name,
                     isArabic: isArabic,
                   ),
                 ProfileSectionTitle(
-                  title: isArabic ? 'ÙƒÙ„ Ø§Ù„Ø´Ø§Ø±Ø§Øª' : 'All badges',
+                  title: isArabic ? 'كل الشارات' : 'All badges',
                   isArabic: isArabic,
                 ),
                 GridView.builder(
@@ -172,10 +172,10 @@ class _BadgeGridItem extends StatelessWidget {
           Text(
             badge.isOwned
                 ? (badge.isEquipped
-                      ? (isArabic ? 'Ù…Ø¬Ù‡Ø²Ø©' : 'Equipped')
+                      ? (isArabic ? 'مجهزة' : 'Equipped')
                       : badge.rarity)
                 : (lockedText.isEmpty
-                      ? (isArabic ? 'Ù…Ù‚ÙÙ„Ø©' : 'Locked')
+                      ? (isArabic ? 'مقفلة' : 'Locked')
                       : lockedText),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -191,7 +191,7 @@ class _BadgeGridItem extends StatelessWidget {
               width: double.infinity,
               child: OutlinedButton(
                 onPressed: onEquip,
-                child: Text(isArabic ? 'ØªØ¬Ù‡ÙŠØ²' : 'Equip'),
+                child: Text(isArabic ? 'تجهيز' : 'Equip'),
               ),
             ),
         ],
