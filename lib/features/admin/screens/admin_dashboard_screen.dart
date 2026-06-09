@@ -7,6 +7,24 @@ import '../services/admin_service.dart';
 
 enum _AdminModule { overview, finance, users, bd, content, rooms, audit }
 
+// ─────────────────────────────────────────────
+// Design tokens — edit here to restyle the panel
+// ─────────────────────────────────────────────
+const _kBg         = Color(0xFF0C0E14); // main page bg
+const _kSurface    = Color(0xFF141720); // card bg
+const _kSidebar    = Color(0xFF0F1117); // sidebar bg
+const _kBorder     = Color(0xFF1E2435); // default border
+const _kGold       = Color(0xFFF0C15A); // brand / icon accent
+const _kGreen      = Color(0xFF22C55E); // active / approved
+const _kAmber      = Color(0xFFF59E0B); // pending / warning
+const _kRed        = Color(0xFFEF4444); // rejected / danger
+const _kBlue       = Color(0xFF60A5FA); // info / coins
+const _kPurple     = Color(0xFF8B5CF6); // accent / gifts
+const _kTxt        = Color(0xFFF1F5F9); // primary text
+const _kMuted      = Color(0xFF64748B); // muted text
+const _kNavActive  = Color(0xFF1A2040); // selected nav bg
+const _kNavAccent  = Color(0xFF6366F1); // selected nav left bar
+
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({required this.isArabic, super.key});
 
@@ -282,19 +300,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Future<void> _assignRole(AdminUserSummary user) async {
     final role = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: const Color(0xFF12091D),
+      backgroundColor: _kSurface,
       builder: (context) => SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(18),
           shrinkWrap: true,
           children: [
-            const Text(
+            Text(
               'Assign role',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-              ),
+              style: _titleStyle.copyWith(fontSize: 20),
             ),
             const SizedBox(height: 12),
             ...AdminRoleSpec.all.map(
@@ -302,7 +316,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 enabled: !user.roles.contains(spec.role),
                 leading: const Icon(
                   Icons.admin_panel_settings_rounded,
-                  color: Color(0xFFF0C15A),
+                  color: _kGold,
                 ),
                 title: Text(spec.label),
                 subtitle: Text(spec.description),
@@ -478,7 +492,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       await showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
-        backgroundColor: const Color(0xFF09040F),
+        backgroundColor: _kSurface,
         builder: (context) => _UserDetailSheet(
           detail: detail,
           ledger: ledger,
@@ -769,7 +783,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF140820),
+        backgroundColor: _kSurface,
         title: Text(title),
         content: Text(body),
         actions: [
@@ -792,12 +806,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF140820),
+        backgroundColor: _kSurface,
         title: Text(title),
-        content: TextField(
+        content: _AdminTextField(
           controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(labelText: label),
+          label: label,
+          icon: Icons.edit_rounded,
         ),
         actions: [
           TextButton(
@@ -814,18 +828,29 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(color: _kTxt)),
+        backgroundColor: _kSurface,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: const BorderSide(color: _kBorder),
+        ),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF07030D),
+      backgroundColor: _kBg,
       body: SafeArea(
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? Center(
+                child: CircularProgressIndicator(
+                  color: _kGold, strokeWidth: 2.5))
             : !_canAccess
             ? _adminService.currentEmail == null
                   ? _AdminLoginPanel(
@@ -843,6 +868,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 icon: Icons.error_outline_rounded,
                 title: 'Could not load dashboard',
                 subtitle: _error!,
+                onRetry: _load,
               )
             : LayoutBuilder(
                 builder: (context, constraints) {
@@ -853,6 +879,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         _AdminSideNav(
                           selected: _module,
                           roles: _roles,
+                          pendingCount: _pending.length,
                           onSelected: (module) =>
                               setState(() => _module = module),
                         ),
@@ -865,19 +892,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               onSignOut: _adminSignOut,
                               showTabs: narrow,
                               selected: _module,
+                              pendingCount: _pending.length,
                               onSelected: (module) =>
                                   setState(() => _module = module),
                             ),
                             Expanded(
                               child: RefreshIndicator(
+                                color: _kGold,
+                                backgroundColor: _kSurface,
                                 onRefresh: _load,
                                 child: ListView(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    18,
-                                    12,
-                                    18,
-                                    36,
-                                  ),
+                                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
                                   children: [_buildModule()],
                                 ),
                               ),
@@ -1384,49 +1409,120 @@ class _AdminLoginPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 460),
-        child: _AdminCard(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const _AdminBrand(),
-              const SizedBox(height: 22),
-              Text('Admin Login', style: _titleStyle.copyWith(fontSize: 28)),
-              const SizedBox(height: 6),
-              Text(
-                'Sign in with an account that has an admin role.',
-                style: _mutedStyle,
-              ),
-              const SizedBox(height: 18),
-              TextField(
-                controller: emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.mail_rounded),
+    return Container(
+      color: _kBg,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: _AdminCard(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const _AdminBrand(),
+                const SizedBox(height: 28),
+                const Divider(color: _kBorder, height: 1),
+                const SizedBox(height: 24),
+                const Text(
+                  'Sign in to Admin Console',
+                  style: TextStyle(
+                    color: _kTxt, fontSize: 20, fontWeight: FontWeight.w800),
                 ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: passwordController,
-                obscureText: true,
-                onSubmitted: (_) => onLogin(),
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  prefixIcon: Icon(Icons.lock_rounded),
+                const SizedBox(height: 6),
+                const Text(
+                  'Use an account with an assigned admin role.',
+                  style: _mutedStyle,
                 ),
-              ),
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: onLogin,
-                icon: const Icon(Icons.login_rounded),
-                label: const Text('Enter Admin'),
-              ),
-            ],
-          ),
+                const SizedBox(height: 22),
+                _AdminTextField(
+                  controller: emailController,
+                  label: 'Email address',
+                  icon: Icons.mail_outline_rounded,
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: 12),
+                _AdminTextField(
+                  controller: passwordController,
+                  label: 'Password',
+                  icon: Icons.lock_outline_rounded,
+                  obscure: true,
+                  onSubmitted: (_) => onLogin(),
+                ),
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  onPressed: onLogin,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _kNavAccent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  icon: const Icon(Icons.login_rounded, size: 18),
+                  label: const Text('Sign in',
+                      style: TextStyle(fontWeight: FontWeight.w700)),
+                ),
+              ],
+            ),
+          ),   // _AdminCard
+        ),     // ConstrainedBox
+      ),       // Center
+    );         // Container
+  }
+}
+
+/// Styled text field matching the admin dark theme.
+class _AdminTextField extends StatelessWidget {
+  const _AdminTextField({
+    required this.controller,
+    required this.label,
+    required this.icon,
+    this.keyboardType,
+    this.obscure = false,
+    this.onSubmitted,
+    this.maxLines = 1,
+    this.helper,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final IconData icon;
+  final TextInputType? keyboardType;
+  final bool obscure;
+  final ValueChanged<String>? onSubmitted;
+  final int? maxLines;
+  final String? helper;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      obscureText: obscure,
+      maxLines: maxLines,
+      onSubmitted: onSubmitted,
+      style: const TextStyle(color: _kTxt, fontSize: 14),
+      decoration: InputDecoration(
+        labelText: label,
+        helperText: helper,
+        prefixIcon: Icon(icon, color: _kMuted, size: 18),
+        labelStyle: const TextStyle(color: _kMuted, fontSize: 13),
+        helperStyle: const TextStyle(color: _kMuted, fontSize: 11),
+        filled: true,
+        fillColor: _kBg,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: _kBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: _kBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: _kNavAccent, width: 1.5),
         ),
       ),
     );
@@ -1452,32 +1548,38 @@ class _FinanceReportCard extends StatelessWidget {
       );
     }
 
+    // (label, value, icon, color)
     final stats = [
-      ('Approved', item.approvedRecharges, Icons.verified_rounded),
-      ('Rejected', item.rejectedRecharges, Icons.cancel_rounded),
-      ('Pending', item.pendingRecharges, Icons.pending_actions_rounded),
-      ('Coins', item.coinsCharged, Icons.monetization_on_rounded),
-      ('Gift spend', item.giftCoinsSpent, Icons.card_giftcard_rounded),
-      ('Adjustments', item.manualAdjustmentCount, Icons.tune_rounded),
+      ('Approved',    item.approvedRecharges,      Icons.verified_rounded,        _kGreen),
+      ('Rejected',    item.rejectedRecharges,       Icons.cancel_rounded,          _kRed),
+      ('Pending',     item.pendingRecharges,        Icons.pending_actions_rounded, _kAmber),
+      ('Coins In',    item.coinsCharged,            Icons.monetization_on_rounded, _kBlue),
+      ('Gift Spend',  item.giftCoinsSpent,          Icons.card_giftcard_rounded,   _kPurple),
+      ('Adjustments', item.manualAdjustmentCount,   Icons.tune_rounded,            _kMuted),
     ];
 
     return _AdminSectionCard(
-      title: 'Finance Report Today',
-      child: Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        children: stats
-            .map(
-              (stat) => SizedBox(
-                width: 150,
-                child: _AdminStatCard(
-                  label: stat.$1,
-                  value: stat.$2,
-                  icon: stat.$3,
-                ),
-              ),
-            )
-            .toList(),
+      title: 'Finance Report — Today',
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final cols = constraints.maxWidth > 500 ? 3 : 2;
+          return GridView.count(
+            crossAxisCount: cols,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 1.7,
+            children: stats
+                .map((s) => _AdminStatCard(
+                      label: s.$1,
+                      value: s.$2,
+                      icon: s.$3,
+                      color: s.$4,
+                    ))
+                .toList(),
+          );
+        },
       ),
     );
   }
@@ -1778,7 +1880,7 @@ class _UserEditDialogState extends State<_UserEditDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color(0xFF140820),
+      backgroundColor: _kSurface,
       title: const Text('Edit user'),
       content: SizedBox(
         width: 460,
@@ -1905,7 +2007,7 @@ class _GiftEditDialogState extends State<_GiftEditDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color(0xFF140820),
+      backgroundColor: _kSurface,
       title: Text(widget.gift == null ? 'Create gift' : 'Edit gift'),
       content: SizedBox(
         width: 480,
@@ -2549,7 +2651,7 @@ class _CatalogEditDialogShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color(0xFF140820),
+      backgroundColor: _kSurface,
       title: Text(title),
       content: SizedBox(
         width: 500,
@@ -2572,43 +2674,69 @@ class _AdminSideNav extends StatelessWidget {
   const _AdminSideNav({
     required this.selected,
     required this.roles,
+    required this.pendingCount,
     required this.onSelected,
   });
 
   final _AdminModule selected;
   final List<String> roles;
+  final int pendingCount;
   final ValueChanged<_AdminModule> onSelected;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 252,
+      width: 256,
       decoration: const BoxDecoration(
-        color: Color(0xFF0D0614),
-        border: Border(right: BorderSide(color: Color(0xFF35204F))),
+        color: _kSidebar,
+        border: Border(right: BorderSide(color: _kBorder)),
       ),
-      child: ListView(
-        padding: const EdgeInsets.all(16),
+      child: Column(
         children: [
-          const SizedBox(height: 10),
-          const _AdminBrand(),
-          const SizedBox(height: 24),
-          ..._AdminModule.values.map(
-            (module) => _NavItem(
-              module: module,
-              selected: selected == module,
-              onTap: () => onSelected(module),
+          // Brand header
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 20, 20, 0),
+            child: _AdminBrand(),
+          ),
+          const SizedBox(height: 8),
+          const Divider(color: _kBorder, height: 24, indent: 16, endIndent: 16),
+          // Nav items
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              children: _AdminModule.values
+                  .map((module) => _NavItem(
+                        module: module,
+                        selected: selected == module,
+                        badge: module == _AdminModule.finance && pendingCount > 0
+                            ? pendingCount
+                            : 0,
+                        onTap: () => onSelected(module),
+                      ))
+                  .toList(),
             ),
           ),
-          const SizedBox(height: 18),
-          Text('Current roles', style: _mutedStyle),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: roles.isEmpty
-                ? const [_RoleChip(label: 'no role')]
-                : roles.map((role) => _RoleChip(label: role)).toList(),
+          // Roles footer
+          const Divider(color: _kBorder, height: 1, indent: 16, endIndent: 16),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Your roles',
+                    style: TextStyle(color: _kMuted, fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.6)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: roles.isEmpty
+                      ? const [_StatusBadge(label: 'no role')]
+                      : roles.map((r) => _StatusBadge(label: r)).toList(),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -2623,6 +2751,7 @@ class _AdminTopBar extends StatelessWidget {
     required this.onSignOut,
     required this.showTabs,
     required this.selected,
+    required this.pendingCount,
     required this.onSelected,
   });
 
@@ -2631,62 +2760,105 @@ class _AdminTopBar extends StatelessWidget {
   final VoidCallback onSignOut;
   final bool showTabs;
   final _AdminModule selected;
+  final int pendingCount;
   final ValueChanged<_AdminModule> onSelected;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
       decoration: const BoxDecoration(
-        color: Color(0xFF09040F),
-        border: Border(bottom: BorderSide(color: Color(0xFF35204F))),
+        color: _kSurface,
+        border: Border(bottom: BorderSide(color: _kBorder)),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              if (showTabs) const _AdminBrand(compact: true),
-              if (!showTabs)
-                Text(
-                  'Admin Console',
-                  style: _titleStyle.copyWith(fontSize: 22),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 12, 12),
+            child: Row(
+              children: [
+                if (showTabs) const _AdminBrand(compact: true),
+                if (!showTabs) ...[
+                  Text(
+                    _moduleLabel(selected),
+                    style: const TextStyle(
+                      color: _kTxt, fontSize: 17, fontWeight: FontWeight.w800),
+                  ),
+                  if (pendingCount > 0 &&
+                      selected == _AdminModule.finance) ...[
+                    const SizedBox(width: 8),
+                    _StatusBadge(label: '$pendingCount pending'),
+                  ],
+                ],
+                const Spacer(),
+                _StatusBadge(
+                    label: roles.isEmpty ? 'no role' : roles.first),
+                IconButton(
+                  onPressed: onRefresh,
+                  tooltip: 'Refresh',
+                  icon: const Icon(Icons.refresh_rounded,
+                      color: _kGold, size: 20),
                 ),
-              const Spacer(),
-              _RoleChip(label: roles.isEmpty ? 'no role' : roles.first),
-              const SizedBox(width: 8),
-              IconButton(
-                onPressed: onRefresh,
-                icon: const Icon(
-                  Icons.refresh_rounded,
-                  color: Color(0xFFF0C15A),
+                IconButton(
+                  onPressed: onSignOut,
+                  tooltip: 'Sign out',
+                  icon: const Icon(Icons.logout_rounded,
+                      color: _kMuted, size: 20),
                 ),
-              ),
-              IconButton(
-                onPressed: onSignOut,
-                icon: const Icon(Icons.logout_rounded, color: Colors.white70),
-              ),
-            ],
+              ],
+            ),
           ),
-          if (showTabs) ...[
-            const SizedBox(height: 12),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: _AdminModule.values
-                    .map(
-                      (module) => Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: ChoiceChip(
-                          selected: selected == module,
-                          label: Text(_moduleLabel(module)),
-                          onSelected: (_) => onSelected(module),
+          // Mobile tab row
+          if (showTabs)
+            SizedBox(
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                children: _AdminModule.values.map((module) {
+                  final active = selected == module;
+                  final hasBadge =
+                      module == _AdminModule.finance && pendingCount > 0;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: GestureDetector(
+                      onTap: () => onSelected(module),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: active ? _kNavAccent : _kBg,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: active ? _kNavAccent : _kBorder),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _moduleLabel(module),
+                              style: TextStyle(
+                                color: active ? _kTxt : _kMuted,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (hasBadge) ...[
+                              const SizedBox(width: 5),
+                              Container(
+                                width: 7, height: 7,
+                                decoration: const BoxDecoration(
+                                    color: _kAmber, shape: BoxShape.circle),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                    )
-                    .toList(),
+                    ),
+                  );
+                }).toList(),
               ),
             ),
-          ],
         ],
       ),
     );
@@ -2708,14 +2880,14 @@ class _AdminBrand extends StatelessWidget {
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(compact ? 12 : 14),
-            border: Border.all(color: const Color(0xFFF0C15A)),
+            border: Border.all(color: _kGold),
           ),
           child: Image.asset(
             BrandingAssets.appIcon,
             fit: BoxFit.cover,
             filterQuality: FilterQuality.high,
             errorBuilder: (context, error, stackTrace) =>
-                const Icon(Icons.graphic_eq_rounded, color: Color(0xFFF0C15A)),
+                const Icon(Icons.graphic_eq_rounded, color: _kGold),
           ),
         ),
         const SizedBox(width: 10),
@@ -2736,38 +2908,80 @@ class _NavItem extends StatelessWidget {
     required this.module,
     required this.selected,
     required this.onTap,
+    this.badge = 0,
   });
 
   final _AdminModule module;
   final bool selected;
   final VoidCallback onTap;
+  final int badge;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: selected ? const Color(0xFF2A183D) : Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            child: Row(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Material(
+          color: selected ? _kNavActive : Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            child: Stack(
               children: [
-                Icon(
-                  _moduleIcon(module),
-                  color: selected ? const Color(0xFFF0C15A) : Colors.white70,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    _moduleLabel(module),
-                    style: TextStyle(
-                      color: selected ? Colors.white : const Color(0xFFBCAED6),
-                      fontWeight: FontWeight.w900,
+                // Left accent bar
+                if (selected)
+                  Positioned(
+                    left: 0, top: 0, bottom: 0,
+                    child: Container(
+                      width: 3,
+                      decoration: const BoxDecoration(
+                        color: _kNavAccent,
+                        borderRadius: BorderRadius.horizontal(
+                            right: Radius.circular(3)),
+                      ),
                     ),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 11),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _moduleIcon(module),
+                        size: 18,
+                        color: selected ? _kTxt : _kMuted,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _moduleLabel(module),
+                          style: TextStyle(
+                            color: selected ? _kTxt : _kMuted,
+                            fontSize: 13,
+                            fontWeight: selected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      if (badge > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: _kAmber,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            badge > 99 ? '99+' : '$badge',
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ],
@@ -2794,19 +3008,21 @@ class _ModuleTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _AdminCard(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
-            width: 52,
-            height: 52,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              color: const Color(0xFFF0C15A).withValues(alpha: 0.14),
+              color: _kGold.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: const Color(0xFFF0C15A), size: 28),
+            child: Icon(icon, color: _kGold, size: 20),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2818,16 +3034,21 @@ class _ModuleTitle extends StatelessWidget {
                         title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: _titleStyle,
+                        style: const TextStyle(
+                          color: _kTxt,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
+                        ),
                       ),
                     ),
                     if (locked) ...[
                       const SizedBox(width: 8),
-                      const _RoleChip(label: 'view only'),
+                      const _StatusBadge(label: 'view only'),
                     ],
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(subtitle, style: _mutedStyle),
               ],
             ),
@@ -2845,53 +3066,35 @@ class _OverviewGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // (label, value, icon, color)
     final items = [
-      ('Pending', overview?.pendingRechargeCount ?? 0, Icons.pending_actions),
-      (
-        'Approved Today',
-        overview?.approvedRechargeCountToday ?? 0,
-        Icons.verified,
-      ),
-      (
-        'Coins Today',
-        overview?.totalCoinsChargedToday ?? 0,
-        Icons.monetization_on,
-      ),
-      (
-        'Gift Spend',
-        overview?.totalGiftCoinsSpentToday ?? 0,
-        Icons.card_giftcard,
-      ),
-      ('Diamonds', overview?.totalDiamondsEarnedToday ?? 0, Icons.diamond),
-      (
-        'Gifts Today',
-        overview?.totalGiftTransactionsToday ?? 0,
-        Icons.auto_awesome,
-      ),
+      ('Pending',       overview?.pendingRechargeCount ?? 0,       Icons.pending_actions_rounded, _kAmber),
+      ('Approved Today',overview?.approvedRechargeCountToday ?? 0, Icons.verified_rounded,        _kGreen),
+      ('Coins Today',   overview?.totalCoinsChargedToday ?? 0,     Icons.monetization_on_rounded, _kBlue),
+      ('Gift Spend',    overview?.totalGiftCoinsSpentToday ?? 0,   Icons.card_giftcard_rounded,   _kPurple),
+      ('Diamonds',      overview?.totalDiamondsEarnedToday ?? 0,   Icons.diamond_rounded,         _kNavAccent),
+      ('Gifts Today',   overview?.totalGiftTransactionsToday ?? 0, Icons.auto_awesome_rounded,    _kGold),
     ];
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth > 1040
-            ? 6
-            : constraints.maxWidth > 760
-            ? 3
+        final cols = constraints.maxWidth > 900 ? 6
+            : constraints.maxWidth > 580 ? 3
             : 2;
         return GridView.count(
-          crossAxisCount: columns,
+          crossAxisCount: cols,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           mainAxisSpacing: 10,
           crossAxisSpacing: 10,
-          childAspectRatio: columns == 2 ? 1.55 : 1.9,
+          childAspectRatio: cols == 2 ? 1.6 : 1.55,
           children: items
-              .map(
-                (item) => _AdminStatCard(
-                  label: item.$1,
-                  value: item.$2,
-                  icon: item.$3,
-                ),
-              )
+              .map((item) => _AdminStatCard(
+                    label: item.$1,
+                    value: item.$2,
+                    icon: item.$3,
+                    color: item.$4,
+                  ))
               .toList(),
         );
       },
@@ -2904,30 +3107,61 @@ class _AdminStatCard extends StatelessWidget {
     required this.label,
     required this.value,
     required this.icon,
+    this.color = _kGold,
   });
 
   final String label;
   final int value;
   final IconData icon;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return _AdminCard(
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _kBorder),
+        // Colored left accent bar
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: const Alignment(0.08, 0),
+          colors: [color.withValues(alpha: 0.18), Colors.transparent],
+        ),
+      ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Icon(icon, color: const Color(0xFFF0C15A), size: 22),
-          const SizedBox(height: 14),
+          // Icon chip top-left
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 16),
+          ),
+          const Spacer(),
           Text(
             _formatAdminCount(value),
-            style: _titleStyle.copyWith(fontSize: 24),
+            style: TextStyle(
+              color: _kTxt,
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+              height: 1,
+            ),
           ),
+          const SizedBox(height: 4),
           Text(
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: _mutedStyle.copyWith(fontSize: 12),
+            style: const TextStyle(
+              color: _kMuted, fontSize: 11, fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -2974,18 +3208,51 @@ class _AdminSectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _AdminCard(
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kBorder),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(child: Text(title, style: _titleStyle)),
-              ?action,
-            ],
+          // Header row with left accent bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 12, 0),
+            child: Row(
+              children: [
+                Container(
+                  width: 3,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: _kNavAccent,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      color: _kTxt,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.1,
+                    ),
+                  ),
+                ),
+                ?action,
+              ],
+            ),
           ),
-          const SizedBox(height: 12),
-          child,
+          const SizedBox(height: 2),
+          const Divider(color: _kBorder, height: 16, indent: 16, endIndent: 16),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+            child: child,
+          ),
         ],
       ),
     );
@@ -3019,10 +3286,26 @@ class _RechargeRequestTile extends StatelessWidget {
               children: [
                 OutlinedButton(
                   onPressed: onReject,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _kRed,
+                    side: const BorderSide(color: _kRed),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 8),
+                    textStyle: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w700),
+                  ),
                   child: const Text('Reject'),
                 ),
                 FilledButton(
                   onPressed: onApprove,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _kGreen,
+                    foregroundColor: Colors.black87,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 8),
+                    textStyle: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w700),
+                  ),
                   child: const Text('Approve'),
                 ),
               ],
@@ -3063,18 +3346,21 @@ class _WalletLookupCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextField(
+          _AdminTextField(
             controller: lookupController,
+            label: 'Public user ID',
+            icon: Icons.search_rounded,
             onSubmitted: (_) => onSearch(),
-            decoration: const InputDecoration(
-              labelText: 'Public user ID',
-              prefixIcon: Icon(Icons.search_rounded),
-            ),
           ),
           const SizedBox(height: 10),
           FilledButton.icon(
             onPressed: onSearch,
-            icon: const Icon(Icons.search_rounded),
+            style: FilledButton.styleFrom(
+              backgroundColor: _kNavAccent,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            ),
+            icon: const Icon(Icons.search_rounded, size: 16),
             label: const Text('Search wallet'),
           ),
           if (item != null) ...[
@@ -3082,9 +3368,9 @@ class _WalletLookupCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFF0B0612),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFF3E285E)),
+                color: _kBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _kBorder),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -3094,7 +3380,7 @@ class _WalletLookupCard extends StatelessWidget {
                     children: [
                       const Icon(
                         Icons.account_balance_wallet_rounded,
-                        color: Color(0xFFF0C15A),
+                        color: _kGold,
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -3120,33 +3406,37 @@ class _WalletLookupCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
+            _AdminTextField(
               controller: coinsController,
+              label: 'Coins delta',
+              icon: Icons.toll_rounded,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Coins delta',
-                helperText: 'Use positive or negative number',
-              ),
+              helper: 'Use positive or negative number',
             ),
             const SizedBox(height: 10),
-            TextField(
+            _AdminTextField(
               controller: diamondsController,
+              label: 'Diamonds delta',
+              icon: Icons.diamond_rounded,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Diamonds delta',
-                helperText: 'Use positive or negative number',
-              ),
+              helper: 'Use positive or negative number',
             ),
             const SizedBox(height: 10),
-            TextField(
+            _AdminTextField(
               controller: noteController,
-              maxLines: 2,
-              decoration: const InputDecoration(labelText: 'Admin note'),
+              label: 'Admin note',
+              icon: Icons.notes_rounded,
+              maxLines: 3,
             ),
             const SizedBox(height: 12),
             FilledButton.icon(
               onPressed: canFinance ? onAdjust : null,
-              icon: const Icon(Icons.tune_rounded),
+              style: FilledButton.styleFrom(
+                backgroundColor: _kNavAccent,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              ),
+              icon: const Icon(Icons.tune_rounded, size: 16),
               label: const Text('Apply adjustment'),
             ),
           ],
@@ -3171,13 +3461,21 @@ class _SearchRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final field = TextField(
+        final field = _AdminTextField(
           controller: controller,
+          label: label,
+          icon: Icons.search_rounded,
           onSubmitted: (_) => onSearch(),
-          decoration: InputDecoration(
-            labelText: label,
-            prefixIcon: const Icon(Icons.search_rounded),
+        );
+        final btn = FilledButton.icon(
+          onPressed: onSearch,
+          style: FilledButton.styleFrom(
+            backgroundColor: _kNavAccent,
+            padding:
+                const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
           ),
+          icon: const Icon(Icons.search_rounded, size: 16),
+          label: const Text('Search'),
         );
         if (constraints.maxWidth < 520) {
           return Column(
@@ -3185,7 +3483,7 @@ class _SearchRow extends StatelessWidget {
             children: [
               field,
               const SizedBox(height: 8),
-              FilledButton(onPressed: onSearch, child: const Text('Search')),
+              btn,
             ],
           );
         }
@@ -3193,7 +3491,7 @@ class _SearchRow extends StatelessWidget {
           children: [
             Expanded(child: field),
             const SizedBox(width: 10),
-            FilledButton(onPressed: onSearch, child: const Text('Search')),
+            btn,
           ],
         );
       },
@@ -3375,12 +3673,11 @@ class _GiftAdminCard extends StatelessWidget {
       width: 190,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1B102B),
-        borderRadius: BorderRadius.circular(18),
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: gift.isActive
-              ? const Color(0xFFF0C15A)
-              : const Color(0xFF5A3A86),
+          color: gift.isActive ? _kGreen : _kBorder,
+          width: gift.isActive ? 1.5 : 1,
         ),
       ),
       child: Column(
@@ -3424,7 +3721,7 @@ class _GiftIcon extends StatelessWidget {
     }
     return const Icon(
       Icons.card_giftcard_rounded,
-      color: Color(0xFFF0C15A),
+      color: _kGold,
       size: 42,
     );
   }
@@ -3452,10 +3749,11 @@ class _CatalogChip extends StatelessWidget {
         width: 190,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFF1B102B),
-          borderRadius: BorderRadius.circular(16),
+          color: _kSurface,
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: active ? const Color(0xFFF0C15A) : const Color(0xFF5A3A86),
+            color: active ? _kNavAccent : _kBorder,
+            width: active ? 1.5 : 1,
           ),
         ),
         child: Column(
@@ -3468,16 +3766,13 @@ class _CatalogChip extends StatelessWidget {
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                    ),
+                    style: _titleStyle.copyWith(fontSize: 14),
                   ),
                 ),
                 if (onTap != null)
                   const Icon(
                     Icons.edit_rounded,
-                    color: Color(0xFFF0C15A),
+                    color: _kNavAccent,
                     size: 16,
                   ),
               ],
@@ -3548,10 +3843,12 @@ class _WalletTransactionTile extends StatelessWidget {
           '${transaction.nickname ?? transaction.publicUserId ?? transaction.userId} - ${transaction.type}',
       subtitle: transaction.note ?? _dateLabel(transaction.createdAt),
       trailing: Text(
-        '${transaction.coinsDelta}c / ${transaction.diamondsDelta}d',
-        style: const TextStyle(
-          color: Color(0xFFF0C15A),
+        '${transaction.coinsDelta >= 0 ? '+' : ''}${transaction.coinsDelta}c'
+        ' / ${transaction.diamondsDelta >= 0 ? '+' : ''}${transaction.diamondsDelta}d',
+        style: TextStyle(
+          color: transaction.coinsDelta >= 0 ? _kGreen : _kRed,
           fontWeight: FontWeight.w900,
+          fontSize: 13,
         ),
       ),
     );
@@ -3613,16 +3910,16 @@ class _AdminListTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1B102B),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF5A3A86)),
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _kBorder),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final narrow = constraints.maxWidth < 620;
           final leading = Row(
             children: [
-              Icon(icon, color: const Color(0xFFF0C15A)),
+              Icon(icon, color: _kMuted, size: 20),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -3632,10 +3929,7 @@ class _AdminListTile extends StatelessWidget {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                      ),
+                      style: _titleStyle.copyWith(fontSize: 14),
                     ),
                     Text(
                       subtitle,
@@ -3671,6 +3965,94 @@ class _AdminListTile extends StatelessWidget {
   }
 }
 
+/// Skeleton loading placeholder — shows 3 shimmering ghost tiles.
+class _AdminSkeletonList extends StatefulWidget {
+  const _AdminSkeletonList();
+  static const _count = 3;
+  @override
+  State<_AdminSkeletonList> createState() => _AdminSkeletonListState();
+}
+
+class _AdminSkeletonListState extends State<_AdminSkeletonList>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat(reverse: true);
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (context, _) {
+        final opacity = 0.35 + _anim.value * 0.35;
+        return Column(
+          children: List.generate(
+              _AdminSkeletonList._count, (i) => _SkeletonTile(opacity: opacity)),
+        );
+      },
+    );
+  }
+}
+
+class _SkeletonTile extends StatelessWidget {
+  const _SkeletonTile({required this.opacity});
+  final double opacity;
+
+  Widget _box(double w, double h) => Container(
+        width: w, height: h,
+        decoration: BoxDecoration(
+          color: _kBorder.withValues(alpha: opacity),
+          borderRadius: BorderRadius.circular(6),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _kBorder),
+      ),
+      child: Row(
+        children: [
+          _box(36, 36),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _box(double.infinity, 12),
+                const SizedBox(height: 8),
+                _box(160, 10),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          _box(64, 24),
+        ],
+      ),
+    );
+  }
+}
+
 class _AdminEmptyState extends StatelessWidget {
   const _AdminEmptyState({
     required this.icon,
@@ -3684,25 +4066,25 @@ class _AdminEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1B102B),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF5A3A86)),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 28),
       child: Column(
         children: [
-          Icon(icon, color: const Color(0xFFF0C15A), size: 32),
-          const SizedBox(height: 8),
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: _kBorder,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: _kMuted, size: 26),
+          ),
+          const SizedBox(height: 14),
           Text(
             title,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w900,
-            ),
+              color: _kTxt, fontSize: 14, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 4),
           Text(subtitle, textAlign: TextAlign.center, style: _mutedStyle),
@@ -3717,49 +4099,103 @@ class _AdminShellMessage extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.onRetry,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
-        child: _AdminEmptyState(icon: icon, title: title, subtitle: subtitle),
+    return Container(
+      color: _kBg,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _AdminEmptyState(icon: icon, title: title, subtitle: subtitle),
+              if (onRetry != null) ...[
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: onRetry,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _kTxt,
+                    side: const BorderSide(color: _kBorder),
+                  ),
+                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
-class _RoleChip extends StatelessWidget {
-  const _RoleChip({required this.label});
+/// Semantic status badge — auto-picks color by label keyword.
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.label});
 
   final String label;
 
+  static Color _colorFor(String l) {
+    final s = l.toLowerCase();
+    if (s.contains('approv') || s.contains('active') || s.contains('live') ||
+        s.contains('open') || s.contains('success') || s.contains('done') ||
+        s.contains('earned') || s.contains('reopen')) {
+      return _kGreen;
+    }
+    if (s.contains('pending') || s.contains('wait') || s.contains('locked') ||
+        s.contains('warn')) {
+      return _kAmber;
+    }
+    if (s.contains('reject') || s.contains('ban') || s.contains('block') ||
+        s.contains('close') || s.contains('off') || s.contains('cancel') ||
+        s.contains('danger') || s.contains('mute')) {
+      return _kRed;
+    }
+    if (s.contains('coin') || s.contains('charge') || s.contains('info')) {
+      return _kBlue;
+    }
+    if (s.contains('super') || s.contains('vip') || s.contains('gift') ||
+        s.contains('diamond')) {
+      return _kPurple;
+    }
+    return _kGold;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final c = _colorFor(label);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFFF0C15A).withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFF0C15A)),
+        color: c.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: c.withValues(alpha: 0.35)),
       ),
       child: Text(
         label,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          color: Color(0xFFF0C15A),
-          fontSize: 11,
-          fontWeight: FontWeight.w900,
-        ),
+        style: TextStyle(color: c, fontSize: 11, fontWeight: FontWeight.w700),
       ),
     );
   }
+}
+
+/// Backwards-compat alias so existing call-sites still compile.
+class _RoleChip extends StatelessWidget {
+  const _RoleChip({required this.label});
+  final String label;
+  @override
+  Widget build(BuildContext context) => _StatusBadge(label: label);
 }
 
 class _AdminCard extends StatelessWidget {
@@ -3771,17 +4207,13 @@ class _AdminCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF12091D),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFF5A3A86)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF8B26D9).withValues(alpha: 0.11),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kBorder),
+        boxShadow: const [
+          BoxShadow(color: Color(0x18000000), blurRadius: 12, offset: Offset(0, 4)),
         ],
       ),
       child: child,
@@ -3834,12 +4266,14 @@ String? _nullIfEmpty(String value) {
 }
 
 const _titleStyle = TextStyle(
-  color: Colors.white,
-  fontSize: 20,
-  fontWeight: FontWeight.w900,
+  color: _kTxt,
+  fontSize: 18,
+  fontWeight: FontWeight.w800,
+  letterSpacing: -0.2,
 );
 
 const _mutedStyle = TextStyle(
-  color: Color(0xFFBCAED6),
-  fontWeight: FontWeight.w700,
+  color: _kMuted,
+  fontSize: 13,
+  fontWeight: FontWeight.w500,
 );
