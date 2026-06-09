@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/supabase/supabase_service.dart';
+import '../../core/utils/vip_visuals.dart';
 import '../../shared/widgets/avatar_with_frame.dart';
 import '../../shared/widgets/vip_badge.dart';
+import '../../shared/widgets/vip_username.dart';
 import '../profile_hub/screens/badge_screen.dart';
 import '../profile_hub/screens/customer_service_screen.dart';
 import '../profile_hub/screens/feedback_screen.dart';
@@ -684,6 +686,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           : (currentUserId.isEmpty ? '-' : currentUserId),
     );
     final effectiveVipLevel = _effectiveProfileVipLevel();
+    final isGoldenId = isGoldenIdActive(
+      profile?['is_golden_id'] == true,
+      DateTime.tryParse(profile?['golden_id_expires_at']?.toString() ?? ''),
+    );
     final coins = wallet?.coinsBalance ?? 0;
     final diamonds = wallet?.diamondsBalance ?? 0;
     final country = _profileText('country');
@@ -723,6 +729,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           avatarUrl: avatarUrl,
                           frameKey: selectedAvatarFrameKey,
                           vipLevel: effectiveVipLevel,
+                          isGoldenId: isGoldenId,
                           country: country,
                           gender: gender,
                           bio: bio,
@@ -839,6 +846,7 @@ class _PremiumProfileHero extends StatelessWidget {
     required this.avatarUrl,
     required this.frameKey,
     required this.vipLevel,
+    required this.isGoldenId,
     required this.country,
     required this.gender,
     required this.bio,
@@ -856,6 +864,7 @@ class _PremiumProfileHero extends StatelessWidget {
   final String? avatarUrl;
   final String? frameKey;
   final int vipLevel;
+  final bool isGoldenId;
   final String country;
   final String gender;
   final String bio;
@@ -1007,68 +1016,69 @@ class _PremiumProfileHero extends StatelessWidget {
                           : TextDirection.ltr,
                       children: [
                         Expanded(
-                          child: Text(
-                            displayName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          child: VipUsername(
+                            name: displayName,
+                            vipLevel: vipLevel,
+                            fontSize: 29,
                             textAlign: textAlign,
-                            style: TextStyle(
-                              color: vipLevel > 0
-                                  ? VipVisualStyle.nameColor(vipLevel, context)
-                                  : Colors.white,
-                              fontSize: 29,
-                              fontWeight: FontWeight.w900,
-                              height: 1.0,
-                            ),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 9),
-                    InkWell(
-                      borderRadius: BorderRadius.circular(999),
-                      onTap: onCopyId,
-                      child: Container(
-                        height: 32,
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF100718).withValues(alpha: 0.7),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(
+                    if (isGoldenId)
+                      GoldenIdBadge(
+                        idText: 'ID:$publicUserId',
+                        onTap: onCopyId,
+                        showCopyIcon: true,
+                      )
+                    else
+                      InkWell(
+                        borderRadius: BorderRadius.circular(999),
+                        onTap: onCopyId,
+                        child: Container(
+                          height: 32,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          decoration: BoxDecoration(
                             color: const Color(
-                              0xFFF0C15A,
-                            ).withValues(alpha: 0.22),
+                              0xFF100718,
+                            ).withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: const Color(
+                                0xFFF0C15A,
+                              ).withValues(alpha: 0.22),
+                            ),
                           ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          textDirection: isArabic
-                              ? TextDirection.rtl
-                              : TextDirection.ltr,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                'ID:$publicUserId',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: textAlign,
-                                style: const TextStyle(
-                                  color: Color(0xFFCFC3DC),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w900,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            textDirection: isArabic
+                                ? TextDirection.rtl
+                                : TextDirection.ltr,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  'ID:$publicUserId',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: textAlign,
+                                  style: const TextStyle(
+                                    color: Color(0xFFCFC3DC),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w900,
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 5),
-                            Icon(
-                              Icons.copy_rounded,
-                              color: Colors.white.withValues(alpha: 0.58),
-                              size: 14,
-                            ),
-                          ],
+                              const SizedBox(width: 5),
+                              Icon(
+                                Icons.copy_rounded,
+                                color: Colors.white.withValues(alpha: 0.58),
+                                size: 14,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
                     const SizedBox(height: 10),
                     Wrap(
                       alignment: isArabic

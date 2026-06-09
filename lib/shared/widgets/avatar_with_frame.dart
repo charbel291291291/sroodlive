@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../features/rooms/utils/vip_room_features.dart';
+import 'vip_framed_avatar.dart';
 
 const Map<String, String> avatarFrameAssetPaths = {
   'luxury_ruby_royal': 'assets/avatar_frames/luxury_ruby_royal.png',
@@ -45,12 +46,18 @@ class AvatarWithFrame extends StatelessWidget {
   Widget build(BuildContext context) {
     final frame = _effectiveFrameKey(frameKey?.trim());
     final hasFrame = frame != null && frame.isNotEmpty;
+    final isVipPngFrame = hasFrame && frame.startsWith('vip_');
     final avatarSize = radius * 2;
     final frameSize = hasFrame
         ? avatarSize * _frameScale(frame, compact: compact)
         : avatarSize;
     final frameAssetPath = _frameAssetPath(frame);
     final url = imageUrl?.trim();
+
+    // VIP wreath frames have a crown on top + a "VIP" label at the bottom that
+    // push the visual opening below the geometric centre. Nudge the photo down
+    // so it sits inside the opening instead of behind the crown.
+    final avatarDy = isVipPngFrame ? frameSize * 0.045 : 0.0;
 
     return SizedBox(
       width: frameSize,
@@ -59,20 +66,26 @@ class AvatarWithFrame extends StatelessWidget {
         clipBehavior: Clip.none,
         alignment: Alignment.center,
         children: [
-          SizedBox(
-            width: avatarSize,
-            height: avatarSize,
-            child: ClipOval(
-              child: url != null && url.isNotEmpty
-                  ? Image.network(
-                      url,
-                      fit: BoxFit.cover,
-                      width: avatarSize,
-                      height: avatarSize,
-                      errorBuilder: (context, error, stackTrace) =>
-                          _AvatarFallback(icon: fallbackIcon, size: avatarSize),
-                    )
-                  : _AvatarFallback(icon: fallbackIcon, size: avatarSize),
+          Transform.translate(
+            offset: Offset(0, avatarDy),
+            child: SizedBox(
+              width: avatarSize,
+              height: avatarSize,
+              child: ClipOval(
+                child: url != null && url.isNotEmpty
+                    ? Image.network(
+                        url,
+                        fit: BoxFit.cover,
+                        width: avatarSize,
+                        height: avatarSize,
+                        errorBuilder: (context, error, stackTrace) =>
+                            _AvatarFallback(
+                              icon: fallbackIcon,
+                              size: avatarSize,
+                            ),
+                      )
+                    : _AvatarFallback(icon: fallbackIcon, size: avatarSize),
+              ),
             ),
           ),
           if (hasFrame && frameAssetPath != null)
@@ -141,6 +154,10 @@ class AvatarWithFrame extends StatelessWidget {
 
   String? _effectiveFrameKey(String? value) {
     if (value == null || value.isEmpty) {
+      // No custom frame selected - auto-assign the matching VIP PNG frame
+      // when the user has an active VIP level.
+      final level = (vipLevel ?? 0).clamp(0, 10);
+      if (level > 0) return 'vip_$level';
       return null;
     }
 
@@ -152,6 +169,12 @@ class AvatarWithFrame extends StatelessWidget {
   }
 
   double _frameScale(String? frameKey, {required bool compact}) {
+    // VIP PNG frames (vip_1 ... vip_10): the frame box is ~1.35× the avatar so the
+    // photo fills the wreath opening nicely (avatar ≈ 74% of the frame width)
+    // while the crown / wings / VIP label stay fully visible around it.
+    if (frameKey != null && frameKey.startsWith('vip_')) {
+      return compact ? 1.32 : 1.35;
+    }
     return switch (frameKey) {
       'custom_srood_live' ||
       'custom_super_admin' ||
@@ -164,7 +187,16 @@ class AvatarWithFrame extends StatelessWidget {
   }
 
   String? _frameAssetPath(String? frameKey) {
-    return avatarFrameAssetPaths[frameKey];
+    if (frameKey == null) return null;
+    // Static custom/luxury frames
+    final staticPath = avatarFrameAssetPaths[frameKey];
+    if (staticPath != null) return staticPath;
+    // Dynamic VIP PNG frames: key pattern 'vip_1' ... 'vip_10'
+    if (frameKey.startsWith('vip_')) {
+      final level = int.tryParse(frameKey.substring(4));
+      if (level != null) return vipFrameAssetPath(level);
+    }
+    return null;
   }
 }
 

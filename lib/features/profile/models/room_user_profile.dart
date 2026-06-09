@@ -14,6 +14,8 @@ class RoomUserProfile {
     this.vipLevel = 0,
     this.vipStartedAt,
     this.vipExpiresAt,
+    this.isGoldenId = false,
+    this.goldenIdExpiresAt,
     this.followersCount = 0,
     this.followingCount = 0,
     this.friendsCount = 0,
@@ -36,6 +38,8 @@ class RoomUserProfile {
   final int vipLevel;
   final DateTime? vipStartedAt;
   final DateTime? vipExpiresAt;
+  final bool isGoldenId;
+  final DateTime? goldenIdExpiresAt;
   final int followersCount;
   final int followingCount;
   final int friendsCount;
@@ -89,6 +93,8 @@ class RoomUserProfile {
       vipLevel: vipLevel,
       vipStartedAt: vipStartedAt,
       vipExpiresAt: vipExpiresAt,
+      isGoldenId: isGoldenId,
+      goldenIdExpiresAt: goldenIdExpiresAt,
       followersCount: followersCount ?? this.followersCount,
       followingCount: followingCount,
       friendsCount: friendsCount,

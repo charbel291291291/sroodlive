@@ -42,6 +42,8 @@ class RoomUserProfileService {
       vipLevel: (data['vip_level'] as num?)?.toInt() ?? 0,
       vipStartedAt: _parseDate(data['vip_started_at']),
       vipExpiresAt: _parseDate(data['vip_expires_at']),
+      isGoldenId: data['is_golden_id'] == true,
+      goldenIdExpiresAt: _parseDate(data['golden_id_expires_at']),
       followersCount: followers,
       followingCount: following,
       friendsCount: 0,

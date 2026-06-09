@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/utils/vip_visuals.dart';
 import '../../../shared/widgets/avatar_with_frame.dart';
 import '../../../shared/widgets/vip_badge.dart';
+import '../../../shared/widgets/vip_username.dart';
 import '../../messages/services/private_message_service.dart';
 import '../../messages/widgets/private_chat_sheet.dart';
 import '../../rooms/utils/vip_room_features.dart';
@@ -312,6 +314,10 @@ class _ProfileContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final vipLevel = profile.effectiveVipLevel;
+    final goldenActive = isGoldenIdActive(
+      profile.isGoldenId,
+      profile.goldenIdExpiresAt,
+    );
     final textAlign = isArabic ? TextAlign.right : TextAlign.left;
 
     return SingleChildScrollView(
@@ -371,18 +377,11 @@ class _ProfileContent extends StatelessWidget {
                   showVipBadge: false,
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  profile.nickname,
+                VipUsername(
+                  name: profile.nickname,
+                  vipLevel: vipLevel,
+                  fontSize: 22,
                   textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: vipLevel > 0
-                        ? VipVisualStyle.nameColor(vipLevel, context)
-                        : Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                  ),
                 ),
                 const SizedBox(height: 7),
                 Wrap(
@@ -390,10 +389,16 @@ class _ProfileContent extends StatelessWidget {
                   spacing: 7,
                   runSpacing: 7,
                   children: [
-                    _ProfileStatPill(
-                      icon: Icons.badge_rounded,
-                      label: profile.publicUserId,
-                    ),
+                    if (goldenActive)
+                      GoldenIdBadge(
+                        idText: profile.publicUserId,
+                        compact: true,
+                      )
+                    else
+                      _ProfileStatPill(
+                        icon: Icons.badge_rounded,
+                        label: profile.publicUserId,
+                      ),
                     if (profile.age != null)
                       _ProfileStatPill(
                         icon: Icons.cake_rounded,

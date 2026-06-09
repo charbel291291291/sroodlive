@@ -7,6 +7,7 @@ import 'package:video_player/video_player.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../../../shared/widgets/avatar_with_frame.dart';
 import '../../../shared/widgets/vip_badge.dart';
+import '../../../shared/widgets/vip_username.dart';
 import '../../profile/widgets/room_user_profile_sheet.dart';
 import '../models/room.dart';
 import '../models/room_gift.dart';
@@ -643,12 +644,14 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                         selected: false,
                         fallbackIcon: Icons.person_rounded,
                       ),
-                      title: Text(
-                        member.fallbackName(widget.isArabic),
+                      title: VipUsername(
+                        name: member.fallbackName(widget.isArabic),
+                        vipLevel: member.effectiveVipLevel,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
                         textAlign: widget.isArabic
                             ? TextAlign.right
                             : TextAlign.left,
-                        style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                       subtitle: Text(
                         _roleLabel(member.role),
