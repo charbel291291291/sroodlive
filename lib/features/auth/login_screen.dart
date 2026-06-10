@@ -210,9 +210,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         SizedBox(height: topSpacing),
                         Align(
-                          alignment: isArabic
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
+                          alignment: Alignment.center,
                           child: SizedBox(
                             width: 118,
                             height: 118,
