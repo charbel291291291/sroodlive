@@ -129,10 +129,8 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
     final name = plan['name']?.toString() ?? 'VIP $level';
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(0xFF12091D),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (_) => _UpgradeInfoSheet(
         plan: plan,
         planName: name,
@@ -430,106 +428,181 @@ class _UpgradeInfoSheet extends StatelessWidget {
     final duration = (plan['duration_days'] as num?)?.toInt() ?? 30;
     final benefits = (plan['benefits'] as List<dynamic>?) ?? [];
     final style = getVipVisualStyle(level);
+    final maxHeight = MediaQuery.of(context).size.height * 0.85;
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.viewInsetsOf(context).bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(width: 40, height: 4,
-              decoration: BoxDecoration(color: const Color(0xFF4A3470), borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 20),
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: style != null
-                    ? [style.glowColor, style.glowColor.withValues(alpha: 0.5)]
-                    : [const Color(0xFF4B168C), const Color(0xFF8B26D9)],
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxHeight),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF12091D),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            Padding(
+              padding: const EdgeInsets.only(top: 12, bottom: 4),
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4A3470),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
-            child: Center(
-              child: Text('$level',
-                  style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900)),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(planName,
-              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.monetization_on_rounded, color: Color(0xFFF0C15A), size: 18),
-              const SizedBox(width: 4),
-              Text(_fmt(priceCoins),
-                  style: const TextStyle(color: Color(0xFFF0C15A), fontSize: 18, fontWeight: FontWeight.w900)),
-              const SizedBox(width: 8),
-              Text(isArabic ? '/ $duration يوم' : '/ $duration days',
-                  style: const TextStyle(color: Color(0xFF7A6890), fontSize: 14)),
-            ],
-          ),
-          if (benefits.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            ...benefits.map((b) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Row(
-                    textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-                    children: [
-                      const Icon(Icons.check_circle_outline_rounded,
-                          color: Color(0xFF2ECC71), size: 16),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(b.toString(),
-                            style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 13)),
+
+            // Scrollable body
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                child: Column(
+                  children: [
+                    // VIP level circle
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: style != null
+                              ? [style.glowColor, style.glowColor.withValues(alpha: 0.5)]
+                              : [const Color(0xFF4B168C), const Color(0xFF8B26D9)],
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '$level',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      planName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.monetization_on_rounded,
+                            color: Color(0xFFF0C15A), size: 18),
+                        const SizedBox(width: 4),
+                        Text(
+                          _fmt(priceCoins),
+                          style: const TextStyle(
+                            color: Color(0xFFF0C15A),
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          isArabic ? '/ $duration يوم' : '/ $duration days',
+                          style: const TextStyle(color: Color(0xFF7A6890), fontSize: 14),
+                        ),
+                      ],
+                    ),
+                    if (benefits.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      ...benefits.map(
+                        (b) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            textDirection:
+                                isArabic ? TextDirection.rtl : TextDirection.ltr,
+                            children: [
+                              const Icon(Icons.check_circle_outline_rounded,
+                                  color: Color(0xFF2ECC71), size: 16),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  b.toString(),
+                                  style: const TextStyle(
+                                    color: Color(0xFFD8CFEA),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
-                  ),
-                )),
-          ],
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1B102A),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF4A3470)),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1B102A),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFF4A3470)),
+                      ),
+                      child: Row(
+                        textDirection:
+                            isArabic ? TextDirection.rtl : TextDirection.ltr,
+                        children: [
+                          const Icon(Icons.info_outline_rounded,
+                              color: Color(0xFFF0C15A), size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              isArabic
+                                  ? 'يتم منح VIP من قِبل الإدارة. تواصل مع وكيل الشحن أو الدعم للترقية.'
+                                  : 'VIP is granted by admins. Contact a recharge agent or support to upgrade.',
+                              style: const TextStyle(
+                                color: Color(0xFFD8CFEA),
+                                fontSize: 13,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
             ),
-            child: Row(
-              textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-              children: [
-                const Icon(Icons.info_outline_rounded, color: Color(0xFFF0C15A), size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    isArabic
-                        ? 'يتم منح VIP من قِبل الإدارة. تواصل مع وكيل الشحن أو الدعم للترقية.'
-                        : 'VIP is granted by admins. Contact a recharge agent or support to upgrade.',
-                    style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 13, height: 1.4),
+
+            // Fixed CTA button — always visible, never pushed off screen
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4B168C),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      isArabic ? 'حسناً' : 'Got it',
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4B168C),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                elevation: 0,
               ),
-              child: Text(isArabic ? 'حسناً' : 'Got it',
-                  style: const TextStyle(fontWeight: FontWeight.w900)),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
