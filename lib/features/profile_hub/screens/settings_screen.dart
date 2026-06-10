@@ -3,11 +3,22 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
 import '../../../main.dart';
+import '../../calls/screens/call_history_screen.dart';
+import '../../discovery/screens/discovery_screen.dart';
+import '../../gifts/screens/gift_catalog_screen.dart';
+import '../../host/screens/availability_screen.dart';
+import '../../host/screens/host_registration_screen.dart';
+import '../../notifications/screens/notifications_screen.dart';
 import '../../onboarding/onboarding_screen.dart';
+import '../../social/screens/block_user_screen.dart';
+import '../../wallet/screens/coin_purchase_screen.dart';
+import '../../wallet/screens/transaction_history_screen.dart';
+import '../../wallet/screens/withdrawal_screen.dart';
 import '../models/profile_hub_models.dart';
 import '../services/settings_service.dart';
 import '../widgets/profile_hub_widgets.dart';
 import 'policy_screen.dart';
+import 'preferences_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({required this.isArabic, super.key});
@@ -233,6 +244,126 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: () => _openPolicy(
                     'terms',
                     isArabic ? 'شروط الاستخدام' : 'Terms of Use',
+                  ),
+                ),
+                ProfileSectionTitle(
+                  title: isArabic ? 'الميزات' : 'Features',
+                  isArabic: isArabic,
+                ),
+                ProfileMenuItem(
+                  icon: Icons.tune_rounded,
+                  title: isArabic ? 'التفضيلات' : 'Preferences',
+                  isArabic: isArabic,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => PreferencesScreen(isArabic: isArabic),
+                    ),
+                  ),
+                ),
+                ProfileMenuItem(
+                  icon: Icons.explore_rounded,
+                  title: isArabic ? 'الاستكشاف' : 'Discover',
+                  isArabic: isArabic,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => DiscoveryScreen(isArabic: isArabic),
+                    ),
+                  ),
+                ),
+                ProfileMenuItem(
+                  icon: Icons.monetization_on_rounded,
+                  title: isArabic ? 'شراء عملات' : 'Buy coins',
+                  isArabic: isArabic,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => CoinPurchaseScreen(isArabic: isArabic),
+                    ),
+                  ),
+                ),
+                ProfileMenuItem(
+                  icon: Icons.card_giftcard_rounded,
+                  title: isArabic ? 'متجر الهدايا' : 'Gift catalog',
+                  isArabic: isArabic,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => GiftCatalogScreen(isArabic: isArabic),
+                    ),
+                  ),
+                ),
+                ProfileMenuItem(
+                  icon: Icons.receipt_long_rounded,
+                  title: isArabic ? 'سجل المعاملات' : 'Transaction history',
+                  isArabic: isArabic,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => TransactionHistoryScreen(isArabic: isArabic),
+                    ),
+                  ),
+                ),
+                ProfileMenuItem(
+                  icon: Icons.notifications_rounded,
+                  title: isArabic ? 'الإشعارات' : 'Notifications',
+                  isArabic: isArabic,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) =>
+                          NotificationsScreen(isArabic: isArabic),
+                    ),
+                  ),
+                ),
+                ProfileMenuItem(
+                  icon: Icons.call_rounded,
+                  title: isArabic ? 'سجل المكالمات' : 'Call history',
+                  isArabic: isArabic,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) =>
+                          CallHistoryScreen(isArabic: isArabic),
+                    ),
+                  ),
+                ),
+                ProfileMenuItem(
+                  icon: Icons.payments_rounded,
+                  title: isArabic ? 'طلب سحب' : 'Withdraw earnings',
+                  isArabic: isArabic,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) =>
+                          WithdrawalScreen(isArabic: isArabic),
+                    ),
+                  ),
+                ),
+                ProfileMenuItem(
+                  icon: Icons.live_tv_rounded,
+                  title: isArabic ? 'تسجيل كمضيف' : 'Become a host',
+                  isArabic: isArabic,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) =>
+                          HostRegistrationScreen(isArabic: isArabic),
+                    ),
+                  ),
+                ),
+                ProfileMenuItem(
+                  icon: Icons.schedule_rounded,
+                  title: isArabic ? 'جدول الإتاحة' : 'Availability schedule',
+                  isArabic: isArabic,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) =>
+                          AvailabilityScreen(isArabic: isArabic),
+                    ),
+                  ),
+                ),
+                ProfileMenuItem(
+                  icon: Icons.block_rounded,
+                  title: isArabic ? 'المستخدمون المحظورون' : 'Blocked users',
+                  isArabic: isArabic,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) =>
+                          BlockUserScreen(isArabic: isArabic),
+                    ),
                   ),
                 ),
                 ProfileSectionTitle(

@@ -4,6 +4,7 @@ import '../../core/supabase/supabase_service.dart';
 import '../../main.dart';
 import '../../shared/branding/branding_assets.dart';
 import '../home/home_screen.dart';
+import 'registration_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -110,69 +111,6 @@ class _LoginScreenState extends State<LoginScreen> {
         message = isArabic
             ? '\u0641\u0634\u0644 \u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644: $error'
             : 'Login failed: $error';
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _createAccount() async {
-    final isArabic = _isArabic(context);
-
-    setState(() {
-      isLoading = true;
-      message = null;
-    });
-
-    try {
-      final email = emailController.text.trim();
-      final password = passwordController.text.trim();
-
-      if (email.isEmpty || password.isEmpty) {
-        setState(() {
-          message = isArabic
-              ? '\u0627\u0643\u062a\u0628 \u0627\u0644\u0628\u0631\u064a\u062f \u0627\u0644\u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a \u0648\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u0623\u0648\u0644\u0627.'
-              : 'Enter email and password first.';
-        });
-        return;
-      }
-
-      if (password.length < 6) {
-        setState(() {
-          message = isArabic
-              ? '\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u064a\u062c\u0628 \u0623\u0646 \u062a\u0643\u0648\u0646 6 \u0623\u062d\u0631\u0641 \u0623\u0648 \u0623\u0643\u062b\u0631.'
-              : 'Password must be 6 characters or more.';
-        });
-        return;
-      }
-
-      await SupabaseService.requiredClient.auth.signUp(
-        email: email,
-        password: password,
-      );
-
-      if (!mounted) return;
-
-      setState(() {
-        message = isArabic
-            ? '\u062a\u0645 \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u062d\u0633\u0627\u0628. \u0627\u0636\u063a\u0637 \u062f\u062e\u0648\u0644.'
-            : 'Account created. Press Login.';
-      });
-    } on AuthException catch (error) {
-      setState(() {
-        message = isArabic
-            ? '\u0641\u0634\u0644 \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u062d\u0633\u0627\u0628: ${error.message}'
-            : 'Account creation failed: ${error.message}';
-      });
-    } catch (error) {
-      setState(() {
-        message = isArabic
-            ? '\u0641\u0634\u0644 \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u062d\u0633\u0627\u0628: $error'
-            : 'Account creation failed: $error';
       });
     } finally {
       if (mounted) {
@@ -316,7 +254,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           width: double.infinity,
                           height: 50,
                           child: OutlinedButton(
-                            onPressed: isLoading ? null : _createAccount,
+                            onPressed: isLoading
+                                ? null
+                                : () => Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => const RegistrationScreen(),
+                                      ),
+                                    ),
                             child: Text(
                               isArabic ? '\u0625\u0646\u0634\u0627\u0621 \u062d\u0633\u0627\u0628' : 'Create account',
                             ),

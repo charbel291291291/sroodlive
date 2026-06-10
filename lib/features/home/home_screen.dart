@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/supabase/supabase_service.dart';
 import '../../main.dart';
+import '../games/screens/crash_game_screen.dart';
 import '../messages/screens/messages_screen.dart';
 import '../profile/profile_screen.dart';
 import '../rooms/screens/rooms_screen.dart';
@@ -32,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         },
       ),
+      CrashGameScreen(isArabic: isArabic),
       WalletScreen(isArabic: isArabic),
       ProfileScreen(isArabic: isArabic),
     ];
@@ -116,6 +118,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: const Icon(Icons.chat_bubble_outline_rounded),
                   ),
                   label: isArabic ? 'رسائل' : 'Messages',
+                ),
+                NavigationDestination(
+                  selectedIcon: const Icon(Icons.rocket_launch_rounded),
+                  icon: const Icon(Icons.rocket_launch_outlined),
+                  label: isArabic ? 'الألعاب' : 'Games',
                 ),
                 NavigationDestination(
                   selectedIcon: const Icon(

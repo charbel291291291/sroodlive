@@ -8,7 +8,7 @@ import '../../../shared/widgets/vip_framed_avatar.dart';
 import '../../../shared/widgets/vip_username.dart';
 import '../models/private_conversation.dart';
 import '../services/private_message_service.dart';
-import '../widgets/private_chat_sheet.dart';
+import 'private_chat_screen.dart';
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({
@@ -110,16 +110,15 @@ class _MessagesScreenState extends State<MessagesScreen>
   // ---------------------------------------------------------------------------
 
   Future<void> _openChat(PrivateConversationPreview convo) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => PrivateChatSheet(
-        targetUserId: convo.otherUserId,
-        targetName: convo.otherNickname,
-        targetAvatarUrl: convo.otherAvatarUrl,
-        targetFrameKey: convo.otherFrameId,
-        isArabic: widget.isArabic,
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PrivateChatScreen(
+          targetUserId: convo.otherUserId,
+          targetName: convo.otherNickname,
+          targetAvatarUrl: convo.otherAvatarUrl,
+          targetFrameKey: convo.otherFrameId,
+          isArabic: widget.isArabic,
+        ),
       ),
     );
     // Refresh when chat closes (unread counts may have changed).

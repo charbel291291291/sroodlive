@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:video_player/video_player.dart';
 
@@ -1242,6 +1243,47 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     });
   }
 
+  Future<bool> _ensureMicrophonePermission() async {
+    final status = await Permission.microphone.status;
+
+    if (status.isGranted) {
+      return true;
+    }
+
+    final result = await Permission.microphone.request();
+
+    if (result.isGranted) {
+      return true;
+    }
+
+    if (!mounted) {
+      return false;
+    }
+
+    final permanentlyDenied = result.isPermanentlyDenied;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          widget.isArabic
+              ? (permanentlyDenied
+                    ? '\u062a\u0645 \u062d\u0638\u0631 \u0625\u0630\u0646 \u0627\u0644\u0645\u064a\u0643\u0631\u0648\u0641\u0648\u0646. \u0627\u0641\u062a\u062d \u0627\u0644\u0625\u0639\u062f\u0627\u062f\u0627\u062a \u0648\u0627\u0633\u0645\u062d \u0628\u0627\u0644\u0645\u064a\u0643\u0631\u0648\u0641\u0648\u0646.'
+                    : '\u064a\u062d\u062a\u0627\u062c SrOOd Live \u0625\u0644\u0649 \u0625\u0630\u0646 \u0627\u0644\u0645\u064a\u0643\u0631\u0648\u0641\u0648\u0646 \u0644\u0644\u062a\u062d\u062f\u062b \u0641\u064a \u0627\u0644\u063a\u0631\u0641.')
+              : (permanentlyDenied
+                    ? 'Microphone permission is blocked. Open app settings and allow microphone.'
+                    : 'Srood Live needs microphone permission so you can speak in rooms.'),
+        ),
+        action: permanentlyDenied
+            ? SnackBarAction(
+                label: widget.isArabic ? '\u0627\u0644\u0625\u0639\u062f\u0627\u062f\u0627\u062a' : 'Settings',
+                onPressed: openAppSettings,
+              )
+            : null,
+      ),
+    );
+
+    return false;
+  }
   Future<void> _syncMicConnectionWithSeat() async {
     if (_syncingMicConnection || !mounted) {
       return;
@@ -1255,6 +1297,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
 
     try {
       if (shouldPublishMic) {
+        final hasMicrophonePermission = await _ensureMicrophonePermission();
+
+        if (!hasMicrophonePermission) {
+          return;
+        }
+
         final desiredMicEnabled = justTookSeat
             ? true
             : !(member?.isMuted ?? false);
@@ -1348,6 +1396,14 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     }
 
     final nextValue = !_micEnabled;
+
+    if (nextValue) {
+      final hasMicrophonePermission = await _ensureMicrophonePermission();
+
+      if (!hasMicrophonePermission) {
+        return;
+      }
+    }
 
     await _liveKitRoomService.setMicrophoneEnabled(nextValue);
     await _roomsService.setMyMuteStatus(
@@ -3380,7 +3436,7 @@ const List<RoomGift> _localLuxuryRoomGifts = [
     id: 'local-golden-lion',
     code: 'golden_lion',
     name: 'Golden Lion',
-    arabicName: 'الأسد الذهبي',
+    arabicName: '\u0627\u0644\u0623\u0633\u062f \u0627\u0644\u0630\u0647\u0628\u064a',
     priceCoins: 999,
     icon: '',
     sortOrder: 90,
@@ -3389,7 +3445,7 @@ const List<RoomGift> _localLuxuryRoomGifts = [
     id: 'local-baalbek-temple',
     code: 'baalbek_temple',
     name: 'Baalbek Temple',
-    arabicName: 'قلعة بعلبك',
+    arabicName: '\u0642\u0644\u0639\u0629 \u0628\u0639\u0644\u0628\u0643',
     priceCoins: 777,
     icon: '',
     sortOrder: 91,

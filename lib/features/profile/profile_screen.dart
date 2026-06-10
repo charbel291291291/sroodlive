@@ -25,6 +25,7 @@ import '../wallet/screens/wallet_screen.dart';
 import '../wallet/services/wallet_service.dart';
 import '../rooms/utils/vip_room_features.dart';
 import 'models/avatar_frame.dart';
+import 'screens/follow_list_screen.dart';
 import 'services/follow_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -795,6 +796,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           following: followingCount,
                           gifts: giftsReceivedCount,
                           visitors: visitorsCount,
+                          onFollowersTap: () {
+                            final uid = SupabaseService
+                                .requiredClient.auth.currentUser?.id;
+                            if (uid == null) return;
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => FollowListScreen(
+                                  userId: uid,
+                                  isFollowers: true,
+                                  isArabic: isArabic,
+                                ),
+                              ),
+                            );
+                          },
+                          onFollowingTap: () {
+                            final uid = SupabaseService
+                                .requiredClient.auth.currentUser?.id;
+                            if (uid == null) return;
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => FollowListScreen(
+                                  userId: uid,
+                                  isFollowers: false,
+                                  isArabic: isArabic,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                         const SizedBox(height: 14),
                         _VipUpgradeBanner(
@@ -1235,6 +1264,8 @@ class _ProfileStatsRow extends StatelessWidget {
     required this.following,
     required this.gifts,
     required this.visitors,
+    this.onFollowersTap,
+    this.onFollowingTap,
   });
 
   final bool isArabic;
@@ -1242,6 +1273,8 @@ class _ProfileStatsRow extends StatelessWidget {
   final int following;
   final int gifts;
   final int visitors;
+  final VoidCallback? onFollowersTap;
+  final VoidCallback? onFollowingTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1256,15 +1289,21 @@ class _ProfileStatsRow extends StatelessWidget {
       child: Row(
         textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
         children: [
-          _ProfileStatItem(
-            value: followers,
-            label: isArabic
-                ? '\u0645\u062a\u0627\u0628\u0639\u0648\u0646'
-                : 'Followers',
+          GestureDetector(
+            onTap: onFollowersTap,
+            child: _ProfileStatItem(
+              value: followers,
+              label: isArabic ? '\u0645\u062a\u0627\u0628\u0639\u0648\u0646' : 'Followers',
+              tappable: onFollowersTap != null,
+            ),
           ),
-          _ProfileStatItem(
-            value: following,
-            label: isArabic ? '\u064a\u062a\u0627\u0628\u0639' : 'Following',
+          GestureDetector(
+            onTap: onFollowingTap,
+            child: _ProfileStatItem(
+              value: following,
+              label: isArabic ? '\u064a\u062a\u0627\u0628\u0639' : 'Following',
+              tappable: onFollowingTap != null,
+            ),
           ),
           _ProfileStatItem(
             value: gifts,
@@ -1281,10 +1320,15 @@ class _ProfileStatsRow extends StatelessWidget {
 }
 
 class _ProfileStatItem extends StatelessWidget {
-  const _ProfileStatItem({required this.value, required this.label});
+  const _ProfileStatItem({
+    required this.value,
+    required this.label,
+    this.tappable = false,
+  });
 
   final int value;
   final String label;
+  final bool tappable;
 
   @override
   Widget build(BuildContext context) {
@@ -1302,15 +1346,28 @@ class _ProfileStatItem extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 3),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFFB9A9D4),
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: tappable
+                      ? const Color(0xFFF0C15A)
+                      : const Color(0xFFB9A9D4),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              if (tappable)
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 13,
+                  color: Color(0xFFF0C15A),
+                ),
+            ],
           ),
         ],
       ),

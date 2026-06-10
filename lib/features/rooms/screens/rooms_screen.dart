@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../features/notifications/screens/notifications_screen.dart';
+import '../../../features/search/screens/search_screen.dart';
 import '../../../shared/branding/branding_assets.dart';
 import '../models/room.dart';
 import '../services/rooms_service.dart';
@@ -213,6 +215,34 @@ class _RoomsScreenState extends State<RoomsScreen> {
                       ),
                     ),
                   ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            SearchScreen(isArabic: widget.isArabic),
+                      ),
+                    ),
+                    icon: const Icon(
+                      Icons.search_rounded,
+                      color: Color(0xFFBCAED6),
+                      size: 26,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => NotificationsScreen(
+                          isArabic: widget.isArabic,
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(
+                      Icons.notifications_outlined,
+                      color: Color(0xFFBCAED6),
+                      size: 26,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
                   Container(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
