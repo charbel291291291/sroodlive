@@ -956,6 +956,80 @@ class AdminGiftCategory {
   }
 }
 
+class AdminPromoBanner {
+  const AdminPromoBanner({
+    required this.id,
+    required this.slideKey,
+    required this.sortOrder,
+    required this.isActive,
+    required this.labelEn,
+    required this.labelAr,
+    required this.titleEn,
+    required this.titleAr,
+    required this.subtitleEn,
+    required this.subtitleAr,
+    required this.ctaEn,
+    required this.ctaAr,
+    required this.iconName,
+    this.gradientStart,
+    this.gradientMid,
+    this.gradientEnd,
+    this.iconBgColor,
+    this.imageUrl,
+    this.targetRoute,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  final String id;
+  final String slideKey;
+  final int sortOrder;
+  final bool isActive;
+  final String labelEn;
+  final String labelAr;
+  final String titleEn;
+  final String titleAr;
+  final String subtitleEn;
+  final String subtitleAr;
+  final String ctaEn;
+  final String ctaAr;
+  final String iconName;
+  final String? gradientStart;
+  final String? gradientMid;
+  final String? gradientEnd;
+  final String? iconBgColor;
+  final String? imageUrl;
+  final String? targetRoute;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  factory AdminPromoBanner.fromJson(Map<String, dynamic> json) {
+    return AdminPromoBanner(
+      id: json['id']?.toString() ?? '',
+      slideKey: json['slide_key']?.toString() ?? '',
+      sortOrder: _intValue(json['sort_order']),
+      isActive: json['is_active'] == true,
+      labelEn: json['label_en']?.toString() ?? '',
+      labelAr: json['label_ar']?.toString() ?? '',
+      titleEn: json['title_en']?.toString() ?? '',
+      titleAr: json['title_ar']?.toString() ?? '',
+      subtitleEn: json['subtitle_en']?.toString() ?? '',
+      subtitleAr: json['subtitle_ar']?.toString() ?? '',
+      ctaEn: json['cta_en']?.toString() ?? '',
+      ctaAr: json['cta_ar']?.toString() ?? '',
+      iconName: json['icon_name']?.toString() ?? 'mic_rounded',
+      gradientStart: json['gradient_start']?.toString(),
+      gradientMid: json['gradient_mid']?.toString(),
+      gradientEnd: json['gradient_end']?.toString(),
+      iconBgColor: json['icon_bg_color']?.toString(),
+      imageUrl: json['image_url']?.toString(),
+      targetRoute: json['target_route']?.toString(),
+      createdAt: _dateValue(json['created_at']),
+      updatedAt: _dateValue(json['updated_at']),
+    );
+  }
+}
+
 class AdminAuditLog {
   const AdminAuditLog({
     required this.id,

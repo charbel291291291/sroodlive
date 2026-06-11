@@ -1,3 +1,7 @@
+import 'dart:typed_data';
+
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../../core/supabase/supabase_service.dart';
 import '../models/admin_models.dart';
 
@@ -624,5 +628,89 @@ class AdminService {
         'p_expires_at': expiresAt?.toUtc().toIso8601String(),
       },
     );
+  }
+
+  // ── Promotional Banners ────────────────────────────────────────────────────
+
+  Future<List<AdminPromoBanner>> fetchPromoBanners() async {
+    final data = await SupabaseService.requiredClient
+        .from('promo_banners')
+        .select()
+        .order('sort_order', ascending: true);
+    return (data as List<dynamic>)
+        .map((e) => AdminPromoBanner.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> upsertPromoBanner({
+    String? id,
+    required String slideKey,
+    required int sortOrder,
+    required bool isActive,
+    required String labelEn,
+    required String labelAr,
+    required String titleEn,
+    required String titleAr,
+    required String subtitleEn,
+    required String subtitleAr,
+    required String ctaEn,
+    required String ctaAr,
+    required String iconName,
+    String? gradientStart,
+    String? gradientMid,
+    String? gradientEnd,
+    String? iconBgColor,
+    String? imageUrl,
+    String? targetRoute,
+  }) async {
+    final payload = <String, dynamic>{
+      'slide_key': slideKey,
+      'sort_order': sortOrder,
+      'is_active': isActive,
+      'label_en': labelEn,
+      'label_ar': labelAr,
+      'title_en': titleEn,
+      'title_ar': titleAr,
+      'subtitle_en': subtitleEn,
+      'subtitle_ar': subtitleAr,
+      'cta_en': ctaEn,
+      'cta_ar': ctaAr,
+      'icon_name': iconName,
+      'gradient_start': gradientStart,
+      'gradient_mid': gradientMid,
+      'gradient_end': gradientEnd,
+      'icon_bg_color': iconBgColor,
+      'image_url': imageUrl,
+      'target_route': targetRoute,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    };
+    if (id != null) payload['id'] = id;
+    await SupabaseService.requiredClient
+        .from('promo_banners')
+        .upsert(payload, onConflict: 'slide_key');
+  }
+
+  Future<void> deletePromoBanner(String id) async {
+    await SupabaseService.requiredClient
+        .from('promo_banners')
+        .delete()
+        .eq('id', id);
+  }
+
+  // ── Asset upload (Supabase Storage → admin-assets bucket) ─────────────────
+
+  Future<String> uploadAdminAsset({
+    required Uint8List bytes,
+    required String filename,
+    required String contentType,
+  }) async {
+    final client = SupabaseService.requiredClient;
+    final path = 'banners/${DateTime.now().millisecondsSinceEpoch}_$filename';
+    await client.storage.from('admin-assets').uploadBinary(
+      path,
+      bytes,
+      fileOptions: FileOptions(contentType: contentType, upsert: true),
+    );
+    return client.storage.from('admin-assets').getPublicUrl(path);
   }
 }

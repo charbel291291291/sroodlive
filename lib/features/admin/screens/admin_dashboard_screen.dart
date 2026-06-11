@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../shared/branding/branding_assets.dart';
 import '../models/admin_models.dart';
 import '../services/admin_access_service.dart';
 import '../services/admin_service.dart';
 
-enum _AdminModule { overview, finance, users, bd, content, rooms, audit }
+enum _AdminModule { overview, finance, users, bd, content, rooms, banners, audit }
 
 // ─────────────────────────────────────────────
 // Design tokens — edit here to restyle the panel
@@ -69,6 +70,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   List<AdminVipPackage> _vipPackages = const [];
   List<AdminEntranceBanner> _entranceBanners = const [];
   List<AdminGiftCategory> _giftCategories = const [];
+  List<AdminPromoBanner> _promoBanners = const [];
   AdminWalletSummary? _walletLookup;
 
   bool get _isSuper => _roles.contains('super_admin');
@@ -136,6 +138,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final vipPackages = await _adminService.fetchVipPackages();
       final entranceBanners = await _adminService.fetchEntranceBanners();
       final giftCategories = await _adminService.fetchGiftCategories();
+      final promoBanners = await _adminService.fetchPromoBanners();
 
       if (!mounted) return;
       setState(() {
@@ -157,6 +160,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _vipPackages = vipPackages;
         _entranceBanners = entranceBanners;
         _giftCategories = giftCategories;
+        _promoBanners = promoBanners;
         _isLoading = false;
       });
     } catch (error) {
@@ -920,12 +924,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Widget _buildModule() {
     return switch (_module) {
-      _AdminModule.overview => _buildOverview(),
+      _AdminModule.overview  => _buildOverview(),
       _AdminModule.finance => _buildFinance(),
       _AdminModule.users => _buildUsers(),
       _AdminModule.bd => _buildBd(),
       _AdminModule.content => _buildContent(),
       _AdminModule.rooms => _buildRooms(),
+      _AdminModule.banners => _buildBanners(),
       _AdminModule.audit => _buildAudit(),
     };
   }
@@ -1369,6 +1374,147 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         ),
       ],
     );
+  }
+
+  Widget _buildBanners() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _ModuleTitle(
+          title: 'Promo Banners',
+          subtitle: 'Carousel slides shown at the top of the Rooms screen.',
+          icon: Icons.view_carousel_rounded,
+          locked: !_canContent,
+        ),
+        const SizedBox(height: 14),
+        _AdminSectionCard(
+          title: 'Banner Slides',
+          action: _canContent
+              ? TextButton.icon(
+                  onPressed: () => _editPromoBanner(),
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Banner'),
+                )
+              : null,
+          child: _promoBanners.isEmpty
+              ? const _AdminEmptyState(
+                  icon: Icons.view_carousel_rounded,
+                  title: 'No banners',
+                  subtitle: 'Add promotional carousel slides here.',
+                )
+              : Column(
+                  children: _promoBanners
+                      .map(
+                        (b) => _AdminListTile(
+                          icon: Icons.view_carousel_rounded,
+                          title: b.titleEn.isNotEmpty ? b.titleEn : b.slideKey,
+                          subtitle: '${b.slideKey} · order ${b.sortOrder}'
+                              '${b.targetRoute != null ? ' → ${b.targetRoute}' : ''}',
+                          trailing: Wrap(
+                            spacing: 6,
+                            children: [
+                              _RoleChip(label: b.isActive ? 'active' : 'off'),
+                              if (_canContent) ...[
+                                TextButton(
+                                  onPressed: () => _editPromoBanner(b),
+                                  child: const Text('Edit'),
+                                ),
+                                TextButton(
+                                  onPressed: () => _deletePromoBanner(b),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: _kRed,
+                                  ),
+                                  child: const Text('Delete'),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _editPromoBanner([AdminPromoBanner? existing]) async {
+    final result = await showDialog<AdminPromoBanner>(
+      context: context,
+      builder: (_) => _PromoBannerEditDialog(
+        existing: existing,
+        adminService: _adminService,
+      ),
+    );
+    if (result == null) return;
+    if (_actionInProgress) return;
+    setState(() => _actionInProgress = true);
+    try {
+      await _adminService.upsertPromoBanner(
+        id: result.id.isEmpty ? null : result.id,
+        slideKey: result.slideKey,
+        sortOrder: result.sortOrder,
+        isActive: result.isActive,
+        labelEn: result.labelEn,
+        labelAr: result.labelAr,
+        titleEn: result.titleEn,
+        titleAr: result.titleAr,
+        subtitleEn: result.subtitleEn,
+        subtitleAr: result.subtitleAr,
+        ctaEn: result.ctaEn,
+        ctaAr: result.ctaAr,
+        iconName: result.iconName,
+        gradientStart: result.gradientStart,
+        gradientMid: result.gradientMid,
+        gradientEnd: result.gradientEnd,
+        iconBgColor: result.iconBgColor,
+        imageUrl: result.imageUrl,
+        targetRoute: result.targetRoute,
+      );
+      if (!mounted) return;
+      _showSnack('Banner saved');
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack('Save failed: $e');
+    } finally {
+      if (mounted) setState(() => _actionInProgress = false);
+    }
+  }
+
+  Future<void> _deletePromoBanner(AdminPromoBanner banner) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete banner?'),
+        content: Text('This removes "${banner.titleEn}" permanently.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: _kRed),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    if (_actionInProgress) return;
+    setState(() => _actionInProgress = true);
+    try {
+      await _adminService.deletePromoBanner(banner.id);
+      if (!mounted) return;
+      _showSnack('Banner deleted');
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack('Delete failed: $e');
+    } finally {
+      if (mounted) setState(() => _actionInProgress = false);
+    }
   }
 
   Widget _buildAudit() {
@@ -2385,12 +2531,12 @@ class _EntranceBannerEditDialogState extends State<_EntranceBannerEditDialog> {
   late final TextEditingController _name;
   late final TextEditingController _arabicName;
   late final TextEditingController _vipLevel;
-  late final TextEditingController _assetUrl;
   late final TextEditingController _gradientStart;
   late final TextEditingController _gradientEnd;
   late final TextEditingController _message;
   late final TextEditingController _sortOrder;
   late bool _isActive;
+  String? _assetUrl;
 
   @override
   void initState() {
@@ -2400,12 +2546,12 @@ class _EntranceBannerEditDialogState extends State<_EntranceBannerEditDialog> {
     _name = TextEditingController(text: banner.name);
     _arabicName = TextEditingController(text: banner.arabicName);
     _vipLevel = TextEditingController(text: banner.vipLevel?.toString());
-    _assetUrl = TextEditingController(text: banner.assetUrl);
     _gradientStart = TextEditingController(text: banner.gradientStart);
     _gradientEnd = TextEditingController(text: banner.gradientEnd);
     _message = TextEditingController(text: banner.messageTemplate);
     _sortOrder = TextEditingController(text: banner.sortOrder.toString());
     _isActive = banner.isActive;
+    _assetUrl = banner.assetUrl;
   }
 
   @override
@@ -2414,7 +2560,6 @@ class _EntranceBannerEditDialogState extends State<_EntranceBannerEditDialog> {
     _name.dispose();
     _arabicName.dispose();
     _vipLevel.dispose();
-    _assetUrl.dispose();
     _gradientStart.dispose();
     _gradientEnd.dispose();
     _message.dispose();
@@ -2444,9 +2589,11 @@ class _EntranceBannerEditDialogState extends State<_EntranceBannerEditDialog> {
           keyboardType: TextInputType.number,
           decoration: const InputDecoration(labelText: 'VIP level'),
         ),
-        TextField(
-          controller: _assetUrl,
-          decoration: const InputDecoration(labelText: 'Asset URL'),
+        _ImageUploadField(
+          label: 'Asset URL',
+          initialUrl: _assetUrl,
+          adminService: const AdminService(),
+          onChanged: (url) => setState(() => _assetUrl = url),
         ),
         TextField(
           controller: _gradientStart,
@@ -2481,7 +2628,7 @@ class _EntranceBannerEditDialogState extends State<_EntranceBannerEditDialog> {
             name: name,
             arabicName: _nullIfEmpty(_arabicName.text),
             vipLevel: int.tryParse(_vipLevel.text.trim()),
-            assetUrl: _nullIfEmpty(_assetUrl.text),
+            assetUrl: _assetUrl,
             gradientStart: _nullIfEmpty(_gradientStart.text),
             gradientEnd: _nullIfEmpty(_gradientEnd.text),
             messageTemplate: _nullIfEmpty(_message.text),
@@ -2533,10 +2680,10 @@ class _AvatarFrameEditDialogState extends State<_AvatarFrameEditDialog> {
   late final TextEditingController _category;
   late final TextEditingController _vipLevel;
   late final TextEditingController _requiredVipLevel;
-  late final TextEditingController _assetUrl;
   late final TextEditingController _sortOrder;
   late bool _isActive;
   late bool _isFeatured;
+  String? _assetUrl;
 
   @override
   void initState() {
@@ -2549,10 +2696,10 @@ class _AvatarFrameEditDialogState extends State<_AvatarFrameEditDialog> {
     _requiredVipLevel = TextEditingController(
       text: frame.requiredVipLevel?.toString(),
     );
-    _assetUrl = TextEditingController(text: frame.assetUrl);
     _sortOrder = TextEditingController(text: frame.sortOrder.toString());
     _isActive = frame.isActive;
     _isFeatured = frame.isFeatured;
+    _assetUrl = frame.assetUrl;
   }
 
   @override
@@ -2562,7 +2709,6 @@ class _AvatarFrameEditDialogState extends State<_AvatarFrameEditDialog> {
     _category.dispose();
     _vipLevel.dispose();
     _requiredVipLevel.dispose();
-    _assetUrl.dispose();
     _sortOrder.dispose();
     super.dispose();
   }
@@ -2594,9 +2740,11 @@ class _AvatarFrameEditDialogState extends State<_AvatarFrameEditDialog> {
           keyboardType: TextInputType.number,
           decoration: const InputDecoration(labelText: 'Required VIP level'),
         ),
-        TextField(
-          controller: _assetUrl,
-          decoration: const InputDecoration(labelText: 'Asset URL'),
+        _ImageUploadField(
+          label: 'Asset URL',
+          initialUrl: _assetUrl,
+          adminService: const AdminService(),
+          onChanged: (url) => setState(() => _assetUrl = url),
         ),
         TextField(
           controller: _sortOrder,
@@ -2626,10 +2774,345 @@ class _AvatarFrameEditDialogState extends State<_AvatarFrameEditDialog> {
             category: category,
             vipLevel: int.tryParse(_vipLevel.text.trim()),
             requiredVipLevel: int.tryParse(_requiredVipLevel.text.trim()),
-            assetUrl: _nullIfEmpty(_assetUrl.text),
+            assetUrl: _assetUrl,
             isActive: _isActive,
             isFeatured: _isFeatured,
             sortOrder: int.tryParse(_sortOrder.text.trim()) ?? 0,
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ── Image Upload Field ────────────────────────────────────────────────────────
+
+class _ImageUploadField extends StatefulWidget {
+  const _ImageUploadField({
+    required this.label,
+    required this.initialUrl,
+    required this.adminService,
+    required this.onChanged,
+  });
+
+  final String label;
+  final String? initialUrl;
+  final AdminService adminService;
+  final void Function(String? url) onChanged;
+
+  @override
+  State<_ImageUploadField> createState() => _ImageUploadFieldState();
+}
+
+class _ImageUploadFieldState extends State<_ImageUploadField> {
+  late final TextEditingController _ctrl;
+  bool _uploading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: widget.initialUrl ?? '');
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickAndUpload() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 1600,
+    );
+    if (picked == null) return;
+    if (!mounted) return;
+    setState(() => _uploading = true);
+    try {
+      final bytes = await picked.readAsBytes();
+      final ext = picked.name.split('.').last.toLowerCase();
+      final contentType = ext == 'png' ? 'image/png' : 'image/jpeg';
+      final url = await widget.adminService.uploadAdminAsset(
+        bytes: bytes,
+        filename: '${DateTime.now().millisecondsSinceEpoch}.$ext',
+        contentType: contentType,
+      );
+      if (!mounted) return;
+      _ctrl.text = url;
+      widget.onChanged(url);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Upload failed: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final previewUrl = _ctrl.text.trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _ctrl,
+                decoration: InputDecoration(labelText: widget.label),
+                onChanged: (v) => widget.onChanged(v.trim().isEmpty ? null : v.trim()),
+              ),
+            ),
+            const SizedBox(width: 6),
+            if (_uploading)
+              const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else
+              IconButton(
+                icon: const Icon(Icons.upload_rounded),
+                tooltip: 'Pick & upload image',
+                onPressed: _pickAndUpload,
+              ),
+          ],
+        ),
+        if (previewUrl.startsWith('http'))
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                previewUrl,
+                height: 72,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _a, _b) => const SizedBox.shrink(),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// ── Promo Banner Edit Dialog ──────────────────────────────────────────────────
+
+class _PromoBannerEditDialog extends StatefulWidget {
+  const _PromoBannerEditDialog({
+    required this.adminService,
+    this.existing,
+  });
+
+  final AdminService adminService;
+  final AdminPromoBanner? existing;
+
+  @override
+  State<_PromoBannerEditDialog> createState() => _PromoBannerEditDialogState();
+}
+
+class _PromoBannerEditDialogState extends State<_PromoBannerEditDialog> {
+  late final TextEditingController _slideKey;
+  late final TextEditingController _sortOrder;
+  late final TextEditingController _labelEn;
+  late final TextEditingController _labelAr;
+  late final TextEditingController _titleEn;
+  late final TextEditingController _titleAr;
+  late final TextEditingController _subtitleEn;
+  late final TextEditingController _subtitleAr;
+  late final TextEditingController _ctaEn;
+  late final TextEditingController _ctaAr;
+  late final TextEditingController _iconName;
+  late final TextEditingController _gradientStart;
+  late final TextEditingController _gradientMid;
+  late final TextEditingController _gradientEnd;
+  late final TextEditingController _iconBgColor;
+  late final TextEditingController _targetRoute;
+  late bool _isActive;
+  String? _imageUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    final b = widget.existing;
+    _slideKey = TextEditingController(text: b?.slideKey ?? '');
+    _sortOrder = TextEditingController(text: (b?.sortOrder ?? 0).toString());
+    _labelEn = TextEditingController(text: b?.labelEn ?? '');
+    _labelAr = TextEditingController(text: b?.labelAr ?? '');
+    _titleEn = TextEditingController(text: b?.titleEn ?? '');
+    _titleAr = TextEditingController(text: b?.titleAr ?? '');
+    _subtitleEn = TextEditingController(text: b?.subtitleEn ?? '');
+    _subtitleAr = TextEditingController(text: b?.subtitleAr ?? '');
+    _ctaEn = TextEditingController(text: b?.ctaEn ?? '');
+    _ctaAr = TextEditingController(text: b?.ctaAr ?? '');
+    _iconName = TextEditingController(text: b?.iconName ?? 'mic_rounded');
+    _gradientStart = TextEditingController(text: b?.gradientStart ?? '');
+    _gradientMid = TextEditingController(text: b?.gradientMid ?? '');
+    _gradientEnd = TextEditingController(text: b?.gradientEnd ?? '');
+    _iconBgColor = TextEditingController(text: b?.iconBgColor ?? '');
+    _targetRoute = TextEditingController(text: b?.targetRoute ?? '');
+    _isActive = b?.isActive ?? true;
+    _imageUrl = b?.imageUrl;
+  }
+
+  @override
+  void dispose() {
+    _slideKey.dispose();
+    _sortOrder.dispose();
+    _labelEn.dispose();
+    _labelAr.dispose();
+    _titleEn.dispose();
+    _titleAr.dispose();
+    _subtitleEn.dispose();
+    _subtitleAr.dispose();
+    _ctaEn.dispose();
+    _ctaAr.dispose();
+    _iconName.dispose();
+    _gradientStart.dispose();
+    _gradientMid.dispose();
+    _gradientEnd.dispose();
+    _iconBgColor.dispose();
+    _targetRoute.dispose();
+    super.dispose();
+  }
+
+  String? _ne(String v) => v.trim().isEmpty ? null : v.trim();
+
+  @override
+  Widget build(BuildContext context) {
+    return _CatalogEditDialogShell(
+      title: widget.existing == null ? 'New promo banner' : 'Edit promo banner',
+      fields: [
+        TextField(
+          controller: _slideKey,
+          decoration: const InputDecoration(
+            labelText: 'Slide key (unique ID)',
+            hintText: 'e.g. explore_rooms',
+          ),
+        ),
+        TextField(
+          controller: _sortOrder,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Sort order'),
+        ),
+        const Divider(),
+        TextField(
+          controller: _labelEn,
+          decoration: const InputDecoration(labelText: 'Label (EN)'),
+        ),
+        TextField(
+          controller: _labelAr,
+          decoration: const InputDecoration(labelText: 'Label (AR)'),
+        ),
+        TextField(
+          controller: _titleEn,
+          decoration: const InputDecoration(labelText: 'Title (EN)'),
+        ),
+        TextField(
+          controller: _titleAr,
+          decoration: const InputDecoration(labelText: 'Title (AR)'),
+        ),
+        TextField(
+          controller: _subtitleEn,
+          decoration: const InputDecoration(labelText: 'Subtitle (EN)'),
+        ),
+        TextField(
+          controller: _subtitleAr,
+          decoration: const InputDecoration(labelText: 'Subtitle (AR)'),
+        ),
+        TextField(
+          controller: _ctaEn,
+          decoration: const InputDecoration(labelText: 'CTA button (EN)'),
+        ),
+        TextField(
+          controller: _ctaAr,
+          decoration: const InputDecoration(labelText: 'CTA button (AR)'),
+        ),
+        const Divider(),
+        TextField(
+          controller: _iconName,
+          decoration: const InputDecoration(
+            labelText: 'Icon name',
+            hintText: 'mic_rounded / card_giftcard_rounded / ...',
+          ),
+        ),
+        TextField(
+          controller: _gradientStart,
+          decoration: const InputDecoration(
+            labelText: 'Gradient start (hex AARRGGBB)',
+            hintText: 'FF2D0D5E',
+          ),
+        ),
+        TextField(
+          controller: _gradientMid,
+          decoration: const InputDecoration(
+            labelText: 'Gradient mid (hex AARRGGBB)',
+            hintText: 'FF5B1A9A',
+          ),
+        ),
+        TextField(
+          controller: _gradientEnd,
+          decoration: const InputDecoration(
+            labelText: 'Gradient end (hex AARRGGBB)',
+            hintText: 'FF8B26D9',
+          ),
+        ),
+        TextField(
+          controller: _iconBgColor,
+          decoration: const InputDecoration(
+            labelText: 'Icon bg color (hex AARRGGBB)',
+          ),
+        ),
+        const Divider(),
+        _ImageUploadField(
+          label: 'Image URL (optional)',
+          initialUrl: _imageUrl,
+          adminService: widget.adminService,
+          onChanged: (url) => setState(() => _imageUrl = url),
+        ),
+        TextField(
+          controller: _targetRoute,
+          decoration: const InputDecoration(
+            labelText: 'Target route',
+            hintText: 'discovery / gifts / vip',
+          ),
+        ),
+        SwitchListTile(
+          value: _isActive,
+          onChanged: (v) => setState(() => _isActive = v),
+          title: const Text('Active'),
+        ),
+      ],
+      onSave: () {
+        final key = _slideKey.text.trim();
+        if (key.isEmpty) return;
+        Navigator.of(context).pop(
+          AdminPromoBanner(
+            id: widget.existing?.id ?? '',
+            slideKey: key,
+            sortOrder: int.tryParse(_sortOrder.text.trim()) ?? 0,
+            isActive: _isActive,
+            labelEn: _labelEn.text.trim(),
+            labelAr: _labelAr.text.trim(),
+            titleEn: _titleEn.text.trim(),
+            titleAr: _titleAr.text.trim(),
+            subtitleEn: _subtitleEn.text.trim(),
+            subtitleAr: _subtitleAr.text.trim(),
+            ctaEn: _ctaEn.text.trim(),
+            ctaAr: _ctaAr.text.trim(),
+            iconName: _iconName.text.trim().isEmpty
+                ? 'mic_rounded'
+                : _iconName.text.trim(),
+            gradientStart: _ne(_gradientStart.text),
+            gradientMid: _ne(_gradientMid.text),
+            gradientEnd: _ne(_gradientEnd.text),
+            iconBgColor: _ne(_iconBgColor.text),
+            imageUrl: _imageUrl,
+            targetRoute: _ne(_targetRoute.text),
           ),
         );
       },
@@ -4288,6 +4771,7 @@ IconData _moduleIcon(_AdminModule module) {
     _AdminModule.bd => Icons.handshake_rounded,
     _AdminModule.content => Icons.card_giftcard_rounded,
     _AdminModule.rooms => Icons.mic_external_on_rounded,
+    _AdminModule.banners => Icons.view_carousel_rounded,
     _AdminModule.audit => Icons.fact_check_rounded,
   };
 }
@@ -4300,6 +4784,7 @@ String _moduleLabel(_AdminModule module) {
     _AdminModule.bd => 'BD',
     _AdminModule.content => 'Content',
     _AdminModule.rooms => 'Rooms',
+    _AdminModule.banners => 'Banners',
     _AdminModule.audit => 'Audit',
   };
 }

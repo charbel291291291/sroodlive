@@ -69,31 +69,110 @@ class AppTheme {
       ),
     ),
     filledButtonTheme: FilledButtonThemeData(
-      style: FilledButton.styleFrom(
-        backgroundColor: SroodColors.gold,
-        foregroundColor: SroodColors.abyss,
-        textStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      style: ButtonStyle(
+        backgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return SroodColors.gold.withValues(alpha: 0.38);
+          }
+          return SroodColors.gold;
+        }),
+        foregroundColor: WidgetStateProperty.all(SroodColors.abyss),
+        overlayColor: WidgetStateProperty.all(
+          Colors.white.withValues(alpha: 0.12),
+        ),
+        elevation: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.pressed)) return 0;
+          return 6;
+        }),
+        shadowColor: WidgetStateProperty.all(
+          SroodColors.gold.withValues(alpha: 0.55),
+        ),
+        textStyle: WidgetStateProperty.all(
+          const TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
+        ),
+        padding: WidgetStateProperty.all(
+          const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        ),
+        shape: WidgetStateProperty.all(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+        side: WidgetStateProperty.all(
+          BorderSide(
+            color: Colors.white.withValues(alpha: 0.20),
+            width: 0.8,
+          ),
+        ),
+        animationDuration: const Duration(milliseconds: 120),
       ),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: SroodColors.gold,
-        foregroundColor: SroodColors.abyss,
-        elevation: 0,
-        textStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      style: ButtonStyle(
+        backgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return SroodColors.gold.withValues(alpha: 0.38);
+          }
+          return SroodColors.gold;
+        }),
+        foregroundColor: WidgetStateProperty.all(SroodColors.abyss),
+        overlayColor: WidgetStateProperty.all(
+          Colors.white.withValues(alpha: 0.14),
+        ),
+        elevation: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.pressed)) return 0;
+          return 7;
+        }),
+        shadowColor: WidgetStateProperty.all(
+          SroodColors.gold.withValues(alpha: 0.55),
+        ),
+        textStyle: WidgetStateProperty.all(
+          const TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
+        ),
+        padding: WidgetStateProperty.all(
+          const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        ),
+        shape: WidgetStateProperty.all(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+        side: WidgetStateProperty.all(
+          BorderSide(
+            color: Colors.white.withValues(alpha: 0.18),
+            width: 0.8,
+          ),
+        ),
+        animationDuration: const Duration(milliseconds: 120),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
-      style: OutlinedButton.styleFrom(
-        foregroundColor: SroodColors.gold,
-        side: const BorderSide(color: SroodColors.border),
-        textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      style: ButtonStyle(
+        foregroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return SroodColors.gold.withValues(alpha: 0.38);
+          }
+          return SroodColors.gold;
+        }),
+        overlayColor: WidgetStateProperty.all(
+          SroodColors.gold.withValues(alpha: 0.10),
+        ),
+        elevation: WidgetStateProperty.all(0),
+        textStyle: WidgetStateProperty.all(
+          const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+        ),
+        padding: WidgetStateProperty.all(
+          const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        ),
+        shape: WidgetStateProperty.all(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+        side: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return BorderSide(
+              color: SroodColors.gold.withValues(alpha: 0.25),
+              width: 1.2,
+            );
+          }
+          return const BorderSide(color: SroodColors.gold, width: 1.2);
+        }),
+        animationDuration: const Duration(milliseconds: 120),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
