@@ -15,19 +15,19 @@ class StoreItem {
   });
 
   factory StoreItem.fromJson(Map<String, dynamic> json) => StoreItem(
-        id: json['id']?.toString() ?? '',
-        name: json['name']?.toString() ?? '',
-        nameAr: json['name_ar']?.toString() ?? '',
-        description: json['description']?.toString() ?? '',
-        descriptionAr: json['description_ar']?.toString() ?? '',
-        itemType: json['item_type']?.toString() ?? '',
-        priceCoins: (json['price_coins'] as num?)?.toInt() ?? 0,
-        priceDiamonds: (json['price_diamonds'] as num?)?.toInt() ?? 0,
-        metadata: (json['metadata'] as Map<String, dynamic>?) ?? {},
-        isActive: json['is_active'] == true,
-        sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
-        owned: json['owned'] == true,
-      );
+    id: json['id']?.toString() ?? '',
+    name: json['name']?.toString() ?? '',
+    nameAr: json['name_ar']?.toString() ?? '',
+    description: json['description']?.toString() ?? '',
+    descriptionAr: json['description_ar']?.toString() ?? '',
+    itemType: json['item_type']?.toString() ?? '',
+    priceCoins: (json['price_coins'] as num?)?.toInt() ?? 0,
+    priceDiamonds: (json['price_diamonds'] as num?)?.toInt() ?? 0,
+    metadata: (json['metadata'] as Map<String, dynamic>?) ?? {},
+    isActive: json['is_active'] == true,
+    sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
+    owned: json['owned'] == true,
+  );
 
   final String id;
   final String name;
@@ -47,7 +47,8 @@ class StoreItem {
   String? get frameKey => metadata['frame_key'] as String?;
   String? get badgeKey => metadata['badge_key'] as String?;
 
-  String localName(bool isArabic) => isArabic && nameAr.isNotEmpty ? nameAr : name;
+  String localName(bool isArabic) =>
+      isArabic && nameAr.isNotEmpty ? nameAr : name;
   String localDescription(bool isArabic) =>
       isArabic && descriptionAr.isNotEmpty ? descriptionAr : description;
 }

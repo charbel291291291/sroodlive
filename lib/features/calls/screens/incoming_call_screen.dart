@@ -112,8 +112,12 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
               const SizedBox(height: 48),
               Text(
                 isArabic
-                    ? (widget.isVideo ? 'مكالمة مرئية واردة' : 'مكالمة صوتية واردة')
-                    : (widget.isVideo ? 'Incoming video call' : 'Incoming voice call'),
+                    ? (widget.isVideo
+                          ? 'مكالمة مرئية واردة'
+                          : 'مكالمة صوتية واردة')
+                    : (widget.isVideo
+                          ? 'Incoming video call'
+                          : 'Incoming voice call'),
                 style: const TextStyle(
                   color: Color(0xFFBCAED6),
                   fontSize: 15,
@@ -145,7 +149,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
                         ? Image.network(
                             widget.callerAvatarUrl!,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _avatarFallback(),
+                            errorBuilder: (_, _, _) => _avatarFallback(),
                           )
                         : _avatarFallback(),
                   ),

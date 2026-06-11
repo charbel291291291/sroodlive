@@ -14,17 +14,17 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
   bool _loading = true;
   bool _saving = false;
 
-  bool _notifSound    = true;
-  bool _notifVibrate  = true;
-  bool _showOnline    = true;
+  bool _notifSound = true;
+  bool _notifVibrate = true;
+  bool _showOnline = true;
   bool _allowMessages = true;
-  bool _allowCalls    = true;
-  bool _autoPlay      = true;
-  bool _dataWarning   = true;
+  bool _allowCalls = true;
+  bool _autoPlay = true;
+  bool _dataWarning = true;
 
   String _messageFrom = 'everyone';
-  String _callFrom    = 'everyone';
-  String _fontSize    = 'medium';
+  String _callFrom = 'everyone';
+  String _fontSize = 'medium';
 
   @override
   void initState() {
@@ -36,7 +36,10 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
     setState(() => _loading = true);
     try {
       final me = SupabaseService.requiredClient.auth.currentUser?.id;
-      if (me == null) { setState(() => _loading = false); return; }
+      if (me == null) {
+        setState(() => _loading = false);
+        return;
+      }
       final rows = await SupabaseService.requiredClient
           .from('user_preferences')
           .select()
@@ -45,16 +48,16 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
 
       if (rows != null && mounted) {
         setState(() {
-          _notifSound    = rows['notif_sound']    as bool? ?? true;
-          _notifVibrate  = rows['notif_vibrate']  as bool? ?? true;
-          _showOnline    = rows['show_online']    as bool? ?? true;
+          _notifSound = rows['notif_sound'] as bool? ?? true;
+          _notifVibrate = rows['notif_vibrate'] as bool? ?? true;
+          _showOnline = rows['show_online'] as bool? ?? true;
           _allowMessages = rows['allow_messages'] as bool? ?? true;
-          _allowCalls    = rows['allow_calls']    as bool? ?? true;
-          _autoPlay      = rows['auto_play']      as bool? ?? true;
-          _dataWarning   = rows['data_warning']   as bool? ?? true;
-          _messageFrom   = rows['message_from']   as String? ?? 'everyone';
-          _callFrom      = rows['call_from']      as String? ?? 'everyone';
-          _fontSize      = rows['font_size']      as String? ?? 'medium';
+          _allowCalls = rows['allow_calls'] as bool? ?? true;
+          _autoPlay = rows['auto_play'] as bool? ?? true;
+          _dataWarning = rows['data_warning'] as bool? ?? true;
+          _messageFrom = rows['message_from'] as String? ?? 'everyone';
+          _callFrom = rows['call_from'] as String? ?? 'everyone';
+          _fontSize = rows['font_size'] as String? ?? 'medium';
         });
       }
     } catch (_) {}
@@ -68,22 +71,24 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
       if (me == null) return;
       await SupabaseService.requiredClient.from('user_preferences').upsert({
         'user_id': me,
-        'notif_sound':    _notifSound,
-        'notif_vibrate':  _notifVibrate,
-        'show_online':    _showOnline,
+        'notif_sound': _notifSound,
+        'notif_vibrate': _notifVibrate,
+        'show_online': _showOnline,
         'allow_messages': _allowMessages,
-        'allow_calls':    _allowCalls,
-        'auto_play':      _autoPlay,
-        'data_warning':   _dataWarning,
-        'message_from':   _messageFrom,
-        'call_from':      _callFrom,
-        'font_size':      _fontSize,
+        'allow_calls': _allowCalls,
+        'auto_play': _autoPlay,
+        'data_warning': _dataWarning,
+        'message_from': _messageFrom,
+        'call_from': _callFrom,
+        'font_size': _fontSize,
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(widget.isArabic ? 'تم الحفظ' : 'Preferences saved'),
-        backgroundColor: const Color(0xFF1A3A28),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(widget.isArabic ? 'تم الحفظ' : 'Preferences saved'),
+          backgroundColor: const Color(0xFF1A3A28),
+        ),
+      );
     } catch (_) {}
     if (mounted) setState(() => _saving = false);
   }
@@ -107,55 +112,130 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
             children: [
               _buildHeader(isArabic),
               if (_loading)
-                const Expanded(child: Center(child: CircularProgressIndicator(color: Color(0xFF8B26D9))))
+                const Expanded(
+                  child: Center(
+                    child: CircularProgressIndicator(color: Color(0xFF8B26D9)),
+                  ),
+                )
               else
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
                     child: Directionality(
-                      textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+                      textDirection: isArabic
+                          ? TextDirection.rtl
+                          : TextDirection.ltr,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _section(isArabic ? 'الإشعارات' : 'Notifications', [
-                            _toggle(isArabic ? 'صوت الإشعارات' : 'Notification sound',       Icons.volume_up_rounded,       _notifSound,    (v) => setState(() => _notifSound = v)),
-                            _toggle(isArabic ? 'اهتزاز الإشعارات' : 'Vibration',              Icons.vibration_rounded,       _notifVibrate,  (v) => setState(() => _notifVibrate = v)),
+                            _toggle(
+                              isArabic ? 'صوت الإشعارات' : 'Notification sound',
+                              Icons.volume_up_rounded,
+                              _notifSound,
+                              (v) => setState(() => _notifSound = v),
+                            ),
+                            _toggle(
+                              isArabic ? 'اهتزاز الإشعارات' : 'Vibration',
+                              Icons.vibration_rounded,
+                              _notifVibrate,
+                              (v) => setState(() => _notifVibrate = v),
+                            ),
                           ]),
                           _section(isArabic ? 'الخصوصية' : 'Privacy', [
-                            _toggle(isArabic ? 'إظهار حالة الاتصال' : 'Show online status',  Icons.circle_rounded,           _showOnline,    (v) => setState(() => _showOnline = v)),
-                            _toggle(isArabic ? 'السماح بالرسائل' : 'Allow messages',          Icons.chat_bubble_rounded,      _allowMessages, (v) => setState(() => _allowMessages = v)),
-                            _toggle(isArabic ? 'السماح بالمكالمات' : 'Allow calls',           Icons.call_rounded,             _allowCalls,    (v) => setState(() => _allowCalls = v)),
+                            _toggle(
+                              isArabic
+                                  ? 'إظهار حالة الاتصال'
+                                  : 'Show online status',
+                              Icons.circle_rounded,
+                              _showOnline,
+                              (v) => setState(() => _showOnline = v),
+                            ),
+                            _toggle(
+                              isArabic ? 'السماح بالرسائل' : 'Allow messages',
+                              Icons.chat_bubble_rounded,
+                              _allowMessages,
+                              (v) => setState(() => _allowMessages = v),
+                            ),
+                            _toggle(
+                              isArabic ? 'السماح بالمكالمات' : 'Allow calls',
+                              Icons.call_rounded,
+                              _allowCalls,
+                              (v) => setState(() => _allowCalls = v),
+                            ),
                             _picker(
-                              isArabic ? 'من يمكنه مراسلتي؟' : 'Who can message me?',
+                              isArabic
+                                  ? 'من يمكنه مراسلتي؟'
+                                  : 'Who can message me?',
                               Icons.message_rounded,
                               _messageFrom,
                               isArabic
-                                  ? {'everyone': 'الجميع', 'followers': 'المتابعون', 'nobody': 'لا أحد'}
-                                  : {'everyone': 'Everyone', 'followers': 'Followers', 'nobody': 'Nobody'},
+                                  ? {
+                                      'everyone': 'الجميع',
+                                      'followers': 'المتابعون',
+                                      'nobody': 'لا أحد',
+                                    }
+                                  : {
+                                      'everyone': 'Everyone',
+                                      'followers': 'Followers',
+                                      'nobody': 'Nobody',
+                                    },
                               (v) => setState(() => _messageFrom = v),
                               isArabic,
                             ),
                             _picker(
-                              isArabic ? 'من يمكنه مكالمتي؟' : 'Who can call me?',
+                              isArabic
+                                  ? 'من يمكنه مكالمتي؟'
+                                  : 'Who can call me?',
                               Icons.phone_in_talk_rounded,
                               _callFrom,
                               isArabic
-                                  ? {'everyone': 'الجميع', 'followers': 'المتابعون', 'nobody': 'لا أحد'}
-                                  : {'everyone': 'Everyone', 'followers': 'Followers', 'nobody': 'Nobody'},
+                                  ? {
+                                      'everyone': 'الجميع',
+                                      'followers': 'المتابعون',
+                                      'nobody': 'لا أحد',
+                                    }
+                                  : {
+                                      'everyone': 'Everyone',
+                                      'followers': 'Followers',
+                                      'nobody': 'Nobody',
+                                    },
                               (v) => setState(() => _callFrom = v),
                               isArabic,
                             ),
                           ]),
                           _section(isArabic ? 'التطبيق' : 'App', [
-                            _toggle(isArabic ? 'تشغيل تلقائي للمقاطع' : 'Auto-play videos',   Icons.play_circle_rounded,      _autoPlay,    (v) => setState(() => _autoPlay = v)),
-                            _toggle(isArabic ? 'تنبيه استهلاك البيانات' : 'Data usage warning', Icons.data_usage_rounded,       _dataWarning, (v) => setState(() => _dataWarning = v)),
+                            _toggle(
+                              isArabic
+                                  ? 'تشغيل تلقائي للمقاطع'
+                                  : 'Auto-play videos',
+                              Icons.play_circle_rounded,
+                              _autoPlay,
+                              (v) => setState(() => _autoPlay = v),
+                            ),
+                            _toggle(
+                              isArabic
+                                  ? 'تنبيه استهلاك البيانات'
+                                  : 'Data usage warning',
+                              Icons.data_usage_rounded,
+                              _dataWarning,
+                              (v) => setState(() => _dataWarning = v),
+                            ),
                             _picker(
                               isArabic ? 'حجم الخط' : 'Font size',
                               Icons.text_fields_rounded,
                               _fontSize,
                               isArabic
-                                  ? {'small': 'صغير', 'medium': 'متوسط', 'large': 'كبير'}
-                                  : {'small': 'Small', 'medium': 'Medium', 'large': 'Large'},
+                                  ? {
+                                      'small': 'صغير',
+                                      'medium': 'متوسط',
+                                      'large': 'كبير',
+                                    }
+                                  : {
+                                      'small': 'Small',
+                                      'medium': 'Medium',
+                                      'large': 'Large',
+                                    },
                               (v) => setState(() => _fontSize = v),
                               isArabic,
                             ),
@@ -168,14 +248,26 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                               style: FilledButton.styleFrom(
                                 backgroundColor: const Color(0xFF8B26D9),
                                 foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
                               ),
                               icon: _saving
-                                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
                                   : const Icon(Icons.check_rounded, size: 20),
                               label: Text(
                                 isArabic ? 'حفظ التفضيلات' : 'Save preferences',
-                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w900,
+                                ),
                               ),
                             ),
                           ),
@@ -210,12 +302,23 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
               children: [
                 Text(
                   isArabic ? 'التفضيلات' : 'Preferences',
-                  style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900, height: 1.0),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    height: 1.0,
+                  ),
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  isArabic ? 'إشعارات، خصوصية، وإعدادات التطبيق' : 'Notifications, privacy, and app settings',
-                  style: const TextStyle(color: Color(0xFFBCAED6), fontSize: 12, fontWeight: FontWeight.w700),
+                  isArabic
+                      ? 'إشعارات، خصوصية، وإعدادات التطبيق'
+                      : 'Notifications, privacy, and app settings',
+                  style: const TextStyle(
+                    color: Color(0xFFBCAED6),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ],
             ),
@@ -233,14 +336,21 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           padding: const EdgeInsets.only(top: 20, bottom: 8),
           child: Text(
             title,
-            style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+            style: const TextStyle(
+              color: Color(0xFF9E91B8),
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+            ),
           ),
         ),
         Container(
           decoration: BoxDecoration(
             color: const Color(0xFF160B24),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFF6E3AA8).withValues(alpha: 0.35)),
+            border: Border.all(
+              color: const Color(0xFF6E3AA8).withValues(alpha: 0.35),
+            ),
           ),
           child: Column(
             children: children.indexed.map((entry) {
@@ -250,7 +360,12 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
               return Column(
                 children: [
                   child,
-                  if (!isLast) const Divider(color: Color(0xFF1E1030), height: 1, indent: 52),
+                  if (!isLast)
+                    const Divider(
+                      color: Color(0xFF1E1030),
+                      height: 1,
+                      indent: 52,
+                    ),
                 ],
               );
             }).toList(),
@@ -260,7 +375,12 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
     );
   }
 
-  Widget _toggle(String label, IconData icon, bool value, ValueChanged<bool> onChanged) {
+  Widget _toggle(
+    String label,
+    IconData icon,
+    bool value,
+    ValueChanged<bool> onChanged,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       child: Row(
@@ -276,7 +396,14 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
           Switch(
             value: value,
@@ -314,27 +441,45 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
           const SizedBox(width: 8),
           GestureDetector(
-            onTap: () => _showPicker(label, options, value, onChanged, isArabic),
+            onTap: () =>
+                _showPicker(label, options, value, onChanged, isArabic),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: const Color(0xFF2A1040),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF8B26D9).withValues(alpha: 0.5)),
+                border: Border.all(
+                  color: const Color(0xFF8B26D9).withValues(alpha: 0.5),
+                ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     options[value] ?? value,
-                    style: const TextStyle(color: Color(0xFFCCA0FF), fontSize: 12, fontWeight: FontWeight.w800),
+                    style: const TextStyle(
+                      color: Color(0xFFCCA0FF),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(width: 4),
-                  const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF8B26D9), size: 16),
+                  const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: Color(0xFF8B26D9),
+                    size: 16,
+                  ),
                 ],
               ),
             ),
@@ -362,31 +507,71 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(width: 36, height: 4, decoration: BoxDecoration(color: const Color(0xFF4A3470), borderRadius: BorderRadius.circular(2))),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFF4A3470),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
             const SizedBox(height: 16),
-            Text(title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900)),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
             const SizedBox(height: 16),
-            ...options.entries.map((e) => GestureDetector(
-              onTap: () { onChanged(e.key); Navigator.of(context).pop(); },
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-                decoration: BoxDecoration(
-                  color: e.key == current ? const Color(0xFF2A1040) : const Color(0xFF1B102B),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: e.key == current ? const Color(0xFF8B26D9) : const Color(0xFF4A3470),
+            ...options.entries.map(
+              (e) => GestureDetector(
+                onTap: () {
+                  onChanged(e.key);
+                  Navigator.of(context).pop();
+                },
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 13,
+                  ),
+                  decoration: BoxDecoration(
+                    color: e.key == current
+                        ? const Color(0xFF2A1040)
+                        : const Color(0xFF1B102B),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: e.key == current
+                          ? const Color(0xFF8B26D9)
+                          : const Color(0xFF4A3470),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        e.value,
+                        style: TextStyle(
+                          color: e.key == current
+                              ? Colors.white
+                              : const Color(0xFFBCAED6),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const Spacer(),
+                      if (e.key == current)
+                        const Icon(
+                          Icons.check_rounded,
+                          color: Color(0xFF8B26D9),
+                          size: 18,
+                        ),
+                    ],
                   ),
                 ),
-                child: Row(
-                  children: [
-                    Text(e.value, style: TextStyle(color: e.key == current ? Colors.white : const Color(0xFFBCAED6), fontSize: 15, fontWeight: FontWeight.w700)),
-                    const Spacer(),
-                    if (e.key == current) const Icon(Icons.check_rounded, color: Color(0xFF8B26D9), size: 18),
-                  ],
-                ),
               ),
-            )),
+            ),
           ],
         ),
       ),

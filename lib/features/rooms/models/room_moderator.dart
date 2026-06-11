@@ -43,34 +43,33 @@ class RoomModerator {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'room_id': roomId,
-        'user_id': userId,
-        'created_by': createdBy,
-        'can_manage_mics': canManageMics,
-        'can_mute': canMute,
-        'can_kick': canKick,
-        'can_manage_schedule': canManageSchedule,
-        'created_at': createdAt.toIso8601String(),
-      };
+    'id': id,
+    'room_id': roomId,
+    'user_id': userId,
+    'created_by': createdBy,
+    'can_manage_mics': canManageMics,
+    'can_mute': canMute,
+    'can_kick': canKick,
+    'can_manage_schedule': canManageSchedule,
+    'created_at': createdAt.toIso8601String(),
+  };
 
   RoomModerator copyWith({
     bool? canManageMics,
     bool? canMute,
     bool? canKick,
     bool? canManageSchedule,
-  }) =>
-      RoomModerator(
-        id: id,
-        roomId: roomId,
-        userId: userId,
-        createdBy: createdBy,
-        canManageMics: canManageMics ?? this.canManageMics,
-        canMute: canMute ?? this.canMute,
-        canKick: canKick ?? this.canKick,
-        canManageSchedule: canManageSchedule ?? this.canManageSchedule,
-        createdAt: createdAt,
-        displayName: displayName,
-        avatarUrl: avatarUrl,
-      );
+  }) => RoomModerator(
+    id: id,
+    roomId: roomId,
+    userId: userId,
+    createdBy: createdBy,
+    canManageMics: canManageMics ?? this.canManageMics,
+    canMute: canMute ?? this.canMute,
+    canKick: canKick ?? this.canKick,
+    canManageSchedule: canManageSchedule ?? this.canManageSchedule,
+    createdAt: createdAt,
+    displayName: displayName,
+    avatarUrl: avatarUrl,
+  );
 }

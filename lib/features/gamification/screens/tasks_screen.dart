@@ -11,7 +11,8 @@ class TasksScreen extends StatefulWidget {
   State<TasksScreen> createState() => _TasksScreenState();
 }
 
-class _TasksScreenState extends State<TasksScreen> with SingleTickerProviderStateMixin {
+class _TasksScreenState extends State<TasksScreen>
+    with SingleTickerProviderStateMixin {
   final _service = const GamificationService();
   late final TabController _tab;
 
@@ -33,14 +34,23 @@ class _TasksScreenState extends State<TasksScreen> with SingleTickerProviderStat
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final tasks = await _service.getMyTasks();
       if (!mounted) return;
-      setState(() { _tasks = tasks; _loading = false; });
+      setState(() {
+        _tasks = tasks;
+        _loading = false;
+      });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _error = e.toString(); _loading = false; });
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
     }
   }
 
@@ -48,29 +58,44 @@ class _TasksScreenState extends State<TasksScreen> with SingleTickerProviderStat
     try {
       await _service.claimTaskReward(task.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Row(children: [
-          const Icon(Icons.monetization_on_rounded, color: Color(0xFFF0C15A)),
-          const SizedBox(width: 8),
-          Text(widget.isArabic
-              ? '\u062a\u0645 \u0627\u0633\u062a\u0644\u0627\u0645 ${_fmt(task.rewardAmount)} \u0639\u0645\u0644\u0629!'
-              : '${_fmt(task.rewardAmount)} coins claimed!'),
-        ]),
-        backgroundColor: const Color(0xFF1B102A),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(
+                Icons.monetization_on_rounded,
+                color: Color(0xFFF0C15A),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                widget.isArabic
+                    ? '\u062a\u0645 \u0627\u0633\u062a\u0644\u0627\u0645 ${_fmt(task.rewardAmount)} \u0639\u0645\u0644\u0629!'
+                    : '${_fmt(task.rewardAmount)} coins claimed!',
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF1B102A),
+        ),
+      );
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(e.toString()),
-        backgroundColor: const Color(0xFFFF4D6D),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: const Color(0xFFFF4D6D),
+        ),
+      );
     }
   }
 
   String _fmt(int n) {
-    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(n % 1000000 == 0 ? 0 : 1)}M';
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}K';
+    if (n >= 1000000) {
+      return '${(n / 1000000).toStringAsFixed(n % 1000000 == 0 ? 0 : 1)}M';
+    }
+    if (n >= 1000) {
+      return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}K';
+    }
     return '$n';
   }
 
@@ -100,50 +125,65 @@ class _TasksScreenState extends State<TasksScreen> with SingleTickerProviderStat
   }
 
   Widget _buildHeader() => Padding(
-        padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
-        child: Row(
-          textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
-          children: [
-            IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
-            ),
-            Text(
-              widget.isArabic ? '\u0627\u0644\u0645\u0647\u0627\u0645' : 'Tasks',
-              style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
-            ),
-          ],
+    padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
+    child: Row(
+      textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+      children: [
+        IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
         ),
-      );
+        Text(
+          widget.isArabic ? '\u0627\u0644\u0645\u0647\u0627\u0645' : 'Tasks',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _buildTabBar() => Container(
-        margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1B102A),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFF4A3470)),
+    margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+    padding: const EdgeInsets.all(4),
+    decoration: BoxDecoration(
+      color: const Color(0xFF1B102A),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: const Color(0xFF4A3470)),
+    ),
+    child: TabBar(
+      controller: _tab,
+      indicator: BoxDecoration(
+        color: const Color(0xFFF0C15A),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      indicatorSize: TabBarIndicatorSize.tab,
+      labelColor: const Color(0xFF160B26),
+      unselectedLabelColor: const Color(0xFFD8CFEA),
+      labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+      dividerColor: Colors.transparent,
+      tabs: [
+        Tab(text: widget.isArabic ? '\u064a\u0648\u0645\u064a\u0629' : 'Daily'),
+        Tab(
+          text: widget.isArabic
+              ? '\u0623\u0633\u0628\u0648\u0639\u064a\u0629'
+              : 'Weekly',
         ),
-        child: TabBar(
-          controller: _tab,
-          indicator: BoxDecoration(
-            color: const Color(0xFFF0C15A),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          indicatorSize: TabBarIndicatorSize.tab,
-          labelColor: const Color(0xFF160B26),
-          unselectedLabelColor: const Color(0xFFD8CFEA),
-          labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
-          dividerColor: Colors.transparent,
-          tabs: [
-            Tab(text: widget.isArabic ? '\u064a\u0648\u0645\u064a\u0629' : 'Daily'),
-            Tab(text: widget.isArabic ? '\u0623\u0633\u0628\u0648\u0639\u064a\u0629' : 'Weekly'),
-          ],
-        ),
-      );
+      ],
+    ),
+  );
 
   Widget _buildBody() {
-    if (_loading) return const Center(child: CircularProgressIndicator(color: Color(0xFFF0C15A), strokeWidth: 2.5));
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFFF0C15A),
+          strokeWidth: 2.5,
+        ),
+      );
+    }
     if (_error != null) return _buildError();
 
     final daily = _tasks.where((t) => t.isDaily).toList();
@@ -152,29 +192,50 @@ class _TasksScreenState extends State<TasksScreen> with SingleTickerProviderStat
     return TabBarView(
       controller: _tab,
       children: [
-        _TaskList(tasks: daily, isArabic: widget.isArabic, onClaim: _claim, onRefresh: _load),
-        _TaskList(tasks: weekly, isArabic: widget.isArabic, onClaim: _claim, onRefresh: _load),
+        _TaskList(
+          tasks: daily,
+          isArabic: widget.isArabic,
+          onClaim: _claim,
+          onRefresh: _load,
+        ),
+        _TaskList(
+          tasks: weekly,
+          isArabic: widget.isArabic,
+          onClaim: _claim,
+          onRefresh: _load,
+        ),
       ],
     );
   }
 
   Widget _buildError() => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline_rounded, color: Color(0xFFFF5C7A), size: 40),
-            const SizedBox(height: 12),
-            Text(_error!, textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 13)),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: _load,
-              child: Text(widget.isArabic ? '\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629' : 'Retry',
-                  style: const TextStyle(color: Color(0xFFF0C15A))),
-            ),
-          ],
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(
+          Icons.error_outline_rounded,
+          color: Color(0xFFFF5C7A),
+          size: 40,
         ),
-      );
+        const SizedBox(height: 12),
+        Text(
+          _error!,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 13),
+        ),
+        const SizedBox(height: 16),
+        TextButton(
+          onPressed: _load,
+          child: Text(
+            widget.isArabic
+                ? '\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629'
+                : 'Retry',
+            style: const TextStyle(color: Color(0xFFF0C15A)),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -199,7 +260,9 @@ class _TaskList extends StatelessWidget {
     if (tasks.isEmpty) {
       return Center(
         child: Text(
-          isArabic ? '\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u0647\u0627\u0645' : 'No tasks',
+          isArabic
+              ? '\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u0647\u0627\u0645'
+              : 'No tasks',
           style: const TextStyle(color: Color(0xFF7A6890), fontSize: 15),
         ),
       );
@@ -212,7 +275,8 @@ class _TaskList extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         itemCount: tasks.length,
         separatorBuilder: (_, _) => const SizedBox(height: 10),
-        itemBuilder: (_, i) => _TaskCard(task: tasks[i], isArabic: isArabic, onClaim: onClaim),
+        itemBuilder: (_, i) =>
+            _TaskCard(task: tasks[i], isArabic: isArabic, onClaim: onClaim),
       ),
     );
   }
@@ -223,14 +287,22 @@ class _TaskList extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _TaskCard extends StatelessWidget {
-  const _TaskCard({required this.task, required this.isArabic, required this.onClaim});
+  const _TaskCard({
+    required this.task,
+    required this.isArabic,
+    required this.onClaim,
+  });
   final TaskItem task;
   final bool isArabic;
   final void Function(TaskItem) onClaim;
 
   String _fmt(int n) {
-    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(n % 1000000 == 0 ? 0 : 1)}M';
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}K';
+    if (n >= 1000000) {
+      return '${(n / 1000000).toStringAsFixed(n % 1000000 == 0 ? 0 : 1)}M';
+    }
+    if (n >= 1000) {
+      return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}K';
+    }
     return '$n';
   }
 
@@ -249,12 +321,14 @@ class _TaskCard extends StatelessWidget {
           color: canClaim
               ? const Color(0xFFF0C15A).withValues(alpha: 0.6)
               : claimed
-                  ? const Color(0xFF2ECC71).withValues(alpha: 0.3)
-                  : const Color(0xFF4A3470),
+              ? const Color(0xFF2ECC71).withValues(alpha: 0.3)
+              : const Color(0xFF4A3470),
         ),
       ),
       child: Column(
-        crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: isArabic
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
         children: [
           Row(
             textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
@@ -266,36 +340,68 @@ class _TaskCard extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: _iconBg(task.requirementType),
                 ),
-                child: Icon(_taskIcon(task.requirementType), color: Colors.white, size: 20),
+                child: Icon(
+                  _taskIcon(task.requirementType),
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
-                  crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                  crossAxisAlignment: isArabic
+                      ? CrossAxisAlignment.end
+                      : CrossAxisAlignment.start,
                   children: [
-                    Text(task.localTitle(isArabic),
-                        style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900)),
-                    Text(task.localDescription(isArabic),
-                        style: const TextStyle(color: Color(0xFF7A6890), fontSize: 12)),
+                    Text(
+                      task.localTitle(isArabic),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    Text(
+                      task.localDescription(isArabic),
+                      style: const TextStyle(
+                        color: Color(0xFF7A6890),
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
               ),
               const SizedBox(width: 8),
               // Reward badge
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF0C15A).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: const Color(0xFFF0C15A).withValues(alpha: 0.4)),
+                  border: Border.all(
+                    color: const Color(0xFFF0C15A).withValues(alpha: 0.4),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.monetization_on_rounded, color: Color(0xFFF0C15A), size: 13),
+                    const Icon(
+                      Icons.monetization_on_rounded,
+                      color: Color(0xFFF0C15A),
+                      size: 13,
+                    ),
                     const SizedBox(width: 3),
-                    Text(_fmt(task.rewardAmount),
-                        style: const TextStyle(color: Color(0xFFF0C15A), fontSize: 12, fontWeight: FontWeight.w900)),
+                    Text(
+                      _fmt(task.rewardAmount),
+                      style: const TextStyle(
+                        color: Color(0xFFF0C15A),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -304,7 +410,9 @@ class _TaskCard extends StatelessWidget {
           const SizedBox(height: 14),
           // Progress bar
           Column(
-            crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            crossAxisAlignment: isArabic
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
             children: [
               Row(
                 textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
@@ -314,11 +422,17 @@ class _TaskCard extends StatelessWidget {
                     isArabic
                         ? '${task.progress}/${task.requirementCount} \u0645\u0643\u062a\u0645\u0644'
                         : '${task.progress}/${task.requirementCount} done',
-                    style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 12),
+                    style: const TextStyle(
+                      color: Color(0xFFD8CFEA),
+                      fontSize: 12,
+                    ),
                   ),
                   Text(
                     '${(progress * 100).toInt()}%',
-                    style: const TextStyle(color: Color(0xFF7A6890), fontSize: 12),
+                    style: const TextStyle(
+                      color: Color(0xFF7A6890),
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -346,13 +460,20 @@ class _TaskCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: const Color(0xFF2ECC71).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFF2ECC71).withValues(alpha: 0.3)),
+                        border: Border.all(
+                          color: const Color(0xFF2ECC71).withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Text(
-                        isArabic ? '\u2713 \u062a\u0645 \u0627\u0644\u0627\u0633\u062a\u0644\u0627\u0645' : '\u2713 Collected',
+                        isArabic
+                            ? '\u2713 \u062a\u0645 \u0627\u0644\u0627\u0633\u062a\u0644\u0627\u0645'
+                            : '\u2713 Collected',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
-                            color: Color(0xFF2ECC71), fontWeight: FontWeight.w900, fontSize: 13),
+                          color: Color(0xFF2ECC71),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 13,
+                        ),
                       ),
                     )
                   : ElevatedButton(
@@ -361,11 +482,15 @@ class _TaskCard extends StatelessWidget {
                         backgroundColor: const Color(0xFFF0C15A),
                         foregroundColor: const Color(0xFF160B26),
                         padding: const EdgeInsets.symmetric(vertical: 11),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         elevation: 0,
                       ),
                       child: Text(
-                        isArabic ? '\u0627\u0633\u062a\u0644\u0627\u0645 \u0627\u0644\u0645\u0643\u0627\u0641\u0623\u0629' : 'Claim Reward',
+                        isArabic
+                            ? '\u0627\u0633\u062a\u0644\u0627\u0645 \u0627\u0644\u0645\u0643\u0627\u0641\u0623\u0629'
+                            : 'Claim Reward',
                         style: const TextStyle(fontWeight: FontWeight.w900),
                       ),
                     ),
@@ -377,18 +502,18 @@ class _TaskCard extends StatelessWidget {
   }
 
   IconData _taskIcon(String type) => switch (type) {
-        'send_gift' => Icons.card_giftcard_rounded,
-        'join_room' => Icons.meeting_room_rounded,
-        'send_message' => Icons.chat_bubble_rounded,
-        'follow_user' => Icons.person_add_rounded,
-        _ => Icons.task_alt_rounded,
-      };
+    'send_gift' => Icons.card_giftcard_rounded,
+    'join_room' => Icons.meeting_room_rounded,
+    'send_message' => Icons.chat_bubble_rounded,
+    'follow_user' => Icons.person_add_rounded,
+    _ => Icons.task_alt_rounded,
+  };
 
   Color _iconBg(String type) => switch (type) {
-        'send_gift' => const Color(0xFF8B26D9),
-        'join_room' => const Color(0xFF4B168C),
-        'send_message' => const Color(0xFF2563EB),
-        'follow_user' => const Color(0xFF0891B2),
-        _ => const Color(0xFF374151),
-      };
+    'send_gift' => const Color(0xFF8B26D9),
+    'join_room' => const Color(0xFF4B168C),
+    'send_message' => const Color(0xFF2563EB),
+    'follow_user' => const Color(0xFF0891B2),
+    _ => const Color(0xFF374151),
+  };
 }

@@ -27,16 +27,61 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   static const List<String> _genders = ['male', 'female', 'other'];
   static const List<Map<String, dynamic>> _interests = [
-    {'key': 'music', 'en': 'Music', 'ar': 'موسيقى', 'icon': Icons.music_note_rounded},
-    {'key': 'gaming', 'en': 'Gaming', 'ar': 'ألعاب', 'icon': Icons.sports_esports_rounded},
-    {'key': 'sports', 'en': 'Sports', 'ar': 'رياضة', 'icon': Icons.sports_soccer_rounded},
+    {
+      'key': 'music',
+      'en': 'Music',
+      'ar': 'موسيقى',
+      'icon': Icons.music_note_rounded,
+    },
+    {
+      'key': 'gaming',
+      'en': 'Gaming',
+      'ar': 'ألعاب',
+      'icon': Icons.sports_esports_rounded,
+    },
+    {
+      'key': 'sports',
+      'en': 'Sports',
+      'ar': 'رياضة',
+      'icon': Icons.sports_soccer_rounded,
+    },
     {'key': 'art', 'en': 'Art', 'ar': 'فن', 'icon': Icons.palette_rounded},
-    {'key': 'cooking', 'en': 'Cooking', 'ar': 'طبخ', 'icon': Icons.restaurant_rounded},
-    {'key': 'travel', 'en': 'Travel', 'ar': 'سفر', 'icon': Icons.flight_rounded},
-    {'key': 'fitness', 'en': 'Fitness', 'ar': 'لياقة', 'icon': Icons.fitness_center_rounded},
-    {'key': 'comedy', 'en': 'Comedy', 'ar': 'كوميديا', 'icon': Icons.sentiment_very_satisfied_rounded},
-    {'key': 'education', 'en': 'Education', 'ar': 'تعليم', 'icon': Icons.school_rounded},
-    {'key': 'fashion', 'en': 'Fashion', 'ar': 'موضة', 'icon': Icons.checkroom_rounded},
+    {
+      'key': 'cooking',
+      'en': 'Cooking',
+      'ar': 'طبخ',
+      'icon': Icons.restaurant_rounded,
+    },
+    {
+      'key': 'travel',
+      'en': 'Travel',
+      'ar': 'سفر',
+      'icon': Icons.flight_rounded,
+    },
+    {
+      'key': 'fitness',
+      'en': 'Fitness',
+      'ar': 'لياقة',
+      'icon': Icons.fitness_center_rounded,
+    },
+    {
+      'key': 'comedy',
+      'en': 'Comedy',
+      'ar': 'كوميديا',
+      'icon': Icons.sentiment_very_satisfied_rounded,
+    },
+    {
+      'key': 'education',
+      'en': 'Education',
+      'ar': 'تعليم',
+      'icon': Icons.school_rounded,
+    },
+    {
+      'key': 'fashion',
+      'en': 'Fashion',
+      'ar': 'موضة',
+      'icon': Icons.checkroom_rounded,
+    },
   ];
 
   bool get _isArabic => widget.isArabic;
@@ -53,15 +98,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       final user = SupabaseService.requiredClient.auth.currentUser;
       if (user == null) return;
 
-      await SupabaseService.requiredClient
-          .from('profiles')
-          .upsert({
-            'id': user.id,
-            'bio': _bioController.text.trim(),
-            'gender': _selectedGender,
-            'interests': _selectedInterests,
-            if (_avatarUrl != null) 'avatar_url': _avatarUrl,
-          });
+      await SupabaseService.requiredClient.from('profiles').upsert({
+        'id': user.id,
+        'bio': _bioController.text.trim(),
+        'gender': _selectedGender,
+        'interests': _selectedInterests,
+        if (_avatarUrl != null) 'avatar_url': _avatarUrl,
+      });
 
       if (!mounted) return;
 
@@ -139,9 +182,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            _isArabic
-                ? 'الخطوة ${_step + 1} من 3'
-                : 'Step ${_step + 1} of 3',
+            _isArabic ? 'الخطوة ${_step + 1} من 3' : 'Step ${_step + 1} of 3',
             style: const TextStyle(
               color: Color(0xFF9E91B8),
               fontSize: 13,
@@ -170,12 +211,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         children: [
           const SizedBox(height: 20),
           Text(
-            isArabic ? '👋 مرحباً ${widget.displayName}!' : '👋 Welcome, ${widget.displayName}!',
+            isArabic
+                ? '👋 مرحباً ${widget.displayName}!'
+                : '👋 Welcome, ${widget.displayName}!',
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
-            ),
+            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 8),
           Text(
@@ -212,8 +252,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                           child: Image.network(
                             _avatarUrl!,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
-                                const Icon(Icons.person_rounded, size: 60, color: Color(0xFF9E91B8)),
+                            errorBuilder: (_, _, _) => const Icon(
+                              Icons.person_rounded,
+                              size: 60,
+                              color: Color(0xFF9E91B8),
+                            ),
                           ),
                         )
                       : const Icon(
@@ -231,9 +274,16 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     decoration: BoxDecoration(
                       color: const Color(0xFF8B26D9),
                       shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFF08060F), width: 2),
+                      border: Border.all(
+                        color: const Color(0xFF08060F),
+                        width: 2,
+                      ),
                     ),
-                    child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 18),
+                    child: const Icon(
+                      Icons.camera_alt_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                   ),
                 ),
               ],
@@ -262,7 +312,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   Widget _buildBioGenderStep() {
     final isArabic = _isArabic;
     final dir = isArabic ? TextDirection.rtl : TextDirection.ltr;
-    final crossAxis = isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    final crossAxis = isArabic
+        ? CrossAxisAlignment.end
+        : CrossAxisAlignment.start;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(22),
@@ -276,13 +328,23 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            isArabic ? 'أضف وصفاً مختصراً وحدد جنسك' : 'Add a short bio and select your gender',
-            style: const TextStyle(color: Color(0xFFBCAED6), fontWeight: FontWeight.w600, fontSize: 14),
+            isArabic
+                ? 'أضف وصفاً مختصراً وحدد جنسك'
+                : 'Add a short bio and select your gender',
+            style: const TextStyle(
+              color: Color(0xFFBCAED6),
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
           ),
           const SizedBox(height: 28),
           Text(
             isArabic ? 'نبذة عني' : 'Bio',
-            style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 14, fontWeight: FontWeight.w800),
+            style: const TextStyle(
+              color: Color(0xFFD8CFEA),
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           const SizedBox(height: 8),
           TextField(
@@ -290,9 +352,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             maxLines: 3,
             maxLength: 150,
             textDirection: dir,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
             decoration: InputDecoration(
-              hintText: isArabic ? 'اكتب شيئاً عن نفسك...' : 'Write something about yourself...',
+              hintText: isArabic
+                  ? 'اكتب شيئاً عن نفسك...'
+                  : 'Write something about yourself...',
               hintStyle: const TextStyle(color: Color(0xFF6E5A8A)),
               filled: true,
               fillColor: const Color(0xFF160B24),
@@ -306,23 +374,41 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(18),
-                borderSide: const BorderSide(color: Color(0xFF8B26D9), width: 1.5),
+                borderSide: const BorderSide(
+                  color: Color(0xFF8B26D9),
+                  width: 1.5,
+                ),
               ),
-              counterStyle: const TextStyle(color: Color(0xFF6E5A8A), fontSize: 11),
+              counterStyle: const TextStyle(
+                color: Color(0xFF6E5A8A),
+                fontSize: 11,
+              ),
             ),
           ),
           const SizedBox(height: 22),
           Text(
             isArabic ? 'الجنس' : 'Gender',
-            style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 14, fontWeight: FontWeight.w800),
+            style: const TextStyle(
+              color: Color(0xFFD8CFEA),
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           const SizedBox(height: 10),
           Row(
             textDirection: dir,
             children: _genders.map((g) {
               final label = isArabic
-                  ? (g == 'male' ? 'ذكر' : g == 'female' ? 'أنثى' : 'آخر')
-                  : (g == 'male' ? 'Male' : g == 'female' ? 'Female' : 'Other');
+                  ? (g == 'male'
+                        ? 'ذكر'
+                        : g == 'female'
+                        ? 'أنثى'
+                        : 'آخر')
+                  : (g == 'male'
+                        ? 'Male'
+                        : g == 'female'
+                        ? 'Female'
+                        : 'Other');
               final selected = _selectedGender == g;
               return Expanded(
                 child: GestureDetector(
@@ -349,7 +435,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       child: Text(
                         label,
                         style: TextStyle(
-                          color: selected ? Colors.white : const Color(0xFFBCAED6),
+                          color: selected
+                              ? Colors.white
+                              : const Color(0xFFBCAED6),
                           fontWeight: FontWeight.w800,
                           fontSize: 13,
                         ),
@@ -373,7 +461,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   Widget _buildInterestsStep() {
     final isArabic = _isArabic;
-    final crossAxis = isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    final crossAxis = isArabic
+        ? CrossAxisAlignment.end
+        : CrossAxisAlignment.start;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(22),
@@ -420,12 +510,19 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
-                    color: selected ? const Color(0xFF3A174F) : const Color(0xFF160B24),
+                    color: selected
+                        ? const Color(0xFF3A174F)
+                        : const Color(0xFF160B24),
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(
-                      color: selected ? const Color(0xFF8B26D9) : const Color(0xFF4A3470),
+                      color: selected
+                          ? const Color(0xFF8B26D9)
+                          : const Color(0xFF4A3470),
                       width: selected ? 1.5 : 1,
                     ),
                   ),
@@ -443,7 +540,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       Text(
                         label,
                         style: TextStyle(
-                          color: selected ? Colors.white : const Color(0xFFBCAED6),
+                          color: selected
+                              ? Colors.white
+                              : const Color(0xFFBCAED6),
                           fontWeight: FontWeight.w800,
                           fontSize: 13,
                         ),
@@ -478,7 +577,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     )
                   : Text(
                       isArabic ? 'ابدأ الاستكشاف' : 'Start exploring',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
             ),
           ),

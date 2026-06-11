@@ -390,10 +390,7 @@ class _ProfileContent extends StatelessWidget {
                   runSpacing: 7,
                   children: [
                     if (goldenActive)
-                      GoldenIdBadge(
-                        idText: profile.publicUserId,
-                        compact: true,
-                      )
+                      GoldenIdBadge(idText: profile.publicUserId, compact: true)
                     else
                       _ProfileStatPill(
                         icon: Icons.badge_rounded,

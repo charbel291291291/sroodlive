@@ -75,8 +75,9 @@ class _RechargeHelpScreenState extends State<RechargeHelpScreen> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
                     child: Directionality(
-                      textDirection:
-                          isArabic ? TextDirection.rtl : TextDirection.ltr,
+                      textDirection: isArabic
+                          ? TextDirection.rtl
+                          : TextDirection.ltr,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -120,8 +121,9 @@ class _RechargeHelpScreenState extends State<RechargeHelpScreen> {
           ),
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isArabic
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 Text(
                   isArabic ? 'دعم الشحن' : 'Recharge Help',
@@ -186,8 +188,7 @@ class _RateCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.black.withValues(alpha: 0.22),
               borderRadius: BorderRadius.circular(18),
-              border:
-                  Border.all(color: Colors.white.withValues(alpha: 0.16)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
             ),
             child: const Icon(
               Icons.monetization_on_rounded,
@@ -254,8 +255,7 @@ class _PaymentMethodsCard extends StatelessWidget {
         children: _methods.map((m) {
           final label = isArabic ? m.$3 : m.$2;
           return Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
               color: const Color(0xFF1B102A),
               borderRadius: BorderRadius.circular(999),
@@ -407,8 +407,11 @@ class _AgentsSection extends StatelessWidget {
     if (error != null) {
       return Column(
         children: [
-          const Icon(Icons.error_outline_rounded,
-              color: Color(0xFFFF5C7A), size: 36),
+          const Icon(
+            Icons.error_outline_rounded,
+            color: Color(0xFFFF5C7A),
+            size: 36,
+          ),
           const SizedBox(height: 8),
           Text(
             error!,
@@ -432,17 +435,21 @@ class _AgentsSection extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 20),
         child: Column(
           children: [
-            const Icon(Icons.support_agent_rounded,
-                color: Color(0xFF4A3470), size: 40),
+            const Icon(
+              Icons.support_agent_rounded,
+              color: Color(0xFF4A3470),
+              size: 40,
+            ),
             const SizedBox(height: 10),
             Text(
               isArabic
                   ? 'لا يوجد وكلاء متاحون حالياً'
                   : 'No agents available right now',
               style: const TextStyle(
-                  color: Color(0xFF7A6890),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700),
+                color: Color(0xFF7A6890),
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),
@@ -470,9 +477,7 @@ class _AgentTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF1B102A),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFF4A3470),
-        ),
+        border: Border.all(color: const Color(0xFF4A3470)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -530,16 +535,17 @@ class _AgentTile extends StatelessWidget {
                           GestureDetector(
                             onTap: () {
                               Clipboard.setData(
-                                  ClipboardData(text: agent.code));
-                              ScaffoldMessenger.of(context)
-                                  .showSnackBar(SnackBar(
-                                content: Text(isArabic
-                                    ? 'تم نسخ الكود'
-                                    : 'Code copied'),
-                                duration:
-                                    const Duration(milliseconds: 1500),
-                                backgroundColor: const Color(0xFF1B102A),
-                              ));
+                                ClipboardData(text: agent.code),
+                              );
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    isArabic ? 'تم نسخ الكود' : 'Code copied',
+                                  ),
+                                  duration: const Duration(milliseconds: 1500),
+                                  backgroundColor: const Color(0xFF1B102A),
+                                ),
+                              );
                             },
                             child: const Icon(
                               Icons.copy_rounded,
@@ -602,11 +608,13 @@ class _ContactChip extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         Clipboard.setData(ClipboardData(text: label));
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(isArabic ? 'تم النسخ' : 'Copied'),
-          duration: const Duration(milliseconds: 1500),
-          backgroundColor: const Color(0xFF1B102A),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isArabic ? 'تم النسخ' : 'Copied'),
+            duration: const Duration(milliseconds: 1500),
+            backgroundColor: const Color(0xFF1B102A),
+          ),
+        );
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
@@ -629,8 +637,11 @@ class _ContactChip extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 5),
-            Icon(Icons.copy_rounded,
-                color: color.withValues(alpha: 0.6), size: 12),
+            Icon(
+              Icons.copy_rounded,
+              color: color.withValues(alpha: 0.6),
+              size: 12,
+            ),
           ],
         ),
       ),
@@ -660,8 +671,11 @@ class _NoteCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.info_outline_rounded,
-              color: Color(0xFF2ECC71), size: 20),
+          const Icon(
+            Icons.info_outline_rounded,
+            color: Color(0xFF2ECC71),
+            size: 20,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -754,11 +768,11 @@ class _AgentInfo {
   });
 
   factory _AgentInfo.fromJson(Map<String, dynamic> json) => _AgentInfo(
-        name: json['name']?.toString() ?? '',
-        code: json['code']?.toString() ?? '',
-        phone: json['phone']?.toString() ?? '',
-        whatsapp: json['whatsapp']?.toString() ?? '',
-      );
+    name: json['name']?.toString() ?? '',
+    code: json['code']?.toString() ?? '',
+    phone: json['phone']?.toString() ?? '',
+    whatsapp: json['whatsapp']?.toString() ?? '',
+  );
 
   final String name;
   final String code;

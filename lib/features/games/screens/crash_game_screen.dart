@@ -324,7 +324,8 @@ class _CrashGameScreenState extends State<CrashGameScreen> {
   Widget _buildError() {
     return _CrashGameFallback(
       isArabic: widget.isArabic,
-      message: _errorMessage ??
+      message:
+          _errorMessage ??
           (widget.isArabic ? 'تعذر تحميل اللعبة.' : 'Failed to load game.'),
       onRetry: _reloadGame,
       retryLabel: widget.isArabic ? 'إعادة المحاولة' : 'Retry',
@@ -366,19 +367,30 @@ class _CrashGameFallback extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.rocket_launch_rounded,
-                  color: Color(0xFFF0C15A), size: 54),
+              const Icon(
+                Icons.rocket_launch_rounded,
+                color: Color(0xFFF0C15A),
+                size: 54,
+              ),
               const SizedBox(height: 16),
-              const Text('Crash Rocket',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900)),
+              const Text(
+                'Crash Rocket',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
               const SizedBox(height: 10),
-              Text(message,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      color: Color(0xFFD8CFEA), fontSize: 14, height: 1.4)),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFFD8CFEA),
+                  fontSize: 14,
+                  height: 1.4,
+                ),
+              ),
               const SizedBox(height: 22),
               SizedBox(
                 width: double.infinity,
@@ -389,7 +401,8 @@ class _CrashGameFallback extends StatelessWidget {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18)),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
                   ),
                   child: Text(retryLabel),
                 ),
@@ -405,9 +418,12 @@ class _CrashGameFallback extends StatelessWidget {
                       side: const BorderSide(color: Color(0xFF4A3470)),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18)),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
                     ),
-                    child: Text(isArabic ? 'فتح في المتصفح' : 'Open in browser'),
+                    child: Text(
+                      isArabic ? 'فتح في المتصفح' : 'Open in browser',
+                    ),
                   ),
                 ),
               ],

@@ -26,14 +26,23 @@ class _BackpackScreenState extends State<BackpackScreen> {
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final items = await _service.getMyBackpack();
       if (!mounted) return;
-      setState(() { _all = items; _loading = false; });
+      setState(() {
+        _all = items;
+        _loading = false;
+      });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _error = e.toString(); _loading = false; });
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
     }
   }
 
@@ -46,17 +55,25 @@ class _BackpackScreenState extends State<BackpackScreen> {
     try {
       await _service.equipBackpackItem(bp.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(widget.isArabic ? '\u062a\u0645 \u0627\u0644\u062a\u0641\u0639\u064a\u0644!' : 'Equipped!'),
-        backgroundColor: const Color(0xFF2ECC71),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.isArabic
+                ? '\u062a\u0645 \u0627\u0644\u062a\u0641\u0639\u064a\u0644!'
+                : 'Equipped!',
+          ),
+          backgroundColor: const Color(0xFF2ECC71),
+        ),
+      );
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(e.toString()),
-        backgroundColor: const Color(0xFFFF4D6D),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: const Color(0xFFFF4D6D),
+        ),
+      );
     }
   }
 
@@ -86,27 +103,43 @@ class _BackpackScreenState extends State<BackpackScreen> {
   }
 
   Widget _buildHeader() => Padding(
-        padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
-        child: Row(
-          textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
-          children: [
-            IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
-            ),
-            Text(
-              widget.isArabic ? '\u0627\u0644\u062d\u0642\u064a\u0628\u0629' : 'Backpack',
-              style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
-            ),
-          ],
+    padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
+    child: Row(
+      textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+      children: [
+        IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
         ),
-      );
+        Text(
+          widget.isArabic
+              ? '\u0627\u0644\u062d\u0642\u064a\u0628\u0629'
+              : 'Backpack',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _buildFilters() {
     final chips = [
       ('all', widget.isArabic ? '\u0627\u0644\u0643\u0644' : 'All'),
-      ('avatar_frame', widget.isArabic ? '\u0627\u0644\u0625\u0637\u0627\u0631\u0627\u062a' : 'Frames'),
-      ('badge', widget.isArabic ? '\u0627\u0644\u0634\u0627\u0631\u0627\u062a' : 'Badges'),
+      (
+        'avatar_frame',
+        widget.isArabic
+            ? '\u0627\u0644\u0625\u0637\u0627\u0631\u0627\u062a'
+            : 'Frames',
+      ),
+      (
+        'badge',
+        widget.isArabic
+            ? '\u0627\u0644\u0634\u0627\u0631\u0627\u062a'
+            : 'Badges',
+      ),
     ];
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
@@ -120,18 +153,27 @@ class _BackpackScreenState extends State<BackpackScreen> {
               onTap: () => setState(() => _filter = c.$1),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
-                  color: selected ? const Color(0xFFF0C15A) : const Color(0xFF1B102A),
+                  color: selected
+                      ? const Color(0xFFF0C15A)
+                      : const Color(0xFF1B102A),
                   borderRadius: BorderRadius.circular(999),
                   border: Border.all(
-                    color: selected ? const Color(0xFFF0C15A) : const Color(0xFF4A3470),
+                    color: selected
+                        ? const Color(0xFFF0C15A)
+                        : const Color(0xFF4A3470),
                   ),
                 ),
                 child: Text(
                   c.$2,
                   style: TextStyle(
-                    color: selected ? const Color(0xFF160B26) : const Color(0xFFD8CFEA),
+                    color: selected
+                        ? const Color(0xFF160B26)
+                        : const Color(0xFFD8CFEA),
                     fontWeight: FontWeight.w800,
                     fontSize: 13,
                   ),
@@ -145,7 +187,14 @@ class _BackpackScreenState extends State<BackpackScreen> {
   }
 
   Widget _buildBody() {
-    if (_loading) return const Center(child: CircularProgressIndicator(color: Color(0xFFF0C15A), strokeWidth: 2.5));
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFFF0C15A),
+          strokeWidth: 2.5,
+        ),
+      );
+    }
     if (_error != null) return _buildError();
     if (_filtered.isEmpty) return _buildEmpty();
 
@@ -167,41 +216,60 @@ class _BackpackScreenState extends State<BackpackScreen> {
   }
 
   Widget _buildError() => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline_rounded, color: Color(0xFFFF5C7A), size: 40),
-            const SizedBox(height: 12),
-            Text(_error!, textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 13)),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: _load,
-              child: Text(widget.isArabic ? '\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629' : 'Retry',
-                  style: const TextStyle(color: Color(0xFFF0C15A))),
-            ),
-          ],
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(
+          Icons.error_outline_rounded,
+          color: Color(0xFFFF5C7A),
+          size: 40,
         ),
-      );
+        const SizedBox(height: 12),
+        Text(
+          _error!,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 13),
+        ),
+        const SizedBox(height: 16),
+        TextButton(
+          onPressed: _load,
+          child: Text(
+            widget.isArabic
+                ? '\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629'
+                : 'Retry',
+            style: const TextStyle(color: Color(0xFFF0C15A)),
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _buildEmpty() => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.backpack_rounded, color: Color(0xFF4A3470), size: 56),
-            const SizedBox(height: 12),
-            Text(
-              widget.isArabic ? '\u062d\u0642\u064a\u0628\u062a\u0643 \u0641\u0627\u0631\u063a\u0629' : 'Your backpack is empty',
-              style: const TextStyle(color: Color(0xFF7A6890), fontSize: 15, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              widget.isArabic ? '\u0627\u0634\u062a\u0631\u064a \u0648\u0641\u0639\u0651\u0644' : 'Equipped',
-              style: const TextStyle(color: Color(0xFF4A3470), fontSize: 13),
-            ),
-          ],
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.backpack_rounded, color: Color(0xFF4A3470), size: 56),
+        const SizedBox(height: 12),
+        Text(
+          widget.isArabic
+              ? '\u062d\u0642\u064a\u0628\u062a\u0643 \u0641\u0627\u0631\u063a\u0629'
+              : 'Your backpack is empty',
+          style: const TextStyle(
+            color: Color(0xFF7A6890),
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
         ),
-      );
+        const SizedBox(height: 6),
+        Text(
+          widget.isArabic
+              ? '\u0627\u0634\u062a\u0631\u064a \u0648\u0641\u0639\u0651\u0644'
+              : 'Equipped',
+          style: const TextStyle(color: Color(0xFF4A3470), fontSize: 13),
+        ),
+      ],
+    ),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -209,7 +277,11 @@ class _BackpackScreenState extends State<BackpackScreen> {
 // ---------------------------------------------------------------------------
 
 class _BackpackItemCard extends StatelessWidget {
-  const _BackpackItemCard({required this.bp, required this.isArabic, required this.onEquip});
+  const _BackpackItemCard({
+    required this.bp,
+    required this.isArabic,
+    required this.onEquip,
+  });
   final BackpackItem bp;
   final bool isArabic;
   final VoidCallback onEquip;
@@ -249,37 +321,62 @@ class _BackpackItemCard extends StatelessWidget {
                         colors: [Color(0xFF4B168C), Color(0xFF8B26D9)],
                       ),
                     ),
-                    child: const Icon(Icons.workspace_premium_rounded,
-                        color: Color(0xFFF0C15A), size: 28),
+                    child: const Icon(
+                      Icons.workspace_premium_rounded,
+                      color: Color(0xFFF0C15A),
+                      size: 28,
+                    ),
                   ),
           ),
           const SizedBox(width: 14),
 
           Expanded(
             child: Column(
-              crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isArabic
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 Row(
-                  textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+                  textDirection: isArabic
+                      ? TextDirection.rtl
+                      : TextDirection.ltr,
                   children: [
                     Expanded(
                       child: Text(
                         bp.item.localName(isArabic),
-                        style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                     ),
                     if (bp.equipped)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF0C15A).withValues(alpha: 0.15),
+                          color: const Color(
+                            0xFFF0C15A,
+                          ).withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: const Color(0xFFF0C15A).withValues(alpha: 0.5)),
+                          border: Border.all(
+                            color: const Color(
+                              0xFFF0C15A,
+                            ).withValues(alpha: 0.5),
+                          ),
                         ),
                         child: Text(
-                          isArabic ? '\u0645\u0641\u0639\u0651\u0644' : 'Equipped',
+                          isArabic
+                              ? '\u0645\u0641\u0639\u0651\u0644'
+                              : 'Equipped',
                           style: const TextStyle(
-                            color: Color(0xFFF0C15A), fontSize: 11, fontWeight: FontWeight.w900),
+                            color: Color(0xFFF0C15A),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
                       ),
                   ],
@@ -289,7 +386,10 @@ class _BackpackItemCard extends StatelessWidget {
                   bp.item.localDescription(isArabic),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Color(0xFF7A6890), fontSize: 12),
+                  style: const TextStyle(
+                    color: Color(0xFF7A6890),
+                    fontSize: 12,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 if (!bp.equipped)
@@ -301,12 +401,17 @@ class _BackpackItemCard extends StatelessWidget {
                         backgroundColor: const Color(0xFF4B168C),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                         elevation: 0,
                       ),
                       child: Text(
                         isArabic ? '\u062a\u0641\u0639\u064a\u0644' : 'Equip',
-                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                   ),

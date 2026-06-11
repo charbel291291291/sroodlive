@@ -12,8 +12,7 @@ void main() {
 
     await Supabase.initialize(
       url: 'https://test.supabase.co',
-      anonKey:
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test.test',
+      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test.test',
     );
   });
 

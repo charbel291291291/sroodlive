@@ -133,9 +133,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                 ),
                 SettingsToggleTile(
-                  title: isArabic
-                      ? 'إشعارات الدفع'
-                      : 'Push notifications',
+                  title: isArabic ? 'إشعارات الدفع' : 'Push notifications',
                   subtitle: isArabic
                       ? 'تفعيل إشعارات الجهاز'
                       : 'System-level notification alerts',
@@ -258,9 +256,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 // ── 1. Discover & Activity ──────────────────────────────
                 ProfileSectionTitle(
-                  title: isArabic
-                      ? 'الاستكشاف والنشاط'
-                      : 'Discover & Activity',
+                  title: isArabic ? 'الاستكشاف والنشاط' : 'Discover & Activity',
                   subtitle: isArabic
                       ? 'تصفح، إشعارات، مكالمات'
                       : 'Browse, notifications, call log',
@@ -308,9 +304,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 // ── 2. Rooms & Live ──────────────────────────────────────
                 ProfileSectionTitle(
-                  title: isArabic
-                      ? 'الغرف والبث المباشر'
-                      : 'Rooms & Live',
+                  title: isArabic ? 'الغرف والبث المباشر' : 'Rooms & Live',
                   subtitle: isArabic
                       ? 'جدولة الغرف وأوقات التوفر'
                       : 'Room scheduling and availability',
@@ -345,9 +339,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 // ── 3. Games & Gifts ─────────────────────────────────────
                 ProfileSectionTitle(
-                  title: isArabic
-                      ? 'الألعاب والهدايا'
-                      : 'Games & Gifts',
+                  title: isArabic ? 'الألعاب والهدايا' : 'Games & Gifts',
                   subtitle: isArabic
                       ? 'عجلة الحظ، متجر الهدايا، سجل الإرسال'
                       : 'Spin wheel, gift catalog, send history',
@@ -395,9 +387,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 // ── 4. Wallet & Earnings ─────────────────────────────────
                 ProfileSectionTitle(
-                  title: isArabic
-                      ? 'المحفظة والأرباح'
-                      : 'Wallet & Earnings',
+                  title: isArabic ? 'المحفظة والأرباح' : 'Wallet & Earnings',
                   subtitle: isArabic
                       ? 'شحن، معاملات، سحب'
                       : 'Top up, transactions, cashout',
@@ -446,9 +436,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 // ── 5. Host & Agency ─────────────────────────────────────
                 ProfileSectionTitle(
-                  title: isArabic
-                      ? 'المضيف والوكالة'
-                      : 'Host & Agency',
+                  title: isArabic ? 'المضيف والوكالة' : 'Host & Agency',
                   subtitle: isArabic
                       ? 'التسجيل، الإدارة، برنامج المضيف'
                       : 'Register, manage, host program',
@@ -485,9 +473,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 // ── 6. Social ────────────────────────────────────────────
                 ProfileSectionTitle(
-                  title: isArabic
-                      ? 'التواصل والخصوصية'
-                      : 'Social & Privacy',
+                  title: isArabic ? 'التواصل والخصوصية' : 'Social & Privacy',
                   subtitle: isArabic
                       ? 'متصدرون، محظورون'
                       : 'Leaderboard, blocked users',
@@ -508,9 +494,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 ProfileMenuItem(
                   icon: Icons.block_rounded,
-                  title: isArabic
-                      ? 'المستخدمون المحظورون'
-                      : 'Blocked users',
+                  title: isArabic ? 'المستخدمون المحظورون' : 'Blocked users',
                   subtitle: isArabic
                       ? 'عرض وإدارة قائمة الحظر'
                       : 'View and manage your block list',
@@ -524,9 +508,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 // ── 7. Preferences ───────────────────────────────────────
                 ProfileSectionTitle(
-                  title: isArabic
-                      ? 'التفضيلات'
-                      : 'Preferences',
+                  title: isArabic ? 'التفضيلات' : 'Preferences',
                   subtitle: isArabic
                       ? 'المظهر، الصوت، الخصوصية'
                       : 'Appearance, sounds, privacy',

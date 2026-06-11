@@ -90,7 +90,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   Widget build(BuildContext context) {
     final isArabic = _isArabic;
     final textAlign = isArabic ? TextAlign.right : TextAlign.left;
-    final crossAxis = isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    final crossAxis = isArabic
+        ? CrossAxisAlignment.end
+        : CrossAxisAlignment.start;
     final dir = isArabic ? TextDirection.rtl : TextDirection.ltr;
 
     return Scaffold(
@@ -138,7 +140,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                           BrandingAssets.owlMark,
                           fit: BoxFit.contain,
                           filterQuality: FilterQuality.high,
-                          errorBuilder: (_, __, ___) => const Icon(
+                          errorBuilder: (_, _, _) => const Icon(
                             Icons.person_add_rounded,
                             size: 54,
                             color: Color(0xFFF0C15A),
@@ -233,7 +235,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     const SizedBox(height: 14),
                     _buildPasswordField(
                       controller: _confirmController,
-                      label: isArabic ? 'تأكيد كلمة المرور' : 'Confirm password',
+                      label: isArabic
+                          ? 'تأكيد كلمة المرور'
+                          : 'Confirm password',
                       obscure: _obscureConfirm,
                       onToggle: () =>
                           setState(() => _obscureConfirm = !_obscureConfirm),
@@ -256,7 +260,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                           color: const Color(0xFF3A1422),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: const Color(0xFFFF6B8A).withValues(alpha: 0.5),
+                            color: const Color(
+                              0xFFFF6B8A,
+                            ).withValues(alpha: 0.5),
                           ),
                         ),
                         child: Text(
@@ -307,7 +313,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       textDirection: dir,
                       children: [
                         Text(
-                          isArabic ? 'لديك حساب بالفعل؟ ' : 'Already have an account? ',
+                          isArabic
+                              ? 'لديك حساب بالفعل؟ '
+                              : 'Already have an account? ',
                           style: const TextStyle(
                             color: Color(0xFFBCAED6),
                             fontSize: 14,
@@ -390,8 +398,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       fillColor: const Color(0xFF160B24),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide:
-            const BorderSide(color: Color(0xFF4A3470)),
+        borderSide: const BorderSide(color: Color(0xFF4A3470)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
@@ -399,8 +406,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide:
-            const BorderSide(color: Color(0xFF8B26D9), width: 1.5),
+        borderSide: const BorderSide(color: Color(0xFF8B26D9), width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),

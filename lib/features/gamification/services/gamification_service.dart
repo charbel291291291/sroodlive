@@ -12,8 +12,9 @@ class GamificationService {
   // ---------------------------------------------------------------------------
 
   Future<List<StoreItem>> getStoreItems() async {
-    final data = await SupabaseService.requiredClient
-        .rpc('get_store_items') as List<dynamic>;
+    final data =
+        await SupabaseService.requiredClient.rpc('get_store_items')
+            as List<dynamic>;
     return data
         .map((e) => StoreItem.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -33,8 +34,9 @@ class GamificationService {
   // ---------------------------------------------------------------------------
 
   Future<List<TaskItem>> getMyTasks() async {
-    final data = await SupabaseService.requiredClient
-        .rpc('get_my_tasks') as List<dynamic>;
+    final data =
+        await SupabaseService.requiredClient.rpc('get_my_tasks')
+            as List<dynamic>;
     return data
         .map((e) => TaskItem.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -53,14 +55,16 @@ class GamificationService {
   // ---------------------------------------------------------------------------
 
   Future<CheckinStatus> getCheckinStatus() async {
-    final result = await SupabaseService.requiredClient
-        .rpc('get_my_checkin_status');
+    final result = await SupabaseService.requiredClient.rpc(
+      'get_my_checkin_status',
+    );
     return CheckinStatus.fromJson(result as Map<String, dynamic>);
   }
 
   Future<Map<String, dynamic>> claimDailyCheckin() async {
-    final result = await SupabaseService.requiredClient
-        .rpc('claim_daily_checkin');
+    final result = await SupabaseService.requiredClient.rpc(
+      'claim_daily_checkin',
+    );
     return (result as Map<String, dynamic>?) ?? {};
   }
 
@@ -69,8 +73,9 @@ class GamificationService {
   // ---------------------------------------------------------------------------
 
   Future<List<BackpackItem>> getMyBackpack() async {
-    final data = await SupabaseService.requiredClient
-        .rpc('get_my_backpack') as List<dynamic>;
+    final data =
+        await SupabaseService.requiredClient.rpc('get_my_backpack')
+            as List<dynamic>;
     return data
         .map((e) => BackpackItem.fromJson(e as Map<String, dynamic>))
         .toList();

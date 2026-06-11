@@ -44,12 +44,12 @@ class RoomBan {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'room_id': roomId,
-        'user_id': userId,
-        'banned_by': bannedBy,
-        'reason': reason,
-        'expires_at': expiresAt?.toIso8601String(),
-        'created_at': createdAt.toIso8601String(),
-      };
+    'id': id,
+    'room_id': roomId,
+    'user_id': userId,
+    'banned_by': bannedBy,
+    'reason': reason,
+    'expires_at': expiresAt?.toIso8601String(),
+    'created_at': createdAt.toIso8601String(),
+  };
 }

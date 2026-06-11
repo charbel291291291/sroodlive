@@ -36,18 +36,102 @@ class _GiftItem {
 }
 
 const _gifts = [
-  _GiftItem(id: 'rose',        name: 'Rose',         nameAr: 'وردة',        coinCost: 10,    emoji: '🌹', category: 'standard'),
-  _GiftItem(id: 'heart',       name: 'Heart',        nameAr: 'قلب',         coinCost: 20,    emoji: '❤️', category: 'standard'),
-  _GiftItem(id: 'star',        name: 'Star',         nameAr: 'نجمة',        coinCost: 50,    emoji: '⭐', category: 'standard'),
-  _GiftItem(id: 'cake',        name: 'Cake',         nameAr: 'كعكة',        coinCost: 99,    emoji: '🎂', category: 'standard'),
-  _GiftItem(id: 'crown',       name: 'Crown',        nameAr: 'تاج',         coinCost: 199,   emoji: '👑', category: 'popular'),
-  _GiftItem(id: 'diamond',     name: 'Diamond',      nameAr: 'ماسة',        coinCost: 299,   emoji: '💎', category: 'popular'),
-  _GiftItem(id: 'fireworks',   name: 'Fireworks',    nameAr: 'ألعاب نارية', coinCost: 499,   emoji: '🎆', category: 'popular'),
-  _GiftItem(id: 'galaxy',      name: 'Galaxy',       nameAr: 'مجرة',        coinCost: 999,   emoji: '🌌', category: 'popular'),
-  _GiftItem(id: 'rocket',      name: 'Rocket',       nameAr: 'صاروخ',       coinCost: 1999,  emoji: '🚀', category: 'premium'),
-  _GiftItem(id: 'castle',      name: 'Castle',       nameAr: 'قصر',         coinCost: 4999,  emoji: '🏰', category: 'premium'),
-  _GiftItem(id: 'dragon',      name: 'Dragon',       nameAr: 'تنين',        coinCost: 9999,  emoji: '🐉', category: 'premium'),
-  _GiftItem(id: 'universe',    name: 'Universe',     nameAr: 'كون',         coinCost: 19999, emoji: '🌠', category: 'premium'),
+  _GiftItem(
+    id: 'rose',
+    name: 'Rose',
+    nameAr: 'وردة',
+    coinCost: 10,
+    emoji: '🌹',
+    category: 'standard',
+  ),
+  _GiftItem(
+    id: 'heart',
+    name: 'Heart',
+    nameAr: 'قلب',
+    coinCost: 20,
+    emoji: '❤️',
+    category: 'standard',
+  ),
+  _GiftItem(
+    id: 'star',
+    name: 'Star',
+    nameAr: 'نجمة',
+    coinCost: 50,
+    emoji: '⭐',
+    category: 'standard',
+  ),
+  _GiftItem(
+    id: 'cake',
+    name: 'Cake',
+    nameAr: 'كعكة',
+    coinCost: 99,
+    emoji: '🎂',
+    category: 'standard',
+  ),
+  _GiftItem(
+    id: 'crown',
+    name: 'Crown',
+    nameAr: 'تاج',
+    coinCost: 199,
+    emoji: '👑',
+    category: 'popular',
+  ),
+  _GiftItem(
+    id: 'diamond',
+    name: 'Diamond',
+    nameAr: 'ماسة',
+    coinCost: 299,
+    emoji: '💎',
+    category: 'popular',
+  ),
+  _GiftItem(
+    id: 'fireworks',
+    name: 'Fireworks',
+    nameAr: 'ألعاب نارية',
+    coinCost: 499,
+    emoji: '🎆',
+    category: 'popular',
+  ),
+  _GiftItem(
+    id: 'galaxy',
+    name: 'Galaxy',
+    nameAr: 'مجرة',
+    coinCost: 999,
+    emoji: '🌌',
+    category: 'popular',
+  ),
+  _GiftItem(
+    id: 'rocket',
+    name: 'Rocket',
+    nameAr: 'صاروخ',
+    coinCost: 1999,
+    emoji: '🚀',
+    category: 'premium',
+  ),
+  _GiftItem(
+    id: 'castle',
+    name: 'Castle',
+    nameAr: 'قصر',
+    coinCost: 4999,
+    emoji: '🏰',
+    category: 'premium',
+  ),
+  _GiftItem(
+    id: 'dragon',
+    name: 'Dragon',
+    nameAr: 'تنين',
+    coinCost: 9999,
+    emoji: '🐉',
+    category: 'premium',
+  ),
+  _GiftItem(
+    id: 'universe',
+    name: 'Universe',
+    nameAr: 'كون',
+    coinCost: 19999,
+    emoji: '🌠',
+    category: 'premium',
+  ),
 ];
 
 class _GiftCatalogScreenState extends State<GiftCatalogScreen>
@@ -69,8 +153,9 @@ class _GiftCatalogScreenState extends State<GiftCatalogScreen>
     super.dispose();
   }
 
-  List<_GiftItem> _filtered(String category) =>
-      category == 'all' ? _gifts : _gifts.where((g) => g.category == category).toList();
+  List<_GiftItem> _filtered(String category) => category == 'all'
+      ? _gifts
+      : _gifts.where((g) => g.category == category).toList();
 
   void _onGiftTap(_GiftItem gift) {
     if (widget.targetUserId == null) return;
@@ -88,32 +173,47 @@ class _GiftCatalogScreenState extends State<GiftCatalogScreen>
 
   Future<void> _sendGift(_GiftItem gift, int qty) async {
     if (_sending2) return;
-    setState(() { _sending = gift.id; _sending2 = true; });
+    setState(() {
+      _sending = gift.id;
+      _sending2 = true;
+    });
     try {
       final me = SupabaseService.requiredClient.auth.currentUser?.id;
       if (me == null || widget.targetUserId == null) return;
-      await SupabaseService.requiredClient.rpc('send_gift', params: {
-        'p_sender_id': me,
-        'p_receiver_id': widget.targetUserId,
-        'p_gift_id': gift.id,
-        'p_quantity': qty,
-        'p_coin_cost': gift.coinCost * qty,
-      });
+      await SupabaseService.requiredClient.rpc(
+        'send_gift',
+        params: {
+          'p_sender_id': me,
+          'p_receiver_id': widget.targetUserId,
+          'p_gift_id': gift.id,
+          'p_quantity': qty,
+          'p_coin_cost': gift.coinCost * qty,
+        },
+      );
       if (!mounted) return;
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(widget.isArabic ? 'تم إرسال الهدية!' : 'Gift sent!'),
-        backgroundColor: const Color(0xFF1A3A28),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(widget.isArabic ? 'تم إرسال الهدية!' : 'Gift sent!'),
+          backgroundColor: const Color(0xFF1A3A28),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(e.toString()),
-        backgroundColor: const Color(0xFF3A1422),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: const Color(0xFF3A1422),
+        ),
+      );
     } finally {
-      if (mounted) setState(() { _sending = null; _sending2 = false; });
+      if (mounted) {
+        setState(() {
+          _sending = null;
+          _sending2 = false;
+        });
+      }
     }
   }
 
@@ -163,19 +263,34 @@ class _GiftCatalogScreenState extends State<GiftCatalogScreen>
               children: [
                 Text(
                   isArabic ? 'متجر الهدايا' : 'Gift Catalog',
-                  style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900, height: 1.0),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    height: 1.0,
+                  ),
                 ),
                 if (widget.targetName != null) ...[
                   const SizedBox(height: 3),
                   Text(
-                    isArabic ? 'أرسل هدية لـ ${widget.targetName}' : 'Send a gift to ${widget.targetName}',
-                    style: const TextStyle(color: Color(0xFFBCAED6), fontSize: 12, fontWeight: FontWeight.w700),
+                    isArabic
+                        ? 'أرسل هدية لـ ${widget.targetName}'
+                        : 'Send a gift to ${widget.targetName}',
+                    style: const TextStyle(
+                      color: Color(0xFFBCAED6),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ],
             ),
           ),
-          const Icon(Icons.card_giftcard_rounded, color: Color(0xFFF0C15A), size: 28),
+          const Icon(
+            Icons.card_giftcard_rounded,
+            color: Color(0xFFF0C15A),
+            size: 28,
+          ),
           const SizedBox(width: 4),
         ],
       ),
@@ -280,17 +395,29 @@ class _GiftCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
             ),
             const SizedBox(height: 4),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.monetization_on_rounded, color: Color(0xFFF0C15A), size: 11),
+                const Icon(
+                  Icons.monetization_on_rounded,
+                  color: Color(0xFFF0C15A),
+                  size: 11,
+                ),
                 const SizedBox(width: 2),
                 Text(
                   _fmt(gift.coinCost),
-                  style: const TextStyle(color: Color(0xFFF0C15A), fontSize: 11, fontWeight: FontWeight.w900),
+                  style: const TextStyle(
+                    color: Color(0xFFF0C15A),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ],
             ),
@@ -301,7 +428,9 @@ class _GiftCard extends StatelessWidget {
   }
 
   String _fmt(int v) {
-    if (v >= 1000) return '${(v / 1000).toStringAsFixed(v % 1000 == 0 ? 0 : 1)}K';
+    if (v >= 1000) {
+      return '${(v / 1000).toStringAsFixed(v % 1000 == 0 ? 0 : 1)}K';
+    }
     return '$v';
   }
 }
@@ -348,7 +477,11 @@ class _SendGiftDialogState extends State<_SendGiftDialog> {
             const SizedBox(height: 8),
             Text(
               isArabic ? widget.gift.nameAr : widget.gift.name,
-              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -361,16 +494,35 @@ class _SendGiftDialogState extends State<_SendGiftDialog> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _QtyButton(icon: Icons.remove_rounded, onTap: _qty > 1 ? () => setState(() => _qty--) : null),
+                _QtyButton(
+                  icon: Icons.remove_rounded,
+                  onTap: _qty > 1 ? () => setState(() => _qty--) : null,
+                ),
                 const SizedBox(width: 20),
                 Column(
                   children: [
-                    Text('$_qty', style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900)),
-                    Text(isArabic ? 'الكمية' : 'Qty', style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 11)),
+                    Text(
+                      '$_qty',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    Text(
+                      isArabic ? 'الكمية' : 'Qty',
+                      style: const TextStyle(
+                        color: Color(0xFF9E91B8),
+                        fontSize: 11,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(width: 20),
-                _QtyButton(icon: Icons.add_rounded, onTap: _qty < 99 ? () => setState(() => _qty++) : null),
+                _QtyButton(
+                  icon: Icons.add_rounded,
+                  onTap: _qty < 99 ? () => setState(() => _qty++) : null,
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -384,11 +536,19 @@ class _SendGiftDialogState extends State<_SendGiftDialog> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.monetization_on_rounded, color: Color(0xFFF0C15A), size: 18),
+                  const Icon(
+                    Icons.monetization_on_rounded,
+                    color: Color(0xFFF0C15A),
+                    size: 18,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     '$totalCost ${isArabic ? "عملة" : "coins"}',
-                    style: const TextStyle(color: Color(0xFFF0C15A), fontSize: 16, fontWeight: FontWeight.w900),
+                    style: const TextStyle(
+                      color: Color(0xFFF0C15A),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ],
               ),
@@ -402,7 +562,9 @@ class _SendGiftDialogState extends State<_SendGiftDialog> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF9E91B8),
                       side: const BorderSide(color: Color(0xFF4A3470)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                     child: Text(isArabic ? 'إلغاء' : 'Cancel'),
                   ),
@@ -410,15 +572,29 @@ class _SendGiftDialogState extends State<_SendGiftDialog> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: FilledButton(
-                    onPressed: widget.isSending ? null : () => widget.onSend(_qty),
+                    onPressed: widget.isSending
+                        ? null
+                        : () => widget.onSend(_qty),
                     style: FilledButton.styleFrom(
                       backgroundColor: const Color(0xFFF0C15A),
                       foregroundColor: const Color(0xFF140820),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                     child: widget.isSending
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF140820)))
-                        : Text(isArabic ? 'أرسل' : 'Send', style: const TextStyle(fontWeight: FontWeight.w900)),
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Color(0xFF140820),
+                            ),
+                          )
+                        : Text(
+                            isArabic ? 'أرسل' : 'Send',
+                            style: const TextStyle(fontWeight: FontWeight.w900),
+                          ),
                   ),
                 ),
               ],
@@ -444,13 +620,21 @@ class _QtyButton extends StatelessWidget {
         width: 36,
         height: 36,
         decoration: BoxDecoration(
-          color: onTap != null ? const Color(0xFF3A174F) : const Color(0xFF1B102B),
+          color: onTap != null
+              ? const Color(0xFF3A174F)
+              : const Color(0xFF1B102B),
           shape: BoxShape.circle,
           border: Border.all(
-            color: onTap != null ? const Color(0xFF8B26D9) : const Color(0xFF4A3470),
+            color: onTap != null
+                ? const Color(0xFF8B26D9)
+                : const Color(0xFF4A3470),
           ),
         ),
-        child: Icon(icon, size: 18, color: onTap != null ? Colors.white : const Color(0xFF4A3470)),
+        child: Icon(
+          icon,
+          size: 18,
+          color: onTap != null ? Colors.white : const Color(0xFF4A3470),
+        ),
       ),
     );
   }

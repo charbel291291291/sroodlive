@@ -80,9 +80,7 @@ class _BadgeScreenState extends State<BadgeScreen> {
                 if (equipped.isNotEmpty)
                   ProfileInfoCard(
                     icon: Icons.workspace_premium_rounded,
-                    title: isArabic
-                        ? 'الشارة المجهزة'
-                        : 'Equipped badge',
+                    title: isArabic ? 'الشارة المجهزة' : 'Equipped badge',
                     body: equipped.first.name,
                     isArabic: isArabic,
                   ),

@@ -62,7 +62,8 @@ class _BlockUserScreenState extends State<BlockUserScreen> {
           blockedUserId: row['blocked_user_id'] as String,
           displayName: profile?['display_name'] as String? ?? 'Unknown',
           avatarUrl: profile?['avatar_url'] as String?,
-          blockedAt: DateTime.tryParse(row['created_at'] as String? ?? '') ??
+          blockedAt:
+              DateTime.tryParse(row['created_at'] as String? ?? '') ??
               DateTime.now(),
         );
       }).toList();
@@ -95,8 +96,9 @@ class _BlockUserScreenState extends State<BlockUserScreen> {
       setState(() => _blocked.removeWhere((b) => b.id == user.id));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _unblockPending.remove(user.id));
     }
@@ -113,7 +115,10 @@ class _BlockUserScreenState extends State<BlockUserScreen> {
             ),
             title: Text(
               isArabic ? 'إلغاء الحظر' : 'Unblock user',
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+              ),
             ),
             content: Text(
               isArabic
@@ -171,25 +176,22 @@ class _BlockUserScreenState extends State<BlockUserScreen> {
                         ),
                       )
                     : _blocked.isEmpty
-                        ? _buildEmpty(isArabic)
-                        : RefreshIndicator(
-                            onRefresh: _load,
-                            color: const Color(0xFF8B26D9),
-                            child: ListView.separated(
-                              padding:
-                                  const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                              itemCount: _blocked.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 8),
-                              itemBuilder: (_, i) => _BlockedUserTile(
-                                user: _blocked[i],
-                                isArabic: isArabic,
-                                isPending:
-                                    _unblockPending[_blocked[i].id] == true,
-                                onUnblock: () => _unblock(_blocked[i]),
-                              ),
-                            ),
+                    ? _buildEmpty(isArabic)
+                    : RefreshIndicator(
+                        onRefresh: _load,
+                        color: const Color(0xFF8B26D9),
+                        child: ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                          itemCount: _blocked.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 8),
+                          itemBuilder: (_, i) => _BlockedUserTile(
+                            user: _blocked[i],
+                            isArabic: isArabic,
+                            isPending: _unblockPending[_blocked[i].id] == true,
+                            onUnblock: () => _unblock(_blocked[i]),
                           ),
+                        ),
+                      ),
               ),
             ],
           ),
@@ -214,8 +216,9 @@ class _BlockUserScreenState extends State<BlockUserScreen> {
           const SizedBox(width: 4),
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isArabic
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 Text(
                   isArabic ? 'المستخدمون المحظورون' : 'Blocked users',
@@ -356,8 +359,9 @@ class _BlockedUserTile extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isArabic
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 Text(
                   user.displayName,
@@ -387,8 +391,7 @@ class _BlockedUserTile extends StatelessWidget {
           GestureDetector(
             onTap: isPending ? null : onUnblock,
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
                 color: const Color(0xFF1B102B),
                 borderRadius: BorderRadius.circular(999),
@@ -443,7 +446,10 @@ Future<void> blockUser({
       ),
       title: Text(
         isArabic ? 'حظر المستخدم' : 'Block user',
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w900,
+        ),
       ),
       content: Text(
         isArabic
@@ -491,8 +497,8 @@ Future<void> blockUser({
     );
   } catch (e) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error: $e')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Error: $e')));
   }
 }

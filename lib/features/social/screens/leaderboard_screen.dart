@@ -52,7 +52,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final [earnersRaw, giftersRaw, streamersRaw] = await Future.wait([
         SupabaseService.requiredClient
@@ -66,25 +69,33 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
             .select('id, display_name, avatar_url, vip_level, score'),
       ]);
 
-      _LeaderboardEntry toEntry(Map<String, dynamic> r) =>
-          _LeaderboardEntry(
-            userId: r['id'] as String,
-            displayName: r['display_name'] as String? ?? '',
-            avatarUrl: r['avatar_url'] as String?,
-            vipLevel: r['vip_level'] as int? ?? 0,
-            score: r['score'] as int? ?? 0,
-          );
+      _LeaderboardEntry toEntry(Map<String, dynamic> r) => _LeaderboardEntry(
+        userId: r['id'] as String,
+        displayName: r['display_name'] as String? ?? '',
+        avatarUrl: r['avatar_url'] as String?,
+        vipLevel: r['vip_level'] as int? ?? 0,
+        score: r['score'] as int? ?? 0,
+      );
 
       if (!mounted) return;
       setState(() {
-        _earners = (earnersRaw as List).map((r) => toEntry(r as Map<String, dynamic>)).toList();
-        _gifters = (giftersRaw as List).map((r) => toEntry(r as Map<String, dynamic>)).toList();
-        _streamers = (streamersRaw as List).map((r) => toEntry(r as Map<String, dynamic>)).toList();
+        _earners = (earnersRaw as List)
+            .map((r) => toEntry(r as Map<String, dynamic>))
+            .toList();
+        _gifters = (giftersRaw as List)
+            .map((r) => toEntry(r as Map<String, dynamic>))
+            .toList();
+        _streamers = (streamersRaw as List)
+            .map((r) => toEntry(r as Map<String, dynamic>))
+            .toList();
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _error = e.toString(); _loading = false; });
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
     }
   }
 
@@ -134,15 +145,21 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                 Text(
                   isArabic ? 'المتصدرون' : 'Leaderboard',
                   style: const TextStyle(
-                    color: Colors.white, fontSize: 26,
-                    fontWeight: FontWeight.w900, height: 1.0,
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                    height: 1.0,
                   ),
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  isArabic ? 'أفضل المستخدمين هذا الشهر' : 'Top users this month',
+                  isArabic
+                      ? 'أفضل المستخدمين هذا الشهر'
+                      : 'Top users this month',
                   style: const TextStyle(
-                    color: Color(0xFFBCAED6), fontSize: 12, fontWeight: FontWeight.w700,
+                    color: Color(0xFFBCAED6),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
@@ -189,22 +206,33 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
 
   Widget _buildBody(bool isArabic) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: Color(0xFF8B26D9)));
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFF8B26D9)),
+      );
     }
     if (_error != null) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline_rounded, color: Color(0xFFFF5C7A), size: 36),
+            const Icon(
+              Icons.error_outline_rounded,
+              color: Color(0xFFFF5C7A),
+              size: 36,
+            ),
             const SizedBox(height: 12),
-            Text(_error!, textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 13)),
+            Text(
+              _error!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 13),
+            ),
             const SizedBox(height: 12),
             TextButton(
               onPressed: _load,
-              child: Text(isArabic ? 'إعادة' : 'Retry',
-                  style: const TextStyle(color: Color(0xFFF0C15A))),
+              child: Text(
+                isArabic ? 'إعادة' : 'Retry',
+                style: const TextStyle(color: Color(0xFFF0C15A)),
+              ),
             ),
           ],
         ),
@@ -221,12 +249,20 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     );
   }
 
-  Widget _buildList(List<_LeaderboardEntry> entries, bool isArabic, String unit) {
+  Widget _buildList(
+    List<_LeaderboardEntry> entries,
+    bool isArabic,
+    String unit,
+  ) {
     if (entries.isEmpty) {
       return Center(
         child: Text(
           isArabic ? 'لا توجد بيانات بعد' : 'No data yet',
-          style: const TextStyle(color: Color(0xFF6E5A8A), fontSize: 15, fontWeight: FontWeight.w700),
+          style: const TextStyle(
+            color: Color(0xFF6E5A8A),
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       );
     }
@@ -293,7 +329,9 @@ class _LeaderboardTile extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
-          color: isTop3 ? rankBg[rank - 1].withValues(alpha: 0.6) : const Color(0xFF160B24),
+          color: isTop3
+              ? rankBg[rank - 1].withValues(alpha: 0.6)
+              : const Color(0xFF160B24),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isTop3
@@ -313,7 +351,9 @@ class _LeaderboardTile extends StatelessWidget {
                       '$rank',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
-                        color: Color(0xFF9E91B8), fontSize: 14, fontWeight: FontWeight.w800,
+                        color: Color(0xFF9E91B8),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
             ),
@@ -323,15 +363,18 @@ class _LeaderboardTile extends StatelessWidget {
             CircleAvatar(
               radius: 22,
               backgroundColor: const Color(0xFF241638),
-              backgroundImage:
-                  entry.avatarUrl != null ? NetworkImage(entry.avatarUrl!) : null,
+              backgroundImage: entry.avatarUrl != null
+                  ? NetworkImage(entry.avatarUrl!)
+                  : null,
               child: entry.avatarUrl == null
                   ? Text(
                       entry.displayName.isNotEmpty
                           ? entry.displayName[0].toUpperCase()
                           : '?',
                       style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
                       ),
                     )
                   : null,
@@ -359,7 +402,9 @@ class _LeaderboardTile extends StatelessWidget {
                 Text(
                   _formatScore(entry.score),
                   style: TextStyle(
-                    color: isTop3 ? rankColors[rank - 1] : const Color(0xFFF0C15A),
+                    color: isTop3
+                        ? rankColors[rank - 1]
+                        : const Color(0xFFF0C15A),
                     fontSize: 16,
                     fontWeight: FontWeight.w900,
                   ),
@@ -367,7 +412,9 @@ class _LeaderboardTile extends StatelessWidget {
                 Text(
                   unit,
                   style: const TextStyle(
-                    color: Color(0xFF9E91B8), fontSize: 10, fontWeight: FontWeight.w700,
+                    color: Color(0xFF9E91B8),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],

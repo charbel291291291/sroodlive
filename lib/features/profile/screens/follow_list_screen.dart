@@ -25,11 +25,7 @@ class _UserEntry {
   final String? avatarUrl;
   bool isFollowingBack = false;
 
-  _UserEntry({
-    required this.id,
-    required this.displayName,
-    this.avatarUrl,
-  });
+  _UserEntry({required this.id, required this.displayName, this.avatarUrl});
 }
 
 class _FollowListScreenState extends State<FollowListScreen> {
@@ -58,28 +54,39 @@ class _FollowListScreenState extends State<FollowListScreen> {
       if (widget.isFollowers) {
         rows = await SupabaseService.requiredClient
             .from('user_follows')
-            .select('follower:profiles!user_follows_follower_id_fkey(id, display_name, avatar_url)')
+            .select(
+              'follower:profiles!user_follows_follower_id_fkey(id, display_name, avatar_url)',
+            )
             .eq('following_id', widget.userId);
       } else {
         rows = await SupabaseService.requiredClient
             .from('user_follows')
-            .select('following:profiles!user_follows_following_id_fkey(id, display_name, avatar_url)')
+            .select(
+              'following:profiles!user_follows_following_id_fkey(id, display_name, avatar_url)',
+            )
             .eq('follower_id', widget.userId);
       }
 
-      final users = rows.map((row) {
-        final profile = (widget.isFollowers ? row['follower'] : row['following']) as Map?;
-        return _UserEntry(
-          id: profile?['id'] as String? ?? '',
-          displayName: profile?['display_name'] as String? ?? 'Unknown',
-          avatarUrl: profile?['avatar_url'] as String?,
-        );
-      }).where((u) => u.id.isNotEmpty && u.id != me).toList();
+      final users = rows
+          .map((row) {
+            final profile =
+                (widget.isFollowers ? row['follower'] : row['following'])
+                    as Map?;
+            return _UserEntry(
+              id: profile?['id'] as String? ?? '',
+              displayName: profile?['display_name'] as String? ?? 'Unknown',
+              avatarUrl: profile?['avatar_url'] as String?,
+            );
+          })
+          .where((u) => u.id.isNotEmpty && u.id != me)
+          .toList();
 
       // Check which ones we follow back
-      await Future.wait(users.map((u) async {
-        u.isFollowingBack = await _followService.isFollowing(u.id);
-      }));
+      await Future.wait(
+        users.map((u) async {
+          u.isFollowingBack = await _followService.isFollowing(u.id);
+        }),
+      );
 
       if (!mounted) return;
       setState(() {
@@ -139,23 +146,22 @@ class _FollowListScreenState extends State<FollowListScreen> {
                         ),
                       )
                     : _users.isEmpty
-                        ? _buildEmpty(isArabic)
-                        : RefreshIndicator(
-                            onRefresh: _load,
-                            color: const Color(0xFF8B26D9),
-                            child: ListView.separated(
-                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                              itemCount: _users.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 8),
-                              itemBuilder: (_, i) => _UserTile(
-                                user: _users[i],
-                                isArabic: isArabic,
-                                isPending: _pending[_users[i].id] == true,
-                                onToggleFollow: () => _toggleFollow(_users[i]),
-                              ),
-                            ),
+                    ? _buildEmpty(isArabic)
+                    : RefreshIndicator(
+                        onRefresh: _load,
+                        color: const Color(0xFF8B26D9),
+                        child: ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                          itemCount: _users.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 8),
+                          itemBuilder: (_, i) => _UserTile(
+                            user: _users[i],
+                            isArabic: isArabic,
+                            isPending: _pending[_users[i].id] == true,
+                            onToggleFollow: () => _toggleFollow(_users[i]),
                           ),
+                        ),
+                      ),
               ),
             ],
           ),
@@ -223,7 +229,9 @@ class _FollowListScreenState extends State<FollowListScreen> {
           Text(
             isArabic
                 ? (widget.isFollowers ? 'لا يوجد متابعون' : 'لا يتابع أحداً')
-                : (widget.isFollowers ? 'No followers yet' : 'Not following anyone'),
+                : (widget.isFollowers
+                      ? 'No followers yet'
+                      : 'Not following anyone'),
             style: const TextStyle(
               color: Colors.white,
               fontSize: 17,
@@ -256,97 +264,100 @@ class _UserTile extends StatelessWidget {
     return GestureDetector(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => UserProfileScreen(userId: user.id, isArabic: isArabic),
+          builder: (_) =>
+              UserProfileScreen(userId: user.id, isArabic: isArabic),
         ),
       ),
       child: Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF160B24),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFF6E3AA8).withValues(alpha: 0.4),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF160B24),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: const Color(0xFF6E3AA8).withValues(alpha: 0.4),
+          ),
         ),
-      ),
-      child: Row(
-        textDirection: dir,
-        children: [
-          CircleAvatar(
-            radius: 26,
-            backgroundColor: const Color(0xFF241638),
-            backgroundImage: user.avatarUrl != null
-                ? NetworkImage(user.avatarUrl!)
-                : null,
-            child: user.avatarUrl == null
-                ? Text(
-                    user.displayName.isNotEmpty
-                        ? user.displayName[0].toUpperCase()
-                        : '?',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 18,
-                    ),
-                  )
-                : null,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              user.displayName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          GestureDetector(
-            onTap: isPending ? null : onToggleFollow,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: user.isFollowingBack
-                    ? const Color(0xFF1B102B)
-                    : const Color(0xFF8B26D9),
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: user.isFollowingBack
-                      ? const Color(0xFF4A3470)
-                      : const Color(0xFF8B26D9),
-                ),
-              ),
-              child: isPending
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
+        child: Row(
+          textDirection: dir,
+          children: [
+            CircleAvatar(
+              radius: 26,
+              backgroundColor: const Color(0xFF241638),
+              backgroundImage: user.avatarUrl != null
+                  ? NetworkImage(user.avatarUrl!)
+                  : null,
+              child: user.avatarUrl == null
+                  ? Text(
+                      user.displayName.isNotEmpty
+                          ? user.displayName[0].toUpperCase()
+                          : '?',
+                      style: const TextStyle(
                         color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 18,
                       ),
                     )
-                  : Text(
-                      user.isFollowingBack
-                          ? (isArabic ? 'إلغاء المتابعة' : 'Unfollow')
-                          : (isArabic ? 'متابعة' : 'Follow'),
-                      style: TextStyle(
-                        color: user.isFollowingBack
-                            ? const Color(0xFFBCAED6)
-                            : Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                  : null,
             ),
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                user.displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            GestureDetector(
+              onTap: isPending ? null : onToggleFollow,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: user.isFollowingBack
+                      ? const Color(0xFF1B102B)
+                      : const Color(0xFF8B26D9),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: user.isFollowingBack
+                        ? const Color(0xFF4A3470)
+                        : const Color(0xFF8B26D9),
+                  ),
+                ),
+                child: isPending
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        user.isFollowingBack
+                            ? (isArabic ? 'إلغاء المتابعة' : 'Unfollow')
+                            : (isArabic ? 'متابعة' : 'Follow'),
+                        style: TextStyle(
+                          color: user.isFollowingBack
+                              ? const Color(0xFFBCAED6)
+                              : Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
       ),
-    ),
     );
   }
 }

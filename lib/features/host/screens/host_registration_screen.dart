@@ -7,8 +7,7 @@ class HostRegistrationScreen extends StatefulWidget {
   final bool isArabic;
 
   @override
-  State<HostRegistrationScreen> createState() =>
-      _HostRegistrationScreenState();
+  State<HostRegistrationScreen> createState() => _HostRegistrationScreenState();
 }
 
 class _HostRegistrationScreenState extends State<HostRegistrationScreen> {
@@ -78,8 +77,9 @@ class _HostRegistrationScreenState extends State<HostRegistrationScreen> {
       setState(() => _submitted = true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -89,7 +89,9 @@ class _HostRegistrationScreenState extends State<HostRegistrationScreen> {
   Widget build(BuildContext context) {
     final isArabic = widget.isArabic;
     final dir = isArabic ? TextDirection.rtl : TextDirection.ltr;
-    final crossAxis = isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    final crossAxis = isArabic
+        ? CrossAxisAlignment.end
+        : CrossAxisAlignment.start;
 
     return Scaffold(
       backgroundColor: const Color(0xFF08060F),
@@ -104,13 +106,19 @@ class _HostRegistrationScreenState extends State<HostRegistrationScreen> {
         child: SafeArea(
           child: _existingStatus != null
               ? _buildStatusView(isArabic)
-              : (_submitted ? _buildSuccess(isArabic) : _buildForm(isArabic, dir, crossAxis)),
+              : (_submitted
+                    ? _buildSuccess(isArabic)
+                    : _buildForm(isArabic, dir, crossAxis)),
         ),
       ),
     );
   }
 
-  Widget _buildForm(bool isArabic, TextDirection dir, CrossAxisAlignment crossAxis) {
+  Widget _buildForm(
+    bool isArabic,
+    TextDirection dir,
+    CrossAxisAlignment crossAxis,
+  ) {
     return Form(
       key: _formKey,
       child: SingleChildScrollView(
@@ -133,19 +141,28 @@ class _HostRegistrationScreenState extends State<HostRegistrationScreen> {
                   onTap: () => setState(() => _category = c['key']!),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 160),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 9,
+                    ),
                     decoration: BoxDecoration(
-                      color: selected ? const Color(0xFF3A174F) : const Color(0xFF160B24),
+                      color: selected
+                          ? const Color(0xFF3A174F)
+                          : const Color(0xFF160B24),
                       borderRadius: BorderRadius.circular(999),
                       border: Border.all(
-                        color: selected ? const Color(0xFF8B26D9) : const Color(0xFF4A3470),
+                        color: selected
+                            ? const Color(0xFF8B26D9)
+                            : const Color(0xFF4A3470),
                         width: selected ? 1.5 : 1,
                       ),
                     ),
                     child: Text(
                       isArabic ? c['ar']! : c['en']!,
                       style: TextStyle(
-                        color: selected ? Colors.white : const Color(0xFFBCAED6),
+                        color: selected
+                            ? Colors.white
+                            : const Color(0xFFBCAED6),
                         fontWeight: FontWeight.w800,
                         fontSize: 13,
                       ),
@@ -174,7 +191,9 @@ class _HostRegistrationScreenState extends State<HostRegistrationScreen> {
             ),
             const SizedBox(height: 14),
             _buildLabel(
-              isArabic ? 'روابط التواصل الاجتماعي (اختياري)' : 'Social links (optional)',
+              isArabic
+                  ? 'روابط التواصل الاجتماعي (اختياري)'
+                  : 'Social links (optional)',
               isArabic,
             ),
             const SizedBox(height: 8),
@@ -240,8 +259,9 @@ class _HostRegistrationScreenState extends State<HostRegistrationScreen> {
           const SizedBox(width: 4),
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isArabic
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 Text(
                   isArabic ? 'تسجيل كمضيف' : 'Become a host',
@@ -252,7 +272,9 @@ class _HostRegistrationScreenState extends State<HostRegistrationScreen> {
                   ),
                 ),
                 Text(
-                  isArabic ? 'ابدأ البث وكسب الدخل' : 'Start streaming and earn income',
+                  isArabic
+                      ? 'ابدأ البث وكسب الدخل'
+                      : 'Start streaming and earn income',
                   style: const TextStyle(
                     color: Color(0xFF9E91B8),
                     fontSize: 13,
@@ -269,8 +291,16 @@ class _HostRegistrationScreenState extends State<HostRegistrationScreen> {
 
   Widget _buildInfoCard(bool isArabic) {
     final perks = isArabic
-        ? ['💎 كسب الألماس من الهدايا', '📺 بث مباشر بلا حدود', '🏆 أوسمة خاصة بالمضيف']
-        : ['💎 Earn diamonds from gifts', '📺 Unlimited live streaming', '🏆 Exclusive host badges'];
+        ? [
+            '💎 كسب الألماس من الهدايا',
+            '📺 بث مباشر بلا حدود',
+            '🏆 أوسمة خاصة بالمضيف',
+          ]
+        : [
+            '💎 Earn diamonds from gifts',
+            '📺 Unlimited live streaming',
+            '🏆 Exclusive host badges',
+          ];
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -286,20 +316,29 @@ class _HostRegistrationScreenState extends State<HostRegistrationScreen> {
         ),
       ),
       child: Column(
-        children: perks.map((p) => Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Row(
-            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-            children: [
-              Text(p, style: const TextStyle(
-                color: Color(0xFFD8CFEA),
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                height: 1.4,
-              )),
-            ],
-          ),
-        )).toList(),
+        children: perks
+            .map(
+              (p) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  textDirection: isArabic
+                      ? TextDirection.rtl
+                      : TextDirection.ltr,
+                  children: [
+                    Text(
+                      p,
+                      style: const TextStyle(
+                        color: Color(0xFFD8CFEA),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+            .toList(),
       ),
     );
   }
@@ -310,8 +349,8 @@ class _HostRegistrationScreenState extends State<HostRegistrationScreen> {
     final color = isApproved
         ? const Color(0xFF63E6A1)
         : isPending
-            ? const Color(0xFFF0C15A)
-            : const Color(0xFFFF6B8A);
+        ? const Color(0xFFF0C15A)
+        : const Color(0xFFFF6B8A);
 
     return Center(
       child: Padding(
@@ -323,16 +362,24 @@ class _HostRegistrationScreenState extends State<HostRegistrationScreen> {
               isApproved
                   ? Icons.verified_rounded
                   : isPending
-                      ? Icons.hourglass_top_rounded
-                      : Icons.cancel_rounded,
+                  ? Icons.hourglass_top_rounded
+                  : Icons.cancel_rounded,
               color: color,
               size: 72,
             ),
             const SizedBox(height: 20),
             Text(
               isArabic
-                  ? (isApproved ? 'تم قبول طلبك!' : isPending ? 'طلبك قيد المراجعة' : 'تم رفض الطلب')
-                  : (isApproved ? 'Application approved!' : isPending ? 'Application under review' : 'Application rejected'),
+                  ? (isApproved
+                        ? 'تم قبول طلبك!'
+                        : isPending
+                        ? 'طلبك قيد المراجعة'
+                        : 'تم رفض الطلب')
+                  : (isApproved
+                        ? 'Application approved!'
+                        : isPending
+                        ? 'Application under review'
+                        : 'Application rejected'),
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 24,
@@ -343,15 +390,15 @@ class _HostRegistrationScreenState extends State<HostRegistrationScreen> {
             Text(
               isArabic
                   ? (isApproved
-                      ? 'يمكنك الآن البدء بالبث المباشر!'
-                      : isPending
-                          ? 'سيتم مراجعة طلبك قريباً.'
-                          : 'يمكنك إعادة التقديم لاحقاً.')
+                        ? 'يمكنك الآن البدء بالبث المباشر!'
+                        : isPending
+                        ? 'سيتم مراجعة طلبك قريباً.'
+                        : 'يمكنك إعادة التقديم لاحقاً.')
                   : (isApproved
-                      ? 'You can now start live streaming!'
-                      : isPending
-                          ? 'Your application will be reviewed soon.'
-                          : 'You can reapply later.'),
+                        ? 'You can now start live streaming!'
+                        : isPending
+                        ? 'Your application will be reviewed soon.'
+                        : 'You can reapply later.'),
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Color(0xFFBCAED6),
@@ -398,9 +445,15 @@ class _HostRegistrationScreenState extends State<HostRegistrationScreen> {
               decoration: BoxDecoration(
                 color: const Color(0xFF123A2A),
                 shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFF63E6A1).withValues(alpha: 0.5)),
+                border: Border.all(
+                  color: const Color(0xFF63E6A1).withValues(alpha: 0.5),
+                ),
               ),
-              child: const Icon(Icons.check_rounded, color: Color(0xFF63E6A1), size: 48),
+              child: const Icon(
+                Icons.check_rounded,
+                color: Color(0xFF63E6A1),
+                size: 48,
+              ),
             ),
             const SizedBox(height: 24),
             Text(
@@ -438,7 +491,10 @@ class _HostRegistrationScreenState extends State<HostRegistrationScreen> {
                 ),
                 child: Text(
                   isArabic ? 'رجوع' : 'Go back',
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
             ),

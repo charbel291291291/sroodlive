@@ -61,7 +61,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
       final data = await SupabaseService.requiredClient
           .from('notifications')
-          .select('id, type, title, body, is_read, created_at, actor_name, actor_avatar_url, actor_id, target_id')
+          .select(
+            'id, type, title, body, is_read, created_at, actor_name, actor_avatar_url, actor_id, target_id',
+          )
           .eq('user_id', user.id)
           .order('created_at', ascending: false)
           .limit(50);
@@ -73,7 +75,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           title: row['title'] as String? ?? '',
           body: row['body'] as String? ?? '',
           isRead: row['is_read'] as bool? ?? false,
-          createdAt: DateTime.tryParse(row['created_at'] as String? ?? '') ?? DateTime.now(),
+          createdAt:
+              DateTime.tryParse(row['created_at'] as String? ?? '') ??
+              DateTime.now(),
           actorName: row['actor_name'] as String?,
           actorAvatarUrl: row['actor_avatar_url'] as String?,
           actorId: row['actor_id'] as String?,
@@ -104,18 +108,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       if (!mounted) return;
       setState(() {
         _notifications = _notifications
-            .map((n) => _AppNotification(
-                  id: n.id,
-                  type: n.type,
-                  title: n.title,
-                  body: n.body,
-                  isRead: true,
-                  createdAt: n.createdAt,
-                  actorName: n.actorName,
-                  actorAvatarUrl: n.actorAvatarUrl,
-                  actorId: n.actorId,
-                  targetId: n.targetId,
-                ))
+            .map(
+              (n) => _AppNotification(
+                id: n.id,
+                type: n.type,
+                title: n.title,
+                body: n.body,
+                isRead: true,
+                createdAt: n.createdAt,
+                actorName: n.actorName,
+                actorAvatarUrl: n.actorAvatarUrl,
+                actorId: n.actorId,
+                targetId: n.targetId,
+              ),
+            )
             .toList();
       });
     } catch (_) {}
@@ -134,14 +140,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     switch (n.type) {
       case 'follow':
         if (n.actorId != null) {
-          Navigator.of(context).push(MaterialPageRoute<void>(
-            builder: (_) => UserProfileScreen(userId: n.actorId!, isArabic: widget.isArabic),
-          ));
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => UserProfileScreen(
+                userId: n.actorId!,
+                isArabic: widget.isArabic,
+              ),
+            ),
+          );
         }
       case 'gift':
-        Navigator.of(context).push(MaterialPageRoute<void>(
-          builder: (_) => GiftHistoryScreen(isArabic: widget.isArabic),
-        ));
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => GiftHistoryScreen(isArabic: widget.isArabic),
+          ),
+        );
       case 'room':
         if (n.targetId != null) _openRoom(n.targetId!);
       default:
@@ -153,13 +166,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     try {
       final row = await SupabaseService.requiredClient
           .from('rooms')
-          .select('id, owner_id, name, description, language, livekit_room_name, max_seats, is_private, is_locked, is_closed, created_at')
+          .select(
+            'id, owner_id, name, description, language, livekit_room_name, max_seats, is_private, is_locked, is_closed, created_at',
+          )
           .eq('id', roomId)
           .single();
       if (!mounted) return;
-      Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => RoomDetailsScreen(room: Room.fromJson(row), isArabic: widget.isArabic),
-      ));
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => RoomDetailsScreen(
+            room: Room.fromJson(row),
+            isArabic: widget.isArabic,
+          ),
+        ),
+      );
     } catch (_) {}
   }
 
@@ -216,46 +236,45 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         ),
                       )
                     : _notifications.isEmpty
-                        ? _buildEmpty(isArabic)
-                        : RefreshIndicator(
-                            onRefresh: _load,
-                            color: const Color(0xFF8B26D9),
-                            child: ListView.separated(
-                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                              itemCount: _notifications.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 6),
-                              itemBuilder: (_, i) {
-                                final n = _notifications[i];
-                                return _NotificationTile(
-                                  notification: n,
-                                  isArabic: isArabic,
-                                  icon: _iconForType(n.type),
-                                  iconColor: _colorForType(n.type),
-                                  onTap: () {
-                                    if (!n.isRead) {
-                                      _markRead(n.id);
-                                      setState(() {
-                                        _notifications[i] = _AppNotification(
-                                          id: n.id,
-                                          type: n.type,
-                                          title: n.title,
-                                          body: n.body,
-                                          isRead: true,
-                                          createdAt: n.createdAt,
-                                          actorName: n.actorName,
-                                          actorAvatarUrl: n.actorAvatarUrl,
-                                          actorId: n.actorId,
-                                          targetId: n.targetId,
-                                        );
-                                      });
-                                    }
-                                    _navigateFor(n);
-                                  },
-                                );
+                    ? _buildEmpty(isArabic)
+                    : RefreshIndicator(
+                        onRefresh: _load,
+                        color: const Color(0xFF8B26D9),
+                        child: ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                          itemCount: _notifications.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 6),
+                          itemBuilder: (_, i) {
+                            final n = _notifications[i];
+                            return _NotificationTile(
+                              notification: n,
+                              isArabic: isArabic,
+                              icon: _iconForType(n.type),
+                              iconColor: _colorForType(n.type),
+                              onTap: () {
+                                if (!n.isRead) {
+                                  _markRead(n.id);
+                                  setState(() {
+                                    _notifications[i] = _AppNotification(
+                                      id: n.id,
+                                      type: n.type,
+                                      title: n.title,
+                                      body: n.body,
+                                      isRead: true,
+                                      createdAt: n.createdAt,
+                                      actorName: n.actorName,
+                                      actorAvatarUrl: n.actorAvatarUrl,
+                                      actorId: n.actorId,
+                                      targetId: n.targetId,
+                                    );
+                                  });
+                                }
+                                _navigateFor(n);
                               },
-                            ),
-                          ),
+                            );
+                          },
+                        ),
+                      ),
               ),
             ],
           ),
@@ -293,8 +312,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 if (unreadCount > 0) ...[
                   const SizedBox(width: 8),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFF8B26D9),
                       borderRadius: BorderRadius.circular(999),
@@ -359,7 +380,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            isArabic ? 'ستظهر إشعاراتك هنا' : 'Your notifications will appear here',
+            isArabic
+                ? 'ستظهر إشعاراتك هنا'
+                : 'Your notifications will appear here',
             style: const TextStyle(
               color: Color(0xFF9E91B8),
               fontSize: 13,
@@ -398,9 +421,7 @@ class _NotificationTile extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isUnread
-              ? const Color(0xFF1D0D30)
-              : const Color(0xFF160B24),
+          color: isUnread ? const Color(0xFF1D0D30) : const Color(0xFF160B24),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isUnread
@@ -418,8 +439,9 @@ class _NotificationTile extends StatelessWidget {
                     ? CircleAvatar(
                         radius: 22,
                         backgroundColor: const Color(0xFF241638),
-                        backgroundImage:
-                            NetworkImage(notification.actorAvatarUrl!),
+                        backgroundImage: NetworkImage(
+                          notification.actorAvatarUrl!,
+                        ),
                       )
                     : Container(
                         width: 44,
@@ -496,7 +518,9 @@ class _NotificationTile extends StatelessWidget {
     final diff = DateTime.now().difference(dt);
     if (diff.inMinutes < 1) return isArabic ? 'الآن' : 'Just now';
     if (diff.inMinutes < 60) {
-      return isArabic ? 'منذ ${diff.inMinutes} دقيقة' : '${diff.inMinutes}m ago';
+      return isArabic
+          ? 'منذ ${diff.inMinutes} دقيقة'
+          : '${diff.inMinutes}m ago';
     }
     if (diff.inHours < 24) {
       return isArabic ? 'منذ ${diff.inHours} ساعة' : '${diff.inHours}h ago';

@@ -97,10 +97,7 @@ class AppTheme {
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
         side: WidgetStateProperty.all(
-          BorderSide(
-            color: Colors.white.withValues(alpha: 0.20),
-            width: 0.8,
-          ),
+          BorderSide(color: Colors.white.withValues(alpha: 0.20), width: 0.8),
         ),
         animationDuration: const Duration(milliseconds: 120),
       ),
@@ -134,10 +131,7 @@ class AppTheme {
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
         side: WidgetStateProperty.all(
-          BorderSide(
-            color: Colors.white.withValues(alpha: 0.18),
-            width: 0.8,
-          ),
+          BorderSide(color: Colors.white.withValues(alpha: 0.18), width: 0.8),
         ),
         animationDuration: const Duration(milliseconds: 120),
       ),

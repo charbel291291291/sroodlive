@@ -11,16 +11,15 @@ class BackpackItem {
   });
 
   factory BackpackItem.fromJson(Map<String, dynamic> json) => BackpackItem(
-        id: json['id']?.toString() ?? '',
-        itemId: json['item_id']?.toString() ?? '',
-        itemType: json['item_type']?.toString() ?? '',
-        equipped: json['equipped'] == true,
-        acquiredAt: DateTime.tryParse(json['acquired_at']?.toString() ?? '') ??
-            DateTime.now(),
-        item: StoreItem.fromJson(
-          (json['item'] as Map<String, dynamic>?) ?? {},
-        ),
-      );
+    id: json['id']?.toString() ?? '',
+    itemId: json['item_id']?.toString() ?? '',
+    itemType: json['item_type']?.toString() ?? '',
+    equipped: json['equipped'] == true,
+    acquiredAt:
+        DateTime.tryParse(json['acquired_at']?.toString() ?? '') ??
+        DateTime.now(),
+    item: StoreItem.fromJson((json['item'] as Map<String, dynamic>?) ?? {}),
+  );
 
   final String id;
   final String itemId;

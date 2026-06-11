@@ -169,9 +169,7 @@ class _MyIncomeScreenState extends State<MyIncomeScreen> {
               children: [
                 ProfileInfoCard(
                   icon: Icons.account_balance_wallet_rounded,
-                  title: isArabic
-                      ? 'الرصيد المتاح'
-                      : 'Available income',
+                  title: isArabic ? 'الرصيد المتاح' : 'Available income',
                   body:
                       '\$${account.availableBalanceUsd.toStringAsFixed(2)}\n'
                       '${isArabic ? 'قيد المراجعة' : 'Pending'}: \$${account.pendingBalanceUsd.toStringAsFixed(2)}\n'
@@ -193,9 +191,7 @@ class _MyIncomeScreenState extends State<MyIncomeScreen> {
                 if (transactions.isEmpty)
                   ProfileEmptyState(
                     icon: Icons.savings_rounded,
-                    title: isArabic
-                        ? 'لا يوجد دخل بعد'
-                        : 'No income yet',
+                    title: isArabic ? 'لا يوجد دخل بعد' : 'No income yet',
                     description: isArabic
                         ? 'ستظهر مكافآت المضيف والوكالة هنا بعد الاعتماد.'
                         : 'Host and agency rewards will appear here after approval.',

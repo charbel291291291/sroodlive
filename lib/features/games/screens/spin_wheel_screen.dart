@@ -17,20 +17,65 @@ class _SpinPrize {
   final Color color;
   final int weight; // relative probability weight
 
-  const _SpinPrize({required this.label, required this.emoji, required this.color, required this.weight});
+  const _SpinPrize({
+    required this.label,
+    required this.emoji,
+    required this.color,
+    required this.weight,
+  });
 }
 
 const _kSpinCost = 50; // coins per spin
 
 final _kPrizes = <_SpinPrize>[
-  _SpinPrize(label: '10 coins',    emoji: '🪙', color: Color(0xFF4A3470), weight: 30),
-  _SpinPrize(label: '50 coins',    emoji: '🪙', color: Color(0xFF6B3A9E), weight: 25),
-  _SpinPrize(label: '5 diamonds',  emoji: '💎', color: Color(0xFF1A3A55), weight: 20),
-  _SpinPrize(label: '100 coins',   emoji: '🪙', color: Color(0xFF8B26D9), weight: 12),
-  _SpinPrize(label: '20 diamonds', emoji: '💎', color: Color(0xFF1A4A6A), weight: 7),
-  _SpinPrize(label: '500 coins',   emoji: '🎉', color: Color(0xFF3A1250), weight: 4),
-  _SpinPrize(label: 'Try again',   emoji: '🔄', color: Color(0xFF2A1A40), weight: 15),
-  _SpinPrize(label: '1000 coins',  emoji: '👑', color: Color(0xFFF0C15A), weight: 2),
+  _SpinPrize(
+    label: '10 coins',
+    emoji: '🪙',
+    color: Color(0xFF4A3470),
+    weight: 30,
+  ),
+  _SpinPrize(
+    label: '50 coins',
+    emoji: '🪙',
+    color: Color(0xFF6B3A9E),
+    weight: 25,
+  ),
+  _SpinPrize(
+    label: '5 diamonds',
+    emoji: '💎',
+    color: Color(0xFF1A3A55),
+    weight: 20,
+  ),
+  _SpinPrize(
+    label: '100 coins',
+    emoji: '🪙',
+    color: Color(0xFF8B26D9),
+    weight: 12,
+  ),
+  _SpinPrize(
+    label: '20 diamonds',
+    emoji: '💎',
+    color: Color(0xFF1A4A6A),
+    weight: 7,
+  ),
+  _SpinPrize(
+    label: '500 coins',
+    emoji: '🎉',
+    color: Color(0xFF3A1250),
+    weight: 4,
+  ),
+  _SpinPrize(
+    label: 'Try again',
+    emoji: '🔄',
+    color: Color(0xFF2A1A40),
+    weight: 15,
+  ),
+  _SpinPrize(
+    label: '1000 coins',
+    emoji: '👑',
+    color: Color(0xFFF0C15A),
+    weight: 2,
+  ),
 ];
 
 class _SpinWheelScreenState extends State<SpinWheelScreen>
@@ -47,7 +92,10 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
   @override
   void initState() {
     super.initState();
-    _animController = AnimationController(vsync: this, duration: const Duration(seconds: 4));
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    );
     _animController.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         setState(() {
@@ -69,7 +117,10 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
     setState(() => _loadingWallet = true);
     try {
       final me = SupabaseService.requiredClient.auth.currentUser?.id;
-      if (me == null) { setState(() => _loadingWallet = false); return; }
+      if (me == null) {
+        setState(() => _loadingWallet = false);
+        return;
+      }
 
       final data = await SupabaseService.requiredClient
           .from('wallets')
@@ -89,7 +140,10 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
 
   Future<void> _spin() async {
     if (_spinning || _coins < _kSpinCost) return;
-    setState(() { _spinning = true; _lastPrizeIndex = null; });
+    setState(() {
+      _spinning = true;
+      _lastPrizeIndex = null;
+    });
 
     try {
       // Call the RPC — backend handles deduction + prize calculation
@@ -98,11 +152,14 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
           .single();
 
       final prizeLabel = result['prize_label'] as String? ?? 'Try again';
-      final newBalance = result['new_coins_balance'] as int? ?? (_coins - _kSpinCost);
+      final newBalance =
+          result['new_coins_balance'] as int? ?? (_coins - _kSpinCost);
 
       // Find matching prize index for animation target
       int targetIndex = _kPrizes.indexWhere((p) => p.label == prizeLabel);
-      if (targetIndex < 0) targetIndex = _kPrizes.indexWhere((p) => p.label == 'Try again');
+      if (targetIndex < 0) {
+        targetIndex = _kPrizes.indexWhere((p) => p.label == 'Try again');
+      }
       if (targetIndex < 0) targetIndex = 0;
 
       _animateTo(targetIndex);
@@ -137,11 +194,18 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
     // The pointer is at top (0). Segment center for prizeIndex:
     final targetSegmentCenter = prizeIndex * segmentAngle + segmentAngle / 2;
     // We want that center to end at the top (0), so we need to rotate by (2π - targetSegmentCenter)
-    final targetAngle = _currentAngle + (4 * 2 * math.pi) + (2 * math.pi - targetSegmentCenter - _currentAngle % (2 * math.pi));
+    final targetAngle =
+        _currentAngle +
+        (4 * 2 * math.pi) +
+        (2 * math.pi - targetSegmentCenter - _currentAngle % (2 * math.pi));
 
-    _rotationAnim = Tween<double>(begin: _currentAngle, end: targetAngle).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeInOutCubic),
-    );
+    _rotationAnim = Tween<double>(begin: _currentAngle, end: targetAngle)
+        .animate(
+          CurvedAnimation(
+            parent: _animController,
+            curve: Curves.easeInOutCubic,
+          ),
+        );
     _animController.forward(from: 0);
   }
 
@@ -166,23 +230,41 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
               Padding(
                 padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
                 child: Row(
-                  textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+                  textDirection: isArabic
+                      ? TextDirection.rtl
+                      : TextDirection.ltr,
                   children: [
                     IconButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      icon: Icon(isArabic ? Icons.arrow_forward_rounded : Icons.arrow_back_rounded, color: Colors.white),
+                      icon: Icon(
+                        isArabic
+                            ? Icons.arrow_forward_rounded
+                            : Icons.arrow_back_rounded,
+                        color: Colors.white,
+                      ),
                     ),
                     Expanded(
-                      child: Text(isArabic ? 'عجلة الحظ' : 'Spin the Wheel',
-                          style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
+                      child: Text(
+                        isArabic ? 'عجلة الحظ' : 'Spin the Wheel',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
                     ),
                     // Coin balance
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFF3A2A10),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFF0C15A).withValues(alpha: 0.4)),
+                        border: Border.all(
+                          color: const Color(0xFFF0C15A).withValues(alpha: 0.4),
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -191,7 +273,11 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
                           const SizedBox(width: 4),
                           Text(
                             _loadingWallet ? '...' : '$_coins',
-                            style: const TextStyle(color: Color(0xFFF0C15A), fontSize: 13, fontWeight: FontWeight.w900),
+                            style: const TextStyle(
+                              color: Color(0xFFF0C15A),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w900,
+                            ),
                           ),
                         ],
                       ),
@@ -204,8 +290,14 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
 
               // Cost label
               Text(
-                isArabic ? 'تكلفة الدوران: $_kSpinCost 🪙' : 'Cost per spin: $_kSpinCost 🪙',
-                style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 13, fontWeight: FontWeight.w700),
+                isArabic
+                    ? 'تكلفة الدوران: $_kSpinCost 🪙'
+                    : 'Cost per spin: $_kSpinCost 🪙',
+                style: const TextStyle(
+                  color: Color(0xFF9E91B8),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
 
               const SizedBox(height: 16),
@@ -217,7 +309,11 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       // Pointer
-                      const Icon(Icons.arrow_drop_down_rounded, color: Color(0xFFF0C15A), size: 40),
+                      const Icon(
+                        Icons.arrow_drop_down_rounded,
+                        color: Color(0xFFF0C15A),
+                        size: 40,
+                      ),
                       const SizedBox(height: 4),
                       // Wheel canvas
                       AnimatedBuilder(
@@ -226,10 +322,7 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
                           final angle = _animController.isAnimating
                               ? _rotationAnim.value
                               : _currentAngle;
-                          return Transform.rotate(
-                            angle: angle,
-                            child: child,
-                          );
+                          return Transform.rotate(angle: angle, child: child);
                         },
                         child: CustomPaint(
                           size: const Size(300, 300),
@@ -245,20 +338,35 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
                           duration: const Duration(milliseconds: 400),
                           child: Container(
                             margin: const EdgeInsets.symmetric(horizontal: 40),
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
                             decoration: BoxDecoration(
-                              color: _kPrizes[_lastPrizeIndex!].color.withValues(alpha: 0.3),
+                              color: _kPrizes[_lastPrizeIndex!].color
+                                  .withValues(alpha: 0.3),
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: _kPrizes[_lastPrizeIndex!].color),
+                              border: Border.all(
+                                color: _kPrizes[_lastPrizeIndex!].color,
+                              ),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(_kPrizes[_lastPrizeIndex!].emoji, style: const TextStyle(fontSize: 22)),
+                                Text(
+                                  _kPrizes[_lastPrizeIndex!].emoji,
+                                  style: const TextStyle(fontSize: 22),
+                                ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  isArabic ? 'حصلت على: ${_kPrizes[_lastPrizeIndex!].label}' : 'You won: ${_kPrizes[_lastPrizeIndex!].label}',
-                                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900),
+                                  isArabic
+                                      ? 'حصلت على: ${_kPrizes[_lastPrizeIndex!].label}'
+                                      : 'You won: ${_kPrizes[_lastPrizeIndex!].label}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w900,
+                                  ),
                                 ),
                               ],
                             ),
@@ -269,7 +377,10 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
 
                       // Spin button
                       GestureDetector(
-                        onTap: (_spinning || _coins < _kSpinCost || _loadingWallet) ? null : _spin,
+                        onTap:
+                            (_spinning || _coins < _kSpinCost || _loadingWallet)
+                            ? null
+                            : _spin,
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 150),
                           width: 180,
@@ -277,22 +388,46 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
                           decoration: BoxDecoration(
                             gradient: (_spinning || _coins < _kSpinCost)
                                 ? null
-                                : const LinearGradient(colors: [Color(0xFF8B26D9), Color(0xFF5A1A9E)]),
-                            color: (_spinning || _coins < _kSpinCost) ? const Color(0xFF2A1840) : null,
+                                : const LinearGradient(
+                                    colors: [
+                                      Color(0xFF8B26D9),
+                                      Color(0xFF5A1A9E),
+                                    ],
+                                  ),
+                            color: (_spinning || _coins < _kSpinCost)
+                                ? const Color(0xFF2A1840)
+                                : null,
                             borderRadius: BorderRadius.circular(999),
-                            boxShadow: (_spinning || _coins < _kSpinCost) ? null : [
-                              const BoxShadow(color: Color(0x558B26D9), blurRadius: 16, offset: Offset(0, 4)),
-                            ],
+                            boxShadow: (_spinning || _coins < _kSpinCost)
+                                ? null
+                                : [
+                                    const BoxShadow(
+                                      color: Color(0x558B26D9),
+                                      blurRadius: 16,
+                                      offset: Offset(0, 4),
+                                    ),
+                                  ],
                           ),
                           child: Center(
                             child: _spinning
-                                ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: Colors.white,
+                                    ),
+                                  )
                                 : Text(
                                     _coins < _kSpinCost
-                                        ? (isArabic ? 'رصيد غير كافٍ' : 'Not enough coins')
+                                        ? (isArabic
+                                              ? 'رصيد غير كافٍ'
+                                              : 'Not enough coins')
                                         : (isArabic ? 'ادور!' : 'SPIN!'),
                                     style: TextStyle(
-                                      color: _coins < _kSpinCost ? const Color(0xFF6E5A8A) : Colors.white,
+                                      color: _coins < _kSpinCost
+                                          ? const Color(0xFF6E5A8A)
+                                          : Colors.white,
                                       fontSize: 17,
                                       fontWeight: FontWeight.w900,
                                     ),
@@ -334,14 +469,26 @@ class _WheelPainter extends CustomPainter {
 
       // Segment fill
       final paint = Paint()..color = prizes[i].color;
-      canvas.drawArc(Rect.fromCircle(center: center, radius: radius), startAngle, segmentAngle, true, paint);
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        segmentAngle,
+        true,
+        paint,
+      );
 
       // Segment border
       final borderPaint = Paint()
         ..color = Colors.white.withValues(alpha: 0.15)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5;
-      canvas.drawArc(Rect.fromCircle(center: center, radius: radius), startAngle, segmentAngle, true, borderPaint);
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        segmentAngle,
+        true,
+        borderPaint,
+      );
 
       // Text
       final midAngle = startAngle + segmentAngle / 2;
@@ -360,13 +507,20 @@ class _WheelPainter extends CustomPainter {
       canvas.save();
       canvas.translate(textOffset.dx, textOffset.dy);
       canvas.rotate(midAngle + math.pi / 2);
-      textPainter.paint(canvas, Offset(-textPainter.width / 2, -textPainter.height / 2 - 10));
+      textPainter.paint(
+        canvas,
+        Offset(-textPainter.width / 2, -textPainter.height / 2 - 10),
+      );
       canvas.restore();
 
       // Label
       textPainter.text = TextSpan(
         text: prizes[i].label,
-        style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w800),
+        style: const TextStyle(
+          fontSize: 9,
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+        ),
       );
       textPainter.layout(maxWidth: 60);
       canvas.save();
@@ -378,10 +532,26 @@ class _WheelPainter extends CustomPainter {
 
     // Center circle
     canvas.drawCircle(center, 22, Paint()..color = const Color(0xFF0D0618));
-    canvas.drawCircle(center, 22, Paint()..color = const Color(0xFF8B26D9).withValues(alpha: 0.5)..style = PaintingStyle.stroke..strokeWidth = 2);
-    textPainter.text = const TextSpan(text: '✦', style: TextStyle(fontSize: 16, color: Color(0xFFF0C15A)));
+    canvas.drawCircle(
+      center,
+      22,
+      Paint()
+        ..color = const Color(0xFF8B26D9).withValues(alpha: 0.5)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2,
+    );
+    textPainter.text = const TextSpan(
+      text: '✦',
+      style: TextStyle(fontSize: 16, color: Color(0xFFF0C15A)),
+    );
     textPainter.layout();
-    textPainter.paint(canvas, Offset(center.dx - textPainter.width / 2, center.dy - textPainter.height / 2));
+    textPainter.paint(
+      canvas,
+      Offset(
+        center.dx - textPainter.width / 2,
+        center.dy - textPainter.height / 2,
+      ),
+    );
   }
 
   @override

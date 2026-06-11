@@ -137,7 +137,9 @@ class _AudioCallScreenState extends State<AudioCallScreen>
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: const Color(0xFF8B26D9).withValues(alpha: 0.25),
+                              color: const Color(
+                                0xFF8B26D9,
+                              ).withValues(alpha: 0.25),
                               width: 1.5,
                             ),
                           ),
@@ -148,7 +150,9 @@ class _AudioCallScreenState extends State<AudioCallScreen>
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: const Color(0xFF8B26D9).withValues(alpha: 0.15),
+                              color: const Color(
+                                0xFF8B26D9,
+                              ).withValues(alpha: 0.15),
                               width: 1.5,
                             ),
                           ),
@@ -171,10 +175,11 @@ class _AudioCallScreenState extends State<AudioCallScreen>
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: (_isConnected
-                                ? const Color(0xFF63E6A1)
-                                : const Color(0xFF8B26D9))
-                            .withValues(alpha: 0.35),
+                        color:
+                            (_isConnected
+                                    ? const Color(0xFF63E6A1)
+                                    : const Color(0xFF8B26D9))
+                                .withValues(alpha: 0.35),
                         blurRadius: 24,
                         spreadRadius: 2,
                       ),
@@ -185,7 +190,7 @@ class _AudioCallScreenState extends State<AudioCallScreen>
                         ? Image.network(
                             widget.peerAvatarUrl!,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _avatarFallback(),
+                            errorBuilder: (_, _, _) => _avatarFallback(),
                           )
                         : _avatarFallback(),
                   ),
@@ -217,7 +222,9 @@ class _AudioCallScreenState extends State<AudioCallScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     _SmallCallButton(
-                      icon: _isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
+                      icon: _isMuted
+                          ? Icons.mic_off_rounded
+                          : Icons.mic_rounded,
                       label: isArabic
                           ? (_isMuted ? 'إلغاء كتم' : 'كتم')
                           : (_isMuted ? 'Unmute' : 'Mute'),
@@ -232,8 +239,7 @@ class _AudioCallScreenState extends State<AudioCallScreen>
                           ? (_isSpeakerOn ? 'سماعة' : 'مكبر')
                           : (_isSpeakerOn ? 'Earpiece' : 'Speaker'),
                       active: _isSpeakerOn,
-                      onTap: () =>
-                          setState(() => _isSpeakerOn = !_isSpeakerOn),
+                      onTap: () => setState(() => _isSpeakerOn = !_isSpeakerOn),
                     ),
                   ],
                 ),
@@ -250,7 +256,9 @@ class _AudioCallScreenState extends State<AudioCallScreen>
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFFF4D6D).withValues(alpha: 0.45),
+                          color: const Color(
+                            0xFFFF4D6D,
+                          ).withValues(alpha: 0.45),
                           blurRadius: 22,
                           spreadRadius: 2,
                         ),

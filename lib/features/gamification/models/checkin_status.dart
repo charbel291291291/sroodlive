@@ -6,10 +6,10 @@ class CheckinReward {
   });
 
   factory CheckinReward.fromJson(Map<String, dynamic> json) => CheckinReward(
-        day: (json['day'] as num?)?.toInt() ?? 1,
-        rewardType: json['reward_type']?.toString() ?? 'coins',
-        rewardAmount: (json['reward_amount'] as num?)?.toInt() ?? 0,
-      );
+    day: (json['day'] as num?)?.toInt() ?? 1,
+    rewardType: json['reward_type']?.toString() ?? 'coins',
+    rewardAmount: (json['reward_amount'] as num?)?.toInt() ?? 0,
+  );
 
   final int day;
   final String rewardType;

@@ -149,7 +149,8 @@ class PrivateMessageService {
 
     final unreadMap = <String, int>{};
     for (final item in unreadRows as List<dynamic>) {
-      final cid = (item as Map<String, dynamic>)['conversation_id']?.toString() ?? '';
+      final cid =
+          (item as Map<String, dynamic>)['conversation_id']?.toString() ?? '';
       if (cid.isNotEmpty) unreadMap[cid] = (unreadMap[cid] ?? 0) + 1;
     }
 

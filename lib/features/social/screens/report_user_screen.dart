@@ -23,18 +23,63 @@ class _Reason {
   final String ar;
   final IconData icon;
 
-  const _Reason({required this.key, required this.en, required this.ar, required this.icon});
+  const _Reason({
+    required this.key,
+    required this.en,
+    required this.ar,
+    required this.icon,
+  });
 }
 
 const _reasons = [
-  _Reason(key: 'spam',          en: 'Spam or scam',             ar: 'رسائل مزعجة أو احتيال',    icon: Icons.report_gmailerrorred_rounded),
-  _Reason(key: 'harassment',    en: 'Harassment or bullying',   ar: 'مضايقة أو تنمر',            icon: Icons.sentiment_very_dissatisfied_rounded),
-  _Reason(key: 'inappropriate', en: 'Inappropriate content',    ar: 'محتوى غير لائق',            icon: Icons.no_adult_content_rounded),
-  _Reason(key: 'fake',          en: 'Fake account',             ar: 'حساب مزيف',                 icon: Icons.person_off_rounded),
-  _Reason(key: 'hate',          en: 'Hate speech',              ar: 'خطاب كراهية',               icon: Icons.gpp_bad_rounded),
-  _Reason(key: 'violence',      en: 'Violence or threats',      ar: 'عنف أو تهديد',              icon: Icons.warning_amber_rounded),
-  _Reason(key: 'underage',      en: 'Minor / underage content', ar: 'محتوى للأطفال القاصرين',    icon: Icons.child_care_rounded),
-  _Reason(key: 'other',         en: 'Other',                    ar: 'أخرى',                      icon: Icons.more_horiz_rounded),
+  _Reason(
+    key: 'spam',
+    en: 'Spam or scam',
+    ar: 'رسائل مزعجة أو احتيال',
+    icon: Icons.report_gmailerrorred_rounded,
+  ),
+  _Reason(
+    key: 'harassment',
+    en: 'Harassment or bullying',
+    ar: 'مضايقة أو تنمر',
+    icon: Icons.sentiment_very_dissatisfied_rounded,
+  ),
+  _Reason(
+    key: 'inappropriate',
+    en: 'Inappropriate content',
+    ar: 'محتوى غير لائق',
+    icon: Icons.no_adult_content_rounded,
+  ),
+  _Reason(
+    key: 'fake',
+    en: 'Fake account',
+    ar: 'حساب مزيف',
+    icon: Icons.person_off_rounded,
+  ),
+  _Reason(
+    key: 'hate',
+    en: 'Hate speech',
+    ar: 'خطاب كراهية',
+    icon: Icons.gpp_bad_rounded,
+  ),
+  _Reason(
+    key: 'violence',
+    en: 'Violence or threats',
+    ar: 'عنف أو تهديد',
+    icon: Icons.warning_amber_rounded,
+  ),
+  _Reason(
+    key: 'underage',
+    en: 'Minor / underage content',
+    ar: 'محتوى للأطفال القاصرين',
+    icon: Icons.child_care_rounded,
+  ),
+  _Reason(
+    key: 'other',
+    en: 'Other',
+    ar: 'أخرى',
+    icon: Icons.more_horiz_rounded,
+  ),
 ];
 
 class _ReportUserScreenState extends State<ReportUserScreen> {
@@ -59,7 +104,9 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
         'reporter_id': me,
         'reported_user_id': widget.targetUserId,
         'reason': _reasons[_selectedReason!].key,
-        'details': _detailsController.text.trim().isEmpty ? null : _detailsController.text.trim(),
+        'details': _detailsController.text.trim().isEmpty
+            ? null
+            : _detailsController.text.trim(),
         'status': 'pending',
       });
       if (!mounted) return;
@@ -105,19 +152,31 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
             const SizedBox(height: 20),
             Text(
               isArabic ? 'ما سبب البلاغ؟' : 'Why are you reporting?',
-              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+              ),
             ),
             const SizedBox(height: 10),
-            ..._reasons.asMap().entries.map((entry) => _ReasonTile(
-              reason: entry.value,
-              selected: _selectedReason == entry.key,
-              isArabic: isArabic,
-              onTap: () => setState(() => _selectedReason = entry.key),
-            )),
+            ..._reasons.asMap().entries.map(
+              (entry) => _ReasonTile(
+                reason: entry.value,
+                selected: _selectedReason == entry.key,
+                isArabic: isArabic,
+                onTap: () => setState(() => _selectedReason = entry.key),
+              ),
+            ),
             const SizedBox(height: 16),
             Text(
-              isArabic ? 'تفاصيل إضافية (اختياري)' : 'Additional details (optional)',
-              style: const TextStyle(color: Color(0xFFBCAED6), fontSize: 13, fontWeight: FontWeight.w700),
+              isArabic
+                  ? 'تفاصيل إضافية (اختياري)'
+                  : 'Additional details (optional)',
+              style: const TextStyle(
+                color: Color(0xFFBCAED6),
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 8),
             TextField(
@@ -125,13 +184,24 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
               textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
               maxLines: 4,
               maxLength: 500,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
               decoration: InputDecoration(
-                hintText: isArabic ? 'أضف أي تفاصيل إضافية...' : 'Add any additional details...',
-                hintStyle: const TextStyle(color: Color(0xFF6E5A8A), fontSize: 13),
+                hintText: isArabic
+                    ? 'أضف أي تفاصيل إضافية...'
+                    : 'Add any additional details...',
+                hintStyle: const TextStyle(
+                  color: Color(0xFF6E5A8A),
+                  fontSize: 13,
+                ),
                 filled: true,
                 fillColor: const Color(0xFF160B24),
-                counterStyle: const TextStyle(color: Color(0xFF6E5A8A), fontSize: 11),
+                counterStyle: const TextStyle(
+                  color: Color(0xFF6E5A8A),
+                  fontSize: 11,
+                ),
                 contentPadding: const EdgeInsets.all(14),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -143,7 +213,10 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: Color(0xFF8B26D9), width: 1.5),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF8B26D9),
+                    width: 1.5,
+                  ),
                 ),
               ),
             ),
@@ -152,25 +225,44 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
               isArabic
                   ? 'سيتم مراجعة البلاغ من قِبل فريق الإشراف خلال 48 ساعة.'
                   : 'Your report will be reviewed by the moderation team within 48 hours.',
-              style: const TextStyle(color: Color(0xFF6E5A8A), fontSize: 11, fontWeight: FontWeight.w600, height: 1.4),
+              style: const TextStyle(
+                color: Color(0xFF6E5A8A),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
             ),
             const SizedBox(height: 24),
             SizedBox(
               height: 52,
               child: FilledButton.icon(
-                onPressed: (_selectedReason == null || _submitting) ? null : _submit,
+                onPressed: (_selectedReason == null || _submitting)
+                    ? null
+                    : _submit,
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFFFF4D6D),
                   foregroundColor: Colors.white,
                   disabledBackgroundColor: const Color(0xFF3A1422),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
                 icon: _submitting
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
                     : const Icon(Icons.flag_rounded, size: 20),
                 label: Text(
                   isArabic ? 'إرسال البلاغ' : 'Submit report',
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
             ),
@@ -198,12 +290,23 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
             children: [
               Text(
                 isArabic ? 'الإبلاغ عن مستخدم' : 'Report user',
-                style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900, height: 1.0),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  height: 1.0,
+                ),
               ),
               const SizedBox(height: 3),
               Text(
-                isArabic ? 'ساعدنا في الحفاظ على بيئة آمنة' : 'Help us keep the community safe',
-                style: const TextStyle(color: Color(0xFFBCAED6), fontSize: 12, fontWeight: FontWeight.w700),
+                isArabic
+                    ? 'ساعدنا في الحفاظ على بيئة آمنة'
+                    : 'Help us keep the community safe',
+                style: const TextStyle(
+                  color: Color(0xFFBCAED6),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -220,7 +323,9 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF160B24),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF6E3AA8).withValues(alpha: 0.4)),
+        border: Border.all(
+          color: const Color(0xFF6E3AA8).withValues(alpha: 0.4),
+        ),
       ),
       child: Row(
         textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
@@ -229,14 +334,22 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
           const SizedBox(width: 10),
           Text(
             isArabic ? 'الإبلاغ عن: ' : 'Reporting: ',
-            style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 13, fontWeight: FontWeight.w700),
+            style: const TextStyle(
+              color: Color(0xFF9E91B8),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           Expanded(
             child: Text(
               widget.targetName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
         ],
@@ -259,12 +372,20 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
                 shape: BoxShape.circle,
                 border: Border.all(color: const Color(0xFF63E6A1), width: 2),
               ),
-              child: const Icon(Icons.check_rounded, color: Color(0xFF63E6A1), size: 46),
+              child: const Icon(
+                Icons.check_rounded,
+                color: Color(0xFF63E6A1),
+                size: 46,
+              ),
             ),
             const SizedBox(height: 24),
             Text(
               isArabic ? 'تم إرسال البلاغ' : 'Report submitted',
-              style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+              ),
             ),
             const SizedBox(height: 12),
             Text(
@@ -272,7 +393,12 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
                   ? 'شكراً على مساعدتك. سيتم مراجعة البلاغ خلال 48 ساعة.'
                   : 'Thank you for helping. Your report will be reviewed within 48 hours.',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Color(0xFFBCAED6), fontSize: 14, fontWeight: FontWeight.w600, height: 1.5),
+              style: const TextStyle(
+                color: Color(0xFFBCAED6),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                height: 1.5,
+              ),
             ),
             const SizedBox(height: 32),
             SizedBox(
@@ -283,9 +409,14 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.white,
                   side: const BorderSide(color: Color(0xFF4A3470)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
-                child: Text(isArabic ? 'العودة' : 'Go back', style: const TextStyle(fontWeight: FontWeight.w800)),
+                child: Text(
+                  isArabic ? 'العودة' : 'Go back',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
               ),
             ),
           ],
@@ -329,7 +460,9 @@ class _ReasonTile extends StatelessWidget {
           children: [
             Icon(
               reason.icon,
-              color: selected ? const Color(0xFFFF4D6D) : const Color(0xFF9E91B8),
+              color: selected
+                  ? const Color(0xFFFF4D6D)
+                  : const Color(0xFF9E91B8),
               size: 20,
             ),
             const SizedBox(width: 12),
@@ -343,7 +476,11 @@ class _ReasonTile extends StatelessWidget {
             ),
             const Spacer(),
             if (selected)
-              const Icon(Icons.check_circle_rounded, color: Color(0xFFFF4D6D), size: 18),
+              const Icon(
+                Icons.check_circle_rounded,
+                color: Color(0xFFFF4D6D),
+                size: 18,
+              ),
           ],
         ),
       ),

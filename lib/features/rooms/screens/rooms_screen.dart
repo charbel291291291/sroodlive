@@ -225,8 +225,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
                   IconButton(
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) =>
-                            SearchScreen(isArabic: widget.isArabic),
+                        builder: (_) => SearchScreen(isArabic: widget.isArabic),
                       ),
                     ),
                     icon: const Icon(
@@ -238,7 +237,8 @@ class _RoomsScreenState extends State<RoomsScreen> {
                   IconButton(
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => LeaderboardScreen(isArabic: widget.isArabic),
+                        builder: (_) =>
+                            LeaderboardScreen(isArabic: widget.isArabic),
                       ),
                     ),
                     icon: const Icon(
@@ -250,7 +250,8 @@ class _RoomsScreenState extends State<RoomsScreen> {
                   IconButton(
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => RoomScheduleScreen(isArabic: widget.isArabic),
+                        builder: (_) =>
+                            RoomScheduleScreen(isArabic: widget.isArabic),
                       ),
                     ),
                     icon: const Icon(
@@ -262,9 +263,8 @@ class _RoomsScreenState extends State<RoomsScreen> {
                   IconButton(
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => NotificationsScreen(
-                          isArabic: widget.isArabic,
-                        ),
+                        builder: (_) =>
+                            NotificationsScreen(isArabic: widget.isArabic),
                       ),
                     ),
                     icon: const Icon(
@@ -323,20 +323,26 @@ class _RoomsScreenState extends State<RoomsScreen> {
                 onCta: (route) {
                   switch (route) {
                     case 'discovery':
-                      Navigator.of(context).push(MaterialPageRoute<void>(
-                        builder: (_) =>
-                            DiscoveryScreen(isArabic: widget.isArabic),
-                      ));
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) =>
+                              DiscoveryScreen(isArabic: widget.isArabic),
+                        ),
+                      );
                     case 'gifts':
-                      Navigator.of(context).push(MaterialPageRoute<void>(
-                        builder: (_) =>
-                            GiftCatalogScreen(isArabic: widget.isArabic),
-                      ));
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) =>
+                              GiftCatalogScreen(isArabic: widget.isArabic),
+                        ),
+                      );
                     case 'vip':
-                      Navigator.of(context).push(MaterialPageRoute<void>(
-                        builder: (_) =>
-                            VipCenterScreen(isArabic: widget.isArabic),
-                      ));
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) =>
+                              VipCenterScreen(isArabic: widget.isArabic),
+                        ),
+                      );
                   }
                 },
               ),
@@ -470,11 +476,14 @@ const _kSlides = [
   _SlideData(
     labelAr: '\u0633\u0647\u0631\u0648\u062f \u0644\u0627\u064a\u0641',
     labelEn: 'Srood Live',
-    titleAr: '\u0627\u062e\u062a\u0631 \u063a\u0631\u0641\u0629 \u0648\u0627\u0628\u062f\u0623 \u0627\u0644\u0633\u0647\u0631\u0629',
+    titleAr:
+        '\u0627\u062e\u062a\u0631 \u063a\u0631\u0641\u0629 \u0648\u0627\u0628\u062f\u0623 \u0627\u0644\u0633\u0647\u0631\u0629',
     titleEn: 'Choose a room,\nstart the night',
-    subtitleAr: '\u063a\u0631\u0641 \u0635\u0648\u062a\u064a\u0629\u060c \u0645\u0636\u064a\u0641\u064a\u0646\u060c \u0648\u0623\u062c\u0648\u0627\u0621 \u062d\u064a\u0629 \u0641\u062e\u0645\u0629.',
+    subtitleAr:
+        '\u063a\u0631\u0641 \u0635\u0648\u062a\u064a\u0629\u060c \u0645\u0636\u064a\u0641\u064a\u0646\u060c \u0648\u0623\u062c\u0648\u0627\u0621 \u062d\u064a\u0629 \u0641\u062e\u0645\u0629.',
     subtitleEn: 'Voice rooms, hosts & a premium live vibe.',
-    ctaAr: '\u0627\u0633\u062a\u0643\u0634\u0641 \u0627\u0644\u063a\u0631\u0641',
+    ctaAr:
+        '\u0627\u0633\u062a\u0643\u0634\u0641 \u0627\u0644\u063a\u0631\u0641',
     ctaEn: 'Explore Rooms',
     icon: Icons.mic_rounded,
     gradientColors: [Color(0xFF2D0D5E), Color(0xFF5B1A9A), Color(0xFF8B26D9)],
@@ -484,9 +493,11 @@ const _kSlides = [
   _SlideData(
     labelAr: '\u0627\u0644\u0645\u0643\u0627\u0641\u0622\u062a',
     labelEn: 'Rewards',
-    titleAr: '\u0623\u0631\u0633\u0644 \u0647\u062f\u0627\u064a\u0627 \u0648\u0627\u0631\u062a\u0642\u0650',
+    titleAr:
+        '\u0623\u0631\u0633\u0644 \u0647\u062f\u0627\u064a\u0627 \u0648\u0627\u0631\u062a\u0642\u0650',
     titleEn: 'Send gifts,\nrise faster',
-    subtitleAr: '\u0627\u062f\u0639\u0645 \u0645\u0636\u064a\u0641\u064a\u0646\u0643 \u0648\u0627\u0643\u0633\u0628 \u0645\u0643\u0627\u0646\u0629 \u0623\u0639\u0644\u0649.',
+    subtitleAr:
+        '\u0627\u062f\u0639\u0645 \u0645\u0636\u064a\u0641\u064a\u0646\u0643 \u0648\u0627\u0643\u0633\u0628 \u0645\u0643\u0627\u0646\u0629 \u0623\u0639\u0644\u0649.',
     subtitleEn: 'Support hosts, earn status & unlock rewards.',
     ctaAr: '\u0639\u0631\u0636 \u0627\u0644\u0647\u062f\u0627\u064a\u0627',
     ctaEn: 'View Gifts',
@@ -498,9 +509,11 @@ const _kSlides = [
   _SlideData(
     labelAr: '\u0627\u0644\u0646\u062e\u0628\u0629',
     labelEn: 'VIP',
-    titleAr: '\u0627\u0641\u062a\u062d \u0645\u0632\u0627\u064a\u0627 \u0627\u0644\u0646\u062e\u0628\u0629',
+    titleAr:
+        '\u0627\u0641\u062a\u062d \u0645\u0632\u0627\u064a\u0627 \u0627\u0644\u0646\u062e\u0628\u0629',
     titleEn: 'Unlock VIP\nperks',
-    subtitleAr: '\u0634\u0627\u0631\u0627\u062a\u060c \u0623\u0633\u0644\u0648\u0628 \u0645\u0644\u0641\u060c \u062d\u0636\u0648\u0631 \u0645\u0645\u064a\u0632 \u0648\u0645\u0632\u064a\u062f.',
+    subtitleAr:
+        '\u0634\u0627\u0631\u0627\u062a\u060c \u0623\u0633\u0644\u0648\u0628 \u0645\u0644\u0641\u060c \u062d\u0636\u0648\u0631 \u0645\u0645\u064a\u0632 \u0648\u0645\u0632\u064a\u062f.',
     subtitleEn: 'Badges, profile style, premium presence & more.',
     ctaAr: '\u0645\u0631\u0643\u0632 VIP',
     ctaEn: 'VIP Center',
@@ -512,10 +525,7 @@ const _kSlides = [
 ];
 
 class _RoomsHeroBanner extends StatefulWidget {
-  const _RoomsHeroBanner({
-    required this.isArabic,
-    required this.onCta,
-  });
+  const _RoomsHeroBanner({required this.isArabic, required this.onCta});
 
   final bool isArabic;
   final void Function(String? route) onCta;
@@ -635,135 +645,137 @@ class _BannerSlide extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isRtl = isArabic;
-    final cross =
-        isRtl ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    final cross = isRtl ? CrossAxisAlignment.end : CrossAxisAlignment.start;
     final align = isRtl ? TextAlign.right : TextAlign.left;
 
     return GestureDetector(
       onTap: onCta,
       child: Container(
-      margin: const EdgeInsets.symmetric(horizontal: 2),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: slide.gradientColors,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: slide.gradientColors.last.withValues(alpha: 0.32),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: slide.gradientColors,
           ),
-        ],
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.08),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
-          children: [
-            // Icon block
-            Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                color: slide.iconBgColor.withValues(alpha: 0.55),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.12),
-                ),
-              ),
-              child: Icon(slide.icon, color: Colors.white, size: 28),
-            ),
-            const SizedBox(width: 14),
-            // Text + CTA
-            Expanded(
-              child: Column(
-                crossAxisAlignment: cross,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Label pill
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 9, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      isArabic ? slide.labelAr : slide.labelEn,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.4,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  // Title
-                  Text(
-                    isArabic ? slide.titleAr : slide.titleEn,
-                    textAlign: align,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      height: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  // Subtitle
-                  Text(
-                    isArabic ? slide.subtitleAr : slide.subtitleEn,
-                    textAlign: align,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.72),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      height: 1.3,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  // CTA pill
-                  Align(
-                    alignment:
-                        isRtl ? Alignment.centerRight : Alignment.centerLeft,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.25),
-                        ),
-                      ),
-                      child: Text(
-                        isArabic ? slide.ctaAr : slide.ctaEn,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+          boxShadow: [
+            BoxShadow(
+              color: slide.gradientColors.last.withValues(alpha: 0.32),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
             ),
           ],
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         ),
-      ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+            children: [
+              // Icon block
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: slide.iconBgColor.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.12),
+                  ),
+                ),
+                child: Icon(slide.icon, color: Colors.white, size: 28),
+              ),
+              const SizedBox(width: 14),
+              // Text + CTA
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: cross,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Label pill
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        isArabic ? slide.labelAr : slide.labelEn,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    // Title
+                    Text(
+                      isArabic ? slide.titleAr : slide.titleEn,
+                      textAlign: align,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    // Subtitle
+                    Text(
+                      isArabic ? slide.subtitleAr : slide.subtitleEn,
+                      textAlign: align,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.72),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        height: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // CTA pill
+                    Align(
+                      alignment: isRtl
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.25),
+                          ),
+                        ),
+                        child: Text(
+                          isArabic ? slide.ctaAr : slide.ctaEn,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

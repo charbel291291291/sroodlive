@@ -148,7 +148,9 @@ class _PrivateChatSheetState extends State<PrivateChatSheet> {
         final messages = await _service.fetchMessages(conversationId);
         if (mounted) {
           setState(() => _messages = messages);
-          WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => _scrollToBottom(),
+          );
         }
       } else {
         await _load();

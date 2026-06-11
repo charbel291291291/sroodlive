@@ -372,10 +372,7 @@ class RoomsService {
     // Use safe RPC function that verifies room ownership
     await SupabaseService.requiredClient.rpc(
       'remove_room_member',
-      params: {
-        'p_room_id': roomId,
-        'p_user_id': userId,
-      },
+      params: {'p_room_id': roomId, 'p_user_id': userId},
     );
   }
 

@@ -42,7 +42,7 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
   bool _loading = true;
   List<_Seat> _seats = const [];
   int _viewerCount = 0;
-  int _giftCount = 0;
+  final int _giftCount = 0;
   Duration _sessionDuration = Duration.zero;
   Timer? _timer;
 
@@ -51,7 +51,9 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
     super.initState();
     _load();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() => _sessionDuration += const Duration(seconds: 1));
+      if (mounted) {
+        setState(() => _sessionDuration += const Duration(seconds: 1));
+      }
     });
   }
 
@@ -66,7 +68,9 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
     try {
       final rows = await SupabaseService.requiredClient
           .from('room_members')
-          .select('user_id, profiles(display_name, avatar_url), is_muted, seat_index')
+          .select(
+            'user_id, profiles(display_name, avatar_url), is_muted, seat_index',
+          )
           .eq('room_id', widget.roomId)
           .eq('status', 'active')
           .order('seat_index');
@@ -127,7 +131,10 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
         backgroundColor: const Color(0xFF160B24),
         title: Text(
           widget.isArabic ? 'طرد المستخدم' : 'Kick user',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w900,
+          ),
         ),
         content: Text(
           widget.isArabic
@@ -136,10 +143,16 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
           style: const TextStyle(color: Color(0xFFBCAED6)),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(widget.isArabic ? 'إلغاء' : 'Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(widget.isArabic ? 'إلغاء' : 'Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(widget.isArabic ? 'طرد' : 'Kick', style: const TextStyle(color: Color(0xFFFF4D6D))),
+            child: Text(
+              widget.isArabic ? 'طرد' : 'Kick',
+              style: const TextStyle(color: Color(0xFFFF4D6D)),
+            ),
           ),
         ],
       ),
@@ -162,17 +175,28 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
         backgroundColor: const Color(0xFF160B24),
         title: Text(
           widget.isArabic ? 'إنهاء الجلسة' : 'End session',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w900,
+          ),
         ),
         content: Text(
-          widget.isArabic ? 'هل تريد إنهاء الجلسة؟' : 'Are you sure you want to end the session?',
+          widget.isArabic
+              ? 'هل تريد إنهاء الجلسة؟'
+              : 'Are you sure you want to end the session?',
           style: const TextStyle(color: Color(0xFFBCAED6)),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(widget.isArabic ? 'إلغاء' : 'Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(widget.isArabic ? 'إلغاء' : 'Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(widget.isArabic ? 'إنهاء' : 'End', style: const TextStyle(color: Color(0xFFFF4D6D))),
+            child: Text(
+              widget.isArabic ? 'إنهاء' : 'End',
+              style: const TextStyle(color: Color(0xFFFF4D6D)),
+            ),
           ),
         ],
       ),
@@ -181,7 +205,10 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
     try {
       await SupabaseService.requiredClient
           .from('rooms')
-          .update({'is_live': false, 'ended_at': DateTime.now().toIso8601String()})
+          .update({
+            'is_live': false,
+            'ended_at': DateTime.now().toIso8601String(),
+          })
           .eq('id', widget.roomId);
     } catch (_) {}
     if (mounted) Navigator.of(context).pop();
@@ -250,14 +277,23 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
             children: [
               Text(
                 isArabic ? 'لوحة تحكم المضيف' : 'Host controls',
-                style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, height: 1.0),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  height: 1.0,
+                ),
               ),
               const SizedBox(height: 3),
               Text(
                 widget.roomName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Color(0xFFBCAED6), fontSize: 12, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  color: Color(0xFFBCAED6),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -267,7 +303,9 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
           decoration: BoxDecoration(
             color: const Color(0xFF1A3A10),
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: const Color(0xFF63E6A1).withValues(alpha: 0.5)),
+            border: Border.all(
+              color: const Color(0xFF63E6A1).withValues(alpha: 0.5),
+            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -276,7 +314,11 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
               const SizedBox(width: 5),
               Text(
                 _formatDuration(_sessionDuration),
-                style: const TextStyle(color: Color(0xFF63E6A1), fontSize: 12, fontWeight: FontWeight.w900),
+                style: const TextStyle(
+                  color: Color(0xFF63E6A1),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ],
           ),
@@ -289,11 +331,32 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
   Widget _buildStatsRow(bool isArabic) {
     return Row(
       children: [
-        Expanded(child: _StatCard(icon: Icons.visibility_rounded, value: '$_viewerCount', label: isArabic ? 'مشاهد' : 'Viewers', color: const Color(0xFF8B26D9))),
+        Expanded(
+          child: _StatCard(
+            icon: Icons.visibility_rounded,
+            value: '$_viewerCount',
+            label: isArabic ? 'مشاهد' : 'Viewers',
+            color: const Color(0xFF8B26D9),
+          ),
+        ),
         const SizedBox(width: 10),
-        Expanded(child: _StatCard(icon: Icons.card_giftcard_rounded, value: '$_giftCount', label: isArabic ? 'هدايا' : 'Gifts', color: const Color(0xFFF0C15A))),
+        Expanded(
+          child: _StatCard(
+            icon: Icons.card_giftcard_rounded,
+            value: '$_giftCount',
+            label: isArabic ? 'هدايا' : 'Gifts',
+            color: const Color(0xFFF0C15A),
+          ),
+        ),
         const SizedBox(width: 10),
-        Expanded(child: _StatCard(icon: Icons.mic_rounded, value: '${_seats.length}', label: isArabic ? 'مقاعد' : 'Seats', color: const Color(0xFF63E6A1))),
+        Expanded(
+          child: _StatCard(
+            icon: Icons.mic_rounded,
+            value: '${_seats.length}',
+            label: isArabic ? 'مقاعد' : 'Seats',
+            color: const Color(0xFF63E6A1),
+          ),
+        ),
       ],
     );
   }
@@ -304,7 +367,11 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
       children: [
         Text(
           isArabic ? 'إجراءات سريعة' : 'Quick actions',
-          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w900,
+          ),
         ),
         const SizedBox(height: 10),
         Wrap(
@@ -313,19 +380,25 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
           children: [
             _ActionChip(
               icon: _isHostMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
-              label: _isHostMuted ? (isArabic ? 'إلغاء الكتم' : 'Unmute') : (isArabic ? 'كتم نفسي' : 'Mute self'),
+              label: _isHostMuted
+                  ? (isArabic ? 'إلغاء الكتم' : 'Unmute')
+                  : (isArabic ? 'كتم نفسي' : 'Mute self'),
               active: _isHostMuted,
               onTap: () => setState(() => _isHostMuted = !_isHostMuted),
             ),
             _ActionChip(
               icon: Icons.volume_off_rounded,
-              label: _allMuted ? (isArabic ? 'إلغاء كتم الكل' : 'Unmute all') : (isArabic ? 'كتم الكل' : 'Mute all'),
+              label: _allMuted
+                  ? (isArabic ? 'إلغاء كتم الكل' : 'Unmute all')
+                  : (isArabic ? 'كتم الكل' : 'Mute all'),
               active: _allMuted,
               onTap: _muteAll,
             ),
             _ActionChip(
               icon: _isLocked ? Icons.lock_rounded : Icons.lock_open_rounded,
-              label: _isLocked ? (isArabic ? 'فتح الغرفة' : 'Unlock room') : (isArabic ? 'قفل الغرفة' : 'Lock room'),
+              label: _isLocked
+                  ? (isArabic ? 'فتح الغرفة' : 'Unlock room')
+                  : (isArabic ? 'قفل الغرفة' : 'Lock room'),
               active: _isLocked,
               onTap: () => setState(() => _isLocked = !_isLocked),
             ),
@@ -347,11 +420,20 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
       children: [
         Text(
           isArabic ? 'المقاعد النشطة' : 'Active seats',
-          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w900,
+          ),
         ),
         const SizedBox(height: 10),
         if (_loading)
-          const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: Color(0xFF8B26D9))))
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: CircularProgressIndicator(color: Color(0xFF8B26D9)),
+            ),
+          )
         else if (_seats.isEmpty)
           Container(
             padding: const EdgeInsets.all(20),
@@ -362,18 +444,22 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
             ),
             child: Center(
               child: Text(
-                isArabic ? 'لا يوجد أحد في المقاعد حالياً' : 'No active seats yet',
+                isArabic
+                    ? 'لا يوجد أحد في المقاعد حالياً'
+                    : 'No active seats yet',
                 style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 13),
               ),
             ),
           )
         else
-          ...(_seats.map((s) => _SeatTile(
-            seat: s,
-            isArabic: isArabic,
-            onMute: () => _toggleSeatMute(s),
-            onKick: () => _kickUser(s),
-          ))),
+          ...(_seats.map(
+            (s) => _SeatTile(
+              seat: s,
+              isArabic: isArabic,
+              onMute: () => _toggleSeatMute(s),
+              onKick: () => _kickUser(s),
+            ),
+          )),
       ],
     );
   }
@@ -384,14 +470,20 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF1A0A14),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFFF4D6D).withValues(alpha: 0.3)),
+        border: Border.all(
+          color: const Color(0xFFFF4D6D).withValues(alpha: 0.3),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             isArabic ? 'منطقة الخطر' : 'Danger zone',
-            style: const TextStyle(color: Color(0xFFFF4D6D), fontSize: 14, fontWeight: FontWeight.w900),
+            style: const TextStyle(
+              color: Color(0xFFFF4D6D),
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+            ),
           ),
           const SizedBox(height: 12),
           SizedBox(
@@ -402,12 +494,17 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFFFF4D6D),
                 side: const BorderSide(color: Color(0xFFFF4D6D)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
               icon: const Icon(Icons.stop_circle_rounded, size: 20),
               label: Text(
                 isArabic ? 'إنهاء الجلسة' : 'End session',
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ),
           ),
@@ -443,9 +540,23 @@ class _StatCard extends StatelessWidget {
         children: [
           Icon(icon, color: color, size: 22),
           const SizedBox(height: 6),
-          Text(value, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 11, fontWeight: FontWeight.w700)),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF9E91B8),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
@@ -483,12 +594,18 @@ class _ActionChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: active ? const Color(0xFFCCA0FF) : const Color(0xFF9E91B8), size: 16),
+            Icon(
+              icon,
+              color: active ? const Color(0xFFCCA0FF) : const Color(0xFF9E91B8),
+              size: 16,
+            ),
             const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
-                color: active ? const Color(0xFFCCA0FF) : const Color(0xFFBCAED6),
+                color: active
+                    ? const Color(0xFFCCA0FF)
+                    : const Color(0xFFBCAED6),
                 fontSize: 13,
                 fontWeight: FontWeight.w800,
               ),
@@ -521,7 +638,9 @@ class _SeatTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF160B24),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF6E3AA8).withValues(alpha: 0.35)),
+        border: Border.all(
+          color: const Color(0xFF6E3AA8).withValues(alpha: 0.35),
+        ),
       ),
       child: Row(
         textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
@@ -529,22 +648,46 @@ class _SeatTile extends StatelessWidget {
           CircleAvatar(
             radius: 20,
             backgroundColor: const Color(0xFF241638),
-            backgroundImage: seat.avatarUrl != null ? NetworkImage(seat.avatarUrl!) : null,
+            backgroundImage: seat.avatarUrl != null
+                ? NetworkImage(seat.avatarUrl!)
+                : null,
             child: seat.avatarUrl == null
-                ? Text(seat.displayName.isNotEmpty ? seat.displayName[0].toUpperCase() : '?',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900))
+                ? Text(
+                    seat.displayName.isNotEmpty
+                        ? seat.displayName[0].toUpperCase()
+                        : '?',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  )
                 : null,
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
-              crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isArabic
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
-                Text(seat.displayName, maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
                 Text(
-                  isArabic ? 'المقعد ${seat.seatIndex + 1}' : 'Seat ${seat.seatIndex + 1}',
-                  style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 11),
+                  seat.displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  isArabic
+                      ? 'المقعد ${seat.seatIndex + 1}'
+                      : 'Seat ${seat.seatIndex + 1}',
+                  style: const TextStyle(
+                    color: Color(0xFF9E91B8),
+                    fontSize: 11,
+                  ),
                 ),
               ],
             ),
@@ -553,13 +696,19 @@ class _SeatTile extends StatelessWidget {
             onPressed: onMute,
             icon: Icon(
               seat.isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
-              color: seat.isMuted ? const Color(0xFFFF6B8A) : const Color(0xFF63E6A1),
+              color: seat.isMuted
+                  ? const Color(0xFFFF6B8A)
+                  : const Color(0xFF63E6A1),
               size: 20,
             ),
           ),
           IconButton(
             onPressed: onKick,
-            icon: const Icon(Icons.person_remove_rounded, color: Color(0xFFFF4D6D), size: 20),
+            icon: const Icon(
+              Icons.person_remove_rounded,
+              color: Color(0xFFFF4D6D),
+              size: 20,
+            ),
           ),
         ],
       ),

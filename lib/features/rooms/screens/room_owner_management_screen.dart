@@ -113,14 +113,16 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
     try {
       final list = await _roomSvc.getActiveRoomMembers(_roomId);
       _members = list
-          .map((m) => {
-                'user_id': m.userId,
-                'display_name': m.displayName ?? m.username ?? 'Unknown',
-                'avatar_url': m.avatarUrl,
-                'role': m.role,
-                'is_muted': m.isMuted,
-                'seat_number': m.seatNumber,
-              })
+          .map(
+            (m) => {
+              'user_id': m.userId,
+              'display_name': m.displayName ?? m.username ?? 'Unknown',
+              'avatar_url': m.avatarUrl,
+              'role': m.role,
+              'is_muted': m.isMuted,
+              'seat_number': m.seatNumber,
+            },
+          )
           .toList();
     } catch (_) {}
   }
@@ -164,9 +166,11 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
     try {
       await _roomSvc.setRoomLocked(roomId: _roomId, isLocked: !_isLocked);
       setState(() => _isLocked = !_isLocked);
-      _snack(_isLocked
-          ? _t('تم قفل الغرفة', 'Room locked')
-          : _t('تم فتح الغرفة', 'Room unlocked'));
+      _snack(
+        _isLocked
+            ? _t('تم قفل الغرفة', 'Room locked')
+            : _t('تم فتح الغرفة', 'Room unlocked'),
+      );
     } catch (e) {
       _snack('${_t("خطأ", "Error")}: $e', error: true);
     }
@@ -314,9 +318,11 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
                   labelText: _t('العنوان', 'Title'),
                   labelStyle: const TextStyle(color: Color(0xFF9E8AB8)),
                   enabledBorder: const OutlineInputBorder(
-                      borderSide: BorderSide(color: Color(0xFF3A2460))),
+                    borderSide: BorderSide(color: Color(0xFF3A2460)),
+                  ),
                   focusedBorder: const OutlineInputBorder(
-                      borderSide: BorderSide(color: Color(0xFF8B26D9))),
+                    borderSide: BorderSide(color: Color(0xFF8B26D9)),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -338,8 +344,15 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
                     initialTime: TimeOfDay.now(),
                   );
                   if (tm == null) return;
-                  setSt(() => picked = DateTime(
-                        dt.year, dt.month, dt.day, tm.hour, tm.minute));
+                  setSt(
+                    () => picked = DateTime(
+                      dt.year,
+                      dt.month,
+                      dt.day,
+                      tm.hour,
+                      tm.minute,
+                    ),
+                  );
                 },
                 child: Text(
                   picked == null
@@ -352,11 +365,15 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: Text(_t('إلغاء', 'Cancel'),
-                  style: const TextStyle(color: Color(0xFF9E8AB8))),
+              child: Text(
+                _t('إلغاء', 'Cancel'),
+                style: const TextStyle(color: Color(0xFF9E8AB8)),
+              ),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8B26D9)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF8B26D9),
+              ),
               onPressed: () => Navigator.pop(ctx, true),
               child: Text(_t('حفظ', 'Save')),
             ),
@@ -365,7 +382,9 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
       ),
     );
 
-    if (confirmed != true || picked == null || titleCtrl.text.trim().isEmpty) return;
+    if (confirmed != true || picked == null || titleCtrl.text.trim().isEmpty) {
+      return;
+    }
     try {
       await _svc.createRoomSchedule(
         roomId: _roomId,
@@ -391,10 +410,12 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
 
   void _snack(String msg, {bool error = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: error ? Colors.red[800] : const Color(0xFF2A1745),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: error ? Colors.red[800] : const Color(0xFF2A1745),
+      ),
+    );
   }
 
   // ── Build ────────────────────────────────────────────────────────────────
@@ -409,7 +430,10 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
           backgroundColor: const Color(0xFF12061F),
           title: Text(
             _t('إدارة الغرفة', 'Manage Room'),
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           iconTheme: const IconThemeData(color: Color(0xFFBCAED6)),
           bottom: TabBar(
@@ -430,7 +454,8 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
         ),
         body: _loading
             ? const Center(
-                child: CircularProgressIndicator(color: Color(0xFF8B26D9)))
+                child: CircularProgressIndicator(color: Color(0xFF8B26D9)),
+              )
             : TabBarView(
                 controller: _tabs,
                 children: [
@@ -461,19 +486,23 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
             runSpacing: 10,
             children: [
               _StatChip(
-                  label: _t('مستمعون', 'Listeners'),
-                  value: '${_stats['listeners'] ?? 0}'),
+                label: _t('مستمعون', 'Listeners'),
+                value: '${_stats['listeners'] ?? 0}',
+              ),
               _StatChip(
-                  label: _t('متحدثون', 'Speakers'),
-                  value: '${_stats['speakers'] ?? 0}'),
+                label: _t('متحدثون', 'Speakers'),
+                value: '${_stats['speakers'] ?? 0}',
+              ),
               _StatChip(
-                  label: _t('الهدايا', 'Gifts'),
-                  value: _formatCoins(_stats['total_gift_coins'] ?? 0),
-                  gold: true),
+                label: _t('الهدايا', 'Gifts'),
+                value: _formatCoins(_stats['total_gift_coins'] ?? 0),
+                gold: true,
+              ),
               _StatChip(
-                  label: _t('محظورون', 'Banned'),
-                  value: '${_stats['ban_count'] ?? 0}',
-                  red: (_stats['ban_count'] ?? 0) > 0),
+                label: _t('محظورون', 'Banned'),
+                value: '${_stats['ban_count'] ?? 0}',
+                red: (_stats['ban_count'] ?? 0) > 0,
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -511,10 +540,7 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
           _GlassCard(
             child: Column(
               children: [
-                _Field(
-                  ctrl: _nameCtrl,
-                  label: _t('اسم الغرفة', 'Room Name'),
-                ),
+                _Field(ctrl: _nameCtrl, label: _t('اسم الغرفة', 'Room Name')),
                 const SizedBox(height: 12),
                 _Field(
                   ctrl: _descCtrl,
@@ -530,7 +556,8 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                     onPressed: _savingMeta ? null : _saveMeta,
                     child: _savingMeta
@@ -538,13 +565,17 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
                             width: 18,
                             height: 18,
                             child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2),
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
                           )
                         : Text(_t('حفظ', 'Save')),
                   ),
                 ),
                 const SizedBox(height: 8),
-                _ComingSoonRow(label: _t('تغيير صورة الغرفة', 'Change Room Image')),
+                _ComingSoonRow(
+                  label: _t('تغيير صورة الغرفة', 'Change Room Image'),
+                ),
                 _ComingSoonRow(label: _t('موسيقى الغرفة', 'Room Music')),
               ],
             ),
@@ -590,25 +621,31 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: Row(
                   children: [
-                    const Text('\u{1F381}',
-                        style: TextStyle(fontSize: 18)),
+                    const Text('\u{1F381}', style: TextStyle(fontSize: 18)),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         g['gift_name'] as String? ?? g['gift_code'] as String,
-                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                     Text(
                       '×${g['count']}',
                       style: const TextStyle(
-                          color: Color(0xFF9E8AB8), fontSize: 12),
+                        color: Color(0xFF9E8AB8),
+                        fontSize: 12,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       _formatCoins(g['total_coins'] as int),
                       style: const TextStyle(
-                          color: Color(0xFFF0C15A), fontWeight: FontWeight.w700),
+                        color: Color(0xFFF0C15A),
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ],
                 ),
@@ -632,8 +669,7 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
       );
     }
 
-    final currentUserId =
-        Supabase.instance.client.auth.currentUser?.id ?? '';
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id ?? '';
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -663,14 +699,21 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(name,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13)),
-                      Text(role,
-                          style: const TextStyle(
-                              color: Color(0xFF9E8AB8), fontSize: 11)),
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        role,
+                        style: const TextStyle(
+                          color: Color(0xFF9E8AB8),
+                          fontSize: 11,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -722,21 +765,26 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
             children: [
               Expanded(
                 child: Text(
-                  _t('المشرفون (${_moderators.length})',
-                      'Moderators (${_moderators.length})'),
+                  _t(
+                    'المشرفون (${_moderators.length})',
+                    'Moderators (${_moderators.length})',
+                  ),
                   style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700),
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
           ),
         ),
         _ComingSoonBanner(
-            label: _t(
-                'سيتم قريباً: ضبط الصلاحيات التفصيلية',
-                'Coming soon: granular permission controls')),
+          label: _t(
+            'سيتم قريباً: ضبط الصلاحيات التفصيلية',
+            'Coming soon: granular permission controls',
+          ),
+        ),
         Expanded(
           child: _moderators.isEmpty
               ? Center(
@@ -758,7 +806,9 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
                       final mod = _moderators[i];
                       return _GlassCard(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                         child: Row(
                           children: [
                             _Avatar(url: mod.avatarUrl),
@@ -767,8 +817,9 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
                               child: Text(
                                 mod.displayName ?? mod.userId.substring(0, 8),
                                 style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600),
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                             _permIcon(mod.canMute, Icons.mic_off_rounded),
@@ -792,13 +843,13 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
   }
 
   Widget _permIcon(bool enabled, IconData icon) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2),
-        child: Icon(icon,
-            size: 16,
-            color: enabled
-                ? const Color(0xFF8B26D9)
-                : const Color(0xFF3A2460)),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 2),
+    child: Icon(
+      icon,
+      size: 16,
+      color: enabled ? const Color(0xFF8B26D9) : const Color(0xFF3A2460),
+    ),
+  );
 
   // ── Tab: Bans ─────────────────────────────────────────────────────────────
 
@@ -822,8 +873,10 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
               itemBuilder: (_, i) {
                 final ban = _bans[i];
                 return _GlassCard(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   child: Row(
                     children: [
                       _Avatar(url: ban.avatarUrl),
@@ -833,18 +886,20 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              ban.displayName ??
-                                  ban.userId.substring(0, 8),
+                              ban.displayName ?? ban.userId.substring(0, 8),
                               style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13),
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
                             ),
                             if (ban.reason?.isNotEmpty == true)
                               Text(
                                 ban.reason!,
                                 style: const TextStyle(
-                                    color: Color(0xFF9E8AB8), fontSize: 11),
+                                  color: Color(0xFF9E8AB8),
+                                  fontSize: 11,
+                                ),
                               ),
                             Text(
                               ban.isPermanent
@@ -886,8 +941,7 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _SectionHeader(
-              label: _t('إعلان الغرفة', 'Room Announcement')),
+          _SectionHeader(label: _t('إعلان الغرفة', 'Room Announcement')),
           const SizedBox(height: 8),
           _GlassCard(
             child: Column(
@@ -902,9 +956,11 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
                     labelStyle: const TextStyle(color: Color(0xFF9E8AB8)),
                     counterStyle: const TextStyle(color: Color(0xFF9E8AB8)),
                     enabledBorder: const OutlineInputBorder(
-                        borderSide: BorderSide(color: Color(0xFF3A2460))),
+                      borderSide: BorderSide(color: Color(0xFF3A2460)),
+                    ),
                     focusedBorder: const OutlineInputBorder(
-                        borderSide: BorderSide(color: Color(0xFF8B26D9))),
+                      borderSide: BorderSide(color: Color(0xFF8B26D9)),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -917,16 +973,20 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
-                        onPressed:
-                            _savingAnnouncement ? null : _saveAnnouncement,
+                        onPressed: _savingAnnouncement
+                            ? null
+                            : _saveAnnouncement,
                         child: _savingAnnouncement
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
                                 child: CircularProgressIndicator(
-                                    color: Colors.white, strokeWidth: 2),
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
                               )
                             : Text(_t('نشر', 'Publish')),
                       ),
@@ -939,7 +999,8 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
                           side: BorderSide(color: Colors.red[800]!),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         onPressed: _clearAnnouncement,
                         child: Text(_t('حذف', 'Clear')),
@@ -954,12 +1015,13 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
           Row(
             children: [
               Expanded(
-                child: _SectionHeader(
-                    label: _t('جدول البث', 'Schedule')),
+                child: _SectionHeader(label: _t('جدول البث', 'Schedule')),
               ),
               IconButton(
-                icon: const Icon(Icons.add_circle_rounded,
-                    color: Color(0xFF8B26D9)),
+                icon: const Icon(
+                  Icons.add_circle_rounded,
+                  color: Color(0xFF8B26D9),
+                ),
                 tooltip: _t('إضافة جلسة', 'Add Session'),
                 onPressed: _addSchedule,
               ),
@@ -982,12 +1044,17 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
             ..._schedules.map((s) {
               final dt = DateTime.tryParse(s['scheduled_at'] as String? ?? '');
               return _GlassCard(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 child: Row(
                   children: [
-                    const Icon(Icons.calendar_today_rounded,
-                        color: Color(0xFF8B26D9), size: 20),
+                    const Icon(
+                      Icons.calendar_today_rounded,
+                      color: Color(0xFF8B26D9),
+                      size: 20,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -996,15 +1063,18 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
                           Text(
                             s['title'] as String? ?? '',
                             style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13),
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
                           ),
                           if (dt != null)
                             Text(
                               '${dt.day}/${dt.month}/${dt.year} ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}',
                               style: const TextStyle(
-                                  color: Color(0xFF9E8AB8), fontSize: 11),
+                                color: Color(0xFF9E8AB8),
+                                fontSize: 11,
+                              ),
                             ),
                         ],
                       ),
@@ -1065,16 +1135,20 @@ class _BanDialog extends StatelessWidget {
           labelText: _t('سبب (اختياري)', 'Reason (optional)'),
           labelStyle: const TextStyle(color: Color(0xFF9E8AB8)),
           enabledBorder: const OutlineInputBorder(
-              borderSide: BorderSide(color: Color(0xFF3A2460))),
+            borderSide: BorderSide(color: Color(0xFF3A2460)),
+          ),
           focusedBorder: const OutlineInputBorder(
-              borderSide: BorderSide(color: Color(0xFF8B26D9))),
+            borderSide: BorderSide(color: Color(0xFF8B26D9)),
+          ),
         ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: Text(_t('إلغاء', 'Cancel'),
-              style: const TextStyle(color: Color(0xFF9E8AB8))),
+          child: Text(
+            _t('إلغاء', 'Cancel'),
+            style: const TextStyle(color: Color(0xFF9E8AB8)),
+          ),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(backgroundColor: Colors.red[800]),
@@ -1161,16 +1235,17 @@ class _StatChip extends StatelessWidget {
               color: red
                   ? Colors.red[400]
                   : gold
-                      ? const Color(0xFFF0C15A)
-                      : Colors.white,
+                  ? const Color(0xFFF0C15A)
+                  : Colors.white,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: 2),
-          Text(label,
-              style:
-                  const TextStyle(color: Color(0xFF9E8AB8), fontSize: 11)),
+          Text(
+            label,
+            style: const TextStyle(color: Color(0xFF9E8AB8), fontSize: 11),
+          ),
         ],
       ),
     );
@@ -1224,11 +1299,7 @@ class _Avatar extends StatelessWidget {
 }
 
 class _Field extends StatelessWidget {
-  const _Field({
-    required this.ctrl,
-    required this.label,
-    this.maxLines = 1,
-  });
+  const _Field({required this.ctrl, required this.label, this.maxLines = 1});
 
   final TextEditingController ctrl;
   final String label;
@@ -1244,9 +1315,11 @@ class _Field extends StatelessWidget {
         labelText: label,
         labelStyle: const TextStyle(color: Color(0xFF9E8AB8)),
         enabledBorder: const OutlineInputBorder(
-            borderSide: BorderSide(color: Color(0xFF3A2460))),
+          borderSide: BorderSide(color: Color(0xFF3A2460)),
+        ),
         focusedBorder: const OutlineInputBorder(
-            borderSide: BorderSide(color: Color(0xFF8B26D9))),
+          borderSide: BorderSide(color: Color(0xFF8B26D9)),
+        ),
       ),
     );
   }
@@ -1262,27 +1335,33 @@ class _ComingSoonRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          const Icon(Icons.schedule_rounded,
-              size: 14, color: Color(0xFF6E3AA8)),
+          const Icon(
+            Icons.schedule_rounded,
+            size: 14,
+            color: Color(0xFF6E3AA8),
+          ),
           const SizedBox(width: 6),
           Expanded(
-            child: Text(label,
-                style:
-                    const TextStyle(color: Color(0xFF9E8AB8), fontSize: 12)),
+            child: Text(
+              label,
+              style: const TextStyle(color: Color(0xFF9E8AB8), fontSize: 12),
+            ),
           ),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
               color: const Color(0xFF1A0E2B),
               borderRadius: BorderRadius.circular(6),
               border: Border.all(color: const Color(0xFF3A2460)),
             ),
-            child: const Text('Coming Soon',
-                style: TextStyle(
-                    color: Color(0xFF6E3AA8),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600)),
+            child: const Text(
+              'Coming Soon',
+              style: TextStyle(
+                color: Color(0xFF6E3AA8),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -1307,13 +1386,17 @@ class _ComingSoonBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.schedule_rounded,
-              size: 14, color: Color(0xFF6E3AA8)),
+          const Icon(
+            Icons.schedule_rounded,
+            size: 14,
+            color: Color(0xFF6E3AA8),
+          ),
           const SizedBox(width: 6),
           Expanded(
-            child: Text(label,
-                style:
-                    const TextStyle(color: Color(0xFF9E8AB8), fontSize: 12)),
+            child: Text(
+              label,
+              style: const TextStyle(color: Color(0xFF9E8AB8), fontSize: 12),
+            ),
           ),
         ],
       ),

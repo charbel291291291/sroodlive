@@ -29,12 +29,12 @@ class RoomAnnouncement {
       );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'room_id': roomId,
-        'created_by': createdBy,
-        'message': message,
-        'is_active': isActive,
-        'created_at': createdAt.toIso8601String(),
-        'updated_at': updatedAt.toIso8601String(),
-      };
+    'id': id,
+    'room_id': roomId,
+    'created_by': createdBy,
+    'message': message,
+    'is_active': isActive,
+    'created_at': createdAt.toIso8601String(),
+    'updated_at': updatedAt.toIso8601String(),
+  };
 }

@@ -57,7 +57,10 @@ class _GiftHistoryScreenState extends State<GiftHistoryScreen>
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final me = SupabaseService.requiredClient.auth.currentUser?.id;
       if (me == null) throw Exception('Not logged in');
@@ -65,13 +68,17 @@ class _GiftHistoryScreenState extends State<GiftHistoryScreen>
       final [receivedRaw, sentRaw] = await Future.wait<dynamic>([
         SupabaseService.requiredClient
             .from('gift_transactions')
-            .select('id, gift_name, quantity, total_cost_coins, created_at, sender_id, sender:profiles!gift_transactions_sender_id_fkey(display_name, avatar_url)')
+            .select(
+              'id, gift_name, quantity, total_cost_coins, created_at, sender_id, sender:profiles!gift_transactions_sender_id_fkey(display_name, avatar_url)',
+            )
             .eq('receiver_id', me)
             .order('created_at', ascending: false)
             .limit(100),
         SupabaseService.requiredClient
             .from('gift_transactions')
-            .select('id, gift_name, quantity, total_cost_coins, created_at, receiver_id, receiver:profiles!gift_transactions_receiver_id_fkey(display_name, avatar_url)')
+            .select(
+              'id, gift_name, quantity, total_cost_coins, created_at, receiver_id, receiver:profiles!gift_transactions_receiver_id_fkey(display_name, avatar_url)',
+            )
             .eq('sender_id', me)
             .order('created_at', ascending: false)
             .limit(100),
@@ -89,7 +96,8 @@ class _GiftHistoryScreenState extends State<GiftHistoryScreen>
           otherUserId: r['sender_id'] as String,
           otherUserName: sender['display_name'] as String? ?? '',
           otherUserAvatar: sender['avatar_url'] as String?,
-          createdAt: DateTime.tryParse(r['created_at'].toString()) ?? DateTime.now(),
+          createdAt:
+              DateTime.tryParse(r['created_at'].toString()) ?? DateTime.now(),
           isSent: false,
         );
       }
@@ -106,20 +114,28 @@ class _GiftHistoryScreenState extends State<GiftHistoryScreen>
           otherUserId: r['receiver_id'] as String,
           otherUserName: receiver['display_name'] as String? ?? '',
           otherUserAvatar: receiver['avatar_url'] as String?,
-          createdAt: DateTime.tryParse(r['created_at'].toString()) ?? DateTime.now(),
+          createdAt:
+              DateTime.tryParse(r['created_at'].toString()) ?? DateTime.now(),
           isSent: true,
         );
       }
 
       if (!mounted) return;
       setState(() {
-        _received = (receivedRaw as List).map((r) => mapReceived(r as Map<String, dynamic>)).toList();
-        _sent = (sentRaw as List).map((r) => mapSent(r as Map<String, dynamic>)).toList();
+        _received = (receivedRaw as List)
+            .map((r) => mapReceived(r as Map<String, dynamic>))
+            .toList();
+        _sent = (sentRaw as List)
+            .map((r) => mapSent(r as Map<String, dynamic>))
+            .toList();
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _error = e.toString(); _loading = false; });
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
     }
   }
 
@@ -157,21 +173,42 @@ class _GiftHistoryScreenState extends State<GiftHistoryScreen>
         children: [
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: Icon(isArabic ? Icons.arrow_forward_rounded : Icons.arrow_back_rounded, color: Colors.white),
+            icon: Icon(
+              isArabic ? Icons.arrow_forward_rounded : Icons.arrow_back_rounded,
+              color: Colors.white,
+            ),
           ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(isArabic ? 'سجل الهدايا' : 'Gift History',
-                    style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900, height: 1.0)),
+                Text(
+                  isArabic ? 'سجل الهدايا' : 'Gift History',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                    height: 1.0,
+                  ),
+                ),
                 const SizedBox(height: 3),
-                Text(isArabic ? 'الهدايا المُرسلة والمستلمة' : 'Sent and received gifts',
-                    style: const TextStyle(color: Color(0xFFBCAED6), fontSize: 12, fontWeight: FontWeight.w700)),
+                Text(
+                  isArabic
+                      ? 'الهدايا المُرسلة والمستلمة'
+                      : 'Sent and received gifts',
+                  style: const TextStyle(
+                    color: Color(0xFFBCAED6),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ],
             ),
           ),
-          IconButton(onPressed: _load, icon: const Icon(Icons.refresh_rounded, color: Color(0xFFF0C15A))),
+          IconButton(
+            onPressed: _load,
+            icon: const Icon(Icons.refresh_rounded, color: Color(0xFFF0C15A)),
+          ),
         ],
       ),
     );
@@ -189,51 +226,94 @@ class _GiftHistoryScreenState extends State<GiftHistoryScreen>
       child: TabBar(
         controller: _tabController,
         indicatorSize: TabBarIndicatorSize.tab,
-        indicator: BoxDecoration(color: const Color(0xFF3A174F), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFF8B26D9))),
+        indicator: BoxDecoration(
+          color: const Color(0xFF3A174F),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFF8B26D9)),
+        ),
         labelColor: Colors.white,
         unselectedLabelColor: const Color(0xFF9E91B8),
         labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
         dividerColor: Colors.transparent,
         tabs: [
-          Tab(text: isArabic ? 'مستلمة (${_received.length})' : 'Received (${_received.length})'),
-          Tab(text: isArabic ? 'مُرسلة (${_sent.length})' : 'Sent (${_sent.length})'),
+          Tab(
+            text: isArabic
+                ? 'مستلمة (${_received.length})'
+                : 'Received (${_received.length})',
+          ),
+          Tab(
+            text: isArabic
+                ? 'مُرسلة (${_sent.length})'
+                : 'Sent (${_sent.length})',
+          ),
         ],
       ),
     );
   }
 
   Widget _buildBody(bool isArabic) {
-    if (_loading) return const Center(child: CircularProgressIndicator(color: Color(0xFF8B26D9)));
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFF8B26D9)),
+      );
+    }
     if (_error != null) {
       return Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.error_outline_rounded, color: Color(0xFFFF5C7A), size: 36),
-          const SizedBox(height: 12),
-          Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 13)),
-          const SizedBox(height: 12),
-          TextButton(onPressed: _load, child: Text(isArabic ? 'إعادة' : 'Retry', style: const TextStyle(color: Color(0xFFF0C15A)))),
-        ]),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.error_outline_rounded,
+              color: Color(0xFFFF5C7A),
+              size: 36,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _error!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: _load,
+              child: Text(
+                isArabic ? 'إعادة' : 'Retry',
+                style: const TextStyle(color: Color(0xFFF0C15A)),
+              ),
+            ),
+          ],
+        ),
       );
     }
 
     return TabBarView(
       controller: _tabController,
-      children: [
-        _buildList(_received, isArabic),
-        _buildList(_sent, isArabic),
-      ],
+      children: [_buildList(_received, isArabic), _buildList(_sent, isArabic)],
     );
   }
 
   Widget _buildList(List<_GiftRecord> records, bool isArabic) {
     if (records.isEmpty) {
       return Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.card_giftcard_rounded, color: Color(0xFF2A1840), size: 64),
-          const SizedBox(height: 16),
-          Text(isArabic ? 'لا توجد هدايا بعد' : 'No gifts yet',
-              style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 16, fontWeight: FontWeight.w700)),
-        ]),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.card_giftcard_rounded,
+              color: Color(0xFF2A1840),
+              size: 64,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              isArabic ? 'لا توجد هدايا بعد' : 'No gifts yet',
+              style: const TextStyle(
+                color: Color(0xFF9E91B8),
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
       );
     }
 
@@ -244,8 +324,9 @@ class _GiftHistoryScreenState extends State<GiftHistoryScreen>
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         itemCount: records.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
-        itemBuilder: (context, i) => _GiftTile(record: records[i], isArabic: isArabic),
+        separatorBuilder: (_, _) => const SizedBox(height: 8),
+        itemBuilder: (context, i) =>
+            _GiftTile(record: records[i], isArabic: isArabic),
       ),
     );
   }
@@ -260,12 +341,15 @@ class _GiftTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isSent = record.isSent;
-    final accentColor = isSent ? const Color(0xFFFF4D6D) : const Color(0xFF3ECC8C);
+    final accentColor = isSent
+        ? const Color(0xFFFF4D6D)
+        : const Color(0xFF3ECC8C);
 
     return GestureDetector(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => UserProfileScreen(userId: record.otherUserId, isArabic: isArabic),
+          builder: (_) =>
+              UserProfileScreen(userId: record.otherUserId, isArabic: isArabic),
         ),
       ),
       child: Container(
@@ -273,7 +357,9 @@ class _GiftTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFF160B24),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF6E3AA8).withValues(alpha: 0.35)),
+          border: Border.all(
+            color: const Color(0xFF6E3AA8).withValues(alpha: 0.35),
+          ),
         ),
         child: Row(
           textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
@@ -285,7 +371,9 @@ class _GiftTile extends StatelessWidget {
               decoration: BoxDecoration(
                 color: const Color(0xFFF0C15A).withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFF0C15A).withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: const Color(0xFFF0C15A).withValues(alpha: 0.3),
+                ),
               ),
               alignment: Alignment.center,
               child: const Text('🎁', style: TextStyle(fontSize: 24)),
@@ -293,23 +381,43 @@ class _GiftTile extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Column(
-                crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                crossAxisAlignment: isArabic
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
                 children: [
-                  Text(record.giftName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
+                  Text(
+                    record.giftName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                   const SizedBox(height: 2),
                   Row(
-                    textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+                    textDirection: isArabic
+                        ? TextDirection.rtl
+                        : TextDirection.ltr,
                     children: [
                       CircleAvatar(
                         radius: 10,
                         backgroundColor: const Color(0xFF241638),
-                        backgroundImage: record.otherUserAvatar != null ? NetworkImage(record.otherUserAvatar!) : null,
+                        backgroundImage: record.otherUserAvatar != null
+                            ? NetworkImage(record.otherUserAvatar!)
+                            : null,
                         child: record.otherUserAvatar == null
-                            ? Text(record.otherUserName.isNotEmpty ? record.otherUserName[0].toUpperCase() : '?',
-                                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900))
+                            ? Text(
+                                record.otherUserName.isNotEmpty
+                                    ? record.otherUserName[0].toUpperCase()
+                                    : '?',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              )
                             : null,
                       ),
                       const SizedBox(width: 5),
@@ -318,7 +426,10 @@ class _GiftTile extends StatelessWidget {
                           '${isSent ? (isArabic ? 'إلى' : 'To') : (isArabic ? 'من' : 'From')} ${record.otherUserName}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 12),
+                          style: const TextStyle(
+                            color: Color(0xFF9E91B8),
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     ],
@@ -332,24 +443,40 @@ class _GiftTile extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Icon(isSent ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
-                        color: accentColor, size: 14),
+                    Icon(
+                      isSent
+                          ? Icons.arrow_upward_rounded
+                          : Icons.arrow_downward_rounded,
+                      color: accentColor,
+                      size: 14,
+                    ),
                     const SizedBox(width: 2),
                     Text(
                       '${record.quantity}×',
-                      style: TextStyle(color: accentColor, fontSize: 13, fontWeight: FontWeight.w900),
+                      style: TextStyle(
+                        color: accentColor,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '${record.coinValue}🪙',
-                  style: const TextStyle(color: Color(0xFFF0C15A), fontSize: 12, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                    color: Color(0xFFF0C15A),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   _formatDate(record.createdAt),
-                  style: const TextStyle(color: Color(0xFF6E5A8A), fontSize: 10),
+                  style: const TextStyle(
+                    color: Color(0xFF6E5A8A),
+                    fontSize: 10,
+                  ),
                 ),
               ],
             ),
@@ -362,7 +489,9 @@ class _GiftTile extends StatelessWidget {
   String _formatDate(DateTime dt) {
     final now = DateTime.now();
     final diff = now.difference(dt);
-    if (diff.inDays == 0) return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    if (diff.inDays == 0) {
+      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    }
     if (diff.inDays < 7) return '${diff.inDays}d ago';
     return '${dt.day}/${dt.month}';
   }

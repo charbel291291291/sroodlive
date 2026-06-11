@@ -15,30 +15,15 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
   final _accountController = TextEditingController();
   final _notesController = TextEditingController();
   String _method = 'bank';
-  int _diamondsToWithdraw = 500;
+  int _diamondsToWithdraw = 1000;
   bool _isLoading = false;
   bool _isSubmitted = false;
   int _availableDiamonds = 0;
 
   static const List<Map<String, dynamic>> _methods = [
-    {
-      'key': 'bank',
-      'en': 'Bank Transfer',
-      'ar': 'تحويل بنكي',
-      'icon': Icons.account_balance_rounded,
-    },
-    {
-      'key': 'paypal',
-      'en': 'PayPal',
-      'ar': 'باي بال',
-      'icon': Icons.payment_rounded,
-    },
-    {
-      'key': 'wise',
-      'en': 'Wise',
-      'ar': 'وايز',
-      'icon': Icons.swap_horiz_rounded,
-    },
+    {'key': 'bank', 'en': 'Bank Transfer', 'ar': 'تحويل بنكي', 'icon': Icons.account_balance_rounded},
+    {'key': 'paypal', 'en': 'PayPal', 'ar': 'باي بال', 'icon': Icons.payment_rounded},
+    {'key': 'wise', 'en': 'Wise', 'ar': 'وايز', 'icon': Icons.swap_horiz_rounded},
   ];
 
   static const int _minDiamonds = 500;
@@ -71,9 +56,7 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
       if (!mounted) return;
       setState(() {
         _availableDiamonds = (data?['diamonds_balance'] as int?) ?? 0;
-        _diamondsToWithdraw = _availableDiamonds
-            .clamp(_minDiamonds, _availableDiamonds)
-            .toInt();
+        _diamondsToWithdraw = _availableDiamonds.clamp(_minDiamonds, _availableDiamonds).toInt();
       });
     } catch (_) {}
   }
@@ -100,9 +83,9 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
       setState(() => _isSubmitted = true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -112,9 +95,7 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
   Widget build(BuildContext context) {
     final isArabic = widget.isArabic;
     final dir = isArabic ? TextDirection.rtl : TextDirection.ltr;
-    final crossAxis = isArabic
-        ? CrossAxisAlignment.end
-        : CrossAxisAlignment.start;
+    final crossAxis = isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start;
     final textAlign = isArabic ? TextAlign.right : TextAlign.left;
 
     return Scaffold(
@@ -142,9 +123,7 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
                         _buildBalanceCard(isArabic),
                         const SizedBox(height: 20),
                         _buildSectionLabel(
-                          isArabic
-                              ? 'عدد الألماس للسحب'
-                              : 'Diamonds to withdraw',
+                          isArabic ? 'عدد الألماس للسحب' : 'Diamonds to withdraw',
                           isArabic,
                         ),
                         const SizedBox(height: 10),
@@ -155,9 +134,7 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
                           isArabic,
                         ),
                         const SizedBox(height: 10),
-                        ..._methods.map(
-                          (m) => _buildMethodTile(m, isArabic, dir),
-                        ),
+                        ..._methods.map((m) => _buildMethodTile(m, isArabic, dir)),
                         const SizedBox(height: 20),
                         _buildSectionLabel(
                           isArabic ? 'تفاصيل الحساب' : 'Account details',
@@ -201,19 +178,13 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
                             color: const Color(0xFF1B102B),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: const Color(
-                                0xFFF0C15A,
-                              ).withValues(alpha: 0.35),
+                              color: const Color(0xFFF0C15A).withValues(alpha: 0.35),
                             ),
                           ),
                           child: Row(
                             textDirection: dir,
                             children: [
-                              const Icon(
-                                Icons.info_outline_rounded,
-                                color: Color(0xFFF0C15A),
-                                size: 20,
-                              ),
+                              const Icon(Icons.info_outline_rounded, color: Color(0xFFF0C15A), size: 20),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
@@ -237,8 +208,7 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
                           width: double.infinity,
                           height: 54,
                           child: FilledButton(
-                            onPressed:
-                                _isLoading || _availableDiamonds < _minDiamonds
+                            onPressed: _isLoading || _availableDiamonds < _minDiamonds
                                 ? null
                                 : _submit,
                             style: FilledButton.styleFrom(
@@ -292,9 +262,7 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
           ),
           const SizedBox(width: 4),
           Column(
-            crossAxisAlignment: isArabic
-                ? CrossAxisAlignment.end
-                : CrossAxisAlignment.start,
+            crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
             children: [
               Text(
                 isArabic ? 'طلب سحب' : 'Withdraw',
@@ -305,9 +273,7 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
                 ),
               ),
               Text(
-                isArabic
-                    ? 'حوّل الألماس إلى أموال'
-                    : 'Convert diamonds to cash',
+                isArabic ? 'حوّل الألماس إلى أموال' : 'Convert diamonds to cash',
                 style: const TextStyle(
                   color: Color(0xFF9E91B8),
                   fontSize: 13,
@@ -345,17 +311,11 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
               color: const Color(0xFFF0C15A).withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(
-              Icons.diamond_rounded,
-              color: Color(0xFFF0C15A),
-              size: 26,
-            ),
+            child: const Icon(Icons.diamond_rounded, color: Color(0xFFF0C15A), size: 26),
           ),
           const SizedBox(width: 14),
           Column(
-            crossAxisAlignment: isArabic
-                ? CrossAxisAlignment.end
-                : CrossAxisAlignment.start,
+            crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
             children: [
               Text(
                 isArabic ? 'الألماس المتاح' : 'Available diamonds',
@@ -416,11 +376,7 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
           Row(
             textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
             children: [
-              const Icon(
-                Icons.diamond_rounded,
-                color: Color(0xFFF0C15A),
-                size: 20,
-              ),
+              const Icon(Icons.diamond_rounded, color: Color(0xFFF0C15A), size: 20),
               const SizedBox(width: 8),
               Text(
                 '$_diamondsToWithdraw',
@@ -451,20 +407,12 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
               trackHeight: 4,
             ),
             child: Slider(
-              value: _diamondsToWithdraw
-                  .clamp(
-                    _minDiamonds,
-                    _availableDiamonds > _minDiamonds
-                        ? _availableDiamonds
-                        : _minDiamonds,
-                  )
-                  .toDouble(),
+              value: _diamondsToWithdraw.toDouble(),
               min: _minDiamonds.toDouble(),
-              max:
-                  (_availableDiamonds > _minDiamonds
-                          ? _availableDiamonds
-                          : _minDiamonds)
-                      .toDouble(),
+              max: (_availableDiamonds > _minDiamonds
+                      ? _availableDiamonds
+                      : _minDiamonds)
+                  .toDouble(),
               divisions: (_availableDiamonds > _minDiamonds
                   ? ((_availableDiamonds - _minDiamonds) ~/ 100).clamp(1, 100)
                   : 1),
@@ -500,11 +448,7 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
     );
   }
 
-  Widget _buildMethodTile(
-    Map<String, dynamic> method,
-    bool isArabic,
-    TextDirection dir,
-  ) {
+  Widget _buildMethodTile(Map<String, dynamic> method, bool isArabic, TextDirection dir) {
     final key = method['key'] as String;
     final label = isArabic ? method['ar'] as String : method['en'] as String;
     final icon = method['icon'] as IconData;
@@ -528,9 +472,7 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
           children: [
             Icon(
               icon,
-              color: selected
-                  ? const Color(0xFFF0C15A)
-                  : const Color(0xFF9E91B8),
+              color: selected ? const Color(0xFFF0C15A) : const Color(0xFF9E91B8),
               size: 22,
             ),
             const SizedBox(width: 12),

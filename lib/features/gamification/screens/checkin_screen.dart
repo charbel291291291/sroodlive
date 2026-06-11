@@ -25,14 +25,23 @@ class _CheckinScreenState extends State<CheckinScreen> {
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final status = await _service.getCheckinStatus();
       if (!mounted) return;
-      setState(() { _status = status; _loading = false; });
+      setState(() {
+        _status = status;
+        _loading = false;
+      });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _error = e.toString(); _loading = false; });
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
     }
   }
 
@@ -46,24 +55,38 @@ class _CheckinScreenState extends State<CheckinScreen> {
       final rewardAmount = (res['reward_amount'] as num?)?.toInt() ?? 0;
       final isDiamond = rewardType == 'diamonds';
 
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Row(children: [
-          Icon(isDiamond ? Icons.diamond_rounded : Icons.monetization_on_rounded,
-              color: isDiamond ? const Color(0xFF60A5FA) : const Color(0xFFF0C15A)),
-          const SizedBox(width: 8),
-          Text(widget.isArabic
-              ? '\u062a\u0645 \u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062d\u0636\u0648\u0631! +$rewardAmount ${isDiamond ? '\u0645\u0627\u0633\u0629' : '\u0639\u0645\u0644\u0629'}'
-              : 'Checked in! +$rewardAmount ${isDiamond ? 'diamonds' : 'coins'}'),
-        ]),
-        backgroundColor: const Color(0xFF1B102A),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(
+                isDiamond
+                    ? Icons.diamond_rounded
+                    : Icons.monetization_on_rounded,
+                color: isDiamond
+                    ? const Color(0xFF60A5FA)
+                    : const Color(0xFFF0C15A),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                widget.isArabic
+                    ? '\u062a\u0645 \u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062d\u0636\u0648\u0631! +$rewardAmount ${isDiamond ? '\u0645\u0627\u0633\u0629' : '\u0639\u0645\u0644\u0629'}'
+                    : 'Checked in! +$rewardAmount ${isDiamond ? 'diamonds' : 'coins'}',
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF1B102A),
+        ),
+      );
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(e.toString()),
-        backgroundColor: const Color(0xFFFF4D6D),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: const Color(0xFFFF4D6D),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _claiming = false);
     }
@@ -94,24 +117,37 @@ class _CheckinScreenState extends State<CheckinScreen> {
   }
 
   Widget _buildHeader() => Padding(
-        padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
-        child: Row(
-          textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
-          children: [
-            IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
-            ),
-            Text(
-              widget.isArabic ? '\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062d\u0636\u0648\u0631' : 'Daily Check-in',
-              style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
-            ),
-          ],
+    padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
+    child: Row(
+      textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+      children: [
+        IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
         ),
-      );
+        Text(
+          widget.isArabic
+              ? '\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062d\u0636\u0648\u0631'
+              : 'Daily Check-in',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _buildBody() {
-    if (_loading) return const Center(child: CircularProgressIndicator(color: Color(0xFFF0C15A), strokeWidth: 2.5));
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFFF0C15A),
+          strokeWidth: 2.5,
+        ),
+      );
+    }
     if (_error != null) return _buildError();
     final s = _status!;
 
@@ -136,22 +172,33 @@ class _CheckinScreenState extends State<CheckinScreen> {
   }
 
   Widget _buildError() => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline_rounded, color: Color(0xFFFF5C7A), size: 40),
-            const SizedBox(height: 12),
-            Text(_error!, textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 13)),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: _load,
-              child: Text(widget.isArabic ? '\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629' : 'Retry',
-                  style: const TextStyle(color: Color(0xFFF0C15A))),
-            ),
-          ],
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(
+          Icons.error_outline_rounded,
+          color: Color(0xFFFF5C7A),
+          size: 40,
         ),
-      );
+        const SizedBox(height: 12),
+        Text(
+          _error!,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 13),
+        ),
+        const SizedBox(height: 16),
+        TextButton(
+          onPressed: _load,
+          child: Text(
+            widget.isArabic
+                ? '\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629'
+                : 'Retry',
+            style: const TextStyle(color: Color(0xFFF0C15A)),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -198,7 +245,11 @@ class _StreakCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            isArabic ? '\u064a\u0648\u0645 \u0645\u062a\u062a\u0627\u0644\u064a' : streak == 1 ? 'day streak' : 'day streak',
+            isArabic
+                ? '\u064a\u0648\u0645 \u0645\u062a\u062a\u0627\u0644\u064a'
+                : streak == 1
+                ? 'day streak'
+                : 'day streak',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.8),
               fontSize: 16,
@@ -223,17 +274,26 @@ class _RewardCalendar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: isArabic
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
         Text(
-          isArabic ? '\u0645\u0643\u0627\u0641\u0622\u062a \u0627\u0644\u0623\u0633\u0628\u0648\u0639' : 'Weekly Rewards',
-          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900),
+          isArabic
+              ? '\u0645\u0643\u0627\u0641\u0622\u062a \u0627\u0644\u0623\u0633\u0628\u0648\u0639'
+              : 'Weekly Rewards',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w900,
+          ),
         ),
         const SizedBox(height: 12),
         Row(
           children: status.rewardSchedule.map((reward) {
             final isToday = reward.day == status.streakDay;
-            final isClaimed = reward.day < status.streakDay ||
+            final isClaimed =
+                reward.day < status.streakDay ||
                 (isToday && status.todayClaimed);
 
             return Expanded(
@@ -268,7 +328,9 @@ class _DayCell extends StatelessWidget {
   final bool isArabic;
 
   String _fmtAmt(int n) {
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}K';
+    if (n >= 1000) {
+      return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}K';
+    }
     return '$n';
   }
 
@@ -301,28 +363,38 @@ class _DayCell extends StatelessWidget {
             Text(
               isArabic ? '\u064a${reward.day}' : 'D${reward.day}',
               style: TextStyle(
-                color: isToday ? const Color(0xFFF0C15A) : const Color(0xFF7A6890),
+                color: isToday
+                    ? const Color(0xFFF0C15A)
+                    : const Color(0xFF7A6890),
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 4),
             isClaimed
-                ? const Icon(Icons.check_circle_rounded, color: Color(0xFF2ECC71), size: 18)
+                ? const Icon(
+                    Icons.check_circle_rounded,
+                    color: Color(0xFF2ECC71),
+                    size: 18,
+                  )
                 : Icon(
-                    reward.isDiamond ? Icons.diamond_rounded : Icons.monetization_on_rounded,
+                    reward.isDiamond
+                        ? Icons.diamond_rounded
+                        : Icons.monetization_on_rounded,
                     color: isToday
                         ? const Color(0xFFF0C15A)
                         : isLocked
-                            ? const Color(0xFF4A3470)
-                            : const Color(0xFFF0C15A).withValues(alpha: 0.5),
+                        ? const Color(0xFF4A3470)
+                        : const Color(0xFFF0C15A).withValues(alpha: 0.5),
                     size: 16,
                   ),
             const SizedBox(height: 3),
             Text(
               _fmtAmt(reward.rewardAmount),
               style: TextStyle(
-                color: isLocked && !isClaimed ? const Color(0xFF4A3470) : const Color(0xFFD8CFEA),
+                color: isLocked && !isClaimed
+                    ? const Color(0xFF4A3470)
+                    : const Color(0xFFD8CFEA),
                 fontSize: 10,
                 fontWeight: FontWeight.w800,
               ),
@@ -359,7 +431,9 @@ class _CheckinButton extends StatelessWidget {
     final amt = r.rewardAmount >= 1000
         ? '${(r.rewardAmount / 1000).toStringAsFixed(r.rewardAmount % 1000 == 0 ? 0 : 1)}K'
         : '${r.rewardAmount}';
-    if (ar) return '+$amt ${isDiamond ? '\u0645\u0627\u0633\u0629' : '\u0639\u0645\u0644\u0629'}';
+    if (ar) {
+      return '+$amt ${isDiamond ? '\u0645\u0627\u0633\u0629' : '\u0639\u0645\u0644\u0629'}';
+    }
     return '+$amt ${isDiamond ? 'diamonds' : 'coins'}';
   }
 
@@ -372,21 +446,38 @@ class _CheckinButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFF2ECC71).withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFF2ECC71).withValues(alpha: 0.4)),
-        ),
-        child: Column(children: [
-          const Icon(Icons.check_circle_rounded, color: Color(0xFF2ECC71), size: 32),
-          const SizedBox(height: 6),
-          Text(
-            isArabic ? '\u062a\u0645 \u062a\u0633\u062c\u064a\u0644 \u062d\u0636\u0648\u0631\u0643 \u0627\u0644\u064a\u0648\u0645 \u2713' : 'Already checked in today \u2713',
-            style: const TextStyle(color: Color(0xFF2ECC71), fontSize: 15, fontWeight: FontWeight.w900),
+          border: Border.all(
+            color: const Color(0xFF2ECC71).withValues(alpha: 0.4),
           ),
-          if (todayReward != null)
-            Text(
-              _fmtReward(todayReward, isArabic),
-              style: TextStyle(color: const Color(0xFF2ECC71).withValues(alpha: 0.7), fontSize: 13),
+        ),
+        child: Column(
+          children: [
+            const Icon(
+              Icons.check_circle_rounded,
+              color: Color(0xFF2ECC71),
+              size: 32,
             ),
-        ]),
+            const SizedBox(height: 6),
+            Text(
+              isArabic
+                  ? '\u062a\u0645 \u062a\u0633\u062c\u064a\u0644 \u062d\u0636\u0648\u0631\u0643 \u0627\u0644\u064a\u0648\u0645 \u2713'
+                  : 'Already checked in today \u2713',
+              style: const TextStyle(
+                color: Color(0xFF2ECC71),
+                fontSize: 15,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            if (todayReward != null)
+              Text(
+                _fmtReward(todayReward, isArabic),
+                style: TextStyle(
+                  color: const Color(0xFF2ECC71).withValues(alpha: 0.7),
+                  fontSize: 13,
+                ),
+              ),
+          ],
+        ),
       );
     }
 
@@ -394,7 +485,9 @@ class _CheckinButton extends StatelessWidget {
       children: [
         if (todayReward != null) ...[
           Text(
-            isArabic ? '\u0645\u0643\u0627\u0641\u0623\u0629 \u0627\u0644\u064a\u0648\u0645' : "Today's reward",
+            isArabic
+                ? '\u0645\u0643\u0627\u0641\u0623\u0629 \u0627\u0644\u064a\u0648\u0645'
+                : "Today's reward",
             style: const TextStyle(color: Color(0xFF7A6890), fontSize: 13),
           ),
           const SizedBox(height: 4),
@@ -402,14 +495,22 @@ class _CheckinButton extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                todayReward!.isDiamond ? Icons.diamond_rounded : Icons.monetization_on_rounded,
-                color: todayReward!.isDiamond ? const Color(0xFF60A5FA) : const Color(0xFFF0C15A),
+                todayReward!.isDiamond
+                    ? Icons.diamond_rounded
+                    : Icons.monetization_on_rounded,
+                color: todayReward!.isDiamond
+                    ? const Color(0xFF60A5FA)
+                    : const Color(0xFFF0C15A),
                 size: 22,
               ),
               const SizedBox(width: 6),
               Text(
                 _fmtReward(todayReward, isArabic),
-                style: const TextStyle(color: Color(0xFFF0C15A), fontSize: 20, fontWeight: FontWeight.w900),
+                style: const TextStyle(
+                  color: Color(0xFFF0C15A),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ],
           ),
@@ -423,19 +524,31 @@ class _CheckinButton extends StatelessWidget {
               backgroundColor: const Color(0xFFF0C15A),
               foregroundColor: const Color(0xFF160B26),
               padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
               elevation: 0,
-              disabledBackgroundColor: const Color(0xFFF0C15A).withValues(alpha: 0.4),
+              disabledBackgroundColor: const Color(
+                0xFFF0C15A,
+              ).withValues(alpha: 0.4),
             ),
             child: claiming
                 ? const SizedBox(
                     width: 22,
                     height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFF160B26)),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Color(0xFF160B26),
+                    ),
                   )
                 : Text(
-                    isArabic ? '\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062d\u0636\u0648\u0631' : 'Check In',
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+                    isArabic
+                        ? '\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062d\u0636\u0648\u0631'
+                        : 'Check In',
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
           ),
         ),

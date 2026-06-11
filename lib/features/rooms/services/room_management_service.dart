@@ -148,19 +148,22 @@ class RoomManagementService {
     String? reason,
     DateTime? expiresAt,
   }) async {
-    await SupabaseService.requiredClient.rpc('ban_room_member', params: {
-      'p_room_id': roomId,
-      'p_user_id': userId,
-      'p_reason': reason,
-      'p_expires_at': expiresAt?.toIso8601String(),
-    });
+    await SupabaseService.requiredClient.rpc(
+      'ban_room_member',
+      params: {
+        'p_room_id': roomId,
+        'p_user_id': userId,
+        'p_reason': reason,
+        'p_expires_at': expiresAt?.toIso8601String(),
+      },
+    );
   }
 
   Future<void> unbanUser(String roomId, String userId) async {
-    await SupabaseService.requiredClient.rpc('unban_room_member', params: {
-      'p_room_id': roomId,
-      'p_user_id': userId,
-    });
+    await SupabaseService.requiredClient.rpc(
+      'unban_room_member',
+      params: {'p_room_id': roomId, 'p_user_id': userId},
+    );
   }
 
   // ── Mute (owner-level) ─────────────────────────────────────────────────────
@@ -170,11 +173,10 @@ class RoomManagementService {
     String userId, {
     required bool isMuted,
   }) async {
-    await SupabaseService.requiredClient.rpc('owner_mute_member', params: {
-      'p_room_id': roomId,
-      'p_user_id': userId,
-      'p_is_muted': isMuted,
-    });
+    await SupabaseService.requiredClient.rpc(
+      'owner_mute_member',
+      params: {'p_room_id': roomId, 'p_user_id': userId, 'p_is_muted': isMuted},
+    );
   }
 
   // ── Announcements ──────────────────────────────────────────────────────────
@@ -220,7 +222,10 @@ class RoomManagementService {
   Future<void> deactivateAnnouncements(String roomId) async {
     await SupabaseService.requiredClient
         .from('room_announcements')
-        .update({'is_active': false, 'updated_at': DateTime.now().toIso8601String()})
+        .update({
+          'is_active': false,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
         .eq('room_id', roomId)
         .eq('is_active', true);
   }
@@ -252,12 +257,14 @@ class RoomManagementService {
       int c = 0;
       if (coins is int) c = coins;
       if (coins is double) c = coins.toInt();
-      grouped[code]!['total_coins'] = (grouped[code]!['total_coins'] as int) + c;
+      grouped[code]!['total_coins'] =
+          (grouped[code]!['total_coins'] as int) + c;
     }
 
     final list = grouped.values.toList()
-      ..sort((a, b) =>
-          (b['total_coins'] as int).compareTo(a['total_coins'] as int));
+      ..sort(
+        (a, b) => (b['total_coins'] as int).compareTo(a['total_coins'] as int),
+      );
     return list;
   }
 

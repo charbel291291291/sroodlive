@@ -58,7 +58,12 @@ class _MessagesScreenState extends State<MessagesScreen>
 
   Future<void> _load({bool silent = false}) async {
     if (!silent) {
-      if (mounted) setState(() { _loading = true; _error = null; });
+      if (mounted) {
+        setState(() {
+          _loading = true;
+          _error = null;
+        });
+      }
     }
 
     try {
@@ -291,8 +296,9 @@ class _ConversationTile extends StatelessWidget {
                 children: [
                   // Name row: username + timestamp
                   Row(
-                    textDirection:
-                        isArabic ? TextDirection.rtl : TextDirection.ltr,
+                    textDirection: isArabic
+                        ? TextDirection.rtl
+                        : TextDirection.ltr,
                     children: [
                       Expanded(
                         child: VipUsername(
@@ -323,8 +329,9 @@ class _ConversationTile extends StatelessWidget {
 
                   // Last message row: preview + unread badge
                   Row(
-                    textDirection:
-                        isArabic ? TextDirection.rtl : TextDirection.ltr,
+                    textDirection: isArabic
+                        ? TextDirection.rtl
+                        : TextDirection.ltr,
                     children: [
                       Expanded(
                         child: Text(
@@ -501,8 +508,11 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline_rounded,
-                color: Color(0xFFFF5C7A), size: 40),
+            const Icon(
+              Icons.error_outline_rounded,
+              color: Color(0xFFFF5C7A),
+              size: 40,
+            ),
             const SizedBox(height: 12),
             Text(
               message,

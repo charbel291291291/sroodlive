@@ -48,7 +48,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
   bool _isConnecting = true;
   bool _isMuted = false;
   bool _isCameraOff = false;
-  bool _showComments = true;
+  final bool _showComments = true;
   int _viewerCount = 0;
   int _likeCount = 0;
   Duration _duration = Duration.zero;
@@ -126,17 +126,28 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
         backgroundColor: const Color(0xFF160B24),
         title: Text(
           widget.isArabic ? 'إنهاء البث' : 'End stream',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w900,
+          ),
         ),
         content: Text(
-          widget.isArabic ? 'هل تريد إنهاء البث المباشر؟' : 'Are you sure you want to end the live stream?',
+          widget.isArabic
+              ? 'هل تريد إنهاء البث المباشر؟'
+              : 'Are you sure you want to end the live stream?',
           style: const TextStyle(color: Color(0xFFBCAED6)),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(widget.isArabic ? 'إلغاء' : 'Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(widget.isArabic ? 'إلغاء' : 'Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(widget.isArabic ? 'إنهاء' : 'End', style: const TextStyle(color: Color(0xFFFF4D6D))),
+            child: Text(
+              widget.isArabic ? 'إنهاء' : 'End',
+              style: const TextStyle(color: Color(0xFFFF4D6D)),
+            ),
           ),
         ],
       ),
@@ -197,20 +208,38 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
                   CircleAvatar(
                     radius: 72,
                     backgroundColor: const Color(0xFF241638),
-                    backgroundImage: widget.hostAvatarUrl != null ? NetworkImage(widget.hostAvatarUrl!) : null,
+                    backgroundImage: widget.hostAvatarUrl != null
+                        ? NetworkImage(widget.hostAvatarUrl!)
+                        : null,
                     child: widget.hostAvatarUrl == null
                         ? Text(
-                            widget.hostName.isNotEmpty ? widget.hostName[0].toUpperCase() : '?',
-                            style: const TextStyle(color: Colors.white, fontSize: 56, fontWeight: FontWeight.w900),
+                            widget.hostName.isNotEmpty
+                                ? widget.hostName[0].toUpperCase()
+                                : '?',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 56,
+                              fontWeight: FontWeight.w900,
+                            ),
                           )
                         : null,
                   ),
                   const SizedBox(height: 16),
-                  Text(widget.hostName, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
+                  Text(
+                    widget.hostName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                   const SizedBox(height: 6),
                   Text(
                     widget.isArabic ? 'الكاميرا مغلقة' : 'Camera off',
-                    style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 13),
+                    style: const TextStyle(
+                      color: Color(0xFF9E91B8),
+                      fontSize: 13,
+                    ),
                   ),
                 ],
               ),
@@ -222,16 +251,31 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
                   CircleAvatar(
                     radius: 72,
                     backgroundColor: const Color(0xFF241638),
-                    backgroundImage: widget.hostAvatarUrl != null ? NetworkImage(widget.hostAvatarUrl!) : null,
+                    backgroundImage: widget.hostAvatarUrl != null
+                        ? NetworkImage(widget.hostAvatarUrl!)
+                        : null,
                     child: widget.hostAvatarUrl == null
                         ? Text(
-                            widget.hostName.isNotEmpty ? widget.hostName[0].toUpperCase() : '?',
-                            style: const TextStyle(color: Colors.white, fontSize: 56, fontWeight: FontWeight.w900),
+                            widget.hostName.isNotEmpty
+                                ? widget.hostName[0].toUpperCase()
+                                : '?',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 56,
+                              fontWeight: FontWeight.w900,
+                            ),
                           )
                         : null,
                   ),
                   const SizedBox(height: 16),
-                  Text(widget.hostName, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
+                  Text(
+                    widget.hostName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -247,7 +291,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
           children: [
             AnimatedBuilder(
               animation: _pulseController,
-              builder: (_, __) => Transform.scale(
+              builder: (_, _) => Transform.scale(
                 scale: 1.0 + _pulseController.value * 0.18,
                 child: Container(
                   width: 72,
@@ -255,16 +299,27 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: const Color(0xFF8B26D9).withValues(alpha: 0.3),
-                    border: Border.all(color: const Color(0xFF8B26D9), width: 2),
+                    border: Border.all(
+                      color: const Color(0xFF8B26D9),
+                      width: 2,
+                    ),
                   ),
-                  child: const Icon(Icons.live_tv_rounded, color: Colors.white, size: 36),
+                  child: const Icon(
+                    Icons.live_tv_rounded,
+                    color: Colors.white,
+                    size: 36,
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 20),
             Text(
               isArabic ? 'جارٍ الاتصال...' : 'Connecting...',
-              style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),
@@ -301,7 +356,9 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      isArabic ? Icons.arrow_forward_rounded : Icons.arrow_back_rounded,
+                      isArabic
+                          ? Icons.arrow_forward_rounded
+                          : Icons.arrow_back_rounded,
                       color: Colors.white,
                       size: 18,
                     ),
@@ -313,7 +370,11 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
                     widget.roomName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
                 _LiveBadge(duration: _fmt(_duration)),
@@ -343,7 +404,9 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
           ),
           const SizedBox(height: 12),
           _CircleControl(
-            icon: _isCameraOff ? Icons.videocam_off_rounded : Icons.videocam_rounded,
+            icon: _isCameraOff
+                ? Icons.videocam_off_rounded
+                : Icons.videocam_rounded,
             active: _isCameraOff,
             onTap: () => setState(() => _isCameraOff = !_isCameraOff),
           ),
@@ -407,13 +470,20 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
                   backgroundColor: const Color(0xFF241638),
                   child: Text(
                     c.userName.isNotEmpty ? c.userName[0].toUpperCase() : '?',
-                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w900),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.55),
                       borderRadius: BorderRadius.circular(14),
@@ -423,11 +493,19 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
                         children: [
                           TextSpan(
                             text: '${c.userName}  ',
-                            style: const TextStyle(color: Color(0xFFF0C15A), fontSize: 12, fontWeight: FontWeight.w900),
+                            style: const TextStyle(
+                              color: Color(0xFFF0C15A),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                            ),
                           ),
                           TextSpan(
                             text: c.text,
-                            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ],
                       ),
@@ -454,7 +532,12 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: EdgeInsets.fromLTRB(12, 12, 12, 12 + MediaQuery.viewInsetsOf(context).bottom),
+          padding: EdgeInsets.fromLTRB(
+            12,
+            12,
+            12,
+            12 + MediaQuery.viewInsetsOf(context).bottom,
+          ),
           child: Row(
             textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
             children: [
@@ -464,18 +547,30 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(21),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.2),
+                    ),
                   ),
                   child: TextField(
                     controller: _commentController,
-                    textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+                    textDirection: isArabic
+                        ? TextDirection.rtl
+                        : TextDirection.ltr,
                     style: const TextStyle(color: Colors.white, fontSize: 13),
                     onSubmitted: (_) => _sendComment(),
                     decoration: InputDecoration(
-                      hintText: isArabic ? 'أضف تعليقاً...' : 'Add a comment...',
-                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 13),
+                      hintText: isArabic
+                          ? 'أضف تعليقاً...'
+                          : 'Add a comment...',
+                      hintStyle: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.45),
+                        fontSize: 13,
+                      ),
                       border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 11,
+                      ),
                     ),
                   ),
                 ),
@@ -489,9 +584,15 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.5),
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.2),
+                    ),
                   ),
-                  child: const Icon(Icons.favorite_rounded, color: Color(0xFFFF4D6D), size: 20),
+                  child: const Icon(
+                    Icons.favorite_rounded,
+                    color: Color(0xFFFF4D6D),
+                    size: 20,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -503,9 +604,15 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.5),
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.2),
+                    ),
                   ),
-                  child: const Icon(Icons.card_giftcard_rounded, color: Color(0xFFF0C15A), size: 20),
+                  child: const Icon(
+                    Icons.card_giftcard_rounded,
+                    color: Color(0xFFF0C15A),
+                    size: 20,
+                  ),
                 ),
               ),
               if (widget.isHost) ...[
@@ -519,7 +626,11 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
                       color: Color(0xFFFF4D6D),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.stop_rounded, color: Colors.white, size: 22),
+                    child: const Icon(
+                      Icons.stop_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
                   ),
                 ),
               ],
@@ -547,9 +658,23 @@ class _LiveBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('LIVE', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w900)),
+          const Text(
+            'LIVE',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
           const SizedBox(width: 5),
-          Text(duration, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+          Text(
+            duration,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
@@ -575,7 +700,14 @@ class _ViewerBadge extends StatelessWidget {
         children: [
           const Icon(Icons.visibility_rounded, color: Colors.white, size: 13),
           const SizedBox(width: 4),
-          Text('$count', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900)),
+          Text(
+            '$count',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
         ],
       ),
     );
@@ -620,8 +752,8 @@ class _CircleControl extends StatelessWidget {
           color: gold
               ? const Color(0xFFF0C15A)
               : active
-                  ? const Color(0xFFCCA0FF)
-                  : Colors.white,
+              ? const Color(0xFFCCA0FF)
+              : Colors.white,
           size: 22,
         ),
       ),

@@ -27,10 +27,10 @@ class _CoinPackage {
 // 1 USD = 500,000 coins (CoinConstants.coinsPerUsd).
 // Packages include a bonus tier that grows with package size.
 const _packages = [
-  _CoinPackage(coins: 500000,   priceUsd: 1.00),
-  _CoinPackage(coins: 2500000,  priceUsd: 5.00,   popular: true),
-  _CoinPackage(coins: 5250000,  priceUsd: 10.00),
-  _CoinPackage(coins: 13750000, priceUsd: 25.00,  bestValue: true),
+  _CoinPackage(coins: 500000, priceUsd: 1.00),
+  _CoinPackage(coins: 2500000, priceUsd: 5.00, popular: true),
+  _CoinPackage(coins: 5250000, priceUsd: 10.00),
+  _CoinPackage(coins: 13750000, priceUsd: 25.00, bestValue: true),
   _CoinPackage(coins: 28750000, priceUsd: 50.00),
   _CoinPackage(coins: 60000000, priceUsd: 100.00),
 ];
@@ -58,14 +58,21 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
     try {
       final userId = SupabaseService.requiredClient.auth.currentUser?.id;
       if (userId == null) return;
-      final method = _methods[_selectedMethod].toLowerCase().replaceAll(' ', '_');
+      final method = _methods[_selectedMethod].toLowerCase().replaceAll(
+        ' ',
+        '_',
+      );
       await SupabaseService.requiredClient.from('recharge_requests').insert({
         'user_id': userId,
         'requested_coins': pkg.coins,
         'amount_usd': pkg.priceUsd,
         'method': method,
-        'reference_code': _selectedMethod < 3 ? _refController.text.trim() : null,
-        'agent_code': _selectedMethod == 3 ? _agentController.text.trim() : null,
+        'reference_code': _selectedMethod < 3
+            ? _refController.text.trim()
+            : null,
+        'agent_code': _selectedMethod == 3
+            ? _agentController.text.trim()
+            : null,
         'status': 'pending',
       });
       if (!mounted) return;
@@ -109,11 +116,17 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
             const SizedBox(height: 6),
             _buildBalanceBanner(isArabic),
             const SizedBox(height: 20),
-            _sectionLabel(isArabic ? 'اختر الباقة' : 'Choose a package', isArabic),
+            _sectionLabel(
+              isArabic ? 'اختر الباقة' : 'Choose a package',
+              isArabic,
+            ),
             const SizedBox(height: 10),
             _buildPackageGrid(isArabic),
             const SizedBox(height: 20),
-            _sectionLabel(isArabic ? 'طريقة الدفع' : 'Payment method', isArabic),
+            _sectionLabel(
+              isArabic ? 'طريقة الدفع' : 'Payment method',
+              isArabic,
+            ),
             const SizedBox(height: 10),
             _buildMethodChips(isArabic),
             const SizedBox(height: 16),
@@ -154,13 +167,23 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                isArabic ? 'اختر الباقة المناسبة لك' : 'Pick the right package for you',
-                style: const TextStyle(color: Color(0xFFBCAED6), fontSize: 13, fontWeight: FontWeight.w700),
+                isArabic
+                    ? 'اختر الباقة المناسبة لك'
+                    : 'Pick the right package for you',
+                style: const TextStyle(
+                  color: Color(0xFFBCAED6),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
         ),
-        const Icon(Icons.monetization_on_rounded, color: Color(0xFFF0C15A), size: 30),
+        const Icon(
+          Icons.monetization_on_rounded,
+          color: Color(0xFFF0C15A),
+          size: 30,
+        ),
         const SizedBox(width: 12),
       ],
     );
@@ -172,21 +195,35 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF160B24),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF6E3AA8).withValues(alpha: 0.45)),
+        border: Border.all(
+          color: const Color(0xFF6E3AA8).withValues(alpha: 0.45),
+        ),
       ),
       child: Row(
         textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
         children: [
-          const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFFF0C15A), size: 22),
+          const Icon(
+            Icons.account_balance_wallet_rounded,
+            color: Color(0xFFF0C15A),
+            size: 22,
+          ),
           const SizedBox(width: 10),
           Text(
             isArabic ? 'رصيدك الحالي' : 'Current balance',
-            style: const TextStyle(color: Color(0xFFBCAED6), fontSize: 13, fontWeight: FontWeight.w700),
+            style: const TextStyle(
+              color: Color(0xFFBCAED6),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const Spacer(),
           const Text(
             '—  coins',
-            style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ],
       ),
@@ -197,7 +234,11 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
     return Text(
       text,
       textAlign: isArabic ? TextAlign.right : TextAlign.left,
-      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900),
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 16,
+        fontWeight: FontWeight.w900,
+      ),
     );
   }
 
@@ -221,10 +262,14 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
             duration: const Duration(milliseconds: 180),
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: selected ? const Color(0xFF2A1040) : const Color(0xFF160B24),
+              color: selected
+                  ? const Color(0xFF2A1040)
+                  : const Color(0xFF160B24),
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: selected ? const Color(0xFFF0C15A) : const Color(0xFF6E3AA8).withValues(alpha: 0.4),
+                color: selected
+                    ? const Color(0xFFF0C15A)
+                    : const Color(0xFF6E3AA8).withValues(alpha: 0.4),
                 width: selected ? 1.5 : 1,
               ),
             ),
@@ -234,12 +279,19 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
                 if (pkg.popular || pkg.bestValue)
                   Container(
                     margin: const EdgeInsets.only(bottom: 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
-                      color: pkg.bestValue ? const Color(0xFFF0C15A).withValues(alpha: 0.2) : const Color(0xFF8B26D9).withValues(alpha: 0.25),
+                      color: pkg.bestValue
+                          ? const Color(0xFFF0C15A).withValues(alpha: 0.2)
+                          : const Color(0xFF8B26D9).withValues(alpha: 0.25),
                       borderRadius: BorderRadius.circular(999),
                       border: Border.all(
-                        color: pkg.bestValue ? const Color(0xFFF0C15A) : const Color(0xFF8B26D9),
+                        color: pkg.bestValue
+                            ? const Color(0xFFF0C15A)
+                            : const Color(0xFF8B26D9),
                       ),
                     ),
                     child: Text(
@@ -247,28 +299,45 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
                           ? (isArabic ? 'أفضل قيمة' : 'Best value')
                           : (isArabic ? 'شائع' : 'Popular'),
                       style: TextStyle(
-                        color: pkg.bestValue ? const Color(0xFFF0C15A) : const Color(0xFFCCA0FF),
+                        color: pkg.bestValue
+                            ? const Color(0xFFF0C15A)
+                            : const Color(0xFFCCA0FF),
                         fontSize: 8,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
                   ),
-                const Icon(Icons.monetization_on_rounded, color: Color(0xFFF0C15A), size: 26),
+                const Icon(
+                  Icons.monetization_on_rounded,
+                  color: Color(0xFFF0C15A),
+                  size: 26,
+                ),
                 const SizedBox(height: 6),
                 Text(
                   _formatCoins(pkg.coins),
-                  style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w900, height: 1.0),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    height: 1.0,
+                  ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   isArabic ? 'عملة' : 'coins',
-                  style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 10, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                    color: Color(0xFF9E91B8),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   '\$${pkg.priceUsd.toStringAsFixed(2)}',
                   style: TextStyle(
-                    color: selected ? const Color(0xFFF0C15A) : const Color(0xFFBCAED6),
+                    color: selected
+                        ? const Color(0xFFF0C15A)
+                        : const Color(0xFFBCAED6),
                     fontSize: 13,
                     fontWeight: FontWeight.w900,
                   ),
@@ -296,17 +365,23 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
             duration: const Duration(milliseconds: 150),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
             decoration: BoxDecoration(
-              color: selected ? const Color(0xFF2A1040) : const Color(0xFF160B24),
+              color: selected
+                  ? const Color(0xFF2A1040)
+                  : const Color(0xFF160B24),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: selected ? const Color(0xFF8B26D9) : const Color(0xFF4A3470),
+                color: selected
+                    ? const Color(0xFF8B26D9)
+                    : const Color(0xFF4A3470),
                 width: selected ? 1.5 : 1,
               ),
             ),
             child: Text(
               labels[i],
               style: TextStyle(
-                color: selected ? const Color(0xFFCCA0FF) : const Color(0xFF9E91B8),
+                color: selected
+                    ? const Color(0xFFCCA0FF)
+                    : const Color(0xFF9E91B8),
                 fontSize: 13,
                 fontWeight: FontWeight.w800,
               ),
@@ -320,27 +395,43 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
   Widget _buildReferenceField(bool isArabic) {
     final isAgent = _selectedMethod == 3;
     return Column(
-      crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: isArabic
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
         Text(
           isAgent
               ? (isArabic ? 'كود الوكيل' : 'Agent code')
-              : (isArabic ? 'كود المرجع / رقم التحويل' : 'Reference code / transfer ID'),
-          style: const TextStyle(color: Color(0xFFBCAED6), fontSize: 13, fontWeight: FontWeight.w700),
+              : (isArabic
+                    ? 'كود المرجع / رقم التحويل'
+                    : 'Reference code / transfer ID'),
+          style: const TextStyle(
+            color: Color(0xFFBCAED6),
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         const SizedBox(height: 8),
         TextField(
           controller: isAgent ? _agentController : _refController,
           textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
           decoration: InputDecoration(
             hintText: isAgent
                 ? (isArabic ? 'أدخل كود الوكيل' : 'Enter agent code')
-                : (isArabic ? 'أدخل رقم التحويل أو كود المرجع' : 'Enter transfer ID or reference'),
+                : (isArabic
+                      ? 'أدخل رقم التحويل أو كود المرجع'
+                      : 'Enter transfer ID or reference'),
             hintStyle: const TextStyle(color: Color(0xFF6E5A8A), fontSize: 14),
             filled: true,
             fillColor: const Color(0xFF160B24),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
               borderSide: const BorderSide(color: Color(0xFF4A3470)),
@@ -351,7 +442,10 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: Color(0xFF8B26D9), width: 1.5),
+              borderSide: const BorderSide(
+                color: Color(0xFF8B26D9),
+                width: 1.5,
+              ),
             ),
           ),
         ),
@@ -366,7 +460,9 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF160B24),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF6E3AA8).withValues(alpha: 0.45)),
+        border: Border.all(
+          color: const Color(0xFF6E3AA8).withValues(alpha: 0.45),
+        ),
       ),
       child: Column(
         children: [
@@ -391,7 +487,12 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
                 ? 'سيتم مراجعة طلبك وتفعيل العملات خلال 24 ساعة بعد التحقق من الدفع.'
                 : 'Your request will be reviewed and coins activated within 24 hours after payment verification.',
             textAlign: isArabic ? TextAlign.right : TextAlign.left,
-            style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 11, fontWeight: FontWeight.w600, height: 1.4),
+            style: const TextStyle(
+              color: Color(0xFF9E91B8),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
           ),
         ],
       ),
@@ -406,10 +507,19 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
         style: FilledButton.styleFrom(
           backgroundColor: const Color(0xFFF0C15A),
           foregroundColor: const Color(0xFF140820),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
         ),
         icon: _submitting
-            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF140820)))
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Color(0xFF140820),
+                ),
+              )
             : const Icon(Icons.send_rounded, size: 20),
         label: Text(
           isArabic ? 'إرسال الطلب' : 'Submit request',
@@ -434,12 +544,20 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
                 shape: BoxShape.circle,
                 border: Border.all(color: const Color(0xFF63E6A1), width: 2),
               ),
-              child: const Icon(Icons.check_rounded, color: Color(0xFF63E6A1), size: 46),
+              child: const Icon(
+                Icons.check_rounded,
+                color: Color(0xFF63E6A1),
+                size: 46,
+              ),
             ),
             const SizedBox(height: 24),
             Text(
               isArabic ? 'تم إرسال الطلب!' : 'Request submitted!',
-              style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+              ),
             ),
             const SizedBox(height: 12),
             Text(
@@ -447,7 +565,12 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
                   ? 'سيتم مراجعة طلبك وإضافة العملات خلال 24 ساعة.'
                   : 'Your request will be reviewed and coins added within 24 hours.',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Color(0xFFBCAED6), fontSize: 14, fontWeight: FontWeight.w600, height: 1.5),
+              style: const TextStyle(
+                color: Color(0xFFBCAED6),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                height: 1.5,
+              ),
             ),
             const SizedBox(height: 32),
             SizedBox(
@@ -458,7 +581,9 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.white,
                   side: const BorderSide(color: Color(0xFF4A3470)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
                 child: Text(
                   isArabic ? 'العودة' : 'Go back',
@@ -473,7 +598,9 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
   }
 
   String _formatCoins(int coins) {
-    if (coins >= 1000) return '${(coins / 1000).toStringAsFixed(coins % 1000 == 0 ? 0 : 1)}K';
+    if (coins >= 1000) {
+      return '${(coins / 1000).toStringAsFixed(coins % 1000 == 0 ? 0 : 1)}K';
+    }
     return '$coins';
   }
 }
@@ -496,7 +623,14 @@ class _SummaryRow extends StatelessWidget {
     return Row(
       textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
       children: [
-        Text(label, style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 13, fontWeight: FontWeight.w700)),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFF9E91B8),
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         const Spacer(),
         Text(
           value,

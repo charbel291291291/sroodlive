@@ -295,14 +295,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _openCheckin() async {
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => CheckinScreen(isArabic: widget.isArabic)),
+      MaterialPageRoute(
+        builder: (_) => CheckinScreen(isArabic: widget.isArabic),
+      ),
     );
     if (mounted) await _loadProfile();
   }
 
   Future<void> _openBackpack() async {
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => BackpackScreen(isArabic: widget.isArabic)),
+      MaterialPageRoute(
+        builder: (_) => BackpackScreen(isArabic: widget.isArabic),
+      ),
     );
     if (mounted) await _loadProfile();
   }
@@ -799,7 +803,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           visitors: visitorsCount,
                           onFollowersTap: () {
                             final uid = SupabaseService
-                                .requiredClient.auth.currentUser?.id;
+                                .requiredClient
+                                .auth
+                                .currentUser
+                                ?.id;
                             if (uid == null) return;
                             Navigator.of(context).push(
                               MaterialPageRoute<void>(
@@ -813,7 +820,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           },
                           onFollowingTap: () {
                             final uid = SupabaseService
-                                .requiredClient.auth.currentUser?.id;
+                                .requiredClient
+                                .auth
+                                .currentUser
+                                ?.id;
                             if (uid == null) return;
                             Navigator.of(context).push(
                               MaterialPageRoute<void>(
@@ -880,7 +890,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               _openProfileHub(BadgeScreen(isArabic: isArabic)),
                           onLeaderboard: () => Navigator.of(context).push(
                             MaterialPageRoute<void>(
-                              builder: (_) => LeaderboardScreen(isArabic: isArabic),
+                              builder: (_) =>
+                                  LeaderboardScreen(isArabic: isArabic),
                             ),
                           ),
                           onFeedback: () => _openProfileHub(
@@ -1299,7 +1310,9 @@ class _ProfileStatsRow extends StatelessWidget {
             onTap: onFollowersTap,
             child: _ProfileStatItem(
               value: followers,
-              label: isArabic ? '\u0645\u062a\u0627\u0628\u0639\u0648\u0646' : 'Followers',
+              label: isArabic
+                  ? '\u0645\u062a\u0627\u0628\u0639\u0648\u0646'
+                  : 'Followers',
               tappable: onFollowersTap != null,
             ),
           ),
@@ -1752,7 +1765,9 @@ class _ProfileMenuList extends StatelessWidget {
       ),
       _MenuData(
         Icons.emoji_events_rounded,
-        isArabic ? '\u0627\u0644\u0645\u062a\u0635\u062f\u0631\u0648\u0646' : 'Leaderboard',
+        isArabic
+            ? '\u0627\u0644\u0645\u062a\u0635\u062f\u0631\u0648\u0646'
+            : 'Leaderboard',
         onLeaderboard,
       ),
       _MenuData(

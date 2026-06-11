@@ -8,18 +8,18 @@ import 'package:flutter/material.dart';
 /// Returns the asset path for the PNG frame that matches [level] (1-10).
 /// Returns `null` for level 0 or any out-of-range value.
 String? vipFrameAssetPath(int level) => switch (level) {
-      1 => 'assets/images/vip_frames/11.png',
-      2 => 'assets/images/vip_frames/2.png',
-      3 => 'assets/images/vip_frames/3.png',
-      4 => 'assets/images/vip_frames/vip4.png',
-      5 => 'assets/images/vip_frames/5.png',
-      6 => 'assets/images/vip_frames/6.png',
-      7 => 'assets/images/vip_frames/7.png',
-      8 => 'assets/images/vip_frames/88.png',
-      9 => 'assets/images/vip_frames/99.png',
-      10 => 'assets/images/vip_frames/100.png',
-      _ => null,
-    };
+  1 => 'assets/images/vip_frames/11.png',
+  2 => 'assets/images/vip_frames/2.png',
+  3 => 'assets/images/vip_frames/3.png',
+  4 => 'assets/images/vip_frames/vip4.png',
+  5 => 'assets/images/vip_frames/5.png',
+  6 => 'assets/images/vip_frames/6.png',
+  7 => 'assets/images/vip_frames/7.png',
+  8 => 'assets/images/vip_frames/88.png',
+  9 => 'assets/images/vip_frames/99.png',
+  10 => 'assets/images/vip_frames/100.png',
+  _ => null,
+};
 
 // ---------------------------------------------------------------------------
 // VipFramedAvatar widget
@@ -132,11 +132,7 @@ class _VipAvatarFallback extends StatelessWidget {
           colors: [Color(0xFF2D1247), Color(0xFF12091D)],
         ),
       ),
-      child: Icon(
-        Icons.person_rounded,
-        color: Colors.white,
-        size: size * 0.50,
-      ),
+      child: Icon(Icons.person_rounded, color: Colors.white, size: size * 0.50),
     );
   }
 }

@@ -18,22 +18,22 @@ class TaskItem {
   });
 
   factory TaskItem.fromJson(Map<String, dynamic> json) => TaskItem(
-        id: json['id']?.toString() ?? '',
-        title: json['title']?.toString() ?? '',
-        titleAr: json['title_ar']?.toString() ?? '',
-        description: json['description']?.toString() ?? '',
-        descriptionAr: json['description_ar']?.toString() ?? '',
-        taskType: json['task_type']?.toString() ?? 'daily',
-        requirementType: json['requirement_type']?.toString() ?? '',
-        requirementCount: (json['requirement_count'] as num?)?.toInt() ?? 1,
-        rewardType: json['reward_type']?.toString() ?? 'coins',
-        rewardAmount: (json['reward_amount'] as num?)?.toInt() ?? 0,
-        sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
-        progress: (json['progress'] as num?)?.toInt() ?? 0,
-        completed: json['completed'] == true,
-        claimed: json['claimed'] == true,
-        completedAt: DateTime.tryParse(json['completed_at']?.toString() ?? ''),
-      );
+    id: json['id']?.toString() ?? '',
+    title: json['title']?.toString() ?? '',
+    titleAr: json['title_ar']?.toString() ?? '',
+    description: json['description']?.toString() ?? '',
+    descriptionAr: json['description_ar']?.toString() ?? '',
+    taskType: json['task_type']?.toString() ?? 'daily',
+    requirementType: json['requirement_type']?.toString() ?? '',
+    requirementCount: (json['requirement_count'] as num?)?.toInt() ?? 1,
+    rewardType: json['reward_type']?.toString() ?? 'coins',
+    rewardAmount: (json['reward_amount'] as num?)?.toInt() ?? 0,
+    sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
+    progress: (json['progress'] as num?)?.toInt() ?? 0,
+    completed: json['completed'] == true,
+    claimed: json['claimed'] == true,
+    completedAt: DateTime.tryParse(json['completed_at']?.toString() ?? ''),
+  );
 
   final String id;
   final String title;
@@ -54,10 +54,12 @@ class TaskItem {
   bool get isDaily => taskType == 'daily';
   bool get canClaim => completed && !claimed;
 
-  double get progressFraction =>
-      requirementCount > 0 ? (progress / requirementCount).clamp(0.0, 1.0) : 0.0;
+  double get progressFraction => requirementCount > 0
+      ? (progress / requirementCount).clamp(0.0, 1.0)
+      : 0.0;
 
-  String localTitle(bool isArabic) => isArabic && titleAr.isNotEmpty ? titleAr : title;
+  String localTitle(bool isArabic) =>
+      isArabic && titleAr.isNotEmpty ? titleAr : title;
   String localDescription(bool isArabic) =>
       isArabic && descriptionAr.isNotEmpty ? descriptionAr : description;
 }

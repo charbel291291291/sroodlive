@@ -76,7 +76,9 @@ class _CallHistoryScreenState extends State<CallHistoryScreen>
         final isOutgoing = row['caller_id'] == user.id;
         final peer = isOutgoing ? row['callee'] : row['caller'];
         final durationSecs = row['duration_seconds'] as int?;
-        final isMissed = row['ended_at'] == null || (durationSecs != null && durationSecs == 0);
+        final isMissed =
+            row['ended_at'] == null ||
+            (durationSecs != null && durationSecs == 0);
 
         return _CallHistoryState(
           id: row['id'] as String,
@@ -88,7 +90,9 @@ class _CallHistoryScreenState extends State<CallHistoryScreen>
           duration: durationSecs != null && durationSecs > 0
               ? Duration(seconds: durationSecs)
               : null,
-          calledAt: DateTime.tryParse(row['created_at'] as String? ?? '') ?? DateTime.now(),
+          calledAt:
+              DateTime.tryParse(row['created_at'] as String? ?? '') ??
+              DateTime.now(),
         );
       }).toList();
 
@@ -232,7 +236,7 @@ class _CallHistoryScreenState extends State<CallHistoryScreen>
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         itemCount: calls.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        separatorBuilder: (_, _) => const SizedBox(height: 8),
         itemBuilder: (_, i) => _CallTile(call: calls[i], isArabic: isArabic),
       ),
     );
@@ -251,7 +255,11 @@ class _CallHistoryScreenState extends State<CallHistoryScreen>
               shape: BoxShape.circle,
               border: Border.all(color: const Color(0xFF4A3470)),
             ),
-            child: const Icon(Icons.call_rounded, color: Color(0xFF9E91B8), size: 38),
+            child: const Icon(
+              Icons.call_rounded,
+              color: Color(0xFF9E91B8),
+              size: 38,
+            ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -293,8 +301,8 @@ class _CallTile extends StatelessWidget {
     final String durationLabel = call.duration != null
         ? _formatDuration(call.duration!)
         : (call.isMissed
-            ? (isArabic ? 'فائتة' : 'Missed')
-            : (isArabic ? 'لم يُجب' : 'No answer'));
+              ? (isArabic ? 'فائتة' : 'Missed')
+              : (isArabic ? 'لم يُجب' : 'No answer'));
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -339,12 +347,13 @@ class _CallTile extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: const Color(0xFF08060F),
                     shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFF08060F), width: 1.5),
+                    border: Border.all(
+                      color: const Color(0xFF08060F),
+                      width: 1.5,
+                    ),
                   ),
                   child: Icon(
-                    call.isVideo
-                        ? Icons.videocam_rounded
-                        : Icons.call_rounded,
+                    call.isVideo ? Icons.videocam_rounded : Icons.call_rounded,
                     size: 11,
                     color: const Color(0xFF9E91B8),
                   ),
@@ -355,7 +364,9 @@ class _CallTile extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Column(
-              crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isArabic
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 Text(
                   call.peerName,
@@ -414,12 +425,12 @@ class _CallTile extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: const Color(0xFF3A174F),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFF8B26D9).withValues(alpha: 0.5)),
+                    border: Border.all(
+                      color: const Color(0xFF8B26D9).withValues(alpha: 0.5),
+                    ),
                   ),
                   child: Icon(
-                    call.isVideo
-                        ? Icons.videocam_rounded
-                        : Icons.call_rounded,
+                    call.isVideo ? Icons.videocam_rounded : Icons.call_rounded,
                     color: const Color(0xFFF0C15A),
                     size: 18,
                   ),

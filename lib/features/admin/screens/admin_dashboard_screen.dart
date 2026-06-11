@@ -6,25 +6,34 @@ import '../models/admin_models.dart';
 import '../services/admin_access_service.dart';
 import '../services/admin_service.dart';
 
-enum _AdminModule { overview, finance, users, bd, content, rooms, banners, audit }
+enum _AdminModule {
+  overview,
+  finance,
+  users,
+  bd,
+  content,
+  rooms,
+  banners,
+  audit,
+}
 
 // ─────────────────────────────────────────────
 // Design tokens — edit here to restyle the panel
 // ─────────────────────────────────────────────
-const _kBg         = Color(0xFF0C0E14); // main page bg
-const _kSurface    = Color(0xFF141720); // card bg
-const _kSidebar    = Color(0xFF0F1117); // sidebar bg
-const _kBorder     = Color(0xFF1E2435); // default border
-const _kGold       = Color(0xFFF0C15A); // brand / icon accent
-const _kGreen      = Color(0xFF22C55E); // active / approved
-const _kAmber      = Color(0xFFF59E0B); // pending / warning
-const _kRed        = Color(0xFFEF4444); // rejected / danger
-const _kBlue       = Color(0xFF60A5FA); // info / coins
-const _kPurple     = Color(0xFF8B5CF6); // accent / gifts
-const _kTxt        = Color(0xFFF1F5F9); // primary text
-const _kMuted      = Color(0xFF64748B); // muted text
-const _kNavActive  = Color(0xFF1A2040); // selected nav bg
-const _kNavAccent  = Color(0xFF6366F1); // selected nav left bar
+const _kBg = Color(0xFF0C0E14); // main page bg
+const _kSurface = Color(0xFF141720); // card bg
+const _kSidebar = Color(0xFF0F1117); // sidebar bg
+const _kBorder = Color(0xFF1E2435); // default border
+const _kGold = Color(0xFFF0C15A); // brand / icon accent
+const _kGreen = Color(0xFF22C55E); // active / approved
+const _kAmber = Color(0xFFF59E0B); // pending / warning
+const _kRed = Color(0xFFEF4444); // rejected / danger
+const _kBlue = Color(0xFF60A5FA); // info / coins
+const _kPurple = Color(0xFF8B5CF6); // accent / gifts
+const _kTxt = Color(0xFFF1F5F9); // primary text
+const _kMuted = Color(0xFF64748B); // muted text
+const _kNavActive = Color(0xFF1A2040); // selected nav bg
+const _kNavAccent = Color(0xFF6366F1); // selected nav left bar
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({required this.isArabic, super.key});
@@ -310,10 +319,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           padding: const EdgeInsets.all(18),
           shrinkWrap: true,
           children: [
-            Text(
-              'Assign role',
-              style: _titleStyle.copyWith(fontSize: 20),
-            ),
+            Text('Assign role', style: _titleStyle.copyWith(fontSize: 20)),
             const SizedBox(height: 12),
             ...AdminRoleSpec.all.map(
               (spec) => ListTile(
@@ -854,7 +860,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         child: _isLoading
             ? Center(
                 child: CircularProgressIndicator(
-                  color: _kGold, strokeWidth: 2.5))
+                  color: _kGold,
+                  strokeWidth: 2.5,
+                ),
+              )
             : !_canAccess
             ? _adminService.currentEmail == null
                   ? _AdminLoginPanel(
@@ -906,7 +915,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                 backgroundColor: _kSurface,
                                 onRefresh: _load,
                                 child: ListView(
-                                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
+                                  padding: const EdgeInsets.fromLTRB(
+                                    20,
+                                    16,
+                                    20,
+                                    40,
+                                  ),
                                   children: [_buildModule()],
                                 ),
                               ),
@@ -924,7 +938,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Widget _buildModule() {
     return switch (_module) {
-      _AdminModule.overview  => _buildOverview(),
+      _AdminModule.overview => _buildOverview(),
       _AdminModule.finance => _buildFinance(),
       _AdminModule.users => _buildUsers(),
       _AdminModule.bd => _buildBd(),
@@ -1408,7 +1422,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         (b) => _AdminListTile(
                           icon: Icons.view_carousel_rounded,
                           title: b.titleEn.isNotEmpty ? b.titleEn : b.slideKey,
-                          subtitle: '${b.slideKey} · order ${b.sortOrder}'
+                          subtitle:
+                              '${b.slideKey} · order ${b.sortOrder}'
                               '${b.targetRoute != null ? ' → ${b.targetRoute}' : ''}',
                           trailing: Wrap(
                             spacing: 6,
@@ -1572,7 +1587,10 @@ class _AdminLoginPanel extends StatelessWidget {
                 const Text(
                   'Sign in to Admin Console',
                   style: TextStyle(
-                    color: _kTxt, fontSize: 20, fontWeight: FontWeight.w800),
+                    color: _kTxt,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 const Text(
@@ -1602,18 +1620,21 @@ class _AdminLoginPanel extends StatelessWidget {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                   icon: const Icon(Icons.login_rounded, size: 18),
-                  label: const Text('Sign in',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
+                  label: const Text(
+                    'Sign in',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
                 ),
               ],
             ),
-          ),   // _AdminCard
-        ),     // ConstrainedBox
-      ),       // Center
-    );         // Container
+          ), // _AdminCard
+        ), // ConstrainedBox
+      ), // Center
+    ); // Container
   }
 }
 
@@ -1656,8 +1677,10 @@ class _AdminTextField extends StatelessWidget {
         helperStyle: const TextStyle(color: _kMuted, fontSize: 11),
         filled: true,
         fillColor: _kBg,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: _kBorder),
@@ -1696,12 +1719,22 @@ class _FinanceReportCard extends StatelessWidget {
 
     // (label, value, icon, color)
     final stats = [
-      ('Approved',    item.approvedRecharges,      Icons.verified_rounded,        _kGreen),
-      ('Rejected',    item.rejectedRecharges,       Icons.cancel_rounded,          _kRed),
-      ('Pending',     item.pendingRecharges,        Icons.pending_actions_rounded, _kAmber),
-      ('Coins In',    item.coinsCharged,            Icons.monetization_on_rounded, _kBlue),
-      ('Gift Spend',  item.giftCoinsSpent,          Icons.card_giftcard_rounded,   _kPurple),
-      ('Adjustments', item.manualAdjustmentCount,   Icons.tune_rounded,            _kMuted),
+      ('Approved', item.approvedRecharges, Icons.verified_rounded, _kGreen),
+      ('Rejected', item.rejectedRecharges, Icons.cancel_rounded, _kRed),
+      (
+        'Pending',
+        item.pendingRecharges,
+        Icons.pending_actions_rounded,
+        _kAmber,
+      ),
+      ('Coins In', item.coinsCharged, Icons.monetization_on_rounded, _kBlue),
+      (
+        'Gift Spend',
+        item.giftCoinsSpent,
+        Icons.card_giftcard_rounded,
+        _kPurple,
+      ),
+      ('Adjustments', item.manualAdjustmentCount, Icons.tune_rounded, _kMuted),
     ];
 
     return _AdminSectionCard(
@@ -1717,12 +1750,14 @@ class _FinanceReportCard extends StatelessWidget {
             crossAxisSpacing: 10,
             childAspectRatio: 1.7,
             children: stats
-                .map((s) => _AdminStatCard(
-                      label: s.$1,
-                      value: s.$2,
-                      icon: s.$3,
-                      color: s.$4,
-                    ))
+                .map(
+                  (s) => _AdminStatCard(
+                    label: s.$1,
+                    value: s.$2,
+                    icon: s.$3,
+                    color: s.$4,
+                  ),
+                )
                 .toList(),
           );
         },
@@ -2844,9 +2879,9 @@ class _ImageUploadFieldState extends State<_ImageUploadField> {
       widget.onChanged(url);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Upload failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
@@ -2864,7 +2899,8 @@ class _ImageUploadFieldState extends State<_ImageUploadField> {
               child: TextField(
                 controller: _ctrl,
                 decoration: InputDecoration(labelText: widget.label),
-                onChanged: (v) => widget.onChanged(v.trim().isEmpty ? null : v.trim()),
+                onChanged: (v) =>
+                    widget.onChanged(v.trim().isEmpty ? null : v.trim()),
               ),
             ),
             const SizedBox(width: 6),
@@ -2891,7 +2927,7 @@ class _ImageUploadFieldState extends State<_ImageUploadField> {
                 previewUrl,
                 height: 72,
                 fit: BoxFit.cover,
-                errorBuilder: (_, _a, _b) => const SizedBox.shrink(),
+                errorBuilder: (_, a, b) => const SizedBox.shrink(),
               ),
             ),
           ),
@@ -2903,10 +2939,7 @@ class _ImageUploadFieldState extends State<_ImageUploadField> {
 // ── Promo Banner Edit Dialog ──────────────────────────────────────────────────
 
 class _PromoBannerEditDialog extends StatefulWidget {
-  const _PromoBannerEditDialog({
-    required this.adminService,
-    this.existing,
-  });
+  const _PromoBannerEditDialog({required this.adminService, this.existing});
 
   final AdminService adminService;
   final AdminPromoBanner? existing;
@@ -3188,14 +3221,16 @@ class _AdminSideNav extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               children: _AdminModule.values
-                  .map((module) => _NavItem(
-                        module: module,
-                        selected: selected == module,
-                        badge: module == _AdminModule.finance && pendingCount > 0
-                            ? pendingCount
-                            : 0,
-                        onTap: () => onSelected(module),
-                      ))
+                  .map(
+                    (module) => _NavItem(
+                      module: module,
+                      selected: selected == module,
+                      badge: module == _AdminModule.finance && pendingCount > 0
+                          ? pendingCount
+                          : 0,
+                      onTap: () => onSelected(module),
+                    ),
+                  )
                   .toList(),
             ),
           ),
@@ -3206,10 +3241,15 @@ class _AdminSideNav extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Your roles',
-                    style: TextStyle(color: _kMuted, fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.6)),
+                const Text(
+                  'Your roles',
+                  style: TextStyle(
+                    color: _kMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.6,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 6,
@@ -3265,28 +3305,35 @@ class _AdminTopBar extends StatelessWidget {
                   Text(
                     _moduleLabel(selected),
                     style: const TextStyle(
-                      color: _kTxt, fontSize: 17, fontWeight: FontWeight.w800),
+                      color: _kTxt,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                  if (pendingCount > 0 &&
-                      selected == _AdminModule.finance) ...[
+                  if (pendingCount > 0 && selected == _AdminModule.finance) ...[
                     const SizedBox(width: 8),
                     _StatusBadge(label: '$pendingCount pending'),
                   ],
                 ],
                 const Spacer(),
-                _StatusBadge(
-                    label: roles.isEmpty ? 'no role' : roles.first),
+                _StatusBadge(label: roles.isEmpty ? 'no role' : roles.first),
                 IconButton(
                   onPressed: onRefresh,
                   tooltip: 'Refresh',
-                  icon: const Icon(Icons.refresh_rounded,
-                      color: _kGold, size: 20),
+                  icon: const Icon(
+                    Icons.refresh_rounded,
+                    color: _kGold,
+                    size: 20,
+                  ),
                 ),
                 IconButton(
                   onPressed: onSignOut,
                   tooltip: 'Sign out',
-                  icon: const Icon(Icons.logout_rounded,
-                      color: _kMuted, size: 20),
+                  icon: const Icon(
+                    Icons.logout_rounded,
+                    color: _kMuted,
+                    size: 20,
+                  ),
                 ),
               ],
             ),
@@ -3308,12 +3355,15 @@ class _AdminTopBar extends StatelessWidget {
                       onTap: () => onSelected(module),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 5),
+                          horizontal: 12,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           color: active ? _kNavAccent : _kBg,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                              color: active ? _kNavAccent : _kBorder),
+                            color: active ? _kNavAccent : _kBorder,
+                          ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -3329,9 +3379,12 @@ class _AdminTopBar extends StatelessWidget {
                             if (hasBadge) ...[
                               const SizedBox(width: 5),
                               Container(
-                                width: 7, height: 7,
+                                width: 7,
+                                height: 7,
                                 decoration: const BoxDecoration(
-                                    color: _kAmber, shape: BoxShape.circle),
+                                  color: _kAmber,
+                                  shape: BoxShape.circle,
+                                ),
                               ),
                             ],
                           ],
@@ -3414,19 +3467,24 @@ class _NavItem extends StatelessWidget {
                 // Left accent bar
                 if (selected)
                   Positioned(
-                    left: 0, top: 0, bottom: 0,
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
                     child: Container(
                       width: 3,
                       decoration: const BoxDecoration(
                         color: _kNavAccent,
                         borderRadius: BorderRadius.horizontal(
-                            right: Radius.circular(3)),
+                          right: Radius.circular(3),
+                        ),
                       ),
                     ),
                   ),
                 Padding(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 11),
+                    horizontal: 14,
+                    vertical: 11,
+                  ),
                   child: Row(
                     children: [
                       Icon(
@@ -3450,7 +3508,9 @@ class _NavItem extends StatelessWidget {
                       if (badge > 0)
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 2),
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: _kAmber,
                             borderRadius: BorderRadius.circular(999),
@@ -3551,12 +3611,42 @@ class _OverviewGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     // (label, value, icon, color)
     final items = [
-      ('Pending',       overview?.pendingRechargeCount ?? 0,       Icons.pending_actions_rounded, _kAmber),
-      ('Approved Today',overview?.approvedRechargeCountToday ?? 0, Icons.verified_rounded,        _kGreen),
-      ('Coins Today',   overview?.totalCoinsChargedToday ?? 0,     Icons.monetization_on_rounded, _kBlue),
-      ('Gift Spend',    overview?.totalGiftCoinsSpentToday ?? 0,   Icons.card_giftcard_rounded,   _kPurple),
-      ('Diamonds',      overview?.totalDiamondsEarnedToday ?? 0,   Icons.diamond_rounded,         _kNavAccent),
-      ('Gifts Today',   overview?.totalGiftTransactionsToday ?? 0, Icons.auto_awesome_rounded,    _kGold),
+      (
+        'Pending',
+        overview?.pendingRechargeCount ?? 0,
+        Icons.pending_actions_rounded,
+        _kAmber,
+      ),
+      (
+        'Approved Today',
+        overview?.approvedRechargeCountToday ?? 0,
+        Icons.verified_rounded,
+        _kGreen,
+      ),
+      (
+        'Coins Today',
+        overview?.totalCoinsChargedToday ?? 0,
+        Icons.monetization_on_rounded,
+        _kBlue,
+      ),
+      (
+        'Gift Spend',
+        overview?.totalGiftCoinsSpentToday ?? 0,
+        Icons.card_giftcard_rounded,
+        _kPurple,
+      ),
+      (
+        'Diamonds',
+        overview?.totalDiamondsEarnedToday ?? 0,
+        Icons.diamond_rounded,
+        _kNavAccent,
+      ),
+      (
+        'Gifts Today',
+        overview?.totalGiftTransactionsToday ?? 0,
+        Icons.auto_awesome_rounded,
+        _kGold,
+      ),
     ];
 
     return LayoutBuilder(
@@ -3577,13 +3667,15 @@ class _OverviewGrid extends StatelessWidget {
             mainAxisExtent: cellHeight,
           ),
           children: items
-              .map((item) => _AdminStatCard(
-                    label: item.$1,
-                    value: item.$2,
-                    icon: item.$3,
-                    color: item.$4,
-                    wide: cols == 1,
-                  ))
+              .map(
+                (item) => _AdminStatCard(
+                  label: item.$1,
+                  value: item.$2,
+                  icon: item.$3,
+                  color: item.$4,
+                  wide: cols == 1,
+                ),
+              )
               .toList(),
         );
       },
@@ -3687,8 +3779,7 @@ class _AdminStatCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Align(
-                            alignment: Alignment.centerLeft, child: number),
+                        Align(alignment: Alignment.centerLeft, child: number),
                         const SizedBox(height: 4),
                         caption,
                       ],
@@ -3832,9 +3923,13 @@ class _RechargeRequestTile extends StatelessWidget {
                     foregroundColor: _kRed,
                     side: const BorderSide(color: _kRed),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 8),
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
                     textStyle: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w700),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   child: const Text('Reject'),
                 ),
@@ -3844,9 +3939,13 @@ class _RechargeRequestTile extends StatelessWidget {
                     backgroundColor: _kGreen,
                     foregroundColor: Colors.black87,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 8),
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
                     textStyle: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w700),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   child: const Text('Approve'),
                 ),
@@ -3899,8 +3998,7 @@ class _WalletLookupCard extends StatelessWidget {
             onPressed: onSearch,
             style: FilledButton.styleFrom(
               backgroundColor: _kNavAccent,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
             ),
             icon: const Icon(Icons.search_rounded, size: 16),
             label: const Text('Search wallet'),
@@ -3975,8 +4073,10 @@ class _WalletLookupCard extends StatelessWidget {
               onPressed: canFinance ? onAdjust : null,
               style: FilledButton.styleFrom(
                 backgroundColor: _kNavAccent,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 12,
+                ),
               ),
               icon: const Icon(Icons.tune_rounded, size: 16),
               label: const Text('Apply adjustment'),
@@ -4013,8 +4113,7 @@ class _SearchRow extends StatelessWidget {
           onPressed: onSearch,
           style: FilledButton.styleFrom(
             backgroundColor: _kNavAccent,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
           ),
           icon: const Icon(Icons.search_rounded, size: 16),
           label: const Text('Search'),
@@ -4022,11 +4121,7 @@ class _SearchRow extends StatelessWidget {
         if (constraints.maxWidth < 520) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              field,
-              const SizedBox(height: 8),
-              btn,
-            ],
+            children: [field, const SizedBox(height: 8), btn],
           );
         }
         return Row(
@@ -4261,11 +4356,7 @@ class _GiftIcon extends StatelessWidget {
     if (source != null && source.startsWith('http')) {
       return Image.network(source, width: 42, height: 42, fit: BoxFit.contain);
     }
-    return const Icon(
-      Icons.card_giftcard_rounded,
-      color: _kGold,
-      size: 42,
-    );
+    return const Icon(Icons.card_giftcard_rounded, color: _kGold, size: 42);
   }
 }
 
@@ -4312,11 +4403,7 @@ class _CatalogChip extends StatelessWidget {
                   ),
                 ),
                 if (onTap != null)
-                  const Icon(
-                    Icons.edit_rounded,
-                    color: _kNavAccent,
-                    size: 16,
-                  ),
+                  const Icon(Icons.edit_rounded, color: _kNavAccent, size: 16),
               ],
             ),
             const SizedBox(height: 4),
@@ -4544,7 +4631,9 @@ class _AdminSkeletonListState extends State<_AdminSkeletonList>
         final opacity = 0.35 + _anim.value * 0.35;
         return Column(
           children: List.generate(
-              _AdminSkeletonList._count, (i) => _SkeletonTile(opacity: opacity)),
+            _AdminSkeletonList._count,
+            (i) => _SkeletonTile(opacity: opacity),
+          ),
         );
       },
     );
@@ -4556,12 +4645,13 @@ class _SkeletonTile extends StatelessWidget {
   final double opacity;
 
   Widget _box(double w, double h) => Container(
-        width: w, height: h,
-        decoration: BoxDecoration(
-          color: _kBorder.withValues(alpha: opacity),
-          borderRadius: BorderRadius.circular(6),
-        ),
-      );
+    width: w,
+    height: h,
+    decoration: BoxDecoration(
+      color: _kBorder.withValues(alpha: opacity),
+      borderRadius: BorderRadius.circular(6),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -4626,7 +4716,10 @@ class _AdminEmptyState extends StatelessWidget {
             title,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              color: _kTxt, fontSize: 14, fontWeight: FontWeight.w700),
+              color: _kTxt,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 4),
           Text(subtitle, textAlign: TextAlign.center, style: _mutedStyle),
@@ -4688,24 +4781,38 @@ class _StatusBadge extends StatelessWidget {
 
   static Color _colorFor(String l) {
     final s = l.toLowerCase();
-    if (s.contains('approv') || s.contains('active') || s.contains('live') ||
-        s.contains('open') || s.contains('success') || s.contains('done') ||
-        s.contains('earned') || s.contains('reopen')) {
+    if (s.contains('approv') ||
+        s.contains('active') ||
+        s.contains('live') ||
+        s.contains('open') ||
+        s.contains('success') ||
+        s.contains('done') ||
+        s.contains('earned') ||
+        s.contains('reopen')) {
       return _kGreen;
     }
-    if (s.contains('pending') || s.contains('wait') || s.contains('locked') ||
+    if (s.contains('pending') ||
+        s.contains('wait') ||
+        s.contains('locked') ||
         s.contains('warn')) {
       return _kAmber;
     }
-    if (s.contains('reject') || s.contains('ban') || s.contains('block') ||
-        s.contains('close') || s.contains('off') || s.contains('cancel') ||
-        s.contains('danger') || s.contains('mute')) {
+    if (s.contains('reject') ||
+        s.contains('ban') ||
+        s.contains('block') ||
+        s.contains('close') ||
+        s.contains('off') ||
+        s.contains('cancel') ||
+        s.contains('danger') ||
+        s.contains('mute')) {
       return _kRed;
     }
     if (s.contains('coin') || s.contains('charge') || s.contains('info')) {
       return _kBlue;
     }
-    if (s.contains('super') || s.contains('vip') || s.contains('gift') ||
+    if (s.contains('super') ||
+        s.contains('vip') ||
+        s.contains('gift') ||
         s.contains('diamond')) {
       return _kPurple;
     }
@@ -4755,7 +4862,11 @@ class _AdminCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _kBorder),
         boxShadow: const [
-          BoxShadow(color: Color(0x18000000), blurRadius: 12, offset: Offset(0, 4)),
+          BoxShadow(
+            color: Color(0x18000000),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
         ],
       ),
       child: child,

@@ -69,7 +69,10 @@ class _SearchScreenState extends State<SearchScreen>
       setState(() => _results = const []);
       return;
     }
-    _debounce = Timer(const Duration(milliseconds: 380), () => _search(q.trim()));
+    _debounce = Timer(
+      const Duration(milliseconds: 380),
+      () => _search(q.trim()),
+    );
   }
 
   Future<void> _search(String q) async {
@@ -83,18 +86,22 @@ class _SearchScreenState extends State<SearchScreen>
             .limit(20),
         SupabaseService.requiredClient
             .from('rooms')
-            .select('id, owner_id, name, description, language, livekit_room_name, max_seats, is_private, is_locked, is_closed, is_live, cover_url, created_at')
+            .select(
+              'id, owner_id, name, description, language, livekit_room_name, max_seats, is_private, is_locked, is_closed, is_live, cover_url, created_at',
+            )
             .ilike('name', '%$q%')
             .limit(20),
       ]);
 
-      final users = (usersRaw as List).map((row) => _SearchResult(
-            id: row['id'] as String,
-            type: 'user',
-            title: row['display_name'] as String? ?? 'Unknown',
-            subtitle: row['bio'] as String?,
-            imageUrl: row['avatar_url'] as String?,
-          ));
+      final users = (usersRaw as List).map(
+        (row) => _SearchResult(
+          id: row['id'] as String,
+          type: 'user',
+          title: row['display_name'] as String? ?? 'Unknown',
+          subtitle: row['bio'] as String?,
+          imageUrl: row['avatar_url'] as String?,
+        ),
+      );
 
       final rooms = (roomsRaw as List).map((row) {
         final r = row as Map<String, dynamic>;
@@ -148,20 +155,20 @@ class _SearchScreenState extends State<SearchScreen>
                 child: _query.length < 2
                     ? _buildEmptyState(isArabic)
                     : _isSearching
-                        ? const Center(
-                            child: CircularProgressIndicator(
-                              color: Color(0xFF8B26D9),
-                            ),
-                          )
-                        : _results.isEmpty
-                            ? _buildNoResults(isArabic)
-                            : TabBarView(
-                                controller: _tabController,
-                                children: [
-                                  _buildResultsList(_userResults, isArabic),
-                                  _buildResultsList(_roomResults, isArabic),
-                                ],
-                              ),
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF8B26D9),
+                        ),
+                      )
+                    : _results.isEmpty
+                    ? _buildNoResults(isArabic)
+                    : TabBarView(
+                        controller: _tabController,
+                        children: [
+                          _buildResultsList(_userResults, isArabic),
+                          _buildResultsList(_roomResults, isArabic),
+                        ],
+                      ),
               ),
             ],
           ),
@@ -215,7 +222,11 @@ class _SearchScreenState extends State<SearchScreen>
                   ),
                   suffixIcon: _query.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.close_rounded, color: Color(0xFF9E91B8), size: 18),
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            color: Color(0xFF9E91B8),
+                            size: 18,
+                          ),
                           onPressed: () {
                             _searchController.clear();
                             _onQueryChanged('');
@@ -282,11 +293,8 @@ class _SearchScreenState extends State<SearchScreen>
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
       itemCount: items.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (_, i) => _ResultTile(
-        result: items[i],
-        isArabic: isArabic,
-      ),
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      itemBuilder: (_, i) => _ResultTile(result: items[i], isArabic: isArabic),
     );
   }
 
@@ -298,7 +306,9 @@ class _SearchScreenState extends State<SearchScreen>
           const Icon(Icons.search_rounded, color: Color(0xFF2A1840), size: 72),
           const SizedBox(height: 16),
           Text(
-            isArabic ? 'Ø§Ø¨Ø­Ø« Ø¹Ù† Ø£Ø´Ø®Ø§Øµ Ø£Ùˆ ØºØ±Ù' : 'Search for people or rooms',
+            isArabic
+                ? 'Ø§Ø¨Ø­Ø« Ø¹Ù† Ø£Ø´Ø®Ø§Øµ Ø£Ùˆ ØºØ±Ù'
+                : 'Search for people or rooms',
             style: const TextStyle(
               color: Color(0xFF9E91B8),
               fontSize: 16,
@@ -315,10 +325,16 @@ class _SearchScreenState extends State<SearchScreen>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.search_off_rounded, color: Color(0xFF4A3470), size: 56),
+          const Icon(
+            Icons.search_off_rounded,
+            color: Color(0xFF4A3470),
+            size: 56,
+          ),
           const SizedBox(height: 14),
           Text(
-            isArabic ? 'Ù„Ø§ ØªÙˆØ¬Ø¯ Ù†ØªØ§Ø¦Ø¬ Ù„Ù€ "$_query"' : 'No results for "$_query"',
+            isArabic
+                ? 'Ù„Ø§ ØªÙˆØ¬Ø¯ Ù†ØªØ§Ø¦Ø¬ Ù„Ù€ "$_query"'
+                : 'No results for "$_query"',
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: Color(0xFFBCAED6),
@@ -346,140 +362,153 @@ class _ResultTile extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         if (result.type == 'user') {
-          Navigator.of(context).push(MaterialPageRoute<void>(
-            builder: (_) => UserProfileScreen(userId: result.id, isArabic: isArabic),
-          ));
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) =>
+                  UserProfileScreen(userId: result.id, isArabic: isArabic),
+            ),
+          );
         } else if (result.room != null) {
-          Navigator.of(context).push(MaterialPageRoute<void>(
-            builder: (_) => RoomDetailsScreen(room: result.room!, isArabic: isArabic),
-          ));
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) =>
+                  RoomDetailsScreen(room: result.room!, isArabic: isArabic),
+            ),
+          );
         }
       },
       child: Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF160B24),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFF6E3AA8).withValues(alpha: 0.4),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF160B24),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFF6E3AA8).withValues(alpha: 0.4),
+          ),
         ),
-      ),
-      child: Row(
-        textDirection: dir,
-        children: [
-          isUser
-              ? CircleAvatar(
-                  radius: 24,
-                  backgroundColor: const Color(0xFF241638),
-                  backgroundImage: result.imageUrl != null
-                      ? NetworkImage(result.imageUrl!)
-                      : null,
-                  child: result.imageUrl == null
-                      ? Text(
-                          result.title.isNotEmpty
-                              ? result.title[0].toUpperCase()
-                              : '?',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 18,
-                          ),
-                        )
-                      : null,
-                )
-              : Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF241638),
-                    borderRadius: BorderRadius.circular(14),
-                    image: result.imageUrl != null
-                        ? DecorationImage(
-                            image: NetworkImage(result.imageUrl!),
-                            fit: BoxFit.cover,
+        child: Row(
+          textDirection: dir,
+          children: [
+            isUser
+                ? CircleAvatar(
+                    radius: 24,
+                    backgroundColor: const Color(0xFF241638),
+                    backgroundImage: result.imageUrl != null
+                        ? NetworkImage(result.imageUrl!)
+                        : null,
+                    child: result.imageUrl == null
+                        ? Text(
+                            result.title.isNotEmpty
+                                ? result.title[0].toUpperCase()
+                                : '?',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 18,
+                            ),
+                          )
+                        : null,
+                  )
+                : Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF241638),
+                      borderRadius: BorderRadius.circular(14),
+                      image: result.imageUrl != null
+                          ? DecorationImage(
+                              image: NetworkImage(result.imageUrl!),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                    ),
+                    child: result.imageUrl == null
+                        ? const Icon(
+                            Icons.meeting_room_rounded,
+                            color: Color(0xFF9E91B8),
+                            size: 24,
                           )
                         : null,
                   ),
-                  child: result.imageUrl == null
-                      ? const Icon(
-                          Icons.meeting_room_rounded,
-                          color: Color(0xFF9E91B8),
-                          size: 24,
-                        )
-                      : null,
-                ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment:
-                  isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-              children: [
-                Row(
-                  textDirection: dir,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        result.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    if (result.isLive == true) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFF4D6D).withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: const Color(0xFFFF4D6D).withValues(alpha: 0.5),
-                          ),
-                        ),
-                        child: const Text(
-                          'LIVE',
-                          style: TextStyle(
-                            color: Color(0xFFFF4D6D),
-                            fontSize: 9,
-                            fontWeight: FontWeight.w900,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: isArabic
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    textDirection: dir,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          result.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ),
+                      if (result.isLive == true) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(
+                              0xFFFF4D6D,
+                            ).withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: const Color(
+                                0xFFFF4D6D,
+                              ).withValues(alpha: 0.5),
+                            ),
+                          ),
+                          child: const Text(
+                            'LIVE',
+                            style: TextStyle(
+                              color: Color(0xFFFF4D6D),
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
-                ),
-                if (result.subtitle?.isNotEmpty == true) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    result.subtitle!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF9E91B8),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
                   ),
+                  if (result.subtitle?.isNotEmpty == true) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      result.subtitle!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF9E91B8),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          Icon(
-            isUser ? Icons.person_add_alt_rounded : Icons.arrow_forward_ios_rounded,
-            color: const Color(0xFF6E5A8A),
-            size: 16,
-          ),
-        ],
+            const SizedBox(width: 8),
+            Icon(
+              isUser
+                  ? Icons.person_add_alt_rounded
+                  : Icons.arrow_forward_ios_rounded,
+              color: const Color(0xFF6E5A8A),
+              size: 16,
+            ),
+          ],
+        ),
       ),
-    ),
     );
   }
 }

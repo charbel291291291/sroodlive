@@ -16,6 +16,7 @@ class PrivateConversationPreview {
   final String otherNickname;
   final String? otherAvatarUrl;
   final String? otherFrameId;
+
   /// VIP level (1-10) for the other participant. Null = not VIP.
   final int? otherVipLevel;
   final String? lastMessage;

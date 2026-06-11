@@ -162,7 +162,9 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                             decoration: BoxDecoration(
                               color: const Color(0xFF1B102B),
                               shape: BoxShape.circle,
-                              border: Border.all(color: const Color(0xFF4A3470)),
+                              border: Border.all(
+                                color: const Color(0xFF4A3470),
+                              ),
                             ),
                             child: const Icon(
                               Icons.videocam_off_rounded,
@@ -194,7 +196,10 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                 decoration: BoxDecoration(
                   color: const Color(0xFF241638),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF8B26D9), width: 1.5),
+                  border: Border.all(
+                    color: const Color(0xFF8B26D9),
+                    width: 1.5,
+                  ),
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(14),
@@ -227,7 +232,9 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
                     child: Row(
-                      textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+                      textDirection: isArabic
+                          ? TextDirection.rtl
+                          : TextDirection.ltr,
                       children: [
                         IconButton(
                           onPressed: _endCall,
@@ -286,8 +293,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                                 ? Icons.mic_off_rounded
                                 : Icons.mic_rounded,
                             active: _isMuted,
-                            onTap: () =>
-                                setState(() => _isMuted = !_isMuted),
+                            onTap: () => setState(() => _isMuted = !_isMuted),
                           ),
                           GestureDetector(
                             onTap: _endCall,
@@ -299,8 +305,9 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFFFF4D6D)
-                                        .withValues(alpha: 0.45),
+                                    color: const Color(
+                                      0xFFFF4D6D,
+                                    ).withValues(alpha: 0.45),
                                     blurRadius: 20,
                                   ),
                                 ],

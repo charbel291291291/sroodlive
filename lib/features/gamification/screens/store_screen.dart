@@ -26,14 +26,23 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final items = await _service.getStoreItems();
       if (!mounted) return;
-      setState(() { _all = items; _loading = false; });
+      setState(() {
+        _all = items;
+        _loading = false;
+      });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _error = e.toString(); _loading = false; });
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
     }
   }
 
@@ -52,17 +61,25 @@ class _StoreScreenState extends State<StoreScreen> {
     try {
       await _service.purchaseStoreItem(item.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(widget.isArabic ? '\u062a\u0645 \u0627\u0644\u0634\u0631\u0627\u0621 \u0628\u0646\u062c\u0627\u062d!' : 'Purchased!'),
-        backgroundColor: const Color(0xFF2ECC71),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.isArabic
+                ? '\u062a\u0645 \u0627\u0644\u0634\u0631\u0627\u0621 \u0628\u0646\u062c\u0627\u062d!'
+                : 'Purchased!',
+          ),
+          backgroundColor: const Color(0xFF2ECC71),
+        ),
+      );
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(e.toString()),
-        backgroundColor: const Color(0xFFFF4D6D),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: const Color(0xFFFF4D6D),
+        ),
+      );
     }
   }
 
@@ -92,27 +109,41 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   Widget _buildHeader() => Padding(
-        padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
-        child: Row(
-          textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
-          children: [
-            IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
-            ),
-            Text(
-              widget.isArabic ? '\u0627\u0644\u0645\u062a\u062c\u0631' : 'Store',
-              style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
-            ),
-          ],
+    padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
+    child: Row(
+      textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+      children: [
+        IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
         ),
-      );
+        Text(
+          widget.isArabic ? '\u0627\u0644\u0645\u062a\u062c\u0631' : 'Store',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _buildFilters() {
     final chips = [
       ('all', widget.isArabic ? '\u0627\u0644\u0643\u0644' : 'All'),
-      ('avatar_frame', widget.isArabic ? '\u0627\u0644\u0625\u0637\u0627\u0631\u0627\u062a' : 'Frames'),
-      ('badge', widget.isArabic ? '\u0627\u0644\u0634\u0627\u0631\u0627\u062a' : 'Badges'),
+      (
+        'avatar_frame',
+        widget.isArabic
+            ? '\u0627\u0644\u0625\u0637\u0627\u0631\u0627\u062a'
+            : 'Frames',
+      ),
+      (
+        'badge',
+        widget.isArabic
+            ? '\u0627\u0644\u0634\u0627\u0631\u0627\u062a'
+            : 'Badges',
+      ),
     ];
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
@@ -126,18 +157,27 @@ class _StoreScreenState extends State<StoreScreen> {
               onTap: () => setState(() => _filter = c.$1),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
-                  color: selected ? const Color(0xFFF0C15A) : const Color(0xFF1B102A),
+                  color: selected
+                      ? const Color(0xFFF0C15A)
+                      : const Color(0xFF1B102A),
                   borderRadius: BorderRadius.circular(999),
                   border: Border.all(
-                    color: selected ? const Color(0xFFF0C15A) : const Color(0xFF4A3470),
+                    color: selected
+                        ? const Color(0xFFF0C15A)
+                        : const Color(0xFF4A3470),
                   ),
                 ),
                 child: Text(
                   c.$2,
                   style: TextStyle(
-                    color: selected ? const Color(0xFF160B26) : const Color(0xFFD8CFEA),
+                    color: selected
+                        ? const Color(0xFF160B26)
+                        : const Color(0xFFD8CFEA),
                     fontWeight: FontWeight.w800,
                     fontSize: 13,
                   ),
@@ -151,8 +191,21 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   Widget _buildBody() {
-    if (_loading) return const Center(child: CircularProgressIndicator(color: Color(0xFFF0C15A), strokeWidth: 2.5));
-    if (_error != null) return _ErrorView(message: _error!, isArabic: widget.isArabic, onRetry: _load);
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFFF0C15A),
+          strokeWidth: 2.5,
+        ),
+      );
+    }
+    if (_error != null) {
+      return _ErrorView(
+        message: _error!,
+        isArabic: widget.isArabic,
+        onRetry: _load,
+      );
+    }
     if (_filtered.isEmpty) return _EmptyView(isArabic: widget.isArabic);
 
     return RefreshIndicator(
@@ -183,7 +236,11 @@ class _StoreScreenState extends State<StoreScreen> {
 // ---------------------------------------------------------------------------
 
 class _StoreItemCard extends StatelessWidget {
-  const _StoreItemCard({required this.item, required this.isArabic, required this.onBuy});
+  const _StoreItemCard({
+    required this.item,
+    required this.isArabic,
+    required this.onBuy,
+  });
   final StoreItem item;
   final bool isArabic;
   final VoidCallback onBuy;
@@ -223,32 +280,59 @@ class _StoreItemCard extends StatelessWidget {
                   maxLines: 2,
                   textAlign: TextAlign.center,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.monetization_on_rounded, color: Color(0xFFF0C15A), size: 14),
+                    const Icon(
+                      Icons.monetization_on_rounded,
+                      color: Color(0xFFF0C15A),
+                      size: 14,
+                    ),
                     const SizedBox(width: 3),
                     Text(
                       _fmt(item.priceCoins),
-                      style: const TextStyle(color: Color(0xFFF0C15A), fontSize: 12, fontWeight: FontWeight.w900),
+                      style: const TextStyle(
+                        color: Color(0xFFF0C15A),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
                 item.owned
                     ? Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF2ECC71).withValues(alpha: 0.15),
+                          color: const Color(
+                            0xFF2ECC71,
+                          ).withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: const Color(0xFF2ECC71).withValues(alpha: 0.5)),
+                          border: Border.all(
+                            color: const Color(
+                              0xFF2ECC71,
+                            ).withValues(alpha: 0.5),
+                          ),
                         ),
                         child: Text(
-                          isArabic ? '\u2713 \u0645\u0645\u0644\u0648\u0643' : '\u2713 Owned',
-                          style: const TextStyle(color: Color(0xFF2ECC71), fontSize: 12, fontWeight: FontWeight.w800),
+                          isArabic
+                              ? '\u2713 \u0645\u0645\u0644\u0648\u0643'
+                              : '\u2713 Owned',
+                          style: const TextStyle(
+                            color: Color(0xFF2ECC71),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       )
                     : SizedBox(
@@ -259,12 +343,17 @@ class _StoreItemCard extends StatelessWidget {
                             backgroundColor: const Color(0xFFF0C15A),
                             foregroundColor: const Color(0xFF160B26),
                             padding: const EdgeInsets.symmetric(vertical: 7),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                             elevation: 0,
                           ),
                           child: Text(
                             isArabic ? '\u0634\u0631\u0627\u0621' : 'Buy',
-                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                       ),
@@ -277,8 +366,12 @@ class _StoreItemCard extends StatelessWidget {
   }
 
   String _fmt(int n) {
-    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(n % 1000000 == 0 ? 0 : 1)}M';
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}K';
+    if (n >= 1000000) {
+      return '${(n / 1000000).toStringAsFixed(n % 1000000 == 0 ? 0 : 1)}M';
+    }
+    if (n >= 1000) {
+      return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}K';
+    }
     return '$n';
   }
 }
@@ -305,9 +398,15 @@ class _ItemPreview extends StatelessWidget {
         gradient: const LinearGradient(
           colors: [Color(0xFF4B168C), Color(0xFF8B26D9)],
         ),
-        border: Border.all(color: const Color(0xFF8B26D9).withValues(alpha: 0.5)),
+        border: Border.all(
+          color: const Color(0xFF8B26D9).withValues(alpha: 0.5),
+        ),
       ),
-      child: const Icon(Icons.workspace_premium_rounded, color: Color(0xFFF0C15A), size: 32),
+      child: const Icon(
+        Icons.workspace_premium_rounded,
+        color: Color(0xFFF0C15A),
+        size: 32,
+      ),
     );
   }
 }
@@ -322,8 +421,12 @@ class _ConfirmBuyDialog extends StatelessWidget {
   final bool isArabic;
 
   String _fmt(int n) {
-    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(n % 1000000 == 0 ? 0 : 1)}M';
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}K';
+    if (n >= 1000000) {
+      return '${(n / 1000000).toStringAsFixed(n % 1000000 == 0 ? 0 : 1)}M';
+    }
+    if (n >= 1000) {
+      return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}K';
+    }
     return '$n';
   }
 
@@ -333,8 +436,13 @@ class _ConfirmBuyDialog extends StatelessWidget {
       backgroundColor: const Color(0xFF1B102A),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: Text(
-        isArabic ? '\u062a\u0623\u0643\u064a\u062f \u0627\u0644\u0634\u0631\u0627\u0621' : 'Confirm Purchase',
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+        isArabic
+            ? '\u062a\u0623\u0643\u064a\u062f \u0627\u0644\u0634\u0631\u0627\u0621'
+            : 'Confirm Purchase',
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w900,
+        ),
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -342,17 +450,29 @@ class _ConfirmBuyDialog extends StatelessWidget {
           Text(
             item.localName(isArabic),
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 15, fontWeight: FontWeight.w700),
+            style: const TextStyle(
+              color: Color(0xFFD8CFEA),
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.monetization_on_rounded, color: Color(0xFFF0C15A), size: 20),
+              const Icon(
+                Icons.monetization_on_rounded,
+                color: Color(0xFFF0C15A),
+                size: 20,
+              ),
               const SizedBox(width: 4),
               Text(
                 _fmt(item.priceCoins),
-                style: const TextStyle(color: Color(0xFFF0C15A), fontSize: 18, fontWeight: FontWeight.w900),
+                style: const TextStyle(
+                  color: Color(0xFFF0C15A),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ],
           ),
@@ -361,16 +481,24 @@ class _ConfirmBuyDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: Text(isArabic ? '\u0625\u0644\u063a\u0627\u0621' : 'Cancel', style: const TextStyle(color: Color(0xFF7A6890))),
+          child: Text(
+            isArabic ? '\u0625\u0644\u063a\u0627\u0621' : 'Cancel',
+            style: const TextStyle(color: Color(0xFF7A6890)),
+          ),
         ),
         ElevatedButton(
           onPressed: () => Navigator.pop(context, true),
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFFF0C15A),
             foregroundColor: const Color(0xFF160B26),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
-          child: Text(isArabic ? '\u0634\u0631\u0627\u0621' : 'Buy', style: const TextStyle(fontWeight: FontWeight.w900)),
+          child: Text(
+            isArabic ? '\u0634\u0631\u0627\u0621' : 'Buy',
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
         ),
       ],
     );
@@ -382,29 +510,44 @@ class _ConfirmBuyDialog extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.message, required this.isArabic, required this.onRetry});
+  const _ErrorView({
+    required this.message,
+    required this.isArabic,
+    required this.onRetry,
+  });
   final String message;
   final bool isArabic;
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline_rounded, color: Color(0xFFFF5C7A), size: 40),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 13)),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: onRetry,
-              child: Text(isArabic ? '\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629' : 'Retry',
-                  style: const TextStyle(color: Color(0xFFF0C15A))),
-            ),
-          ],
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(
+          Icons.error_outline_rounded,
+          color: Color(0xFFFF5C7A),
+          size: 40,
         ),
-      );
+        const SizedBox(height: 12),
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 13),
+        ),
+        const SizedBox(height: 16),
+        TextButton(
+          onPressed: onRetry,
+          child: Text(
+            isArabic
+                ? '\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629'
+                : 'Retry',
+            style: const TextStyle(color: Color(0xFFF0C15A)),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _EmptyView extends StatelessWidget {
@@ -413,16 +556,22 @@ class _EmptyView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.storefront_rounded, color: Color(0xFF4A3470), size: 56),
-            const SizedBox(height: 12),
-            Text(
-              isArabic ? '\u0627\u0644\u0645\u062a\u062c\u0631 \u0641\u0627\u0631\u063a \u062d\u0627\u0644\u064a\u0627\u064b' : 'No items available',
-              style: const TextStyle(color: Color(0xFF7A6890), fontSize: 15),
-            ),
-          ],
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(
+          Icons.storefront_rounded,
+          color: Color(0xFF4A3470),
+          size: 56,
         ),
-      );
+        const SizedBox(height: 12),
+        Text(
+          isArabic
+              ? '\u0627\u0644\u0645\u062a\u062c\u0631 \u0641\u0627\u0631\u063a \u062d\u0627\u0644\u064a\u0627\u064b'
+              : 'No items available',
+          style: const TextStyle(color: Color(0xFF7A6890), fontSize: 15),
+        ),
+      ],
+    ),
+  );
 }

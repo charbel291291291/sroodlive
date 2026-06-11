@@ -72,7 +72,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       _subscribe(cid);
     } catch (e) {
       if (!mounted) return;
-      setState(() { _error = e.toString(); _loading = false; });
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
     }
   }
 
@@ -88,7 +91,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             column: 'conversation_id',
             value: cid,
           ),
-          callback: (_) { if (mounted) unawaited(_reload()); },
+          callback: (_) {
+            if (mounted) unawaited(_reload());
+          },
         )
         .subscribe();
   }
@@ -104,7 +109,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   void _scrollToBottom() {
-    if (_scrollController.hasClients && _scrollController.position.hasContentDimensions) {
+    if (_scrollController.hasClients &&
+        _scrollController.position.hasContentDimensions) {
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 220),
@@ -125,14 +131,18 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         final msgs = await _service.fetchMessages(cid);
         if (mounted) {
           setState(() => _messages = msgs);
-          WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => _scrollToBottom(),
+          );
         }
       } else {
         await _load();
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -195,19 +205,38 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                   widget.targetName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w900),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-                const Text('Online', style: TextStyle(color: Color(0xFF63E6A1), fontSize: 11, fontWeight: FontWeight.w700)),
+                const Text(
+                  'Online',
+                  style: TextStyle(
+                    color: Color(0xFF63E6A1),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ],
             ),
           ),
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.call_rounded, color: Color(0xFFF0C15A), size: 22),
+            icon: const Icon(
+              Icons.call_rounded,
+              color: Color(0xFFF0C15A),
+              size: 22,
+            ),
           ),
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.videocam_rounded, color: Color(0xFFF0C15A), size: 22),
+            icon: const Icon(
+              Icons.videocam_rounded,
+              color: Color(0xFFF0C15A),
+              size: 22,
+            ),
           ),
         ],
       ),
@@ -216,16 +245,28 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   Widget _buildMessages(String? currentUserId, bool isArabic) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: Color(0xFF8B26D9)));
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFF8B26D9)),
+      );
     }
     if (_error != null) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFFF5C7A), fontSize: 13)),
+            Text(
+              _error!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Color(0xFFFF5C7A), fontSize: 13),
+            ),
             const SizedBox(height: 12),
-            TextButton(onPressed: _load, child: Text(isArabic ? 'إعادة' : 'Retry', style: const TextStyle(color: Color(0xFFF0C15A)))),
+            TextButton(
+              onPressed: _load,
+              child: Text(
+                isArabic ? 'إعادة' : 'Retry',
+                style: const TextStyle(color: Color(0xFFF0C15A)),
+              ),
+            ),
           ],
         ),
       );
@@ -235,11 +276,19 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.chat_bubble_outline_rounded, color: Color(0xFF2A1840), size: 56),
+            const Icon(
+              Icons.chat_bubble_outline_rounded,
+              color: Color(0xFF2A1840),
+              size: 56,
+            ),
             const SizedBox(height: 14),
             Text(
               isArabic ? 'ابدأ المحادثة' : 'Start the conversation',
-              style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 15, fontWeight: FontWeight.w700),
+              style: const TextStyle(
+                color: Color(0xFF9E91B8),
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),
@@ -255,7 +304,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         itemBuilder: (_, i) {
           final msg = _messages[i];
           final mine = msg.senderId == currentUserId;
-          final showDate = i == 0 || !_sameDay(_messages[i - 1].createdAt, msg.createdAt);
+          final showDate =
+              i == 0 || !_sameDay(_messages[i - 1].createdAt, msg.createdAt);
 
           return Column(
             children: [
@@ -270,7 +320,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   Widget _buildInput(bool isArabic) {
     return Container(
-      padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + MediaQuery.viewInsetsOf(context).bottom),
+      padding: EdgeInsets.fromLTRB(
+        12,
+        10,
+        12,
+        10 + MediaQuery.viewInsetsOf(context).bottom,
+      ),
       decoration: const BoxDecoration(
         color: Color(0xFF0D0718),
         border: Border(top: BorderSide(color: Color(0xFF1E1030))),
@@ -292,12 +347,21 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
                 minLines: 1,
                 maxLines: 5,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
                 decoration: InputDecoration(
                   hintText: isArabic ? 'اكتب رسالة...' : 'Write a message...',
-                  hintStyle: const TextStyle(color: Color(0xFF6E5A8A), fontSize: 14),
+                  hintStyle: const TextStyle(
+                    color: Color(0xFF6E5A8A),
+                    fontSize: 14,
+                  ),
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                 ),
                 onSubmitted: (_) => _send(),
               ),
@@ -311,15 +375,24 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: _sending ? const Color(0xFF3A174F) : const Color(0xFF8B26D9),
+                color: _sending
+                    ? const Color(0xFF3A174F)
+                    : const Color(0xFF8B26D9),
                 shape: BoxShape.circle,
               ),
               child: _sending
                   ? const Padding(
                       padding: EdgeInsets.all(12),
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
-                  : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                  : const Icon(
+                      Icons.send_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
             ),
           ),
         ],
@@ -353,10 +426,14 @@ class _MessageBubble extends StatelessWidget {
     return Align(
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.72),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.72,
+        ),
         margin: const EdgeInsets.only(bottom: 4),
         child: Column(
-          crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment: mine
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
           children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -365,10 +442,18 @@ class _MessageBubble extends StatelessWidget {
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(18),
                   topRight: const Radius.circular(18),
-                  bottomLeft: mine ? const Radius.circular(18) : const Radius.circular(4),
-                  bottomRight: mine ? const Radius.circular(4) : const Radius.circular(18),
+                  bottomLeft: mine
+                      ? const Radius.circular(18)
+                      : const Radius.circular(4),
+                  bottomRight: mine
+                      ? const Radius.circular(4)
+                      : const Radius.circular(18),
                 ),
-                border: mine ? null : Border.all(color: const Color(0xFF3A2060).withValues(alpha: 0.5)),
+                border: mine
+                    ? null
+                    : Border.all(
+                        color: const Color(0xFF3A2060).withValues(alpha: 0.5),
+                      ),
               ),
               child: Text(
                 message.body,
@@ -384,7 +469,11 @@ class _MessageBubble extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
               child: Text(
                 time,
-                style: const TextStyle(color: Color(0xFF6E5A8A), fontSize: 10, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  color: Color(0xFF6E5A8A),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -420,7 +509,14 @@ class _DateDivider extends StatelessWidget {
           const Expanded(child: Divider(color: Color(0xFF2A1840))),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Text(label, style: const TextStyle(color: Color(0xFF6E5A8A), fontSize: 11, fontWeight: FontWeight.w700)),
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF6E5A8A),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
           const Expanded(child: Divider(color: Color(0xFF2A1840))),
         ],

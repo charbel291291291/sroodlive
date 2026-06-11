@@ -33,14 +33,23 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final plans = await _service.getVipPlans();
       if (!mounted) return;
-      setState(() { _plans = plans; _loading = false; });
+      setState(() {
+        _plans = plans;
+        _loading = false;
+      });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _error = e.toString(); _loading = false; });
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
     }
   }
 
@@ -69,24 +78,35 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
   }
 
   Widget _buildHeader() => Padding(
-        padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
-        child: Row(
-          textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
-          children: [
-            IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
-            ),
-            Text(
-              widget.isArabic ? 'مركز VIP' : 'VIP Center',
-              style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
-            ),
-          ],
+    padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
+    child: Row(
+      textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+      children: [
+        IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
         ),
-      );
+        Text(
+          widget.isArabic ? 'مركز VIP' : 'VIP Center',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _buildBody() {
-    if (_loading) return const Center(child: CircularProgressIndicator(color: Color(0xFFF0C15A), strokeWidth: 2.5));
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFFF0C15A),
+          strokeWidth: 2.5,
+        ),
+      );
+    }
     if (_error != null) return _buildError();
 
     return RefreshIndicator(
@@ -104,19 +124,26 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
           const SizedBox(height: 20),
           Text(
             widget.isArabic ? 'خطط VIP' : 'VIP Plans',
-            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
           ),
           const SizedBox(height: 10),
-          ..._plans.map((plan) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _VipPlanCard(
-                  plan: plan,
-                  isCurrent: (plan['level'] as int?) == widget.currentVipLevel &&
-                      widget.currentVipLevel > 0,
-                  isArabic: widget.isArabic,
-                  onTap: () => _showUpgradeInfo(plan),
-                ),
-              )),
+          ..._plans.map(
+            (plan) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _VipPlanCard(
+                plan: plan,
+                isCurrent:
+                    (plan['level'] as int?) == widget.currentVipLevel &&
+                    widget.currentVipLevel > 0,
+                isArabic: widget.isArabic,
+                onTap: () => _showUpgradeInfo(plan),
+              ),
+            ),
+          ),
           const SizedBox(height: 8),
           _ContactSupportButton(isArabic: widget.isArabic),
         ],
@@ -140,22 +167,31 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
   }
 
   Widget _buildError() => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline_rounded, color: Color(0xFFFF5C7A), size: 40),
-            const SizedBox(height: 12),
-            Text(_error!, textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 13)),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: _load,
-              child: Text(widget.isArabic ? 'إعادة المحاولة' : 'Retry',
-                  style: const TextStyle(color: Color(0xFFF0C15A))),
-            ),
-          ],
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(
+          Icons.error_outline_rounded,
+          color: Color(0xFFFF5C7A),
+          size: 40,
         ),
-      );
+        const SizedBox(height: 12),
+        Text(
+          _error!,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 13),
+        ),
+        const SizedBox(height: 16),
+        TextButton(
+          onPressed: _load,
+          child: Text(
+            widget.isArabic ? 'إعادة المحاولة' : 'Retry',
+            style: const TextStyle(color: Color(0xFFF0C15A)),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -163,7 +199,11 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
 // ---------------------------------------------------------------------------
 
 class _CurrentStatusCard extends StatelessWidget {
-  const _CurrentStatusCard({required this.vipLevel, required this.expiresAt, required this.isArabic});
+  const _CurrentStatusCard({
+    required this.vipLevel,
+    required this.expiresAt,
+    required this.isArabic,
+  });
   final int vipLevel;
   final DateTime? expiresAt;
   final bool isArabic;
@@ -181,17 +221,21 @@ class _CurrentStatusCard extends StatelessWidget {
         gradient: reallyActive
             ? LinearGradient(
                 colors: [
-                  style?.glowColor.withValues(alpha: 0.3) ?? const Color(0xFF4B168C),
+                  style?.glowColor.withValues(alpha: 0.3) ??
+                      const Color(0xFF4B168C),
                   const Color(0xFF1B102A),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               )
-            : const LinearGradient(colors: [Color(0xFF1B102A), Color(0xFF12091D)]),
+            : const LinearGradient(
+                colors: [Color(0xFF1B102A), Color(0xFF12091D)],
+              ),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: reallyActive
-              ? style?.glowColor.withValues(alpha: 0.5) ?? const Color(0xFFF0C15A)
+              ? style?.glowColor.withValues(alpha: 0.5) ??
+                    const Color(0xFFF0C15A)
               : const Color(0xFF4A3470),
           width: reallyActive ? 1.5 : 1,
         ),
@@ -203,14 +247,20 @@ class _CurrentStatusCard extends StatelessWidget {
           const SizedBox(width: 16),
           Expanded(
             child: Column(
-              crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isArabic
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 Text(
                   reallyActive
-                      ? (isArabic ? 'VIP $vipLevel نشط' : 'VIP $vipLevel Active')
+                      ? (isArabic
+                            ? 'VIP $vipLevel نشط'
+                            : 'VIP $vipLevel Active')
                       : (isArabic ? 'لا يوجد VIP نشط' : 'No Active VIP'),
                   style: TextStyle(
-                    color: reallyActive ? const Color(0xFFF0C15A) : const Color(0xFF7A6890),
+                    color: reallyActive
+                        ? const Color(0xFFF0C15A)
+                        : const Color(0xFF7A6890),
                     fontSize: 16,
                     fontWeight: FontWeight.w900,
                   ),
@@ -221,14 +271,22 @@ class _CurrentStatusCard extends StatelessWidget {
                     isArabic
                         ? 'ينتهي: ${_fmtDate(expiresAt!)}'
                         : 'Expires: ${_fmtDate(expiresAt!)}',
-                    style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 12),
+                    style: const TextStyle(
+                      color: Color(0xFFD8CFEA),
+                      fontSize: 12,
+                    ),
                   ),
                 ],
                 if (!reallyActive) ...[
                   const SizedBox(height: 4),
                   Text(
-                    isArabic ? 'تواصل مع الدعم للحصول على VIP' : 'Contact support to get VIP',
-                    style: const TextStyle(color: Color(0xFF7A6890), fontSize: 12),
+                    isArabic
+                        ? 'تواصل مع الدعم للحصول على VIP'
+                        : 'Contact support to get VIP',
+                    style: const TextStyle(
+                      color: Color(0xFF7A6890),
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ],
@@ -259,8 +317,12 @@ class _VipPlanCard extends StatelessWidget {
   final VoidCallback onTap;
 
   String _fmt(int n) {
-    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(n % 1000000 == 0 ? 0 : 1)}M';
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}K';
+    if (n >= 1000000) {
+      return '${(n / 1000000).toStringAsFixed(n % 1000000 == 0 ? 0 : 1)}M';
+    }
+    if (n >= 1000) {
+      return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}K';
+    }
     return '$n';
   }
 
@@ -284,11 +346,17 @@ class _VipPlanCard extends StatelessWidget {
           border: Border.all(
             color: isCurrent
                 ? const Color(0xFFF0C15A)
-                : style?.glowColor.withValues(alpha: 0.3) ?? const Color(0xFF4A3470),
+                : style?.glowColor.withValues(alpha: 0.3) ??
+                      const Color(0xFF4A3470),
             width: isCurrent ? 1.5 : 1,
           ),
           boxShadow: isCurrent
-              ? [BoxShadow(color: const Color(0xFFF0C15A).withValues(alpha: 0.1), blurRadius: 12)]
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFFF0C15A).withValues(alpha: 0.1),
+                    blurRadius: 12,
+                  ),
+                ]
               : null,
         ),
         child: Row(
@@ -303,7 +371,10 @@ class _VipPlanCard extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
                   colors: style != null
-                      ? [style.glowColor, style.glowColor.withValues(alpha: 0.5)]
+                      ? [
+                          style.glowColor,
+                          style.glowColor.withValues(alpha: 0.5),
+                        ]
                       : [const Color(0xFF4B168C), const Color(0xFF8B26D9)],
                 ),
               ),
@@ -322,10 +393,14 @@ class _VipPlanCard extends StatelessWidget {
 
             Expanded(
               child: Column(
-                crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                crossAxisAlignment: isArabic
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
                 children: [
                   Row(
-                    textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+                    textDirection: isArabic
+                        ? TextDirection.rtl
+                        : TextDirection.ltr,
                     children: [
                       Expanded(
                         child: Text(
@@ -339,34 +414,59 @@ class _VipPlanCard extends StatelessWidget {
                       ),
                       if (isCurrent)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF0C15A).withValues(alpha: 0.15),
+                            color: const Color(
+                              0xFFF0C15A,
+                            ).withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: const Color(0xFFF0C15A).withValues(alpha: 0.5)),
+                            border: Border.all(
+                              color: const Color(
+                                0xFFF0C15A,
+                              ).withValues(alpha: 0.5),
+                            ),
                           ),
                           child: Text(
                             isArabic ? 'نشط' : 'Active',
                             style: const TextStyle(
-                                color: Color(0xFFF0C15A), fontSize: 11, fontWeight: FontWeight.w900),
+                              color: Color(0xFFF0C15A),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                            ),
                           ),
                         ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Row(
-                    textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+                    textDirection: isArabic
+                        ? TextDirection.rtl
+                        : TextDirection.ltr,
                     children: [
-                      const Icon(Icons.monetization_on_rounded, color: Color(0xFFF0C15A), size: 14),
+                      const Icon(
+                        Icons.monetization_on_rounded,
+                        color: Color(0xFFF0C15A),
+                        size: 14,
+                      ),
                       const SizedBox(width: 3),
                       Text(
                         _fmt(priceCoins),
-                        style: const TextStyle(color: Color(0xFFF0C15A), fontSize: 13, fontWeight: FontWeight.w900),
+                        style: const TextStyle(
+                          color: Color(0xFFF0C15A),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         isArabic ? '· $duration يوم' : '· $duration days',
-                        style: const TextStyle(color: Color(0xFF7A6890), fontSize: 12),
+                        style: const TextStyle(
+                          color: Color(0xFF7A6890),
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
@@ -375,25 +475,42 @@ class _VipPlanCard extends StatelessWidget {
                     Wrap(
                       spacing: 6,
                       runSpacing: 4,
-                      children: benefits.take(3).map((b) => Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1B102A),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFF3D2260)),
+                      children: benefits
+                          .take(3)
+                          .map(
+                            (b) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1B102A),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: const Color(0xFF3D2260),
+                                ),
+                              ),
+                              child: Text(
+                                b.toString(),
+                                style: const TextStyle(
+                                  color: Color(0xFFD8CFEA),
+                                  fontSize: 11,
+                                ),
+                              ),
                             ),
-                            child: Text(
-                              b.toString(),
-                              style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 11),
-                            ),
-                          )).toList(),
+                          )
+                          .toList(),
                     ),
                   ],
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            const Icon(Icons.chevron_right_rounded, color: Color(0xFF4A3470), size: 20),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Color(0xFF4A3470),
+              size: 20,
+            ),
           ],
         ),
       ),
@@ -416,8 +533,12 @@ class _UpgradeInfoSheet extends StatelessWidget {
   final bool isArabic;
 
   String _fmt(int n) {
-    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(n % 1000000 == 0 ? 0 : 1)}M';
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}K';
+    if (n >= 1000000) {
+      return '${(n / 1000000).toStringAsFixed(n % 1000000 == 0 ? 0 : 1)}M';
+    }
+    if (n >= 1000) {
+      return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}K';
+    }
     return '$n';
   }
 
@@ -467,8 +588,14 @@ class _UpgradeInfoSheet extends StatelessWidget {
                         shape: BoxShape.circle,
                         gradient: LinearGradient(
                           colors: style != null
-                              ? [style.glowColor, style.glowColor.withValues(alpha: 0.5)]
-                              : [const Color(0xFF4B168C), const Color(0xFF8B26D9)],
+                              ? [
+                                  style.glowColor,
+                                  style.glowColor.withValues(alpha: 0.5),
+                                ]
+                              : [
+                                  const Color(0xFF4B168C),
+                                  const Color(0xFF8B26D9),
+                                ],
                         ),
                       ),
                       child: Center(
@@ -495,8 +622,11 @@ class _UpgradeInfoSheet extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.monetization_on_rounded,
-                            color: Color(0xFFF0C15A), size: 18),
+                        const Icon(
+                          Icons.monetization_on_rounded,
+                          color: Color(0xFFF0C15A),
+                          size: 18,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           _fmt(priceCoins),
@@ -509,7 +639,10 @@ class _UpgradeInfoSheet extends StatelessWidget {
                         const SizedBox(width: 8),
                         Text(
                           isArabic ? '/ $duration يوم' : '/ $duration days',
-                          style: const TextStyle(color: Color(0xFF7A6890), fontSize: 14),
+                          style: const TextStyle(
+                            color: Color(0xFF7A6890),
+                            fontSize: 14,
+                          ),
                         ),
                       ],
                     ),
@@ -519,11 +652,15 @@ class _UpgradeInfoSheet extends StatelessWidget {
                         (b) => Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Row(
-                            textDirection:
-                                isArabic ? TextDirection.rtl : TextDirection.ltr,
+                            textDirection: isArabic
+                                ? TextDirection.rtl
+                                : TextDirection.ltr,
                             children: [
-                              const Icon(Icons.check_circle_outline_rounded,
-                                  color: Color(0xFF2ECC71), size: 16),
+                              const Icon(
+                                Icons.check_circle_outline_rounded,
+                                color: Color(0xFF2ECC71),
+                                size: 16,
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
@@ -548,11 +685,15 @@ class _UpgradeInfoSheet extends StatelessWidget {
                         border: Border.all(color: const Color(0xFF4A3470)),
                       ),
                       child: Row(
-                        textDirection:
-                            isArabic ? TextDirection.rtl : TextDirection.ltr,
+                        textDirection: isArabic
+                            ? TextDirection.rtl
+                            : TextDirection.ltr,
                         children: [
-                          const Icon(Icons.info_outline_rounded,
-                              color: Color(0xFFF0C15A), size: 20),
+                          const Icon(
+                            Icons.info_outline_rounded,
+                            color: Color(0xFFF0C15A),
+                            size: 20,
+                          ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
@@ -645,25 +786,44 @@ class _ContactSupportButton extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.support_agent_rounded, color: Colors.white, size: 24),
+            child: const Icon(
+              Icons.support_agent_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
-              crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isArabic
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 Text(
                   isArabic ? 'تواصل مع الدعم' : 'Contact Support',
-                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
                 Text(
-                  isArabic ? 'للاستفسار عن VIP والشحن' : 'For VIP & recharge enquiries',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 12),
+                  isArabic
+                      ? 'للاستفسار عن VIP والشحن'
+                      : 'For VIP & recharge enquiries',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.75),
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 22),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: Colors.white,
+            size: 22,
+          ),
         ],
       ),
     );

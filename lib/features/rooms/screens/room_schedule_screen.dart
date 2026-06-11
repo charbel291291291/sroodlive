@@ -63,7 +63,10 @@ class _RoomScheduleScreenState extends State<RoomScheduleScreen> {
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final me = SupabaseService.requiredClient.auth.currentUser?.id;
       if (me == null) throw Exception('Not logged in');
@@ -71,7 +74,9 @@ class _RoomScheduleScreenState extends State<RoomScheduleScreen> {
       final now = DateTime.now().toUtc().toIso8601String();
       final data = await SupabaseService.requiredClient
           .from('room_schedules')
-          .select('id, title, description, cover_url, host_id, scheduled_at, rsvp_count, profiles!room_schedules_host_id_fkey(display_name, avatar_url)')
+          .select(
+            'id, title, description, cover_url, host_id, scheduled_at, rsvp_count, profiles!room_schedules_host_id_fkey(display_name, avatar_url)',
+          )
           .gte('scheduled_at', now)
           .order('scheduled_at', ascending: true)
           .limit(50);
@@ -89,7 +94,9 @@ class _RoomScheduleScreenState extends State<RoomScheduleScreen> {
           hostId: hostId,
           hostName: p['display_name'] as String? ?? '',
           hostAvatar: p['avatar_url'] as String?,
-          scheduledAt: DateTime.tryParse(r['scheduled_at'].toString())?.toLocal() ?? DateTime.now(),
+          scheduledAt:
+              DateTime.tryParse(r['scheduled_at'].toString())?.toLocal() ??
+              DateTime.now(),
           rsvpCount: r['rsvp_count'] as int? ?? 0,
           isMyRoom: hostId == me,
         );
@@ -103,41 +110,60 @@ class _RoomScheduleScreenState extends State<RoomScheduleScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _error = e.toString(); _loading = false; });
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
     }
   }
 
   Future<void> _submit() async {
-    if (_titleCtrl.text.trim().isEmpty || _selectedDate == null || _selectedTime == null) return;
+    if (_titleCtrl.text.trim().isEmpty ||
+        _selectedDate == null ||
+        _selectedTime == null) {
+      return;
+    }
     setState(() => _submitting = true);
     try {
       final me = SupabaseService.requiredClient.auth.currentUser?.id;
       if (me == null) throw Exception('Not logged in');
 
       final scheduledAt = DateTime(
-        _selectedDate!.year, _selectedDate!.month, _selectedDate!.day,
-        _selectedTime!.hour, _selectedTime!.minute,
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        _selectedTime!.hour,
+        _selectedTime!.minute,
       ).toUtc();
 
       await SupabaseService.requiredClient.from('room_schedules').insert({
         'host_id': me,
         'title': _titleCtrl.text.trim(),
-        'description': _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+        'description': _descCtrl.text.trim().isEmpty
+            ? null
+            : _descCtrl.text.trim(),
         'scheduled_at': scheduledAt.toIso8601String(),
         'rsvp_count': 0,
       });
 
       _titleCtrl.clear();
       _descCtrl.clear();
-      setState(() { _selectedDate = null; _selectedTime = null; _showCreateForm = false; _submitting = false; });
+      setState(() {
+        _selectedDate = null;
+        _selectedTime = null;
+        _showCreateForm = false;
+        _submitting = false;
+      });
       _load();
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(e.toString()),
-        backgroundColor: const Color(0xFF3A1020),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: const Color(0xFF3A1020),
+        ),
+      );
     }
   }
 
@@ -150,11 +176,13 @@ class _RoomScheduleScreenState extends State<RoomScheduleScreen> {
         'user_id': me,
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(widget.isArabic ? 'تم تسجيل التذكير' : 'Reminder set!'),
-        backgroundColor: const Color(0xFF1A3A28),
-        duration: const Duration(seconds: 2),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(widget.isArabic ? 'تم تسجيل التذكير' : 'Reminder set!'),
+          backgroundColor: const Color(0xFF1A3A28),
+          duration: const Duration(seconds: 2),
+        ),
+      );
       _load();
     } catch (_) {}
   }
@@ -188,12 +216,16 @@ class _RoomScheduleScreenState extends State<RoomScheduleScreen> {
               _buildHeader(isArabic),
               Expanded(
                 child: _loading
-                    ? const Center(child: CircularProgressIndicator(color: Color(0xFF8B26D9)))
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF8B26D9),
+                        ),
+                      )
                     : _error != null
-                        ? _buildError(isArabic)
-                        : _showCreateForm
-                            ? _buildCreateForm(isArabic)
-                            : _buildList(isArabic),
+                    ? _buildError(isArabic)
+                    : _showCreateForm
+                    ? _buildCreateForm(isArabic)
+                    : _buildList(isArabic),
               ),
             ],
           ),
@@ -209,15 +241,24 @@ class _RoomScheduleScreenState extends State<RoomScheduleScreen> {
         textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
         children: [
           IconButton(
-            onPressed: _showCreateForm ? () => setState(() => _showCreateForm = false) : () => Navigator.of(context).pop(),
-            icon: Icon(isArabic ? Icons.arrow_forward_rounded : Icons.arrow_back_rounded, color: Colors.white),
+            onPressed: _showCreateForm
+                ? () => setState(() => _showCreateForm = false)
+                : () => Navigator.of(context).pop(),
+            icon: Icon(
+              isArabic ? Icons.arrow_forward_rounded : Icons.arrow_back_rounded,
+              color: Colors.white,
+            ),
           ),
           Expanded(
             child: Text(
               _showCreateForm
                   ? (isArabic ? 'جدولة غرفة' : 'Schedule a Room')
                   : (isArabic ? 'الغرف المجدولة' : 'Scheduled Rooms'),
-              style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
           if (!_showCreateForm)
@@ -225,7 +266,9 @@ class _RoomScheduleScreenState extends State<RoomScheduleScreen> {
               onPressed: () => setState(() => _showCreateForm = true),
               icon: const Icon(Icons.add_rounded, size: 18),
               label: Text(isArabic ? 'جديد' : 'New'),
-              style: TextButton.styleFrom(foregroundColor: const Color(0xFFF0C15A)),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFF0C15A),
+              ),
             ),
         ],
       ),
@@ -234,13 +277,30 @@ class _RoomScheduleScreenState extends State<RoomScheduleScreen> {
 
   Widget _buildError(bool isArabic) {
     return Center(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.error_outline_rounded, color: Color(0xFFFF5C7A), size: 36),
-        const SizedBox(height: 12),
-        Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 13)),
-        const SizedBox(height: 12),
-        TextButton(onPressed: _load, child: Text(isArabic ? 'إعادة' : 'Retry', style: const TextStyle(color: Color(0xFFF0C15A)))),
-      ]),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.error_outline_rounded,
+            color: Color(0xFFFF5C7A),
+            size: 36,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _error!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 13),
+          ),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: _load,
+            child: Text(
+              isArabic ? 'إعادة' : 'Retry',
+              style: const TextStyle(color: Color(0xFFF0C15A)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -248,15 +308,32 @@ class _RoomScheduleScreenState extends State<RoomScheduleScreen> {
     final all = [..._mine, ..._upcoming];
     if (all.isEmpty) {
       return Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.calendar_month_rounded, color: Color(0xFF2A1840), size: 64),
-          const SizedBox(height: 16),
-          Text(isArabic ? 'لا توجد غرف مجدولة' : 'No scheduled rooms',
-              style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 16, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          Text(isArabic ? 'كن أول من يجدول غرفة!' : 'Be the first to schedule one!',
-              style: const TextStyle(color: Color(0xFF6E5A8A), fontSize: 13)),
-        ]),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.calendar_month_rounded,
+              color: Color(0xFF2A1840),
+              size: 64,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              isArabic ? 'لا توجد غرف مجدولة' : 'No scheduled rooms',
+              style: const TextStyle(
+                color: Color(0xFF9E91B8),
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isArabic
+                  ? 'كن أول من يجدول غرفة!'
+                  : 'Be the first to schedule one!',
+              style: const TextStyle(color: Color(0xFF6E5A8A), fontSize: 13),
+            ),
+          ],
+        ),
       );
     }
 
@@ -268,13 +345,29 @@ class _RoomScheduleScreenState extends State<RoomScheduleScreen> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
           if (_mine.isNotEmpty) ...[
-            _sectionLabel(isArabic ? 'غرفي المجدولة' : 'My Scheduled Rooms', isArabic),
-            ..._mine.map((r) => _ScheduleTile(room: r, isArabic: isArabic, onRsvp: () => _rsvp(r.id), onDelete: () => _delete(r.id))),
+            _sectionLabel(
+              isArabic ? 'غرفي المجدولة' : 'My Scheduled Rooms',
+              isArabic,
+            ),
+            ..._mine.map(
+              (r) => _ScheduleTile(
+                room: r,
+                isArabic: isArabic,
+                onRsvp: () => _rsvp(r.id),
+                onDelete: () => _delete(r.id),
+              ),
+            ),
             const SizedBox(height: 16),
           ],
           if (_upcoming.isNotEmpty) ...[
             _sectionLabel(isArabic ? 'قادمة' : 'Upcoming', isArabic),
-            ..._upcoming.map((r) => _ScheduleTile(room: r, isArabic: isArabic, onRsvp: () => _rsvp(r.id))),
+            ..._upcoming.map(
+              (r) => _ScheduleTile(
+                room: r,
+                isArabic: isArabic,
+                onRsvp: () => _rsvp(r.id),
+              ),
+            ),
           ],
         ],
       ),
@@ -284,8 +377,15 @@ class _RoomScheduleScreenState extends State<RoomScheduleScreen> {
   Widget _sectionLabel(String text, bool isArabic) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Text(text,
-          style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Color(0xFF9E91B8),
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.5,
+        ),
+      ),
     );
   }
 
@@ -318,7 +418,10 @@ class _RoomScheduleScreenState extends State<RoomScheduleScreen> {
                 lastDate: DateTime.now().add(const Duration(days: 90)),
                 builder: (context, child) => Theme(
                   data: ThemeData.dark().copyWith(
-                    colorScheme: const ColorScheme.dark(primary: Color(0xFF8B26D9), surface: Color(0xFF1B102A)),
+                    colorScheme: const ColorScheme.dark(
+                      primary: Color(0xFF8B26D9),
+                      surface: Color(0xFF1B102A),
+                    ),
                   ),
                   child: child!,
                 ),
@@ -343,7 +446,10 @@ class _RoomScheduleScreenState extends State<RoomScheduleScreen> {
                 initialTime: TimeOfDay.now(),
                 builder: (context, child) => Theme(
                   data: ThemeData.dark().copyWith(
-                    colorScheme: const ColorScheme.dark(primary: Color(0xFF8B26D9), surface: Color(0xFF1B102A)),
+                    colorScheme: const ColorScheme.dark(
+                      primary: Color(0xFF8B26D9),
+                      surface: Color(0xFF1B102A),
+                    ),
                   ),
                   child: child!,
                 ),
@@ -361,19 +467,37 @@ class _RoomScheduleScreenState extends State<RoomScheduleScreen> {
           SizedBox(
             height: 52,
             child: FilledButton.icon(
-              onPressed: (_submitting || _titleCtrl.text.trim().isEmpty || _selectedDate == null || _selectedTime == null)
+              onPressed:
+                  (_submitting ||
+                      _titleCtrl.text.trim().isEmpty ||
+                      _selectedDate == null ||
+                      _selectedTime == null)
                   ? null
                   : _submit,
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFF8B26D9),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
               icon: _submitting
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : const Icon(Icons.check_rounded, size: 20),
-              label: Text(isArabic ? 'جدولة الغرفة' : 'Schedule Room',
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+              label: Text(
+                isArabic ? 'جدولة الغرفة' : 'Schedule Room',
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
             ),
           ),
         ],
@@ -387,7 +511,12 @@ class _RoomScheduleScreenState extends State<RoomScheduleScreen> {
 // ---------------------------------------------------------------------------
 
 class _ScheduleTile extends StatelessWidget {
-  const _ScheduleTile({required this.room, required this.isArabic, required this.onRsvp, this.onDelete});
+  const _ScheduleTile({
+    required this.room,
+    required this.isArabic,
+    required this.onRsvp,
+    this.onDelete,
+  });
 
   final _ScheduledRoom room;
   final bool isArabic;
@@ -406,12 +535,16 @@ class _ScheduleTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF160B24),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: room.isMyRoom
-            ? const Color(0xFF8B26D9).withValues(alpha: 0.5)
-            : const Color(0xFF6E3AA8).withValues(alpha: 0.35)),
+        border: Border.all(
+          color: room.isMyRoom
+              ? const Color(0xFF8B26D9).withValues(alpha: 0.5)
+              : const Color(0xFF6E3AA8).withValues(alpha: 0.35),
+        ),
       ),
       child: Column(
-        crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: isArabic
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
         children: [
           Row(
             textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
@@ -420,31 +553,62 @@ class _ScheduleTile extends StatelessWidget {
               CircleAvatar(
                 radius: 18,
                 backgroundColor: const Color(0xFF241638),
-                backgroundImage: room.hostAvatar != null ? NetworkImage(room.hostAvatar!) : null,
+                backgroundImage: room.hostAvatar != null
+                    ? NetworkImage(room.hostAvatar!)
+                    : null,
                 child: room.hostAvatar == null
-                    ? Text(room.hostName.isNotEmpty ? room.hostName[0].toUpperCase() : '?',
-                        style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900))
+                    ? Text(
+                        room.hostName.isNotEmpty
+                            ? room.hostName[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      )
                     : null,
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
-                  crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                  crossAxisAlignment: isArabic
+                      ? CrossAxisAlignment.end
+                      : CrossAxisAlignment.start,
                   children: [
-                    Text(room.title,
-                        maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900)),
-                    Text(room.hostName,
-                        style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 12)),
+                    Text(
+                      room.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    Text(
+                      room.hostName,
+                      style: const TextStyle(
+                        color: Color(0xFF9E91B8),
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
               ),
               if (onDelete != null)
                 IconButton(
                   onPressed: onDelete,
-                  icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFFF5C7A), size: 20),
+                  icon: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Color(0xFFFF5C7A),
+                    size: 20,
+                  ),
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
                 ),
             ],
           ),
@@ -453,11 +617,19 @@ class _ScheduleTile extends StatelessWidget {
           Row(
             textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
             children: [
-              const Icon(Icons.schedule_rounded, color: Color(0xFFF0C15A), size: 14),
+              const Icon(
+                Icons.schedule_rounded,
+                color: Color(0xFFF0C15A),
+                size: 14,
+              ),
               const SizedBox(width: 5),
               Text(
                 '${room.scheduledAt.day}/${room.scheduledAt.month}  ${room.scheduledAt.hour.toString().padLeft(2, '0')}:${room.scheduledAt.minute.toString().padLeft(2, '0')}',
-                style: const TextStyle(color: Color(0xFFF0C15A), fontSize: 12, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  color: Color(0xFFF0C15A),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(width: 8),
               Container(
@@ -466,18 +638,44 @@ class _ScheduleTile extends StatelessWidget {
                   color: const Color(0xFF8B26D9).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Text(timeLabel, style: const TextStyle(color: Color(0xFFCCA0FF), fontSize: 11, fontWeight: FontWeight.w800)),
+                child: Text(
+                  timeLabel,
+                  style: const TextStyle(
+                    color: Color(0xFFCCA0FF),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
               const Spacer(),
-              const Icon(Icons.people_rounded, color: Color(0xFF9E91B8), size: 14),
+              const Icon(
+                Icons.people_rounded,
+                color: Color(0xFF9E91B8),
+                size: 14,
+              ),
               const SizedBox(width: 4),
-              Text('${room.rsvpCount}', style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 12, fontWeight: FontWeight.w700)),
+              Text(
+                '${room.rsvpCount}',
+                style: const TextStyle(
+                  color: Color(0xFF9E91B8),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ],
           ),
           if (room.description?.isNotEmpty == true) ...[
             const SizedBox(height: 6),
-            Text(room.description!, maxLines: 2, overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Color(0xFFBCAED6), fontSize: 12, height: 1.4)),
+            Text(
+              room.description!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFFBCAED6),
+                fontSize: 12,
+                height: 1.4,
+              ),
+            ),
           ],
           if (!room.isMyRoom) ...[
             const SizedBox(height: 10),
@@ -488,16 +686,28 @@ class _ScheduleTile extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: const Color(0xFF1A3A28),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFF3ECC8C).withValues(alpha: 0.5)),
+                  border: Border.all(
+                    color: const Color(0xFF3ECC8C).withValues(alpha: 0.5),
+                  ),
                 ),
                 alignment: Alignment.center,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.notifications_active_rounded, color: Color(0xFF3ECC8C), size: 16),
+                    const Icon(
+                      Icons.notifications_active_rounded,
+                      color: Color(0xFF3ECC8C),
+                      size: 16,
+                    ),
                     const SizedBox(width: 6),
-                    Text(isArabic ? 'تذكيري' : 'Remind me',
-                        style: const TextStyle(color: Color(0xFF3ECC8C), fontSize: 13, fontWeight: FontWeight.w800)),
+                    Text(
+                      isArabic ? 'تذكيري' : 'Remind me',
+                      style: const TextStyle(
+                        color: Color(0xFF3ECC8C),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -509,9 +719,15 @@ class _ScheduleTile extends StatelessWidget {
   }
 
   String _countdown(Duration diff, bool isArabic) {
-    if (diff.inDays > 0) return isArabic ? 'بعد ${diff.inDays} يوم' : 'in ${diff.inDays}d';
-    if (diff.inHours > 0) return isArabic ? 'بعد ${diff.inHours} ساعة' : 'in ${diff.inHours}h';
-    if (diff.inMinutes > 0) return isArabic ? 'بعد ${diff.inMinutes} دقيقة' : 'in ${diff.inMinutes}m';
+    if (diff.inDays > 0) {
+      return isArabic ? 'بعد ${diff.inDays} يوم' : 'in ${diff.inDays}d';
+    }
+    if (diff.inHours > 0) {
+      return isArabic ? 'بعد ${diff.inHours} ساعة' : 'in ${diff.inHours}h';
+    }
+    if (diff.inMinutes > 0) {
+      return isArabic ? 'بعد ${diff.inMinutes} دقيقة' : 'in ${diff.inMinutes}m';
+    }
     return isArabic ? 'الآن' : 'Now';
   }
 }
@@ -521,7 +737,12 @@ class _ScheduleTile extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _FormField extends StatelessWidget {
-  const _FormField({required this.label, required this.controller, required this.isArabic, this.maxLines = 1});
+  const _FormField({
+    required this.label,
+    required this.controller,
+    required this.isArabic,
+    this.maxLines = 1,
+  });
   final String label;
   final TextEditingController controller;
   final bool isArabic;
@@ -530,9 +751,18 @@ class _FormField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: isArabic
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 12, fontWeight: FontWeight.w800)),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFF9E91B8),
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
@@ -542,9 +772,18 @@ class _FormField extends StatelessWidget {
           decoration: InputDecoration(
             filled: true,
             fillColor: const Color(0xFF160B24),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFF4A3470))),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFF4A3470))),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFF8B26D9))),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFF4A3470)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFF4A3470)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFF8B26D9)),
+            ),
             contentPadding: const EdgeInsets.all(14),
           ),
         ),
@@ -554,7 +793,12 @@ class _FormField extends StatelessWidget {
 }
 
 class _DateTimeChip extends StatelessWidget {
-  const _DateTimeChip({required this.label, required this.value, required this.icon, required this.isArabic});
+  const _DateTimeChip({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.isArabic,
+  });
   final String label;
   final String? value;
   final IconData icon;
@@ -567,14 +811,27 @@ class _DateTimeChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF160B24),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: value != null ? const Color(0xFF8B26D9) : const Color(0xFF4A3470)),
+        border: Border.all(
+          color: value != null
+              ? const Color(0xFF8B26D9)
+              : const Color(0xFF4A3470),
+        ),
       ),
       child: Row(
         textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
         children: [
-          Icon(icon, color: value != null ? const Color(0xFF8B26D9) : const Color(0xFF9E91B8), size: 18),
+          Icon(
+            icon,
+            color: value != null
+                ? const Color(0xFF8B26D9)
+                : const Color(0xFF9E91B8),
+            size: 18,
+          ),
           const SizedBox(width: 10),
-          Text(label, style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 13)),
+          Text(
+            label,
+            style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 13),
+          ),
           const Spacer(),
           Text(
             value ?? (isArabic ? 'اختر' : 'Select'),
@@ -585,7 +842,11 @@ class _DateTimeChip extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 4),
-          const Icon(Icons.chevron_right_rounded, color: Color(0xFF6E5A8A), size: 16),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: Color(0xFF6E5A8A),
+            size: 16,
+          ),
         ],
       ),
     );

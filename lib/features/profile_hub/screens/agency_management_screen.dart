@@ -75,7 +75,10 @@ class _AgencyManagementScreenState extends State<AgencyManagementScreen>
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final userId = SupabaseService.requiredClient.auth.currentUser?.id;
       if (userId == null) throw Exception('Not logged in');
@@ -83,13 +86,18 @@ class _AgencyManagementScreenState extends State<AgencyManagementScreen>
       // Find agency owned by current user
       final agencyRaw = await SupabaseService.requiredClient
           .from('agencies')
-          .select('id, name, country, commission_rate, monthly_target_coins, monthly_target_hours')
+          .select(
+            'id, name, country, commission_rate, monthly_target_coins, monthly_target_hours',
+          )
           .eq('owner_user_id', userId)
           .maybeSingle();
 
       if (agencyRaw == null) {
         if (!mounted) return;
-        setState(() { _agency = null; _loading = false; });
+        setState(() {
+          _agency = null;
+          _loading = false;
+        });
         return;
       }
 
@@ -98,12 +106,16 @@ class _AgencyManagementScreenState extends State<AgencyManagementScreen>
       final [membersRaw, appsRaw] = await Future.wait([
         SupabaseService.requiredClient
             .from('agency_members')
-            .select('id, user_id, role, status, joined_at, profiles(display_name, avatar_url)')
+            .select(
+              'id, user_id, role, status, joined_at, profiles(display_name, avatar_url)',
+            )
             .eq('agency_id', agencyId)
             .order('joined_at', ascending: false),
         SupabaseService.requiredClient
             .from('agency_applications')
-            .select('id, user_id, status, message, created_at, profiles(display_name, avatar_url)')
+            .select(
+              'id, user_id, status, message, created_at, profiles(display_name, avatar_url)',
+            )
             .eq('agency_id', agencyId)
             .order('created_at', ascending: false)
             .limit(50),
@@ -146,13 +158,20 @@ class _AgencyManagementScreenState extends State<AgencyManagementScreen>
       if (!mounted) return;
       setState(() {
         _agency = agencyRaw;
-        _members = (membersRaw as List).map((r) => mapMember(r as Map<String, dynamic>)).toList();
-        _applications = (appsRaw as List).map((r) => mapApp(r as Map<String, dynamic>)).toList();
+        _members = (membersRaw as List)
+            .map((r) => mapMember(r as Map<String, dynamic>))
+            .toList();
+        _applications = (appsRaw as List)
+            .map((r) => mapApp(r as Map<String, dynamic>))
+            .toList();
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _error = e.toString(); _loading = false; });
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
     }
   }
 
@@ -165,10 +184,12 @@ class _AgencyManagementScreenState extends State<AgencyManagementScreen>
       _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(e.toString()),
-        backgroundColor: const Color(0xFF3A1020),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: const Color(0xFF3A1020),
+        ),
+      );
     }
   }
 
@@ -181,10 +202,12 @@ class _AgencyManagementScreenState extends State<AgencyManagementScreen>
       _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(e.toString()),
-        backgroundColor: const Color(0xFF3A1020),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: const Color(0xFF3A1020),
+        ),
+      );
     }
   }
 
@@ -209,7 +232,9 @@ class _AgencyManagementScreenState extends State<AgencyManagementScreen>
 
   Widget _buildBody(bool isArabic) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: Color(0xFF8B26D9)));
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFF8B26D9)),
+      );
     }
 
     if (_error != null) {
@@ -217,14 +242,25 @@ class _AgencyManagementScreenState extends State<AgencyManagementScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline_rounded, color: Color(0xFFFF5C7A), size: 36),
+            const Icon(
+              Icons.error_outline_rounded,
+              color: Color(0xFFFF5C7A),
+              size: 36,
+            ),
             const SizedBox(height: 12),
-            Text(_error!, textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 13)),
+            Text(
+              _error!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 13),
+            ),
             const SizedBox(height: 12),
-            TextButton(onPressed: _load,
-                child: Text(isArabic ? 'إعادة' : 'Retry',
-                    style: const TextStyle(color: Color(0xFFF0C15A)))),
+            TextButton(
+              onPressed: _load,
+              child: Text(
+                isArabic ? 'إعادة' : 'Retry',
+                style: const TextStyle(color: Color(0xFFF0C15A)),
+              ),
+            ),
           ],
         ),
       );
@@ -249,12 +285,20 @@ class _AgencyManagementScreenState extends State<AgencyManagementScreen>
                         color: const Color(0xFF160B24),
                         border: Border.all(color: const Color(0xFF4A3470)),
                       ),
-                      child: const Icon(Icons.groups_rounded, color: Color(0xFF8B26D9), size: 36),
+                      child: const Icon(
+                        Icons.groups_rounded,
+                        color: Color(0xFF8B26D9),
+                        size: 36,
+                      ),
                     ),
                     const SizedBox(height: 20),
                     Text(
                       isArabic ? 'ليس لديك وكالة' : "You don't own an agency",
-                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -262,7 +306,11 @@ class _AgencyManagementScreenState extends State<AgencyManagementScreen>
                           ? 'قدّم طلباً لإنشاء وكالة من صفحة وكالتي'
                           : 'Apply to create an agency from My Agency page',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 14, height: 1.5),
+                      style: const TextStyle(
+                        color: Color(0xFF9E91B8),
+                        fontSize: 14,
+                        height: 1.5,
+                      ),
                     ),
                   ],
                 ),
@@ -274,7 +322,8 @@ class _AgencyManagementScreenState extends State<AgencyManagementScreen>
     }
 
     final agencyName = _agency!['name'] as String? ?? '';
-    final commissionRate = (_agency!['commission_rate'] as num?)?.toDouble() ?? 0;
+    final commissionRate =
+        (_agency!['commission_rate'] as num?)?.toDouble() ?? 0;
     final targetCoins = _agency!['monthly_target_coins'] as int? ?? 0;
 
     return Column(
@@ -288,19 +337,30 @@ class _AgencyManagementScreenState extends State<AgencyManagementScreen>
           decoration: BoxDecoration(
             color: const Color(0xFF160B24),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF6E3AA8).withValues(alpha: 0.4)),
+            border: Border.all(
+              color: const Color(0xFF6E3AA8).withValues(alpha: 0.4),
+            ),
           ),
           child: Row(
             textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
             children: [
               _stat(_members.length.toString(), isArabic ? 'عضو' : 'Members'),
               _statDiv(),
-              _stat('${commissionRate.toStringAsFixed(0)}%', isArabic ? 'العمولة' : 'Commission'),
-              _statDiv(),
-              _stat(_formatCoins(targetCoins), isArabic ? 'هدف شهري' : 'Monthly target'),
+              _stat(
+                '${commissionRate.toStringAsFixed(0)}%',
+                isArabic ? 'العمولة' : 'Commission',
+              ),
               _statDiv(),
               _stat(
-                _applications.where((a) => a.status == 'pending').length.toString(),
+                _formatCoins(targetCoins),
+                isArabic ? 'هدف شهري' : 'Monthly target',
+              ),
+              _statDiv(),
+              _stat(
+                _applications
+                    .where((a) => a.status == 'pending')
+                    .length
+                    .toString(),
                 isArabic ? 'طلبات' : 'Pending',
               ),
             ],
@@ -326,7 +386,10 @@ class _AgencyManagementScreenState extends State<AgencyManagementScreen>
             ),
             labelColor: Colors.white,
             unselectedLabelColor: const Color(0xFF9E91B8),
-            labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+            labelStyle: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
             dividerColor: Colors.transparent,
             tabs: [
               Tab(text: isArabic ? 'الأعضاء' : 'Members'),
@@ -335,19 +398,31 @@ class _AgencyManagementScreenState extends State<AgencyManagementScreen>
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(isArabic ? 'الطلبات' : 'Applications',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+                    Text(
+                      isArabic ? 'الطلبات' : 'Applications',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                     if (_applications.any((a) => a.status == 'pending')) ...[
                       const SizedBox(width: 4),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFF4D6D),
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
                           '${_applications.where((a) => a.status == 'pending').length}',
-                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
                       ),
                     ],
@@ -389,14 +464,25 @@ class _AgencyManagementScreenState extends State<AgencyManagementScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  agencyName ?? (isArabic ? 'إدارة الوكالة' : 'Agency Management'),
-                  style: const TextStyle(color: Colors.white, fontSize: 22,
-                      fontWeight: FontWeight.w900, height: 1.0),
+                  agencyName ??
+                      (isArabic ? 'إدارة الوكالة' : 'Agency Management'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    height: 1.0,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  isArabic ? 'إدارة الأعضاء والطلبات' : 'Manage members and applications',
-                  style: const TextStyle(color: Color(0xFFBCAED6), fontSize: 12, fontWeight: FontWeight.w700),
+                  isArabic
+                      ? 'إدارة الأعضاء والطلبات'
+                      : 'Manage members and applications',
+                  style: const TextStyle(
+                    color: Color(0xFFBCAED6),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ],
             ),
@@ -415,7 +501,11 @@ class _AgencyManagementScreenState extends State<AgencyManagementScreen>
       return Center(
         child: Text(
           isArabic ? 'لا يوجد أعضاء بعد' : 'No members yet',
-          style: const TextStyle(color: Color(0xFF6E5A8A), fontSize: 15, fontWeight: FontWeight.w700),
+          style: const TextStyle(
+            color: Color(0xFF6E5A8A),
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       );
     }
@@ -434,13 +524,16 @@ class _AgencyManagementScreenState extends State<AgencyManagementScreen>
             isArabic: isArabic,
             onViewProfile: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
-                builder: (_) => UserProfileScreen(userId: m.userId, isArabic: isArabic),
+                builder: (_) =>
+                    UserProfileScreen(userId: m.userId, isArabic: isArabic),
               ),
             ),
             onKick: m.status == 'active'
                 ? () => _confirmAction(
                     isArabic ? 'إزالة العضو؟' : 'Remove member?',
-                    isArabic ? 'هل تريد إزالة هذا العضو من الوكالة؟' : 'Remove this member from the agency?',
+                    isArabic
+                        ? 'هل تريد إزالة هذا العضو من الوكالة؟'
+                        : 'Remove this member from the agency?',
                     isArabic ? 'إزالة' : 'Remove',
                     () => _updateMemberStatus(m.memberId, 'removed'),
                     isArabic,
@@ -457,7 +550,11 @@ class _AgencyManagementScreenState extends State<AgencyManagementScreen>
       return Center(
         child: Text(
           isArabic ? 'لا توجد طلبات' : 'No applications',
-          style: const TextStyle(color: Color(0xFF6E5A8A), fontSize: 15, fontWeight: FontWeight.w700),
+          style: const TextStyle(
+            color: Color(0xFF6E5A8A),
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       );
     }
@@ -476,7 +573,8 @@ class _AgencyManagementScreenState extends State<AgencyManagementScreen>
             isArabic: isArabic,
             onViewProfile: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
-                builder: (_) => UserProfileScreen(userId: app.userId, isArabic: isArabic),
+                builder: (_) =>
+                    UserProfileScreen(userId: app.userId, isArabic: isArabic),
               ),
             ),
             onApprove: app.status == 'pending'
@@ -503,18 +601,34 @@ class _AgencyManagementScreenState extends State<AgencyManagementScreen>
       builder: (_) => AlertDialog(
         backgroundColor: const Color(0xFF1B102A),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+        title: Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
         content: Text(body, style: const TextStyle(color: Color(0xFFD8CFEA))),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text(isArabic ? 'إلغاء' : 'Cancel',
-                style: const TextStyle(color: Color(0xFF9E91B8))),
+            child: Text(
+              isArabic ? 'إلغاء' : 'Cancel',
+              style: const TextStyle(color: Color(0xFF9E91B8)),
+            ),
           ),
           TextButton(
-            onPressed: () { Navigator.of(context).pop(); onConfirm(); },
-            child: Text(confirmLabel,
-                style: const TextStyle(color: Color(0xFFFF5C7A), fontWeight: FontWeight.w900)),
+            onPressed: () {
+              Navigator.of(context).pop();
+              onConfirm();
+            },
+            child: Text(
+              confirmLabel,
+              style: const TextStyle(
+                color: Color(0xFFFF5C7A),
+                fontWeight: FontWeight.w900,
+              ),
+            ),
           ),
         ],
       ),
@@ -525,17 +639,30 @@ class _AgencyManagementScreenState extends State<AgencyManagementScreen>
     return Expanded(
       child: Column(
         children: [
-          Text(value,
-              style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900)),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
           const SizedBox(height: 2),
-          Text(label,
-              style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 10, fontWeight: FontWeight.w700)),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF9E91B8),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _statDiv() => Container(width: 1, height: 24, color: const Color(0xFF2A1A40));
+  Widget _statDiv() =>
+      Container(width: 1, height: 24, color: const Color(0xFF2A1A40));
 
   String _formatCoins(int n) {
     if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
@@ -575,7 +702,9 @@ class _MemberTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF160B24),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF6E3AA8).withValues(alpha: 0.35)),
+        border: Border.all(
+          color: const Color(0xFF6E3AA8).withValues(alpha: 0.35),
+        ),
       ),
       child: Row(
         textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
@@ -585,11 +714,19 @@ class _MemberTile extends StatelessWidget {
             child: CircleAvatar(
               radius: 22,
               backgroundColor: const Color(0xFF241638),
-              backgroundImage: member.avatarUrl != null ? NetworkImage(member.avatarUrl!) : null,
+              backgroundImage: member.avatarUrl != null
+                  ? NetworkImage(member.avatarUrl!)
+                  : null,
               child: member.avatarUrl == null
                   ? Text(
-                      member.displayName.isNotEmpty ? member.displayName[0].toUpperCase() : '?',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
+                      member.displayName.isNotEmpty
+                          ? member.displayName[0].toUpperCase()
+                          : '?',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                      ),
                     )
                   : null,
             ),
@@ -599,28 +736,55 @@ class _MemberTile extends StatelessWidget {
             child: GestureDetector(
               onTap: onViewProfile,
               child: Column(
-                crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                crossAxisAlignment: isArabic
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
                 children: [
-                  Text(member.displayName,
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
+                  Text(
+                    member.displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                   const SizedBox(height: 2),
                   Row(
-                    textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+                    textDirection: isArabic
+                        ? TextDirection.rtl
+                        : TextDirection.ltr,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: statusColor.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: statusColor.withValues(alpha: 0.4)),
+                          border: Border.all(
+                            color: statusColor.withValues(alpha: 0.4),
+                          ),
                         ),
-                        child: Text(member.status,
-                            style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.w800)),
+                        child: Text(
+                          member.status,
+                          style: TextStyle(
+                            color: statusColor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                       ),
                       const SizedBox(width: 6),
-                      Text(member.role,
-                          style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 11)),
+                      Text(
+                        member.role,
+                        style: const TextStyle(
+                          color: Color(0xFF9E91B8),
+                          fontSize: 11,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -630,7 +794,11 @@ class _MemberTile extends StatelessWidget {
           if (onKick != null)
             IconButton(
               onPressed: onKick,
-              icon: const Icon(Icons.person_remove_rounded, color: Color(0xFFFF5C7A), size: 20),
+              icon: const Icon(
+                Icons.person_remove_rounded,
+                color: Color(0xFFFF5C7A),
+                size: 20,
+              ),
               tooltip: isArabic ? 'إزالة' : 'Remove',
             ),
         ],
@@ -679,7 +847,9 @@ class _ApplicationTile extends StatelessWidget {
         ),
       ),
       child: Column(
-        crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: isArabic
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
         children: [
           Row(
             textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
@@ -689,20 +859,35 @@ class _ApplicationTile extends StatelessWidget {
                 child: CircleAvatar(
                   radius: 20,
                   backgroundColor: const Color(0xFF241638),
-                  backgroundImage: app.avatarUrl != null ? NetworkImage(app.avatarUrl!) : null,
+                  backgroundImage: app.avatarUrl != null
+                      ? NetworkImage(app.avatarUrl!)
+                      : null,
                   child: app.avatarUrl == null
                       ? Text(
-                          app.displayName.isNotEmpty ? app.displayName[0].toUpperCase() : '?',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14),
+                          app.displayName.isNotEmpty
+                              ? app.displayName[0].toUpperCase()
+                              : '?',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 14,
+                          ),
                         )
                       : null,
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(app.displayName,
-                    maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
+                child: Text(
+                  app.displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -711,16 +896,29 @@ class _ApplicationTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: statusColor.withValues(alpha: 0.5)),
                 ),
-                child: Text(app.status,
-                    style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w800)),
+                child: Text(
+                  app.status,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
             ],
           ),
           if (app.message?.isNotEmpty == true) ...[
             const SizedBox(height: 8),
-            Text(app.message!,
-                maxLines: 2, overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Color(0xFFBCAED6), fontSize: 12, height: 1.4)),
+            Text(
+              app.message!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFFBCAED6),
+                fontSize: 12,
+                height: 1.4,
+              ),
+            ),
           ],
           if (onApprove != null || onReject != null) ...[
             const SizedBox(height: 10),
@@ -736,17 +934,26 @@ class _ApplicationTile extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: const Color(0xFF0D2A1A),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFF3ECC8C).withValues(alpha: 0.5)),
+                          border: Border.all(
+                            color: const Color(
+                              0xFF3ECC8C,
+                            ).withValues(alpha: 0.5),
+                          ),
                         ),
                         alignment: Alignment.center,
                         child: Text(
                           isArabic ? 'قبول' : 'Approve',
-                          style: const TextStyle(color: Color(0xFF3ECC8C), fontSize: 13, fontWeight: FontWeight.w800),
+                          style: const TextStyle(
+                            color: Color(0xFF3ECC8C),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                if (onApprove != null && onReject != null) const SizedBox(width: 8),
+                if (onApprove != null && onReject != null)
+                  const SizedBox(width: 8),
                 if (onReject != null)
                   Expanded(
                     child: GestureDetector(
@@ -756,12 +963,20 @@ class _ApplicationTile extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: const Color(0xFF2A0D14),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFFF5C7A).withValues(alpha: 0.5)),
+                          border: Border.all(
+                            color: const Color(
+                              0xFFFF5C7A,
+                            ).withValues(alpha: 0.5),
+                          ),
                         ),
                         alignment: Alignment.center,
                         child: Text(
                           isArabic ? 'رفض' : 'Reject',
-                          style: const TextStyle(color: Color(0xFFFF5C7A), fontSize: 13, fontWeight: FontWeight.w800),
+                          style: const TextStyle(
+                            color: Color(0xFFFF5C7A),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
                     ),

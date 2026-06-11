@@ -18,10 +18,12 @@ class _DaySlot {
   _DaySlot({required this.enabled, required this.start, required this.end});
 
   Map<String, dynamic> toJson() => {
-        'enabled': enabled,
-        'start': '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}',
-        'end': '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}',
-      };
+    'enabled': enabled,
+    'start':
+        '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}',
+    'end':
+        '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}',
+  };
 }
 
 class _AvailabilityScreenState extends State<AvailabilityScreen> {
@@ -29,10 +31,22 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   bool _isSaving = false;
 
   static const List<String> _dayKeysEn = [
-    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
   ];
   static const List<String> _dayKeysAr = [
-    'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'
+    'الاثنين',
+    'الثلاثاء',
+    'الأربعاء',
+    'الخميس',
+    'الجمعة',
+    'السبت',
+    'الأحد',
   ];
 
   late final List<_DaySlot> _slots;
@@ -109,16 +123,15 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            widget.isArabic ? 'تم حفظ الجدول' : 'Schedule saved',
-          ),
+          content: Text(widget.isArabic ? 'تم حفظ الجدول' : 'Schedule saved'),
           backgroundColor: const Color(0xFF123A2A),
         ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -179,7 +192,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                     : ListView.separated(
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
                         itemCount: 7,
-                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        separatorBuilder: (_, _) => const SizedBox(height: 10),
                         itemBuilder: (_, i) => _buildDayCard(i, isArabic),
                       ),
               ),
@@ -231,8 +244,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
           const SizedBox(width: 4),
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isArabic
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 Text(
                   isArabic ? 'جدول الإتاحة' : 'Availability schedule',
@@ -302,7 +316,10 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
               const Spacer(),
               if (slot.enabled)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF3A174F),
                     borderRadius: BorderRadius.circular(999),

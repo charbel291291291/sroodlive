@@ -1307,7 +1307,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         ),
         action: permanentlyDenied
             ? SnackBarAction(
-                label: widget.isArabic ? '\u0627\u0644\u0625\u0639\u062f\u0627\u062f\u0627\u062a' : 'Settings',
+                label: widget.isArabic
+                    ? '\u0627\u0644\u0625\u0639\u062f\u0627\u062f\u0627\u062a'
+                    : 'Settings',
                 onPressed: openAppSettings,
               )
             : null,
@@ -1316,6 +1318,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
 
     return false;
   }
+
   Future<void> _syncMicConnectionWithSeat() async {
     if (_syncingMicConnection || !mounted) {
       return;
@@ -3485,7 +3488,8 @@ const List<RoomGift> _localLuxuryRoomGifts = [
     id: 'local-golden-lion',
     code: 'golden_lion',
     name: 'Golden Lion',
-    arabicName: '\u0627\u0644\u0623\u0633\u062f \u0627\u0644\u0630\u0647\u0628\u064a',
+    arabicName:
+        '\u0627\u0644\u0623\u0633\u062f \u0627\u0644\u0630\u0647\u0628\u064a',
     priceCoins: 999,
     icon: '',
     sortOrder: 90,

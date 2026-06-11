@@ -706,11 +706,13 @@ class AdminService {
   }) async {
     final client = SupabaseService.requiredClient;
     final path = 'banners/${DateTime.now().millisecondsSinceEpoch}_$filename';
-    await client.storage.from('admin-assets').uploadBinary(
-      path,
-      bytes,
-      fileOptions: FileOptions(contentType: contentType, upsert: true),
-    );
+    await client.storage
+        .from('admin-assets')
+        .uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(contentType: contentType, upsert: true),
+        );
     return client.storage.from('admin-assets').getPublicUrl(path);
   }
 }
