@@ -24,13 +24,15 @@ class _CoinPackage {
   });
 }
 
+// 1 USD = 500,000 coins (CoinConstants.coinsPerUsd).
+// Packages include a bonus tier that grows with package size.
 const _packages = [
-  _CoinPackage(coins: 100,   priceUsd: 1.00),
-  _CoinPackage(coins: 500,   priceUsd: 4.50,  popular: true),
-  _CoinPackage(coins: 1000,  priceUsd: 8.00),
-  _CoinPackage(coins: 2500,  priceUsd: 18.00, bestValue: true),
-  _CoinPackage(coins: 5000,  priceUsd: 35.00),
-  _CoinPackage(coins: 10000, priceUsd: 65.00),
+  _CoinPackage(coins: 500000,   priceUsd: 1.00),
+  _CoinPackage(coins: 2500000,  priceUsd: 5.00,   popular: true),
+  _CoinPackage(coins: 5250000,  priceUsd: 10.00),
+  _CoinPackage(coins: 13750000, priceUsd: 25.00,  bestValue: true),
+  _CoinPackage(coins: 28750000, priceUsd: 50.00),
+  _CoinPackage(coins: 60000000, priceUsd: 100.00),
 ];
 
 const _methods = ['Bank Transfer', 'PayPal', 'Wise', 'Agent Code'];

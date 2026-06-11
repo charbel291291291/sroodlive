@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../services/follow_service.dart';
+import 'user_profile_screen.dart';
 
 class FollowListScreen extends StatefulWidget {
   const FollowListScreen({
@@ -252,7 +253,13 @@ class _UserTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final dir = isArabic ? TextDirection.rtl : TextDirection.ltr;
 
-    return Container(
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => UserProfileScreen(userId: user.id, isArabic: isArabic),
+        ),
+      ),
+      child: Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFF160B24),
@@ -339,6 +346,7 @@ class _UserTile extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }

@@ -1,0 +1,1322 @@
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../models/room.dart';
+import '../models/room_announcement.dart';
+import '../models/room_ban.dart';
+import '../models/room_moderator.dart';
+import '../services/room_management_service.dart';
+import '../services/rooms_service.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Entry point: called only when _iAmRoomOwner == true
+// ─────────────────────────────────────────────────────────────────────────────
+
+class RoomOwnerManagementScreen extends StatefulWidget {
+  const RoomOwnerManagementScreen({
+    required this.room,
+    required this.isArabic,
+    super.key,
+  });
+
+  final Room room;
+  final bool isArabic;
+
+  @override
+  State<RoomOwnerManagementScreen> createState() =>
+      _RoomOwnerManagementScreenState();
+}
+
+class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
+    with SingleTickerProviderStateMixin {
+  static const _svc = RoomManagementService();
+  static const _roomSvc = RoomsService();
+
+  late final TabController _tabs;
+  bool _loading = true;
+
+  // Overview
+  Map<String, int> _stats = {};
+  bool _isLocked = false;
+  final _nameCtrl = TextEditingController();
+  final _descCtrl = TextEditingController();
+  bool _savingMeta = false;
+
+  // Members
+  List<Map<String, dynamic>> _members = [];
+
+  // Moderators
+  List<RoomModerator> _moderators = [];
+
+  // Bans
+  List<RoomBan> _bans = [];
+
+  // Announcement
+  RoomAnnouncement? _activeAnnouncement;
+  final _announcementCtrl = TextEditingController();
+  bool _savingAnnouncement = false;
+
+  // Schedules
+  List<Map<String, dynamic>> _schedules = [];
+
+  // Gift summary
+  List<Map<String, dynamic>> _giftSummary = [];
+
+  String get _roomId => widget.room.id;
+  bool get _isArabic => widget.isArabic;
+
+  // ── i18n helper ─────────────────────────────────────────────────────────
+  String _t(String ar, String en) => _isArabic ? ar : en;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabs = TabController(length: 5, vsync: this);
+    _isLocked = widget.room.isLocked;
+    _nameCtrl.text = widget.room.name;
+    _descCtrl.text = widget.room.description ?? '';
+    _loadAll();
+  }
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    _nameCtrl.dispose();
+    _descCtrl.dispose();
+    _announcementCtrl.dispose();
+    super.dispose();
+  }
+
+  // ── Data loading ────────────────────────────────────────────────────────
+
+  Future<void> _loadAll() async {
+    setState(() => _loading = true);
+    await Future.wait([
+      _loadStats(),
+      _loadMembers(),
+      _loadModerators(),
+      _loadBans(),
+      _loadAnnouncement(),
+      _loadSchedules(),
+      _loadGiftSummary(),
+    ]);
+    if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _loadStats() async {
+    try {
+      _stats = await _svc.getRoomStats(_roomId);
+    } catch (_) {}
+  }
+
+  Future<void> _loadMembers() async {
+    try {
+      final list = await _roomSvc.getActiveRoomMembers(_roomId);
+      _members = list
+          .map((m) => {
+                'user_id': m.userId,
+                'display_name': m.displayName ?? m.username ?? 'Unknown',
+                'avatar_url': m.avatarUrl,
+                'role': m.role,
+                'is_muted': m.isMuted,
+                'seat_number': m.seatNumber,
+              })
+          .toList();
+    } catch (_) {}
+  }
+
+  Future<void> _loadModerators() async {
+    try {
+      _moderators = await _svc.getModerators(_roomId);
+    } catch (_) {}
+  }
+
+  Future<void> _loadBans() async {
+    try {
+      _bans = await _svc.getBans(_roomId);
+    } catch (_) {}
+  }
+
+  Future<void> _loadAnnouncement() async {
+    try {
+      _activeAnnouncement = await _svc.getActiveAnnouncement(_roomId);
+      if (_activeAnnouncement != null) {
+        _announcementCtrl.text = _activeAnnouncement!.message;
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadSchedules() async {
+    try {
+      _schedules = await _svc.getRoomSchedules(_roomId);
+    } catch (_) {}
+  }
+
+  Future<void> _loadGiftSummary() async {
+    try {
+      _giftSummary = await _svc.getGiftSummary(_roomId);
+    } catch (_) {}
+  }
+
+  // ── Actions ──────────────────────────────────────────────────────────────
+
+  Future<void> _toggleLock() async {
+    try {
+      await _roomSvc.setRoomLocked(roomId: _roomId, isLocked: !_isLocked);
+      setState(() => _isLocked = !_isLocked);
+      _snack(_isLocked
+          ? _t('تم قفل الغرفة', 'Room locked')
+          : _t('تم فتح الغرفة', 'Room unlocked'));
+    } catch (e) {
+      _snack('${_t("خطأ", "Error")}: $e', error: true);
+    }
+  }
+
+  Future<void> _saveMeta() async {
+    setState(() => _savingMeta = true);
+    try {
+      await _svc.updateRoom(
+        _roomId,
+        name: _nameCtrl.text.trim(),
+        description: _descCtrl.text.trim(),
+      );
+      _snack(_t('تم الحفظ', 'Saved'));
+    } catch (e) {
+      _snack('${_t("خطأ", "Error")}: $e', error: true);
+    } finally {
+      if (mounted) setState(() => _savingMeta = false);
+    }
+  }
+
+  Future<void> _muteMember(String userId, bool mute) async {
+    try {
+      await _svc.ownerMuteMember(_roomId, userId, isMuted: mute);
+      await _loadMembers();
+      if (mounted) setState(() {});
+    } catch (e) {
+      _snack('${_t("خطأ", "Error")}: $e', error: true);
+    }
+  }
+
+  Future<void> _kickMember(String userId) async {
+    try {
+      await _roomSvc.removeMemberFromRoom(roomId: _roomId, userId: userId);
+      await _loadMembers();
+      if (mounted) setState(() {});
+      _snack(_t('تم الطرد', 'Member removed'));
+    } catch (e) {
+      _snack('${_t("خطأ", "Error")}: $e', error: true);
+    }
+  }
+
+  Future<void> _banMember(String userId, String name) async {
+    final reasonCtrl = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => _BanDialog(
+        isArabic: _isArabic,
+        userName: name,
+        reasonCtrl: reasonCtrl,
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await _svc.banUser(_roomId, userId, reason: reasonCtrl.text.trim());
+      await Future.wait([_loadMembers(), _loadBans()]);
+      if (mounted) setState(() {});
+      _snack(_t('تم حظر المستخدم', 'User banned'));
+    } catch (e) {
+      _snack('${_t("خطأ", "Error")}: $e', error: true);
+    }
+  }
+
+  Future<void> _unbanUser(RoomBan ban) async {
+    try {
+      await _svc.unbanUser(_roomId, ban.userId);
+      await _loadBans();
+      if (mounted) setState(() {});
+      _snack(_t('تم رفع الحظر', 'Ban removed'));
+    } catch (e) {
+      _snack('${_t("خطأ", "Error")}: $e', error: true);
+    }
+  }
+
+  Future<void> _promoteModerator(String userId, String name) async {
+    try {
+      await _svc.addModerator(_roomId, userId);
+      await _loadModerators();
+      if (mounted) setState(() {});
+      _snack(_t('تم تعيين مشرف', 'Moderator added'));
+    } catch (e) {
+      _snack('${_t("خطأ", "Error")}: $e', error: true);
+    }
+  }
+
+  Future<void> _removeModerator(RoomModerator mod) async {
+    try {
+      await _svc.removeModerator(mod.id);
+      await _loadModerators();
+      if (mounted) setState(() {});
+      _snack(_t('تم إزالة المشرف', 'Moderator removed'));
+    } catch (e) {
+      _snack('${_t("خطأ", "Error")}: $e', error: true);
+    }
+  }
+
+  Future<void> _saveAnnouncement() async {
+    final msg = _announcementCtrl.text.trim();
+    if (msg.isEmpty) return;
+    setState(() => _savingAnnouncement = true);
+    try {
+      await _svc.saveAnnouncement(_roomId, msg);
+      await _loadAnnouncement();
+      if (mounted) setState(() {});
+      _snack(_t('تم نشر الإعلان', 'Announcement published'));
+    } catch (e) {
+      _snack('${_t("خطأ", "Error")}: $e', error: true);
+    } finally {
+      if (mounted) setState(() => _savingAnnouncement = false);
+    }
+  }
+
+  Future<void> _clearAnnouncement() async {
+    try {
+      await _svc.deactivateAnnouncements(_roomId);
+      _announcementCtrl.clear();
+      _activeAnnouncement = null;
+      if (mounted) setState(() {});
+      _snack(_t('تم حذف الإعلان', 'Announcement cleared'));
+    } catch (e) {
+      _snack('${_t("خطأ", "Error")}: $e', error: true);
+    }
+  }
+
+  Future<void> _addSchedule() async {
+    final titleCtrl = TextEditingController();
+    DateTime? picked;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          backgroundColor: const Color(0xFF160B24),
+          title: Text(
+            _t('إضافة جلسة', 'Add Schedule'),
+            style: const TextStyle(color: Colors.white),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleCtrl,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: _t('العنوان', 'Title'),
+                  labelStyle: const TextStyle(color: Color(0xFF9E8AB8)),
+                  enabledBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Color(0xFF3A2460))),
+                  focusedBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Color(0xFF8B26D9))),
+                ),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFF0C15A),
+                  side: const BorderSide(color: Color(0xFF3A2460)),
+                ),
+                onPressed: () async {
+                  final dt = await showDatePicker(
+                    context: ctx,
+                    initialDate: DateTime.now().add(const Duration(days: 1)),
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                  );
+                  if (dt == null || !ctx.mounted) return;
+                  final tm = await showTimePicker(
+                    context: ctx,
+                    initialTime: TimeOfDay.now(),
+                  );
+                  if (tm == null) return;
+                  setSt(() => picked = DateTime(
+                        dt.year, dt.month, dt.day, tm.hour, tm.minute));
+                },
+                child: Text(
+                  picked == null
+                      ? _t('اختر الوقت', 'Pick time')
+                      : '${picked!.day}/${picked!.month}/${picked!.year} ${picked!.hour}:${picked!.minute.toString().padLeft(2, '0')}',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(_t('إلغاء', 'Cancel'),
+                  style: const TextStyle(color: Color(0xFF9E8AB8))),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8B26D9)),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(_t('حفظ', 'Save')),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true || picked == null || titleCtrl.text.trim().isEmpty) return;
+    try {
+      await _svc.createRoomSchedule(
+        roomId: _roomId,
+        title: titleCtrl.text.trim(),
+        scheduledAt: picked!,
+      );
+      await _loadSchedules();
+      if (mounted) setState(() {});
+    } catch (e) {
+      _snack('${_t("خطأ", "Error")}: $e', error: true);
+    }
+  }
+
+  Future<void> _deleteSchedule(String id) async {
+    try {
+      await _svc.deleteSchedule(id);
+      await _loadSchedules();
+      if (mounted) setState(() {});
+    } catch (e) {
+      _snack('${_t("خطأ", "Error")}: $e', error: true);
+    }
+  }
+
+  void _snack(String msg, {bool error = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: error ? Colors.red[800] : const Color(0xFF2A1745),
+    ));
+  }
+
+  // ── Build ────────────────────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: _isArabic ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
+        backgroundColor: const Color(0xFF07030D),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF12061F),
+          title: Text(
+            _t('إدارة الغرفة', 'Manage Room'),
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          ),
+          iconTheme: const IconThemeData(color: Color(0xFFBCAED6)),
+          bottom: TabBar(
+            controller: _tabs,
+            isScrollable: true,
+            indicatorColor: const Color(0xFF8B26D9),
+            labelColor: const Color(0xFFF0C15A),
+            unselectedLabelColor: const Color(0xFF9E8AB8),
+            tabAlignment: TabAlignment.start,
+            tabs: [
+              Tab(text: _t('نظرة عامة', 'Overview')),
+              Tab(text: _t('الأعضاء', 'Members')),
+              Tab(text: _t('المشرفون', 'Mods')),
+              Tab(text: _t('الحظر', 'Bans')),
+              Tab(text: _t('المحتوى', 'Content')),
+            ],
+          ),
+        ),
+        body: _loading
+            ? const Center(
+                child: CircularProgressIndicator(color: Color(0xFF8B26D9)))
+            : TabBarView(
+                controller: _tabs,
+                children: [
+                  _buildOverviewTab(),
+                  _buildMembersTab(),
+                  _buildModsTab(),
+                  _buildBansTab(),
+                  _buildContentTab(),
+                ],
+              ),
+      ),
+    );
+  }
+
+  // ── Tab: Overview ────────────────────────────────────────────────────────
+
+  Widget _buildOverviewTab() {
+    return RefreshIndicator(
+      onRefresh: _loadAll,
+      color: const Color(0xFF8B26D9),
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _SectionHeader(label: _t('إحصائيات', 'Stats')),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _StatChip(
+                  label: _t('مستمعون', 'Listeners'),
+                  value: '${_stats['listeners'] ?? 0}'),
+              _StatChip(
+                  label: _t('متحدثون', 'Speakers'),
+                  value: '${_stats['speakers'] ?? 0}'),
+              _StatChip(
+                  label: _t('الهدايا', 'Gifts'),
+                  value: _formatCoins(_stats['total_gift_coins'] ?? 0),
+                  gold: true),
+              _StatChip(
+                  label: _t('محظورون', 'Banned'),
+                  value: '${_stats['ban_count'] ?? 0}',
+                  red: (_stats['ban_count'] ?? 0) > 0),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _SectionHeader(label: _t('قفل الغرفة', 'Room Lock')),
+          const SizedBox(height: 8),
+          _GlassCard(
+            child: Row(
+              children: [
+                Icon(
+                  _isLocked ? Icons.lock_rounded : Icons.lock_open_rounded,
+                  color: _isLocked
+                      ? const Color(0xFFF0C15A)
+                      : const Color(0xFF9E8AB8),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _isLocked
+                        ? _t('الغرفة مقفلة', 'Room is locked')
+                        : _t('الغرفة مفتوحة', 'Room is open'),
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                  ),
+                ),
+                Switch(
+                  value: _isLocked,
+                  activeThumbColor: const Color(0xFF8B26D9),
+                  onChanged: (_) => _toggleLock(),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          _SectionHeader(label: _t('تعديل معلومات الغرفة', 'Edit Room Info')),
+          const SizedBox(height: 8),
+          _GlassCard(
+            child: Column(
+              children: [
+                _Field(
+                  ctrl: _nameCtrl,
+                  label: _t('اسم الغرفة', 'Room Name'),
+                ),
+                const SizedBox(height: 12),
+                _Field(
+                  ctrl: _descCtrl,
+                  label: _t('الوصف', 'Description'),
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF8B26D9),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: _savingMeta ? null : _saveMeta,
+                    child: _savingMeta
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2),
+                          )
+                        : Text(_t('حفظ', 'Save')),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _ComingSoonRow(label: _t('تغيير صورة الغرفة', 'Change Room Image')),
+                _ComingSoonRow(label: _t('موسيقى الغرفة', 'Room Music')),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildGiftAnalyticsSection(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGiftAnalyticsSection() {
+    if (_giftSummary.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SectionHeader(label: _t('ملخص الهدايا', 'Gift Summary')),
+          const SizedBox(height: 8),
+          _GlassCard(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  _t('لا توجد هدايا بعد', 'No gifts yet'),
+                  style: const TextStyle(color: Color(0xFF9E8AB8)),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionHeader(label: _t('ملخص الهدايا', 'Gift Summary')),
+        const SizedBox(height: 8),
+        _GlassCard(
+          child: Column(
+            children: _giftSummary.take(10).map((g) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    const Text('\u{1F381}',
+                        style: TextStyle(fontSize: 18)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        g['gift_name'] as String? ?? g['gift_code'] as String,
+                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                      ),
+                    ),
+                    Text(
+                      '×${g['count']}',
+                      style: const TextStyle(
+                          color: Color(0xFF9E8AB8), fontSize: 12),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _formatCoins(g['total_coins'] as int),
+                      style: const TextStyle(
+                          color: Color(0xFFF0C15A), fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Tab: Members ─────────────────────────────────────────────────────────
+
+  Widget _buildMembersTab() {
+    if (_members.isEmpty) {
+      return Center(
+        child: Text(
+          _t('لا يوجد أعضاء نشطون', 'No active members'),
+          style: const TextStyle(color: Color(0xFF9E8AB8)),
+        ),
+      );
+    }
+
+    final currentUserId =
+        Supabase.instance.client.auth.currentUser?.id ?? '';
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        await _loadMembers();
+        if (mounted) setState(() {});
+      },
+      color: const Color(0xFF8B26D9),
+      child: ListView.builder(
+        padding: const EdgeInsets.all(12),
+        itemCount: _members.length,
+        itemBuilder: (_, i) {
+          final m = _members[i];
+          final uid = m['user_id'] as String;
+          if (uid == currentUserId) return const SizedBox.shrink();
+
+          final name = m['display_name'] as String? ?? 'Unknown';
+          final role = m['role'] as String? ?? 'listener';
+          final isMuted = (m['is_muted'] as bool?) ?? false;
+
+          return _GlassCard(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                _Avatar(url: m['avatar_url'] as String?),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(name,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13)),
+                      Text(role,
+                          style: const TextStyle(
+                              color: Color(0xFF9E8AB8), fontSize: 11)),
+                    ],
+                  ),
+                ),
+                _ActionIcon(
+                  icon: isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
+                  color: isMuted ? Colors.red[400]! : const Color(0xFF6E3AA8),
+                  tooltip: isMuted
+                      ? _t('إلغاء كتم الصوت', 'Unmute')
+                      : _t('كتم الصوت', 'Mute'),
+                  onTap: () => _muteMember(uid, !isMuted),
+                ),
+                const SizedBox(width: 4),
+                _ActionIcon(
+                  icon: Icons.shield_rounded,
+                  color: const Color(0xFF8B26D9),
+                  tooltip: _t('تعيين مشرف', 'Make Mod'),
+                  onTap: () => _promoteModerator(uid, name),
+                ),
+                const SizedBox(width: 4),
+                _ActionIcon(
+                  icon: Icons.logout_rounded,
+                  color: Colors.orange,
+                  tooltip: _t('طرد', 'Kick'),
+                  onTap: () => _kickMember(uid),
+                ),
+                const SizedBox(width: 4),
+                _ActionIcon(
+                  icon: Icons.block_rounded,
+                  color: Colors.red,
+                  tooltip: _t('حظر', 'Ban'),
+                  onTap: () => _banMember(uid, name),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ── Tab: Moderators ──────────────────────────────────────────────────────
+
+  Widget _buildModsTab() {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _t('المشرفون (${_moderators.length})',
+                      'Moderators (${_moderators.length})'),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+        ),
+        _ComingSoonBanner(
+            label: _t(
+                'سيتم قريباً: ضبط الصلاحيات التفصيلية',
+                'Coming soon: granular permission controls')),
+        Expanded(
+          child: _moderators.isEmpty
+              ? Center(
+                  child: Text(
+                    _t('لا يوجد مشرفون', 'No moderators yet'),
+                    style: const TextStyle(color: Color(0xFF9E8AB8)),
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: () async {
+                    await _loadModerators();
+                    if (mounted) setState(() {});
+                  },
+                  color: const Color(0xFF8B26D9),
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    itemCount: _moderators.length,
+                    itemBuilder: (_, i) {
+                      final mod = _moderators[i];
+                      return _GlassCard(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        child: Row(
+                          children: [
+                            _Avatar(url: mod.avatarUrl),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                mod.displayName ?? mod.userId.substring(0, 8),
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            _permIcon(mod.canMute, Icons.mic_off_rounded),
+                            _permIcon(mod.canKick, Icons.logout_rounded),
+                            const SizedBox(width: 4),
+                            _ActionIcon(
+                              icon: Icons.remove_circle_rounded,
+                              color: Colors.red,
+                              tooltip: _t('إزالة', 'Remove'),
+                              onTap: () => _removeModerator(mod),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _permIcon(bool enabled, IconData icon) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: Icon(icon,
+            size: 16,
+            color: enabled
+                ? const Color(0xFF8B26D9)
+                : const Color(0xFF3A2460)),
+      );
+
+  // ── Tab: Bans ─────────────────────────────────────────────────────────────
+
+  Widget _buildBansTab() {
+    return _bans.isEmpty
+        ? Center(
+            child: Text(
+              _t('لا يوجد محظورون', 'No banned users'),
+              style: const TextStyle(color: Color(0xFF9E8AB8)),
+            ),
+          )
+        : RefreshIndicator(
+            onRefresh: () async {
+              await _loadBans();
+              if (mounted) setState(() {});
+            },
+            color: const Color(0xFF8B26D9),
+            child: ListView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: _bans.length,
+              itemBuilder: (_, i) {
+                final ban = _bans[i];
+                return _GlassCard(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  child: Row(
+                    children: [
+                      _Avatar(url: ban.avatarUrl),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              ban.displayName ??
+                                  ban.userId.substring(0, 8),
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13),
+                            ),
+                            if (ban.reason?.isNotEmpty == true)
+                              Text(
+                                ban.reason!,
+                                style: const TextStyle(
+                                    color: Color(0xFF9E8AB8), fontSize: 11),
+                              ),
+                            Text(
+                              ban.isPermanent
+                                  ? _t('حظر دائم', 'Permanent')
+                                  : '${_t('ينتهي في', 'Expires')} ${ban.expiresAt!.day}/${ban.expiresAt!.month}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: ban.isExpired
+                                    ? Colors.green
+                                    : Colors.red[300],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      _ActionIcon(
+                        icon: Icons.lock_open_rounded,
+                        color: Colors.green,
+                        tooltip: _t('رفع الحظر', 'Unban'),
+                        onTap: () => _unbanUser(ban),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          );
+  }
+
+  // ── Tab: Content ─────────────────────────────────────────────────────────
+
+  Widget _buildContentTab() {
+    return RefreshIndicator(
+      onRefresh: () async {
+        await Future.wait([_loadAnnouncement(), _loadSchedules()]);
+        if (mounted) setState(() {});
+      },
+      color: const Color(0xFF8B26D9),
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _SectionHeader(
+              label: _t('إعلان الغرفة', 'Room Announcement')),
+          const SizedBox(height: 8),
+          _GlassCard(
+            child: Column(
+              children: [
+                TextField(
+                  controller: _announcementCtrl,
+                  maxLines: 3,
+                  maxLength: 280,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  decoration: InputDecoration(
+                    labelText: _t('نص الإعلان', 'Announcement text'),
+                    labelStyle: const TextStyle(color: Color(0xFF9E8AB8)),
+                    counterStyle: const TextStyle(color: Color(0xFF9E8AB8)),
+                    enabledBorder: const OutlineInputBorder(
+                        borderSide: BorderSide(color: Color(0xFF3A2460))),
+                    focusedBorder: const OutlineInputBorder(
+                        borderSide: BorderSide(color: Color(0xFF8B26D9))),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF8B26D9),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed:
+                            _savingAnnouncement ? null : _saveAnnouncement,
+                        child: _savingAnnouncement
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2),
+                              )
+                            : Text(_t('نشر', 'Publish')),
+                      ),
+                    ),
+                    if (_activeAnnouncement != null) ...[
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red[400],
+                          side: BorderSide(color: Colors.red[800]!),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: _clearAnnouncement,
+                        child: Text(_t('حذف', 'Clear')),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: _SectionHeader(
+                    label: _t('جدول البث', 'Schedule')),
+              ),
+              IconButton(
+                icon: const Icon(Icons.add_circle_rounded,
+                    color: Color(0xFF8B26D9)),
+                tooltip: _t('إضافة جلسة', 'Add Session'),
+                onPressed: _addSchedule,
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          if (_schedules.isEmpty)
+            _GlassCard(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Text(
+                    _t('لا توجد جلسات مجدولة', 'No scheduled sessions'),
+                    style: const TextStyle(color: Color(0xFF9E8AB8)),
+                  ),
+                ),
+              ),
+            )
+          else
+            ..._schedules.map((s) {
+              final dt = DateTime.tryParse(s['scheduled_at'] as String? ?? '');
+              return _GlassCard(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                child: Row(
+                  children: [
+                    const Icon(Icons.calendar_today_rounded,
+                        color: Color(0xFF8B26D9), size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            s['title'] as String? ?? '',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13),
+                          ),
+                          if (dt != null)
+                            Text(
+                              '${dt.day}/${dt.month}/${dt.year} ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}',
+                              style: const TextStyle(
+                                  color: Color(0xFF9E8AB8), fontSize: 11),
+                            ),
+                        ],
+                      ),
+                    ),
+                    _ActionIcon(
+                      icon: Icons.delete_rounded,
+                      color: Colors.red,
+                      tooltip: _t('حذف', 'Delete'),
+                      onTap: () => _deleteSchedule(s['id'] as String),
+                    ),
+                  ],
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  String _formatCoins(int coins) {
+    if (coins >= 1000000) return '${(coins / 1000000).toStringAsFixed(1)}M';
+    if (coins >= 1000) return '${(coins / 1000).toStringAsFixed(1)}K';
+    return '$coins';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Ban dialog
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _BanDialog extends StatelessWidget {
+  const _BanDialog({
+    required this.isArabic,
+    required this.userName,
+    required this.reasonCtrl,
+  });
+
+  final bool isArabic;
+  final String userName;
+  final TextEditingController reasonCtrl;
+
+  String _t(String ar, String en) => isArabic ? ar : en;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: const Color(0xFF160B24),
+      title: Text(
+        '${_t("حظر", "Ban")} $userName',
+        style: const TextStyle(color: Colors.white),
+      ),
+      content: TextField(
+        controller: reasonCtrl,
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          labelText: _t('سبب (اختياري)', 'Reason (optional)'),
+          labelStyle: const TextStyle(color: Color(0xFF9E8AB8)),
+          enabledBorder: const OutlineInputBorder(
+              borderSide: BorderSide(color: Color(0xFF3A2460))),
+          focusedBorder: const OutlineInputBorder(
+              borderSide: BorderSide(color: Color(0xFF8B26D9))),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text(_t('إلغاء', 'Cancel'),
+              style: const TextStyle(color: Color(0xFF9E8AB8))),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red[800]),
+          onPressed: () => Navigator.pop(context, true),
+          child: Text(_t('حظر', 'Ban')),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reusable widgets
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _GlassCard extends StatelessWidget {
+  const _GlassCard({required this.child, this.padding});
+
+  final Widget child;
+  final EdgeInsetsGeometry? padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: padding ?? const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF160B24),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF2A1745)),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: const TextStyle(
+        color: Color(0xFFF0C15A),
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.5,
+      ),
+    );
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  const _StatChip({
+    required this.label,
+    required this.value,
+    this.gold = false,
+    this.red = false,
+  });
+
+  final String label;
+  final String value;
+  final bool gold;
+  final bool red;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A0E2B),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF2A1745)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              color: red
+                  ? Colors.red[400]
+                  : gold
+                      ? const Color(0xFFF0C15A)
+                      : Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(label,
+              style:
+                  const TextStyle(color: Color(0xFF9E8AB8), fontSize: 11)),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionIcon extends StatelessWidget {
+  const _ActionIcon({
+    required this.icon,
+    required this.color,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Icon(icon, color: color, size: 20),
+        ),
+      ),
+    );
+  }
+}
+
+class _Avatar extends StatelessWidget {
+  const _Avatar({this.url});
+  final String? url;
+
+  @override
+  Widget build(BuildContext context) {
+    return CircleAvatar(
+      radius: 18,
+      backgroundColor: const Color(0xFF2A1745),
+      backgroundImage: url != null ? NetworkImage(url!) : null,
+      child: url == null
+          ? const Icon(Icons.person, color: Color(0xFF9E8AB8), size: 18)
+          : null,
+    );
+  }
+}
+
+class _Field extends StatelessWidget {
+  const _Field({
+    required this.ctrl,
+    required this.label,
+    this.maxLines = 1,
+  });
+
+  final TextEditingController ctrl;
+  final String label;
+  final int maxLines;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: ctrl,
+      maxLines: maxLines,
+      style: const TextStyle(color: Colors.white, fontSize: 13),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Color(0xFF9E8AB8)),
+        enabledBorder: const OutlineInputBorder(
+            borderSide: BorderSide(color: Color(0xFF3A2460))),
+        focusedBorder: const OutlineInputBorder(
+            borderSide: BorderSide(color: Color(0xFF8B26D9))),
+      ),
+    );
+  }
+}
+
+class _ComingSoonRow extends StatelessWidget {
+  const _ComingSoonRow({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          const Icon(Icons.schedule_rounded,
+              size: 14, color: Color(0xFF6E3AA8)),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(label,
+                style:
+                    const TextStyle(color: Color(0xFF9E8AB8), fontSize: 12)),
+          ),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A0E2B),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: const Color(0xFF3A2460)),
+            ),
+            child: const Text('Coming Soon',
+                style: TextStyle(
+                    color: Color(0xFF6E3AA8),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ComingSoonBanner extends StatelessWidget {
+  const _ComingSoonBanner({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A0E2B),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF3A2460)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.schedule_rounded,
+              size: 14, color: Color(0xFF6E3AA8)),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(label,
+                style:
+                    const TextStyle(color: Color(0xFF9E8AB8), fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
+}

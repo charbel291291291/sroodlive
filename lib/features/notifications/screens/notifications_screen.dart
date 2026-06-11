@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../core/supabase/supabase_service.dart';
+import '../../profile/screens/user_profile_screen.dart';
+import '../../gifts/screens/gift_history_screen.dart';
+import '../../rooms/models/room.dart';
+import '../../rooms/screens/room_details_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({required this.isArabic, super.key});
@@ -19,6 +23,8 @@ class _AppNotification {
   final DateTime createdAt;
   final String? actorName;
   final String? actorAvatarUrl;
+  final String? actorId;
+  final String? targetId;
 
   const _AppNotification({
     required this.id,
@@ -29,6 +35,8 @@ class _AppNotification {
     required this.createdAt,
     this.actorName,
     this.actorAvatarUrl,
+    this.actorId,
+    this.targetId,
   });
 }
 
@@ -53,7 +61,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
       final data = await SupabaseService.requiredClient
           .from('notifications')
-          .select('id, type, title, body, is_read, created_at, actor_name, actor_avatar_url')
+          .select('id, type, title, body, is_read, created_at, actor_name, actor_avatar_url, actor_id, target_id')
           .eq('user_id', user.id)
           .order('created_at', ascending: false)
           .limit(50);
@@ -68,6 +76,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           createdAt: DateTime.tryParse(row['created_at'] as String? ?? '') ?? DateTime.now(),
           actorName: row['actor_name'] as String?,
           actorAvatarUrl: row['actor_avatar_url'] as String?,
+          actorId: row['actor_id'] as String?,
+          targetId: row['target_id'] as String?,
         );
       }).toList();
 
@@ -103,6 +113,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   createdAt: n.createdAt,
                   actorName: n.actorName,
                   actorAvatarUrl: n.actorAvatarUrl,
+                  actorId: n.actorId,
+                  targetId: n.targetId,
                 ))
             .toList();
       });
@@ -115,6 +127,39 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           .from('notifications')
           .update({'is_read': true})
           .eq('id', id);
+    } catch (_) {}
+  }
+
+  void _navigateFor(_AppNotification n) {
+    switch (n.type) {
+      case 'follow':
+        if (n.actorId != null) {
+          Navigator.of(context).push(MaterialPageRoute<void>(
+            builder: (_) => UserProfileScreen(userId: n.actorId!, isArabic: widget.isArabic),
+          ));
+        }
+      case 'gift':
+        Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) => GiftHistoryScreen(isArabic: widget.isArabic),
+        ));
+      case 'room':
+        if (n.targetId != null) _openRoom(n.targetId!);
+      default:
+        break;
+    }
+  }
+
+  Future<void> _openRoom(String roomId) async {
+    try {
+      final row = await SupabaseService.requiredClient
+          .from('rooms')
+          .select('id, owner_id, name, description, language, livekit_room_name, max_seats, is_private, is_locked, is_closed, created_at')
+          .eq('id', roomId)
+          .single();
+      if (!mounted) return;
+      Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => RoomDetailsScreen(room: Room.fromJson(row), isArabic: widget.isArabic),
+      ));
     } catch (_) {}
   }
 
@@ -200,9 +245,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                           createdAt: n.createdAt,
                                           actorName: n.actorName,
                                           actorAvatarUrl: n.actorAvatarUrl,
+                                          actorId: n.actorId,
+                                          targetId: n.targetId,
                                         );
                                       });
                                     }
+                                    _navigateFor(n);
                                   },
                                 );
                               },

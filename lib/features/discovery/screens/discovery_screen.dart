@@ -2,7 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import '../../../core/supabase/supabase_service.dart';
-import '../../profile/profile_screen.dart';
+import '../../profile/screens/user_profile_screen.dart';
+import '../../rooms/models/room.dart';
 import '../../rooms/screens/room_details_screen.dart';
 
 class DiscoveryScreen extends StatefulWidget {
@@ -21,6 +22,7 @@ class _DiscoveryEntry {
   final String? subtitle;
   final bool? isLive;
   final String type;
+  final Room? room;
 
   const _DiscoveryEntry({
     required this.id,
@@ -29,6 +31,7 @@ class _DiscoveryEntry {
     this.subtitle,
     this.isLive,
     required this.type,
+    this.room,
   });
 }
 
@@ -51,7 +54,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       final [roomsRaw, usersRaw] = await Future.wait([
         SupabaseService.requiredClient
             .from('rooms')
-            .select('id, name, description, cover_url, is_live, member_count')
+            .select('id, owner_id, name, description, language, livekit_room_name, max_seats, is_private, is_locked, is_closed, is_live, cover_url, member_count, created_at')
             .order('member_count', ascending: false)
             .limit(20),
         SupabaseService.requiredClient
@@ -70,6 +73,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           subtitle: r['description'] as String?,
           isLive: r['is_live'] as bool?,
           type: 'room',
+          room: Room.fromJson(r as Map<String, dynamic>),
         )).toList();
 
         _users = (usersRaw as List).map((u) => _DiscoveryEntry(
@@ -289,7 +293,7 @@ class _RoomTile extends StatelessWidget {
     return GestureDetector(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => RoomDetailsScreen(roomId: entry.id, isArabic: isArabic),
+          builder: (_) => RoomDetailsScreen(room: entry.room!, isArabic: isArabic),
         ),
       ),
       child: Container(
@@ -379,7 +383,7 @@ class _UserTile extends StatelessWidget {
     return GestureDetector(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => ProfileScreen(isArabic: isArabic, userId: entry.id),
+          builder: (_) => UserProfileScreen(userId: entry.id, isArabic: isArabic),
         ),
       ),
       child: Container(

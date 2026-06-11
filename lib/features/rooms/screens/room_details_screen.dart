@@ -17,6 +17,7 @@ import '../services/gifts_service.dart';
 import '../services/livekit_room_service.dart';
 import '../services/rooms_service.dart';
 import '../utils/vip_room_features.dart';
+import 'room_owner_management_screen.dart';
 
 const double _micSeatAvatarSize = 59;
 const double _micSeatOuterSize = 64;
@@ -286,12 +287,43 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
             column: 'room_id',
             value: widget.room.id,
           ),
-          callback: (_) {
+          callback: (payload) {
             if (!mounted) return;
 
-            unawaited(
-              _loadRoomGifts(showLoading: false, showNewestBanner: true),
-            );
+            // Use the insert payload directly so luxury video shows without
+            // waiting for the DB read — avoids the read-before-write race on
+            // the receiver's phone.
+            final record = payload.newRecord;
+            if (record.isNotEmpty) {
+              final giftCode = record['gift_code'] as String? ?? '';
+              final giftName = record['gift_name'] as String? ?? '';
+              final receiverId = record['receiver_id'] as String? ?? '';
+
+              final config = _LuxuryGiftVideoConfig.fromCode(giftCode);
+              if (config != null && _activeLuxuryGiftVideo == null) {
+                String receiverLabel = '';
+                for (final m in _members) {
+                  if (m.userId == receiverId) {
+                    receiverLabel = m.fallbackName(widget.isArabic);
+                    break;
+                  }
+                }
+                _playLuxuryGiftVideo(
+                  giftName: giftName,
+                  receiverName: receiverLabel,
+                  config: config,
+                );
+              }
+            }
+
+            // Refresh the gift feed list with a short delay so the DB read
+            // catches up after the WAL-based realtime push.
+            Future.delayed(const Duration(milliseconds: 400), () {
+              if (!mounted) return;
+              unawaited(
+                _loadRoomGifts(showLoading: false, showNewestBanner: true),
+              );
+            });
           },
         )
         .subscribe();
@@ -1751,6 +1783,23 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         title: Text(
           widget.isArabic ? '\u0627\u0644\u063a\u0631\u0641\u0629' : 'Room',
         ),
+        actions: [
+          if (_iAmRoomOwner)
+            IconButton(
+              icon: const Icon(Icons.manage_accounts_rounded),
+              tooltip: widget.isArabic
+                  ? '\u0625\u062f\u0627\u0631\u0629 \u0627\u0644\u063a\u0631\u0641\u0629'
+                  : 'Manage Room',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => RoomOwnerManagementScreen(
+                    room: widget.room,
+                    isArabic: widget.isArabic,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       body: SafeArea(
         child: Stack(

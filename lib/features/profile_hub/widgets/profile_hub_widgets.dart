@@ -184,24 +184,46 @@ class ProfileSectionTitle extends StatelessWidget {
   const ProfileSectionTitle({
     required this.title,
     required this.isArabic,
+    this.subtitle,
     super.key,
   });
 
   final String title;
+  final String? subtitle;
   final bool isArabic;
 
   @override
   Widget build(BuildContext context) {
+    final align = isArabic ? TextAlign.right : TextAlign.left;
+    final cross = isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(2, 18, 2, 10),
-      child: Text(
-        title,
-        textAlign: isArabic ? TextAlign.right : TextAlign.left,
-        style: const TextStyle(
-          color: profileHubGold,
-          fontSize: 15,
-          fontWeight: FontWeight.w900,
-        ),
+      child: Column(
+        crossAxisAlignment: cross,
+        children: [
+          Text(
+            title,
+            textAlign: align,
+            style: const TextStyle(
+              color: profileHubGold,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 3),
+            Text(
+              subtitle!,
+              textAlign: align,
+              style: const TextStyle(
+                color: profileHubMuted,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

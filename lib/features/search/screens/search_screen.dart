@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/supabase/supabase_service.dart';
+import '../../profile/screens/user_profile_screen.dart';
+import '../../rooms/models/room.dart';
+import '../../rooms/screens/room_details_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({required this.isArabic, super.key});
@@ -18,6 +21,7 @@ class _SearchResult {
   final String? subtitle;
   final String? imageUrl;
   final bool? isLive;
+  final Room? room;
 
   const _SearchResult({
     required this.id,
@@ -26,6 +30,7 @@ class _SearchResult {
     this.subtitle,
     this.imageUrl,
     this.isLive,
+    this.room,
   });
 }
 
@@ -70,7 +75,7 @@ class _SearchScreenState extends State<SearchScreen>
   Future<void> _search(String q) async {
     setState(() => _isSearching = true);
     try {
-      final [usersRaw, roomsRaw] = await Future.wait([
+      final [usersRaw, roomsRaw] = await Future.wait<dynamic>([
         SupabaseService.requiredClient
             .from('profiles')
             .select('id, display_name, avatar_url, bio')
@@ -78,7 +83,7 @@ class _SearchScreenState extends State<SearchScreen>
             .limit(20),
         SupabaseService.requiredClient
             .from('rooms')
-            .select('id, name, description, cover_url, is_live')
+            .select('id, owner_id, name, description, language, livekit_room_name, max_seats, is_private, is_locked, is_closed, is_live, cover_url, created_at')
             .ilike('name', '%$q%')
             .limit(20),
       ]);
@@ -91,14 +96,18 @@ class _SearchScreenState extends State<SearchScreen>
             imageUrl: row['avatar_url'] as String?,
           ));
 
-      final rooms = (roomsRaw as List).map((row) => _SearchResult(
-            id: row['id'] as String,
-            type: 'room',
-            title: row['name'] as String? ?? 'Room',
-            subtitle: row['description'] as String?,
-            imageUrl: row['cover_url'] as String?,
-            isLive: row['is_live'] as bool?,
-          ));
+      final rooms = (roomsRaw as List).map((row) {
+        final r = row as Map<String, dynamic>;
+        return _SearchResult(
+          id: r['id'] as String,
+          type: 'room',
+          title: r['name'] as String? ?? 'Room',
+          subtitle: r['description'] as String?,
+          imageUrl: r['cover_url'] as String?,
+          isLive: r['is_live'] as bool?,
+          room: Room.fromJson(r),
+        );
+      });
 
       if (!mounted) return;
       setState(() {
@@ -334,7 +343,19 @@ class _ResultTile extends StatelessWidget {
     final dir = isArabic ? TextDirection.rtl : TextDirection.ltr;
     final isUser = result.type == 'user';
 
-    return Container(
+    return GestureDetector(
+      onTap: () {
+        if (result.type == 'user') {
+          Navigator.of(context).push(MaterialPageRoute<void>(
+            builder: (_) => UserProfileScreen(userId: result.id, isArabic: isArabic),
+          ));
+        } else if (result.room != null) {
+          Navigator.of(context).push(MaterialPageRoute<void>(
+            builder: (_) => RoomDetailsScreen(room: result.room!, isArabic: isArabic),
+          ));
+        }
+      },
+      child: Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFF160B24),
@@ -458,6 +479,7 @@ class _ResultTile extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }

@@ -6,13 +6,18 @@ import '../../../main.dart';
 import '../../calls/screens/call_history_screen.dart';
 import '../../discovery/screens/discovery_screen.dart';
 import '../../gifts/screens/gift_catalog_screen.dart';
+import '../../games/screens/spin_wheel_screen.dart';
+import '../../gifts/screens/gift_history_screen.dart';
+import '../../rooms/screens/room_schedule_screen.dart';
+import '../../social/screens/leaderboard_screen.dart';
+import 'agency_management_screen.dart';
 import '../../host/screens/availability_screen.dart';
 import '../../host/screens/host_registration_screen.dart';
 import '../../notifications/screens/notifications_screen.dart';
 import '../../onboarding/onboarding_screen.dart';
 import '../../social/screens/block_user_screen.dart';
-import '../../wallet/screens/coin_purchase_screen.dart';
 import '../../wallet/screens/transaction_history_screen.dart';
+import '../../wallet/screens/wallet_screen.dart';
 import '../../wallet/screens/withdrawal_screen.dart';
 import '../models/profile_hub_models.dart';
 import '../services/settings_service.dart';
@@ -128,7 +133,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                 ),
                 SettingsToggleTile(
-                  title: isArabic ? 'الإشعارات' : 'Notifications',
+                  title: isArabic
+                      ? 'إشعارات الدفع'
+                      : 'Push notifications',
+                  subtitle: isArabic
+                      ? 'تفعيل إشعارات الجهاز'
+                      : 'System-level notification alerts',
                   value: settings.notificationsEnabled,
                   isArabic: isArabic,
                   onChanged: (value) =>
@@ -246,23 +256,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     isArabic ? 'شروط الاستخدام' : 'Terms of Use',
                   ),
                 ),
+                // ── 1. Discover & Activity ──────────────────────────────
                 ProfileSectionTitle(
-                  title: isArabic ? 'الميزات' : 'Features',
+                  title: isArabic
+                      ? 'الاستكشاف والنشاط'
+                      : 'Discover & Activity',
+                  subtitle: isArabic
+                      ? 'تصفح، إشعارات، مكالمات'
+                      : 'Browse, notifications, call log',
                   isArabic: isArabic,
-                ),
-                ProfileMenuItem(
-                  icon: Icons.tune_rounded,
-                  title: isArabic ? 'التفضيلات' : 'Preferences',
-                  isArabic: isArabic,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => PreferencesScreen(isArabic: isArabic),
-                    ),
-                  ),
                 ),
                 ProfileMenuItem(
                   icon: Icons.explore_rounded,
                   title: isArabic ? 'الاستكشاف' : 'Discover',
+                  subtitle: isArabic
+                      ? 'غرف ومستخدمون مقترحون'
+                      : 'Trending rooms and people',
                   isArabic: isArabic,
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
@@ -271,18 +280,98 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 ProfileMenuItem(
-                  icon: Icons.monetization_on_rounded,
-                  title: isArabic ? 'شراء عملات' : 'Buy coins',
+                  icon: Icons.notifications_rounded,
+                  title: isArabic ? 'الإشعارات' : 'Notifications',
+                  subtitle: isArabic
+                      ? 'متابعات، هدايا، أحداث'
+                      : 'Follows, gifts, room events',
                   isArabic: isArabic,
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) => CoinPurchaseScreen(isArabic: isArabic),
+                      builder: (_) => NotificationsScreen(isArabic: isArabic),
+                    ),
+                  ),
+                ),
+                ProfileMenuItem(
+                  icon: Icons.call_rounded,
+                  title: isArabic ? 'سجل المكالمات' : 'Call history',
+                  subtitle: isArabic
+                      ? 'جميع مكالماتك الصوتية'
+                      : 'All your audio calls',
+                  isArabic: isArabic,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => CallHistoryScreen(isArabic: isArabic),
+                    ),
+                  ),
+                ),
+
+                // ── 2. Rooms & Live ──────────────────────────────────────
+                ProfileSectionTitle(
+                  title: isArabic
+                      ? 'الغرف والبث المباشر'
+                      : 'Rooms & Live',
+                  subtitle: isArabic
+                      ? 'جدولة الغرف وأوقات التوفر'
+                      : 'Room scheduling and availability',
+                  isArabic: isArabic,
+                ),
+                ProfileMenuItem(
+                  icon: Icons.event_rounded,
+                  title: isArabic ? 'جدولة الغرف' : 'Room scheduler',
+                  subtitle: isArabic
+                      ? 'ابدأ برمجة غرفك مسبقاً'
+                      : 'Plan upcoming rooms in advance',
+                  isArabic: isArabic,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => RoomScheduleScreen(isArabic: isArabic),
+                    ),
+                  ),
+                ),
+                ProfileMenuItem(
+                  icon: Icons.schedule_rounded,
+                  title: isArabic ? 'جدول الإتاحة' : 'Availability schedule',
+                  subtitle: isArabic
+                      ? 'حدد أوقات بثك كمضيف'
+                      : 'Set when you are live as a host',
+                  isArabic: isArabic,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => AvailabilityScreen(isArabic: isArabic),
+                    ),
+                  ),
+                ),
+
+                // ── 3. Games & Gifts ─────────────────────────────────────
+                ProfileSectionTitle(
+                  title: isArabic
+                      ? 'الألعاب والهدايا'
+                      : 'Games & Gifts',
+                  subtitle: isArabic
+                      ? 'عجلة الحظ، متجر الهدايا، سجل الإرسال'
+                      : 'Spin wheel, gift catalog, send history',
+                  isArabic: isArabic,
+                ),
+                ProfileMenuItem(
+                  icon: Icons.casino_rounded,
+                  title: isArabic ? 'عجلة الحظ' : 'Spin the wheel',
+                  subtitle: isArabic
+                      ? 'ادفع عملات واربح جوائز'
+                      : 'Spend coins and win prizes',
+                  isArabic: isArabic,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => SpinWheelScreen(isArabic: isArabic),
                     ),
                   ),
                 ),
                 ProfileMenuItem(
                   icon: Icons.card_giftcard_rounded,
                   title: isArabic ? 'متجر الهدايا' : 'Gift catalog',
+                  subtitle: isArabic
+                      ? 'تصفح جميع الهدايا المتاحة'
+                      : 'Browse all available gifts',
                   isArabic: isArabic,
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
@@ -291,51 +380,86 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 ProfileMenuItem(
+                  icon: Icons.redeem_rounded,
+                  title: isArabic ? 'سجل الهدايا' : 'Gift history',
+                  subtitle: isArabic
+                      ? 'الهدايا المرسلة والمستلمة'
+                      : 'Sent and received gifts log',
+                  isArabic: isArabic,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => GiftHistoryScreen(isArabic: isArabic),
+                    ),
+                  ),
+                ),
+
+                // ── 4. Wallet & Earnings ─────────────────────────────────
+                ProfileSectionTitle(
+                  title: isArabic
+                      ? 'المحفظة والأرباح'
+                      : 'Wallet & Earnings',
+                  subtitle: isArabic
+                      ? 'شحن، معاملات، سحب'
+                      : 'Top up, transactions, cashout',
+                  isArabic: isArabic,
+                ),
+                ProfileMenuItem(
+                  icon: Icons.monetization_on_rounded,
+                  title: isArabic ? 'شراء عملات' : 'Buy coins',
+                  subtitle: isArabic
+                      ? 'اشحن رصيدك للعب والهدايا'
+                      : 'Top up your play balance',
+                  isArabic: isArabic,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => WalletScreen(isArabic: isArabic),
+                    ),
+                  ),
+                ),
+                ProfileMenuItem(
                   icon: Icons.receipt_long_rounded,
                   title: isArabic ? 'سجل المعاملات' : 'Transaction history',
-                  isArabic: isArabic,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => TransactionHistoryScreen(isArabic: isArabic),
-                    ),
-                  ),
-                ),
-                ProfileMenuItem(
-                  icon: Icons.notifications_rounded,
-                  title: isArabic ? 'الإشعارات' : 'Notifications',
+                  subtitle: isArabic
+                      ? 'جميع عمليات الشحن والصرف'
+                      : 'All recharge and spend activity',
                   isArabic: isArabic,
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) =>
-                          NotificationsScreen(isArabic: isArabic),
-                    ),
-                  ),
-                ),
-                ProfileMenuItem(
-                  icon: Icons.call_rounded,
-                  title: isArabic ? 'سجل المكالمات' : 'Call history',
-                  isArabic: isArabic,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) =>
-                          CallHistoryScreen(isArabic: isArabic),
+                          TransactionHistoryScreen(isArabic: isArabic),
                     ),
                   ),
                 ),
                 ProfileMenuItem(
                   icon: Icons.payments_rounded,
                   title: isArabic ? 'طلب سحب' : 'Withdraw earnings',
+                  subtitle: isArabic
+                      ? 'حوّل الألماس إلى دخل حقيقي'
+                      : 'Convert diamonds to real income',
                   isArabic: isArabic,
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) =>
-                          WithdrawalScreen(isArabic: isArabic),
+                      builder: (_) => WithdrawalScreen(isArabic: isArabic),
                     ),
                   ),
                 ),
+
+                // ── 5. Host & Agency ─────────────────────────────────────
+                ProfileSectionTitle(
+                  title: isArabic
+                      ? 'المضيف والوكالة'
+                      : 'Host & Agency',
+                  subtitle: isArabic
+                      ? 'التسجيل، الإدارة، برنامج المضيف'
+                      : 'Register, manage, host program',
+                  isArabic: isArabic,
+                ),
                 ProfileMenuItem(
                   icon: Icons.live_tv_rounded,
-                  title: isArabic ? 'تسجيل كمضيف' : 'Become a host',
+                  title: isArabic ? 'التسجيل كمضيف' : 'Become a host',
+                  subtitle: isArabic
+                      ? 'انضم لبرنامج المضيفين'
+                      : 'Join the host program',
                   isArabic: isArabic,
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
@@ -345,24 +469,79 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 ProfileMenuItem(
-                  icon: Icons.schedule_rounded,
-                  title: isArabic ? 'جدول الإتاحة' : 'Availability schedule',
+                  icon: Icons.groups_rounded,
+                  title: isArabic ? 'إدارة الوكالة' : 'Manage agency',
+                  subtitle: isArabic
+                      ? 'أعضاء الوكالة، الأهداف، الأداء'
+                      : 'Agency members, targets, performance',
                   isArabic: isArabic,
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) =>
-                          AvailabilityScreen(isArabic: isArabic),
+                          AgencyManagementScreen(isArabic: isArabic),
+                    ),
+                  ),
+                ),
+
+                // ── 6. Social ────────────────────────────────────────────
+                ProfileSectionTitle(
+                  title: isArabic
+                      ? 'التواصل والخصوصية'
+                      : 'Social & Privacy',
+                  subtitle: isArabic
+                      ? 'متصدرون، محظورون'
+                      : 'Leaderboard, blocked users',
+                  isArabic: isArabic,
+                ),
+                ProfileMenuItem(
+                  icon: Icons.emoji_events_rounded,
+                  title: isArabic ? 'المتصدرون' : 'Leaderboard',
+                  subtitle: isArabic
+                      ? 'أفضل المستخدمين هذا الشهر'
+                      : 'Top users this month',
+                  isArabic: isArabic,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => LeaderboardScreen(isArabic: isArabic),
                     ),
                   ),
                 ),
                 ProfileMenuItem(
                   icon: Icons.block_rounded,
-                  title: isArabic ? 'المستخدمون المحظورون' : 'Blocked users',
+                  title: isArabic
+                      ? 'المستخدمون المحظورون'
+                      : 'Blocked users',
+                  subtitle: isArabic
+                      ? 'عرض وإدارة قائمة الحظر'
+                      : 'View and manage your block list',
                   isArabic: isArabic,
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) =>
-                          BlockUserScreen(isArabic: isArabic),
+                      builder: (_) => BlockUserScreen(isArabic: isArabic),
+                    ),
+                  ),
+                ),
+
+                // ── 7. Preferences ───────────────────────────────────────
+                ProfileSectionTitle(
+                  title: isArabic
+                      ? 'التفضيلات'
+                      : 'Preferences',
+                  subtitle: isArabic
+                      ? 'المظهر، الصوت، الخصوصية'
+                      : 'Appearance, sounds, privacy',
+                  isArabic: isArabic,
+                ),
+                ProfileMenuItem(
+                  icon: Icons.tune_rounded,
+                  title: isArabic ? 'التفضيلات' : 'Preferences',
+                  subtitle: isArabic
+                      ? 'خصص تجربتك داخل التطبيق'
+                      : 'Customise your in-app experience',
+                  isArabic: isArabic,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => PreferencesScreen(isArabic: isArabic),
                     ),
                   ),
                 ),

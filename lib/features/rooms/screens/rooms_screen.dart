@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../../features/notifications/screens/notifications_screen.dart';
 import '../../../features/search/screens/search_screen.dart';
+import '../../../features/social/screens/leaderboard_screen.dart';
 import '../../../shared/branding/branding_assets.dart';
 import '../models/room.dart';
 import '../services/rooms_service.dart';
 import 'room_details_screen.dart';
+import 'room_schedule_screen.dart';
 
 class RoomsScreen extends StatefulWidget {
   const RoomsScreen({required this.isArabic, super.key});
@@ -226,6 +228,30 @@ class _RoomsScreenState extends State<RoomsScreen> {
                       Icons.search_rounded,
                       color: Color(0xFFBCAED6),
                       size: 26,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => LeaderboardScreen(isArabic: widget.isArabic),
+                      ),
+                    ),
+                    icon: const Icon(
+                      Icons.emoji_events_rounded,
+                      color: Color(0xFFF0C15A),
+                      size: 24,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => RoomScheduleScreen(isArabic: widget.isArabic),
+                      ),
+                    ),
+                    icon: const Icon(
+                      Icons.calendar_month_rounded,
+                      color: Color(0xFFBCAED6),
+                      size: 24,
                     ),
                   ),
                   IconButton(

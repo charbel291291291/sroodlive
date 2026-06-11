@@ -27,6 +27,7 @@ import '../rooms/utils/vip_room_features.dart';
 import 'models/avatar_frame.dart';
 import 'screens/follow_list_screen.dart';
 import 'services/follow_service.dart';
+import '../social/screens/leaderboard_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({required this.isArabic, super.key});
@@ -877,6 +878,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           onBadge: () =>
                               _openProfileHub(BadgeScreen(isArabic: isArabic)),
+                          onLeaderboard: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => LeaderboardScreen(isArabic: isArabic),
+                            ),
+                          ),
                           onFeedback: () => _openProfileHub(
                             FeedbackScreen(isArabic: isArabic),
                           ),
@@ -1705,6 +1711,7 @@ class _ProfileMenuList extends StatelessWidget {
     required this.onAgency,
     required this.onIncome,
     required this.onBadge,
+    required this.onLeaderboard,
     required this.onFeedback,
     required this.onCustomerService,
     required this.onSettings,
@@ -1715,6 +1722,7 @@ class _ProfileMenuList extends StatelessWidget {
   final VoidCallback onAgency;
   final VoidCallback onIncome;
   final VoidCallback onBadge;
+  final VoidCallback onLeaderboard;
   final VoidCallback onFeedback;
   final VoidCallback onCustomerService;
   final VoidCallback onSettings;
@@ -1741,6 +1749,11 @@ class _ProfileMenuList extends StatelessWidget {
         Icons.verified_rounded,
         isArabic ? '\u0627\u0644\u0634\u0627\u0631\u0627\u062a' : 'Badge',
         onBadge,
+      ),
+      _MenuData(
+        Icons.emoji_events_rounded,
+        isArabic ? '\u0627\u0644\u0645\u062a\u0635\u062f\u0631\u0648\u0646' : 'Leaderboard',
+        onLeaderboard,
       ),
       _MenuData(
         Icons.feedback_rounded,
