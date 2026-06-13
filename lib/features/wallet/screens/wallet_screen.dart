@@ -7,6 +7,7 @@ import '../models/wallet_transaction.dart';
 import '../services/wallet_service.dart';
 import '../widgets/recharge_request_sheet.dart';
 import 'recharge_help_screen.dart';
+import 'withdrawal_screen.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({required this.isArabic, super.key});
@@ -142,12 +143,26 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
+  void _showWithdraw() {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => WithdrawalScreen(isArabic: widget.isArabic),
+      ),
+    ).then((_) => _loadWallet());
+  }
+
   @override
   Widget build(BuildContext context) {
     final isArabic = widget.isArabic;
     final mediaQuery = MediaQuery.of(context);
 
-    return Container(
+    // Scaffold provides the Material ancestor — without it, text renders
+    // with the fallback yellow-underline style when this screen is pushed
+    // as a standalone route.
+    return Scaffold(
+      backgroundColor: const Color(0xFF08060F),
+      body: Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
@@ -211,6 +226,7 @@ class _WalletScreenState extends State<WalletScreen> {
                                 : _openRechargeSheet,
                             onHistory: _scrollToTransactions,
                             onHelp: _showHelp,
+                            onWithdraw: _showWithdraw,
                           ),
                           const SizedBox(height: 14),
                           _WalletSection(
@@ -267,6 +283,7 @@ class _WalletScreenState extends State<WalletScreen> {
             ),
           ),
         ),
+      ),
       ),
     );
   }
@@ -574,12 +591,14 @@ class _WalletActionsRow extends StatelessWidget {
     required this.onRecharge,
     required this.onHistory,
     required this.onHelp,
+    required this.onWithdraw,
   });
 
   final bool isArabic;
   final VoidCallback? onRecharge;
   final VoidCallback onHistory;
   final VoidCallback onHelp;
+  final VoidCallback onWithdraw;
 
   @override
   Widget build(BuildContext context) {
@@ -590,6 +609,14 @@ class _WalletActionsRow extends StatelessWidget {
             icon: Icons.add_card_rounded,
             label: isArabic ? '\u0634\u062d\u0646' : 'Recharge',
             onTap: onRecharge,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _WalletActionButton(
+            icon: Icons.arrow_circle_up_rounded,
+            label: isArabic ? '\u0633\u062d\u0628' : 'Withdraw',
+            onTap: onWithdraw,
           ),
         ),
         const SizedBox(width: 8),
@@ -783,6 +810,12 @@ class _TransactionTile extends StatelessWidget {
       WalletTransactionType.adminAdjustment => Icons.tune_rounded,
       WalletTransactionType.refund => Icons.undo_rounded,
       WalletTransactionType.system => Icons.receipt_long_rounded,
+      WalletTransactionType.gameBet => Icons.casino_rounded,
+      WalletTransactionType.gameReward => Icons.emoji_events_rounded,
+      WalletTransactionType.gameRefund => Icons.replay_rounded,
+      WalletTransactionType.withdrawal => Icons.arrow_circle_up_rounded,
+      WalletTransactionType.withdrawalRefund => Icons.arrow_circle_down_rounded,
+      WalletTransactionType.agencyCommission => Icons.account_balance_rounded,
     };
   }
 }

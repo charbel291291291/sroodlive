@@ -119,17 +119,32 @@ class _MyIncomeScreenState extends State<MyIncomeScreen> {
     );
 
     final amount = double.tryParse(amountController.text.trim()) ?? 0;
-    if (submitted == true && amount > 0 && amount <= maxAmount) {
-      await _service.requestPayout(
-        amountUsd: amount,
-        method: method,
-        accountDetails: detailsController.text.trim(),
-      );
-      _retry();
-    }
-
+    final accountDetails = detailsController.text.trim();
     amountController.dispose();
     detailsController.dispose();
+
+    if (submitted == true && amount > 0 && amount <= maxAmount) {
+      try {
+        await _service.requestPayout(
+          amountUsd: amount,
+          method: method,
+          accountDetails: accountDetails,
+        );
+        _retry();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                widget.isArabic
+                    ? 'فشل طلب السحب: $e'
+                    : 'Payout request failed: $e',
+              ),
+            ),
+          );
+        }
+      }
+    }
   }
 
   @override

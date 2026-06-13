@@ -22,6 +22,7 @@ import '../gamification/screens/tasks_screen.dart';
 import '../gamification/screens/vip_center_screen.dart';
 import '../wallet/models/wallet.dart';
 import '../wallet/screens/wallet_screen.dart';
+import '../wallet/screens/withdrawal_screen.dart';
 import '../wallet/services/wallet_service.dart';
 import '../rooms/utils/vip_room_features.dart';
 import 'models/avatar_frame.dart';
@@ -96,6 +97,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final displayNameController = TextEditingController();
   final birthDateController = TextEditingController();
   final bioController = TextEditingController();
+  final countryController = TextEditingController();
+  final genderController = TextEditingController();
   final FollowService _followService = const FollowService();
   final WalletService _walletService = const WalletService();
 
@@ -124,6 +127,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     displayNameController.dispose();
     birthDateController.dispose();
     bioController.dispose();
+    countryController.dispose();
+    genderController.dispose();
     super.dispose();
   }
 
@@ -174,8 +179,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       displayNameController.text = data['display_name']?.toString() ?? '';
       birthDateController.text = data['date_of_birth']?.toString() ?? '';
       bioController.text = data['bio']?.toString() ?? '';
-      final followers = await _followService.followersCount(user.id);
-      final following = await _followService.followingCount(user.id);
+      countryController.text = data['country']?.toString() ?? '';
+      genderController.text = data['gender']?.toString() ?? '';
+
+      int followers = 0;
+      int following = 0;
+      try {
+        followers = await _followService.followersCount(user.id);
+        following = await _followService.followingCount(user.id);
+      } catch (_) {}
+
       final gifts = await _safeGiftCount(user.id);
       final loadedWallet = await _safeEnsureWallet(user.id);
 
@@ -272,6 +285,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _openWithdrawal() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => WithdrawalScreen(isArabic: widget.isArabic),
+      ),
+    );
+
+    if (mounted) {
+      await _loadProfile();
+    }
+  }
+
   Future<void> _openProfileHub(Widget screen) async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
 
@@ -338,6 +363,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _showEditProfileSheet() async {
+    const genderOptions = ['male', 'female', 'other'];
+    final genderLabelsAr = [
+      '\u0630\u0643\u0631',
+      '\u0623\u0646\u062b\u0649',
+      '\u0622\u062e\u0631',
+    ];
+    const genderLabelsEn = ['Male', 'Female', 'Other'];
+
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: const Color(0xFF100718),
@@ -346,86 +379,134 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              18,
-              18,
-              18,
-              MediaQuery.viewInsetsOf(sheetContext).bottom + 18,
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: widget.isArabic
-                    ? CrossAxisAlignment.end
-                    : CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.isArabic
-                        ? '\u062a\u0639\u062f\u064a\u0644 \u0627\u0644\u0645\u0644\u0641'
-                        : 'Edit Profile',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _ProfileInput(
-                    controller: displayNameController,
-                    label: widget.isArabic
-                        ? '\u0627\u0644\u0644\u0642\u0628'
-                        : 'Nickname',
-                    isArabic: widget.isArabic,
-                  ),
-                  _ProfileInput(
-                    controller: birthDateController,
-                    label: widget.isArabic
-                        ? '\u062a\u0627\u0631\u064a\u062e \u0627\u0644\u0645\u064a\u0644\u0627\u062f'
-                        : 'Date of birth',
-                    isArabic: widget.isArabic,
-                    readOnly: true,
-                    onTap: _pickBirthDate,
-                  ),
-                  _ProfileInput(
-                    controller: bioController,
-                    label: widget.isArabic
-                        ? '\u0627\u0644\u0646\u0628\u0630\u0629'
-                        : 'Bio',
-                    isArabic: widget.isArabic,
-                    maxLines: 4,
-                  ),
-                  const SizedBox(height: 6),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: FilledButton.icon(
-                      onPressed: isSaving
-                          ? null
-                          : () async {
-                              await _saveProfile();
-
-                              if (mounted && sheetContext.mounted) {
-                                Navigator.of(sheetContext).pop();
-                              }
-                            },
-                      icon: const Icon(Icons.save_rounded),
-                      label: Text(
-                        isSaving
-                            ? (widget.isArabic
-                                  ? '\u062c\u0627\u0631 \u0627\u0644\u062d\u0641\u0638...'
-                                  : 'Saving...')
-                            : (widget.isArabic
-                                  ? '\u062d\u0641\u0638 \u0627\u0644\u062a\u063a\u064a\u064a\u0631\u0627\u062a'
-                                  : 'Save changes'),
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            final currentGender = genderController.text.trim().toLowerCase();
+            final selectedGender = genderOptions.contains(currentGender)
+                ? currentGender
+                : null;
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  18,
+                  18,
+                  18,
+                  MediaQuery.viewInsetsOf(sheetContext).bottom + 18,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: widget.isArabic
+                        ? CrossAxisAlignment.end
+                        : CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.isArabic
+                            ? '\u062a\u0639\u062f\u064a\u0644 \u0627\u0644\u0645\u0644\u0641'
+                            : 'Edit Profile',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 16),
+                      _ProfileInput(
+                        controller: displayNameController,
+                        label: widget.isArabic
+                            ? '\u0627\u0644\u0644\u0642\u0628'
+                            : 'Nickname',
+                        isArabic: widget.isArabic,
+                      ),
+                      _ProfileInput(
+                        controller: birthDateController,
+                        label: widget.isArabic
+                            ? '\u062a\u0627\u0631\u064a\u062e \u0627\u0644\u0645\u064a\u0644\u0627\u062f'
+                            : 'Date of birth',
+                        isArabic: widget.isArabic,
+                        readOnly: true,
+                        onTap: _pickBirthDate,
+                      ),
+                      _ProfileInput(
+                        controller: countryController,
+                        label: widget.isArabic
+                            ? '\u0627\u0644\u062f\u0648\u0644\u0629'
+                            : 'Country',
+                        isArabic: widget.isArabic,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Directionality(
+                          textDirection: widget.isArabic
+                              ? TextDirection.rtl
+                              : TextDirection.ltr,
+                          child: DropdownButtonFormField<String>(
+                            initialValue: selectedGender,
+                            decoration: InputDecoration(
+                              labelText: widget.isArabic
+                                  ? '\u0627\u0644\u062c\u0646\u0633'
+                                  : 'Gender',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                            ),
+                            items: List.generate(genderOptions.length, (i) {
+                              return DropdownMenuItem(
+                                value: genderOptions[i],
+                                child: Text(
+                                  widget.isArabic
+                                      ? genderLabelsAr[i]
+                                      : genderLabelsEn[i],
+                                ),
+                              );
+                            }),
+                            onChanged: (v) {
+                              setSheetState(() {
+                                genderController.text = v ?? '';
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                      _ProfileInput(
+                        controller: bioController,
+                        label: widget.isArabic
+                            ? '\u0627\u0644\u0646\u0628\u0630\u0629'
+                            : 'Bio',
+                        isArabic: widget.isArabic,
+                        maxLines: 4,
+                      ),
+                      const SizedBox(height: 6),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: FilledButton.icon(
+                          onPressed: isSaving
+                              ? null
+                              : () async {
+                                  await _saveProfile();
+                                  if (mounted && sheetContext.mounted) {
+                                    Navigator.of(sheetContext).pop();
+                                  }
+                                },
+                          icon: const Icon(Icons.save_rounded),
+                          label: Text(
+                            isSaving
+                                ? (widget.isArabic
+                                      ? '\u062c\u0627\u0631 \u0627\u0644\u062d\u0641\u0638...'
+                                      : 'Saving...')
+                                : (widget.isArabic
+                                      ? '\u062d\u0641\u0638 \u0627\u0644\u062a\u063a\u064a\u064a\u0631\u0627\u062a'
+                                      : 'Save changes'),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
@@ -642,6 +723,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final displayName = displayNameController.text.trim();
     final dateOfBirth = birthDateController.text.trim();
     final bio = bioController.text.trim();
+    final country = countryController.text.trim();
+    final gender = genderController.text.trim();
 
     if (displayName.length < 2) {
       setState(() {
@@ -672,6 +755,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'display_name': displayName,
         'date_of_birth': dateOfBirth.isEmpty ? null : dateOfBirth,
         'bio': bio.isEmpty ? null : bio,
+        'country': country.isEmpty ? null : country,
+        'gender': gender.isEmpty ? null : gender,
         'updated_at': DateTime.now().toIso8601String(),
       };
 
@@ -680,7 +765,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       } catch (error) {
         final message = error.toString();
 
-        if (!message.contains('date_of_birth') && !message.contains('bio')) {
+        if (!message.contains('date_of_birth') &&
+            !message.contains('bio') &&
+            !message.contains('country') &&
+            !message.contains('gender')) {
           rethrow;
         }
 
@@ -745,6 +833,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     final coins = wallet?.coinsBalance ?? 0;
     final diamonds = wallet?.diamondsBalance ?? 0;
+    final level = _intFromProfile(profile ?? {}, 'level', fallback: 1);
     final country = _profileText('country');
     final gender = _profileText('gender');
     final bio = _profileText('bio');
@@ -782,6 +871,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           avatarUrl: avatarUrl,
                           frameKey: selectedAvatarFrameKey,
                           vipLevel: effectiveVipLevel,
+                          level: level,
                           isGoldenId: isGoldenId,
                           country: country,
                           gender: gender,
@@ -848,7 +938,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           diamonds: diamonds,
                           isArabic: isArabic,
                           onCoinsTap: _openWalletScreen,
-                          onDiamondsTap: _openWalletScreen,
+                          onDiamondsTap: _openWithdrawal,
                         ),
                         const SizedBox(height: 14),
                         _ShortcutGrid(
@@ -924,6 +1014,7 @@ class _PremiumProfileHero extends StatelessWidget {
     required this.avatarUrl,
     required this.frameKey,
     required this.vipLevel,
+    required this.level,
     required this.isGoldenId,
     required this.country,
     required this.gender,
@@ -942,6 +1033,7 @@ class _PremiumProfileHero extends StatelessWidget {
   final String? avatarUrl;
   final String? frameKey;
   final int vipLevel;
+  final int level;
   final bool isGoldenId;
   final String country;
   final String gender;
@@ -1175,8 +1267,8 @@ class _PremiumProfileHero extends StatelessWidget {
                         _ProfileBadge(
                           icon: Icons.military_tech_rounded,
                           label: isArabic
-                              ? '\u0645\u0633\u062a\u0648\u0649 1'
-                              : 'Lv. 1',
+                              ? '\u0645\u0633\u062a\u0648\u0649 $level'
+                              : 'Lv. $level',
                           highlighted: false,
                         ),
                         if (gender.isNotEmpty)
@@ -1260,14 +1352,56 @@ class _PremiumProfileHero extends StatelessWidget {
   }
 
   String _countryFlag(String value) {
-    final country = value.trim().toLowerCase();
+    final c = value.trim().toLowerCase();
 
-    if (country.isEmpty) {
-      return '';
-    }
+    if (c.isEmpty) return '';
 
-    if (country.contains('leban') || country.contains('\u0644\u0628\u0646')) {
+    if (c.contains('leban') || c.contains('\u0644\u0628\u0646')) {
       return '\u{1F1F1}\u{1F1E7} Lebanon';
+    }
+    if (c.contains('saudi') || c.contains('\u0633\u0639\u0648')) {
+      return '\u{1F1F8}\u{1F1E6} KSA';
+    }
+    if (c.contains('emir') ||
+        c.contains('uae') ||
+        c.contains('\u0625\u0645\u0627\u0631')) {
+      return '\u{1F1E6}\u{1F1EA} UAE';
+    }
+    if (c.contains('kuwait') || c.contains('\u0643\u0648\u064a\u062a')) {
+      return '\u{1F1F0}\u{1F1FC} Kuwait';
+    }
+    if (c.contains('qatar') || c.contains('\u0642\u0637\u0631')) {
+      return '\u{1F1F6}\u{1F1E6} Qatar';
+    }
+    if (c.contains('bahrain') || c.contains('\u0628\u062d\u0631\u064a\u0646')) {
+      return '\u{1F1E7}\u{1F1ED} Bahrain';
+    }
+    if (c.contains('oman') || c.contains('\u0639\u064f\u0645\u0627\u0646')) {
+      return '\u{1F1F4}\u{1F1F2} Oman';
+    }
+    if (c.contains('jordan') ||
+        c.contains('\u0627\u0644\u0623\u0631\u062f\u0646')) {
+      return '\u{1F1EF}\u{1F1F4} Jordan';
+    }
+    if (c.contains('syria') || c.contains('\u0633\u0648\u0631\u064a')) {
+      return '\u{1F1F8}\u{1F1FE} Syria';
+    }
+    if (c.contains('iraq') || c.contains('\u0639\u0631\u0627\u0642')) {
+      return '\u{1F1EE}\u{1F1F6} Iraq';
+    }
+    if (c.contains('egypt') || c.contains('\u0645\u0635\u0631')) {
+      return '\u{1F1EA}\u{1F1EC} Egypt';
+    }
+    if (c.contains('morocco') ||
+        c.contains('\u0627\u0644\u0645\u063a\u0631\u0628')) {
+      return '\u{1F1F2}\u{1F1E6} Morocco';
+    }
+    if (c.contains('tunisia') || c.contains('\u062a\u0648\u0646\u0633')) {
+      return '\u{1F1F9}\u{1F1F3} Tunisia';
+    }
+    if (c.contains('algeria') ||
+        c.contains('\u0627\u0644\u062c\u0632\u0627\u0626\u0631')) {
+      return '\u{1F1E9}\u{1F1FF} Algeria';
     }
 
     return value;
@@ -1454,7 +1588,11 @@ class _VipUpgradeBanner extends StatelessWidget {
                     : CrossAxisAlignment.start,
                 children: [
                   Text(
-                    active ? 'VIP Lv$vipLevel Active' : 'VIP',
+                    active
+                        ? (isArabic
+                              ? 'VIP \u0645\u0633\u062a\u0648\u0649 $vipLevel \u0646\u0634\u0637'
+                              : 'VIP Lv$vipLevel Active')
+                        : 'VIP',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -1463,9 +1601,13 @@ class _VipUpgradeBanner extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    isArabic
-                        ? '\u0627\u0641\u062a\u062d \u062a\u062c\u0631\u0628\u0629 \u0645\u0645\u064a\u0632\u0629'
-                        : 'Unlock Premium Experience',
+                    active
+                        ? (isArabic
+                              ? '\u0627\u0633\u062a\u0645\u062a\u0639 \u0628\u0645\u0632\u0627\u064a\u0627 VIP \u0627\u0644\u062d\u0635\u0631\u064a\u0629'
+                              : 'Enjoy your exclusive VIP benefits')
+                        : (isArabic
+                              ? '\u0627\u0641\u062a\u062d \u062a\u062c\u0631\u0628\u0629 \u0645\u0645\u064a\u0632\u0629'
+                              : 'Unlock Premium Experience'),
                     style: const TextStyle(
                       color: Color(0xFFF7E9FF),
                       fontSize: 13,
@@ -1798,16 +1940,13 @@ class _ProfileMenuList extends StatelessWidget {
     return Column(
       children: items
           .map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: ProfileMenuItem(
-                icon: item.icon,
-                title: item.title,
-                subtitle: item.subtitle,
-                isArabic: isArabic,
-                gradientIcon: item.gradientIcon,
-                onTap: item.onTap,
-              ),
+            (item) => ProfileMenuItem(
+              icon: item.icon,
+              title: item.title,
+              subtitle: item.subtitle,
+              isArabic: isArabic,
+              gradientIcon: item.gradientIcon,
+              onTap: item.onTap,
             ),
           )
           .toList(),

@@ -172,6 +172,41 @@ class AdminService {
     );
   }
 
+  Future<List<AdminWithdrawalRequest>> fetchWithdrawalRequests({
+    String status = 'pending',
+    int limit = 50,
+  }) async {
+    final data = await SupabaseService.requiredClient
+        .from('withdrawal_requests')
+        .select(
+          'id, user_id, diamonds, gross_usd, host_share_usd, agency_share_usd, platform_share_usd, method, account_details, notes, status, created_at, profiles(public_user_id, display_name)',
+        )
+        .eq('status', status)
+        .order('created_at')
+        .limit(limit);
+    return (data as List<dynamic>).map((item) {
+      final m = Map<String, dynamic>.from(item as Map);
+      final profile = m['profiles'] as Map<String, dynamic>?;
+      m['public_user_id'] = profile?['public_user_id'];
+      m['display_name'] = profile?['display_name'];
+      return AdminWithdrawalRequest.fromJson(m);
+    }).toList();
+  }
+
+  Future<void> approveWithdrawal(String requestId) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_approve_withdrawal',
+      params: {'p_request_id': requestId},
+    );
+  }
+
+  Future<void> rejectWithdrawal(String requestId, String reason) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_reject_withdrawal',
+      params: {'p_request_id': requestId, 'p_admin_note': reason},
+    );
+  }
+
   Future<List<AdminRoomSummary>> fetchRooms({int limit = 50}) async {
     final data = await SupabaseService.requiredClient.rpc(
       'admin_list_rooms',

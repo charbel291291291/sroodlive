@@ -763,6 +763,59 @@ class AdminFinanceReport {
   }
 }
 
+class AdminWithdrawalRequest {
+  const AdminWithdrawalRequest({
+    required this.id,
+    required this.userId,
+    required this.diamondsAmount,
+    required this.grossUsd,
+    required this.hostShareUsd,
+    required this.platformShareUsd,
+    required this.method,
+    required this.accountDetails,
+    required this.status,
+    this.publicUserId,
+    this.displayName,
+    this.agencyShareUsd = 0,
+    this.notes,
+    this.createdAt,
+  });
+
+  final String id;
+  final String userId;
+  final String? publicUserId;
+  final String? displayName;
+  final int diamondsAmount;
+  final double grossUsd;
+  final double hostShareUsd;
+  final double agencyShareUsd;
+  final double platformShareUsd;
+  final String method;
+  final String accountDetails;
+  final String? notes;
+  final String status;
+  final DateTime? createdAt;
+
+  factory AdminWithdrawalRequest.fromJson(Map<String, dynamic> json) {
+    return AdminWithdrawalRequest(
+      id: json['id']?.toString() ?? '',
+      userId: json['user_id']?.toString() ?? '',
+      publicUserId: json['public_user_id']?.toString(),
+      displayName: json['display_name']?.toString(),
+      diamondsAmount: _intValue(json['diamonds']),
+      grossUsd: _doubleValue(json['gross_usd']) ?? 0,
+      hostShareUsd: _doubleValue(json['host_share_usd']) ?? 0,
+      agencyShareUsd: _doubleValue(json['agency_share_usd']) ?? 0,
+      platformShareUsd: _doubleValue(json['platform_share_usd']) ?? 0,
+      method: json['method']?.toString() ?? '-',
+      accountDetails: json['account_details']?.toString() ?? '-',
+      notes: json['notes']?.toString(),
+      status: json['status']?.toString() ?? 'pending',
+      createdAt: _dateValue(json['created_at']),
+    );
+  }
+}
+
 class AdminBdReportRow {
   const AdminBdReportRow({
     required this.approvedCount,

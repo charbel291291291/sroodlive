@@ -6,6 +6,12 @@ enum WalletTransactionType {
   agencyRecharge,
   refund,
   system,
+  gameBet,
+  gameReward,
+  gameRefund,
+  withdrawal,
+  withdrawalRefund,
+  agencyCommission,
 }
 
 enum WalletDirection { credit, debit, neutral }
@@ -62,6 +68,12 @@ class WalletTransaction {
       WalletTransactionType.agencyRecharge => 'Agency recharge',
       WalletTransactionType.refund => 'Refund',
       WalletTransactionType.system => 'System',
+      WalletTransactionType.gameBet => 'Game bet',
+      WalletTransactionType.gameReward => 'Game reward',
+      WalletTransactionType.gameRefund => 'Game refund',
+      WalletTransactionType.withdrawal => 'Withdrawal',
+      WalletTransactionType.withdrawalRefund => 'Withdrawal refund',
+      WalletTransactionType.agencyCommission => 'Agency commission',
     };
   }
 
@@ -73,6 +85,12 @@ class WalletTransaction {
       'gift_received' => WalletTransactionType.giftReceived,
       'agency_recharge' => WalletTransactionType.agencyRecharge,
       'refund' => WalletTransactionType.refund,
+      'hungry_cat_bet' || 'crash_bet' => WalletTransactionType.gameBet,
+      'hungry_cat_reward' || 'crash_reward' => WalletTransactionType.gameReward,
+      'hungry_cat_refund' || 'crash_refund' => WalletTransactionType.gameRefund,
+      'withdrawal' => WalletTransactionType.withdrawal,
+      'withdrawal_refund' => WalletTransactionType.withdrawalRefund,
+      'agency_commission' => WalletTransactionType.agencyCommission,
       _ => WalletTransactionType.system,
     };
   }

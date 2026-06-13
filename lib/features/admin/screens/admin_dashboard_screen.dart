@@ -65,6 +65,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   AdminOverview? _overview;
   List<AdminRechargeRequest> _pending = const [];
+  List<AdminWithdrawalRequest> _pendingWithdrawals = const [];
   List<AdminWalletTransaction> _walletTransactions = const [];
   List<AdminGiftTransaction> _giftTransactions = const [];
   List<AdminAgency> _agencies = const [];
@@ -133,6 +134,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final pending = await _adminService.fetchRechargeRequests(
         status: 'pending',
       );
+      final pendingWithdrawals = await _adminService.fetchWithdrawalRequests();
       final walletTransactions = await _adminService.fetchWalletTransactions();
       final giftTransactions = await _adminService.fetchGiftTransactions();
       final agencies = await _adminService.fetchAgencies();
@@ -155,6 +157,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _canAccess = true;
         _overview = overview;
         _pending = pending;
+        _pendingWithdrawals = pendingWithdrawals;
         _walletTransactions = walletTransactions;
         _giftTransactions = giftTransactions;
         _agencies = agencies;
@@ -236,6 +239,42 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       await _adminService.rejectRecharge(request.id, reason.trim());
       if (!mounted) return;
       _showSnack('Recharge rejected');
+      await _load();
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack('Rejection failed: $error');
+    } finally {
+      if (mounted) setState(() => _actionInProgress = false);
+    }
+  }
+
+  Future<void> _approveWithdrawal(AdminWithdrawalRequest request) async {
+    if (_actionInProgress) return;
+    setState(() => _actionInProgress = true);
+    try {
+      await _adminService.approveWithdrawal(request.id);
+      if (!mounted) return;
+      _showSnack('Withdrawal approved');
+      await _load();
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack('Approval failed: $error');
+    } finally {
+      if (mounted) setState(() => _actionInProgress = false);
+    }
+  }
+
+  Future<void> _rejectWithdrawal(AdminWithdrawalRequest request) async {
+    if (_actionInProgress) return;
+    final reason =
+        await _askForText(title: 'Reject withdrawal', label: 'Reason');
+    if (reason == null || reason.trim().isEmpty) return;
+
+    setState(() => _actionInProgress = true);
+    try {
+      await _adminService.rejectWithdrawal(request.id, reason.trim());
+      if (!mounted) return;
+      _showSnack('Withdrawal rejected');
       await _load();
     } catch (error) {
       if (!mounted) return;
@@ -1042,6 +1081,32 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           canFinance: _canFinance,
                           onApprove: () => _approve(request),
                           onReject: () => _reject(request),
+                        ),
+                      )
+                      .toList(),
+                ),
+        ),
+        const SizedBox(height: 14),
+        _AdminSectionCard(
+          title: 'Pending Withdrawal Requests',
+          action: IconButton(
+            onPressed: _load,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+          child: _pendingWithdrawals.isEmpty
+              ? const _AdminEmptyState(
+                  icon: Icons.verified_rounded,
+                  title: 'All clear',
+                  subtitle: 'No pending withdrawal requests right now.',
+                )
+              : Column(
+                  children: _pendingWithdrawals
+                      .map(
+                        (w) => _WithdrawalRequestTile(
+                          request: w,
+                          canFinance: _canFinance,
+                          onApprove: () => _approveWithdrawal(w),
+                          onReject: () => _rejectWithdrawal(w),
                         ),
                       )
                       .toList(),
@@ -3913,6 +3978,74 @@ class _RechargeRequestTile extends StatelessWidget {
           '${request.nickname ?? request.publicUserId ?? request.userId} - ${request.requestedCoins} coins',
       subtitle:
           '${request.method.toUpperCase()} - Ref ${request.referenceCode ?? '-'} - Agent ${request.agentCode ?? '-'}',
+      trailing: canFinance
+          ? Wrap(
+              spacing: 8,
+              children: [
+                OutlinedButton(
+                  onPressed: onReject,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _kRed,
+                    side: const BorderSide(color: _kRed),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  child: const Text('Reject'),
+                ),
+                FilledButton(
+                  onPressed: onApprove,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _kGreen,
+                    foregroundColor: Colors.black87,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  child: const Text('Approve'),
+                ),
+              ],
+            )
+          : const _RoleChip(label: 'view only'),
+    );
+  }
+}
+
+class _WithdrawalRequestTile extends StatelessWidget {
+  const _WithdrawalRequestTile({
+    required this.request,
+    required this.canFinance,
+    required this.onApprove,
+    required this.onReject,
+  });
+
+  final AdminWithdrawalRequest request;
+  final bool canFinance;
+  final VoidCallback onApprove;
+  final VoidCallback onReject;
+
+  @override
+  Widget build(BuildContext context) {
+    final user =
+        request.displayName ?? request.publicUserId ?? request.userId;
+    final split = '\$${request.hostShareUsd.toStringAsFixed(2)} net'
+        '${request.agencyShareUsd > 0 ? ' (agency \$${request.agencyShareUsd.toStringAsFixed(2)})' : ''}';
+    return _AdminListTile(
+      icon: Icons.arrow_circle_up_rounded,
+      title:
+          '$user — ${request.diamondsAmount} 💎 (\$${request.grossUsd.toStringAsFixed(2)} gross)',
+      subtitle:
+          '${request.method.toUpperCase()} · ${request.accountDetails} · $split',
       trailing: canFinance
           ? Wrap(
               spacing: 8,

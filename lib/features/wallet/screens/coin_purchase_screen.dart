@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/supabase/supabase_service.dart';
 
 class CoinPurchaseScreen extends StatefulWidget {
@@ -24,18 +25,18 @@ class _CoinPackage {
   });
 }
 
-// 1 USD = 500,000 coins (CoinConstants.coinsPerUsd).
+// 1 USD = 20,000 coins (CoinConstants.coinsPerUsd).
 // Packages include a bonus tier that grows with package size.
 const _packages = [
-  _CoinPackage(coins: 500000, priceUsd: 1.00),
-  _CoinPackage(coins: 2500000, priceUsd: 5.00, popular: true),
-  _CoinPackage(coins: 5250000, priceUsd: 10.00),
-  _CoinPackage(coins: 13750000, priceUsd: 25.00, bestValue: true),
-  _CoinPackage(coins: 28750000, priceUsd: 50.00),
-  _CoinPackage(coins: 60000000, priceUsd: 100.00),
+  _CoinPackage(coins: 20000, priceUsd: 1.00),
+  _CoinPackage(coins: 100000, priceUsd: 5.00, popular: true),
+  _CoinPackage(coins: 210000, priceUsd: 10.00),
+  _CoinPackage(coins: 550000, priceUsd: 25.00, bestValue: true),
+  _CoinPackage(coins: 1150000, priceUsd: 50.00),
+  _CoinPackage(coins: 2400000, priceUsd: 100.00),
 ];
 
-const _methods = ['Bank Transfer', 'PayPal', 'Wise', 'Agent Code'];
+const _methods = ['OMT', 'Wish', 'USDT', 'Agent Code'];
 
 class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
   int _selectedPackage = 1;
@@ -56,25 +57,18 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
     final pkg = _packages[_selectedPackage];
     setState(() => _submitting = true);
     try {
-      final userId = SupabaseService.requiredClient.auth.currentUser?.id;
-      if (userId == null) return;
-      final method = _methods[_selectedMethod].toLowerCase().replaceAll(
-        ' ',
-        '_',
+      final isAgent = _selectedMethod == 3;
+      final methodKeys = ['omt', 'wish', 'usdt', 'agent'];
+      await SupabaseService.requiredClient.rpc(
+        'request_recharge',
+        params: {
+          'p_requested_coins': pkg.coins,
+          'p_method': methodKeys[_selectedMethod],
+          'p_requested_amount_usd': pkg.priceUsd,
+          'p_reference_code': isAgent ? null : _refController.text.trim(),
+          'p_agent_code': isAgent ? _agentController.text.trim() : null,
+        },
       );
-      await SupabaseService.requiredClient.from('recharge_requests').insert({
-        'user_id': userId,
-        'requested_coins': pkg.coins,
-        'amount_usd': pkg.priceUsd,
-        'method': method,
-        'reference_code': _selectedMethod < 3
-            ? _refController.text.trim()
-            : null,
-        'agent_code': _selectedMethod == 3
-            ? _agentController.text.trim()
-            : null,
-        'status': 'pending',
-      });
       if (!mounted) return;
       setState(() => _submitted = true);
     } catch (_) {
@@ -352,7 +346,7 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
 
   Widget _buildMethodChips(bool isArabic) {
     final labels = isArabic
-        ? ['حوالة بنكية', 'PayPal', 'Wise', 'كود وكيل']
+        ? ['OMT', 'Wish', 'USDT', 'كود وكيل']
         : _methods;
     return Wrap(
       spacing: 8,
