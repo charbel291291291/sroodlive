@@ -91,6 +91,46 @@ class HungryCatSpinResult {
       };
 }
 
+/// One entry in the user's spin history — used for the live banner.
+class HungryCatHistoryEntry {
+  const HungryCatHistoryEntry({
+    required this.foodIcon,
+    required this.foodName,
+    required this.multiplier,
+    required this.rarity,
+    required this.rewardAmount,
+    required this.betAmount,
+  });
+
+  final String foodIcon;
+  final String foodName;
+  final double multiplier;
+  final String rarity;
+  final int rewardAmount;
+  final int betAmount;
+
+  factory HungryCatHistoryEntry.fromJson(Map<String, dynamic> json) {
+    return HungryCatHistoryEntry(
+      foodIcon: json['food_icon']?.toString() ?? '🍽️',
+      foodName: json['food_name']?.toString() ?? '',
+      multiplier: _toDouble(json['multiplier']),
+      rarity: json['rarity']?.toString() ?? 'common',
+      rewardAmount:
+          json['reward_amount'] is int ? json['reward_amount'] as int : 0,
+      betAmount: json['bet_amount'] is int ? json['bet_amount'] as int : 0,
+    );
+  }
+
+  Map<String, dynamic> toBridgeJson() => {
+        'foodIcon': foodIcon,
+        'foodName': foodName,
+        'multiplier': multiplier,
+        'rarity': rarity,
+        'rewardAmount': rewardAmount,
+        'betAmount': betAmount,
+      };
+}
+
 double _toDouble(dynamic value) {
   if (value is double) return value;
   if (value is int) return value.toDouble();

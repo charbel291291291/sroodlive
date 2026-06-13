@@ -11,12 +11,11 @@
 html,body { height:100%; overflow:hidden; }
 body {
   font-family:-apple-system,'Segoe UI',Roboto,sans-serif;
-  background:#08030F;
-  color:#fff;
+  background:#08030F; color:#fff;
   display:flex; flex-direction:column;
 }
 
-/* Ambient background glow */
+/* Ambient glow — decorative, never blocks taps */
 body::before {
   content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
   background:radial-gradient(ellipse 90% 50% at 50% 38%, rgba(91,33,182,.22) 0%, transparent 70%);
@@ -25,83 +24,102 @@ body::before {
 /* ── Top bar ────────────────────────────────────────────── */
 .topbar {
   display:flex; align-items:center; gap:8px;
-  padding:10px 14px 8px; position:relative; z-index:1;
-  flex-shrink:0;
+  padding:10px 14px 8px; position:relative; z-index:2; flex-shrink:0;
 }
 .btn-icon {
-  width:38px; height:38px; border-radius:13px;
+  width:40px; height:40px; border-radius:13px;
   border:1px solid rgba(255,255,255,.11);
   background:rgba(255,255,255,.05);
   color:#C4B8DC; font-size:16px;
   display:flex; align-items:center; justify-content:center;
   flex-shrink:0; transition:background .15s;
+  touch-action:manipulation; cursor:pointer;
 }
 .btn-icon:active { background:rgba(255,255,255,.14); }
 .topbar .title {
   flex:1; text-align:center; font-weight:900; font-size:15px; letter-spacing:.2px;
   background:linear-gradient(90deg,#F0C15A 0%,#E4A8FF 50%,#F0C15A 100%);
   -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  pointer-events:none;
 }
 .balance-pill {
   display:flex; align-items:center; gap:5px;
-  background:rgba(240,193,90,.1);
-  border:1.5px solid rgba(240,193,90,.4);
+  background:rgba(240,193,90,.1); border:1.5px solid rgba(240,193,90,.4);
   border-radius:999px; padding:5px 12px;
   font-weight:900; font-size:13px; color:#F0C15A; flex-shrink:0;
+  pointer-events:none;
 }
+
+/* ── History strip ──────────────────────────────────────── */
+.history-wrap {
+  flex-shrink:0; padding:0 14px 4px; z-index:2; position:relative;
+}
+.history-inner {
+  display:flex; gap:5px; overflow-x:auto; scrollbar-width:none;
+  padding:2px 0; align-items:center; min-height:24px;
+}
+.history-inner::-webkit-scrollbar { display:none; }
+.hc {
+  flex-shrink:0; padding:3px 8px; border-radius:8px;
+  font-size:10.5px; font-weight:900; border:1px solid;
+  font-variant-numeric:tabular-nums; white-space:nowrap; pointer-events:none;
+}
+.hc.gold    { background:rgba(240,193,90,.1);  border-color:rgba(240,193,90,.4);  color:#F0C15A; }
+.hc.purple  { background:rgba(139,92,246,.1);  border-color:rgba(139,92,246,.38); color:#A78BFA; }
+.hc.win     { background:rgba(34,197,94,.08);  border-color:rgba(34,197,94,.38);  color:#22C55E; }
+.hc.muted   { background:rgba(90,50,140,.08);  border-color:rgba(90,50,140,.28);  color:#6A5888; }
+.hc.ph      { background:rgba(90,50,140,.04);  border-color:rgba(90,50,140,.14);  color:#3C2D54; }
 
 /* ── Wheel area ─────────────────────────────────────────── */
 .wheel-wrap {
   flex:1; display:flex; align-items:center; justify-content:center;
   position:relative; z-index:1; overflow:hidden; min-height:0;
+  pointer-events:none; /* wheel is visual-only; taps fall through to panel */
 }
 .wheel {
   position:relative;
-  width:min(85vw, 50vh);
-  height:min(85vw, 50vh);
+  width:min(84vw, 44vh);
+  height:min(84vw, 44vh);
+  pointer-events:none;
 }
 
-/* Glow rings */
+/* Glow rings — decorative */
 .ring-outer {
   position:absolute; inset:-6px; border-radius:50%;
   border:2px solid rgba(139,92,246,.3);
   box-shadow:0 0 60px rgba(91,33,182,.18) inset, 0 0 40px rgba(91,33,182,.12);
+  pointer-events:none;
 }
 .ring-inner {
   position:absolute; inset:14%; border-radius:50%;
   border:1px solid rgba(255,255,255,.05);
   box-shadow:0 0 30px rgba(91,33,182,.1) inset;
+  pointer-events:none;
 }
 
-/* Gold pointer arrow at top */
+/* Gold pointer at top */
 .pointer {
-  position:absolute; left:50%; top:-3px;
-  transform:translateX(-50%);
+  position:absolute; left:50%; top:-3px; transform:translateX(-50%);
   width:0; height:0;
-  border-left:11px solid transparent;
-  border-right:11px solid transparent;
+  border-left:11px solid transparent; border-right:11px solid transparent;
   border-top:20px solid #F0C15A;
   filter:drop-shadow(0 0 10px rgba(240,193,90,.9));
-  z-index:5;
+  z-index:5; pointer-events:none;
 }
-/* Small circle behind pointer */
 .pointer::before {
-  content:'';
-  position:absolute; top:-26px; left:50%;
+  content:''; position:absolute; top:-26px; left:50%;
   transform:translateX(-50%);
   width:14px; height:14px; border-radius:50%;
-  background:#F0C15A;
-  box-shadow:0 0 14px rgba(240,193,90,.9);
+  background:#F0C15A; box-shadow:0 0 14px rgba(240,193,90,.9);
 }
 
 /* Cat */
 .cat {
-  position:absolute; left:50%; top:50%;
-  transform:translate(-50%,-50%);
-  font-size:clamp(42px,13vw,68px);
-  z-index:2;
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  font-size:clamp(38px,12vw,64px); z-index:2;
   animation:breathe 2.8s ease-in-out infinite;
   filter:drop-shadow(0 4px 16px rgba(91,33,182,.3));
+  pointer-events:none;
 }
 @keyframes breathe {
   0%,100% { transform:translate(-50%,-50%) scale(1); }
@@ -117,28 +135,29 @@ body::before {
 /* Food nodes */
 .food-node {
   position:absolute;
-  width:64px; height:64px; margin:-32px;
-  border-radius:20px;
+  width:56px; height:56px; margin:-28px;
+  border-radius:18px;
   background:rgba(12,6,22,.88);
   border:1.5px solid rgba(90,50,140,.45);
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
   transition:transform .1s, box-shadow .1s, border-color .1s, background .1s;
+  pointer-events:none;
 }
-.food-node .ic { font-size:25px; line-height:1; }
-.food-node .mult { font-size:10.5px; font-weight:900; color:#8A7BAA; letter-spacing:.1px; }
+.food-node .ic   { font-size:22px; line-height:1; }
+.food-node .mult { font-size:9.5px; font-weight:900; color:#8A7BAA; letter-spacing:.1px; }
 
-/* Rarity tints */
-.food-node.r-common   { border-color:rgba(90,50,140,.5); }
-.food-node.r-uncommon { border-color:rgba(16,185,129,.5); }
+/* Rarity borders */
+.food-node.r-common    { border-color:rgba(90,50,140,.5); }
+.food-node.r-uncommon  { border-color:rgba(16,185,129,.5); }
 .food-node.r-uncommon .mult { color:#34D399; }
-.food-node.r-rare     { border-color:rgba(59,130,246,.55); }
-.food-node.r-rare .mult { color:#60A5FA; }
-.food-node.r-epic     { border-color:rgba(139,92,246,.65); }
-.food-node.r-epic .mult { color:#A78BFA; }
+.food-node.r-rare      { border-color:rgba(59,130,246,.55); }
+.food-node.r-rare  .mult { color:#60A5FA; }
+.food-node.r-epic      { border-color:rgba(139,92,246,.65); }
+.food-node.r-epic  .mult { color:#A78BFA; }
 .food-node.r-legendary { border-color:#F0C15A; background:rgba(28,14,4,.9); }
 .food-node.r-legendary .mult { color:#F0C15A; }
 
-/* Lit state — cycling highlight */
+/* Lit — cycling */
 .food-node.lit {
   transform:scale(1.25) !important;
   border-color:rgba(240,193,90,.9) !important;
@@ -148,7 +167,7 @@ body::before {
 }
 .food-node.lit .mult { color:#F0C15A !important; }
 
-/* Winner — final landing state */
+/* Winner */
 .food-node.winner {
   transform:scale(1.38) !important;
   border-color:#F0C15A !important;
@@ -165,10 +184,8 @@ body::before {
 
 /* Float reward */
 .float-reward {
-  position:absolute; left:50%; top:33%;
-  transform:translateX(-50%);
-  font-size:28px; font-weight:900;
-  color:#63E6A1; z-index:9;
+  position:absolute; left:50%; top:33%; transform:translateX(-50%);
+  font-size:26px; font-weight:900; color:#63E6A1; z-index:9;
   pointer-events:none; opacity:0;
   text-shadow:0 2px 20px rgba(99,230,161,.55);
 }
@@ -181,54 +198,59 @@ body::before {
 
 /* ── Bottom panel ───────────────────────────────────────── */
 .panel {
-  z-index:1; position:relative; flex-shrink:0;
-  padding:0 14px 22px;
+  z-index:2; position:relative; flex-shrink:0;
+  padding:0 14px max(18px, env(safe-area-inset-bottom));
   background:linear-gradient(0deg,#06020E 0%,transparent 100%);
 }
 
-/* Last win bar */
-.last-win-bar {
-  text-align:center; font-size:12px; font-weight:700;
-  color:#5C4E74; min-height:20px; margin-bottom:10px; line-height:20px;
+/* Status strip */
+.status-strip {
+  display:flex; align-items:center; justify-content:center; gap:7px;
+  padding:6px 0 9px; min-height:30px;
+  pointer-events:none;
 }
-.last-win-bar b { color:#F0C15A; font-size:13px; }
+.sdot {
+  width:6px; height:6px; border-radius:50%; flex-shrink:0;
+  transition:background .3s, box-shadow .3s;
+}
+.sdot.d-bet  { background:#F0C15A; box-shadow:0 0 6px rgba(240,193,90,.8); animation:dotPulse 1.2s ease-in-out infinite; }
+.sdot.d-spin { background:#8B5CF6; box-shadow:0 0 8px rgba(139,92,246,.9); animation:dotPulse .6s ease-in-out infinite; }
+.sdot.d-win  { background:#22C55E; box-shadow:0 0 8px rgba(34,197,94,.8); }
+.sdot.d-low  { background:#6A5888; }
+.sdot.d-err  { background:#EF4444; box-shadow:0 0 6px rgba(239,68,68,.7); }
+@keyframes dotPulse { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+#statusText {
+  font-size:12px; font-weight:700; color:#8A7BAA; letter-spacing:.3px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:80vw;
+}
 
 /* Chip row */
-.chips-wrap { margin-bottom:11px; }
-.chips-label {
-  text-align:center; font-size:10px; font-weight:800; letter-spacing:1.2px;
-  text-transform:uppercase; color:#5C4E74; margin-bottom:7px;
-}
-.chips {
-  display:flex; gap:7px; justify-content:center;
-}
+.chips-wrap { margin-bottom:10px; }
+.chips { display:flex; gap:7px; justify-content:center; }
 .chip {
-  flex:1; padding:11px 4px;
-  border-radius:16px;
-  background:rgba(255,255,255,.04);
-  border:1.5px solid rgba(255,255,255,.09);
-  color:#8A7BAA; font-weight:900; font-size:13px;
-  text-align:center; transition:all .14s;
+  flex:1; padding:12px 4px; border-radius:16px;
+  background:rgba(255,255,255,.04); border:1.5px solid rgba(255,255,255,.09);
+  color:#8A7BAA; font-weight:900; font-size:13px; text-align:center;
+  transition:all .14s; touch-action:manipulation; cursor:pointer;
 }
 .chip:active { transform:scale(.93); }
 .chip.sel {
   background:linear-gradient(145deg,rgba(139,92,246,.4),rgba(76,29,149,.55));
-  border-color:rgba(139,92,246,.65);
-  color:#fff;
+  border-color:rgba(139,92,246,.65); color:#fff;
   box-shadow:0 4px 20px rgba(139,92,246,.32), inset 0 1px 0 rgba(255,255,255,.1);
   transform:scale(1.07);
 }
+.chip:disabled { opacity:.35; pointer-events:none; }
 
 /* PLAY button */
 .play-btn {
   width:100%; padding:18px 0;
-  border:1.5px solid rgba(240,193,90,.5);
-  border-radius:22px;
-  font-size:18px; font-weight:900; letter-spacing:.4px;
-  color:#120820;
+  border:1.5px solid rgba(240,193,90,.5); border-radius:22px;
+  font-size:18px; font-weight:900; letter-spacing:.4px; color:#120820;
   background:linear-gradient(135deg,#F5D270 0%,#E8A817 55%,#C97E0B 100%);
   box-shadow:0 8px 30px rgba(232,168,23,.38), inset 0 2px 0 rgba(255,255,255,.28);
   transition:transform .1s, box-shadow .12s, opacity .2s;
+  touch-action:manipulation; cursor:pointer;
 }
 .play-btn:not([disabled]) { animation:btnGlow 2.6s ease-in-out infinite; }
 @keyframes btnGlow {
@@ -236,37 +258,29 @@ body::before {
   50%      { box-shadow:0 10px 44px rgba(232,168,23,.65), 0 0 70px rgba(232,168,23,.18), inset 0 2px 0 rgba(255,255,255,.28); }
 }
 .play-btn:active:not([disabled]) { transform:scale(.97); animation:none; }
-.play-btn[disabled] { opacity:.38; animation:none; }
+.play-btn[disabled] { opacity:.38; animation:none; cursor:default; }
 
 /* ── Popups ─────────────────────────────────────────────── */
 .overlay {
   position:fixed; inset:0;
-  background:rgba(2,1,6,.8);
-  backdrop-filter:blur(7px);
-  z-index:20; display:none;
-  align-items:center; justify-content:center; padding:28px;
+  background:rgba(2,1,6,.8); backdrop-filter:blur(7px);
+  z-index:20; display:none; align-items:center; justify-content:center; padding:28px;
+  touch-action:manipulation;
 }
 .overlay.show { display:flex; }
 .popup {
   width:100%; max-width:340px;
   background:linear-gradient(160deg,#1A0F2E 0%,#100720 100%);
-  border-radius:28px;
-  border:1px solid rgba(139,92,246,.38);
+  border-radius:28px; border:1px solid rgba(139,92,246,.38);
   padding:26px 20px; text-align:center;
   animation:popIn .3s cubic-bezier(.34,1.56,.64,1);
   box-shadow:0 24px 64px rgba(0,0,0,.7);
 }
-@keyframes popIn {
-  from { transform:scale(.68) translateY(18px); opacity:0; }
-  to   { transform:scale(1) translateY(0); opacity:1; }
-}
-.popup.gold {
-  border-color:rgba(240,193,90,.55);
-  box-shadow:0 24px 64px rgba(0,0,0,.7), 0 0 90px rgba(240,193,90,.2);
-}
-.popup .big-ic { font-size:58px; line-height:1.1; }
+@keyframes popIn { from { transform:scale(.68) translateY(18px); opacity:0; } to { transform:scale(1) translateY(0); opacity:1; } }
+.popup.gold { border-color:rgba(240,193,90,.55); box-shadow:0 24px 64px rgba(0,0,0,.7), 0 0 90px rgba(240,193,90,.2); }
+.popup .big-ic { font-size:58px; line-height:1.1; pointer-events:none; }
 .popup h2 { font-size:22px; font-weight:900; margin:10px 0 4px; }
-.popup p { font-size:14px; color:#8A7BAA; line-height:1.5; }
+.popup p  { font-size:14px; color:#8A7BAA; line-height:1.5; }
 .popup .mult-chip {
   display:inline-block;
   background:rgba(240,193,90,.12); border:1px solid rgba(240,193,90,.38);
@@ -274,20 +288,17 @@ body::before {
   font-size:19px; font-weight:900; color:#F0C15A; margin:8px 0;
 }
 .popup .reward-line {
-  font-size:34px; font-weight:900; color:#63E6A1;
-  margin:10px 0 4px;
+  font-size:34px; font-weight:900; color:#63E6A1; margin:10px 0 4px;
   text-shadow:0 0 24px rgba(99,230,161,.45);
 }
 .popup .pbtn {
-  margin-top:18px; width:100%; padding:14px 0;
-  border:none; border-radius:18px;
+  margin-top:18px; width:100%; padding:14px 0; border:none; border-radius:18px;
   background:linear-gradient(135deg,#8B5CF6,#4C1D95);
   color:#fff; font-size:15px; font-weight:900;
-  box-shadow:0 6px 22px rgba(139,92,246,.35);
-  transition:transform .1s;
+  box-shadow:0 6px 22px rgba(139,92,246,.35); transition:transform .1s;
+  touch-action:manipulation; cursor:pointer;
 }
 .popup .pbtn:active { transform:scale(.97); }
-
 .rules-list { text-align:start; margin-top:12px; max-height:36vh; overflow-y:auto; }
 .rules-list .row {
   display:flex; justify-content:space-between; align-items:center;
@@ -300,7 +311,19 @@ body::before {
   background:rgba(240,193,90,.1); padding:3px 12px; border-radius:999px;
 }
 
-/* ── Shake ─────────────────────────────────────────────── */
+/* Auto-dismiss progress bar inside result popup */
+.dismiss-bar-wrap {
+  margin-top:12px; height:3px; border-radius:2px;
+  background:rgba(255,255,255,.08); overflow:hidden;
+}
+.dismiss-bar {
+  height:100%; border-radius:2px;
+  background:rgba(139,92,246,.6);
+  width:100%; transition:none;
+}
+.dismiss-bar.go { transition:width 2.5s linear; width:0%; }
+
+/* ── Shake ──────────────────────────────────────────────── */
 .shake { animation:shake .5s; }
 @keyframes shake {
   0%,100% { transform:translateX(0); }
@@ -313,10 +336,18 @@ body::before {
 /* ── Confetti ───────────────────────────────────────────── */
 .confetti-bit {
   position:fixed; top:-12px; width:9px; height:9px; z-index:30;
-  pointer-events:none; border-radius:2px;
-  animation:confFall linear forwards;
+  pointer-events:none; border-radius:2px; animation:confFall linear forwards;
 }
 @keyframes confFall { to { transform:translateY(110vh) rotate(720deg); } }
+
+/* ── Small-screen tweaks (≤ 380px) ────────────────────────── */
+@media (max-width:380px) {
+  .wheel { width:min(82vw,42vh); height:min(82vw,42vh); }
+  .food-node { width:48px; height:48px; margin:-24px; border-radius:14px; }
+  .food-node .ic   { font-size:19px; }
+  .food-node .mult { font-size:8.5px; }
+  .history-wrap { display:none; } /* hide history on very small screens */
+}
 </style>
 </head>
 <body>
@@ -328,6 +359,11 @@ body::before {
   <div class="title" id="gameTitle">Hungry Cat</div>
   <button class="btn-icon" id="btnSound">🔊</button>
   <div class="balance-pill">🪙&nbsp;<span id="balance">—</span></div>
+</div>
+
+<!-- Round history strip -->
+<div class="history-wrap">
+  <div class="history-inner" id="historyInner"></div>
 </div>
 
 <!-- Wheel -->
@@ -343,9 +379,13 @@ body::before {
 
 <!-- Bottom panel -->
 <div class="panel">
-  <div class="last-win-bar" id="lastWin"></div>
+  <!-- Status strip -->
+  <div class="status-strip">
+    <span class="sdot" id="sdot"></span>
+    <span id="statusText">—</span>
+  </div>
+  <!-- Bet chips -->
   <div class="chips-wrap">
-    <div class="chips-label" id="chipsLabel">SELECT BET</div>
     <div class="chips" id="chips"></div>
   </div>
   <button class="play-btn" id="btnPlay" disabled>🪙 SPIN</button>
@@ -359,6 +399,7 @@ body::before {
     <div class="mult-chip" id="resMult">×1.5</div>
     <div class="reward-line" id="resReward">+0 🪙</div>
     <button class="pbtn" id="resOk">Continue</button>
+    <div class="dismiss-bar-wrap"><div class="dismiss-bar" id="dismissBar"></div></div>
   </div>
 </div>
 
@@ -388,61 +429,81 @@ body::before {
 
 // ── State ──────────────────────────────────────────────────────────────────────
 var S = {
-  state: 'idle',
-  foods: [],
-  betChips: [100, 500, 1000, 2000, 5000],
-  selectedBet: 100,
-  balance: 0,
-  isArabic: false,
-  soundOn: true,
-  litIndex: -1,
-  cycleTimer: null,
-  pendingResult: null
+  state:        'idle',   // idle | spinning | result
+  foods:        [],
+  betChips:     [100, 500, 1000, 2000, 5000],
+  selectedBet:  100,
+  balance:      0,
+  isArabic:     false,
+  soundOn:      true,
+  litIndex:     -1,
+  cycleTimer:   null,
+  pendingResult: null,
+  history:      [],      // {multiplier, rarity, foodIcon, rewardAmount, betAmount}[]  max 20
+  roundTimer:   null,
+  roundSecs:    8,
+  autoDismiss:  null,
+  spinGuard:    false    // debounce double-tap
 };
+var ROUND_DURATION = 8;
 
 // ── Translations ───────────────────────────────────────────────────────────────
 var T = {
   en: {
-    play:         'SPIN',
-    spinning:     'SPINNING…',
-    cont:         'Continue',
-    gotIt:        'Got it!',
-    help:         'How to play',
-    helpBody:     'Pick a bet, tap Spin and feed the cat. Each food pays bet × multiplier. Rarer foods pay more!',
-    selectBet:    'SELECT BET',
-    noCoins:      'Not enough coins',
-    noCoinsBody:  'Recharge your wallet to keep feeding the cat.',
-    err:          'Oops!',
-    errBody:      'Something went wrong. Please try again.',
-    netErr:       'Connection problem',
-    netErrBody:   'Check your internet and try again.',
-    disabled:     'Game unavailable',
-    disabledBody: 'Hungry Cat Wheel is currently disabled.',
-    bigWin:       'BIG WIN! 🎉',
-    jackpot:      '🏆 JACKPOT!',
-    lastWin:      'Last win: ',
-    title:        'Hungry Cat'
+    play:          'SPIN',
+    spinning:      'SPINNING…',
+    cont:          'Continue',
+    gotIt:         'Got it!',
+    help:          'How to play',
+    helpBody:      'Pick a bet, tap Spin and feed the cat. Each food pays bet × multiplier. Rarer foods pay more!',
+    noCoins:       'Not enough coins',
+    noCoinsBody:   'Recharge your wallet to keep feeding the cat.',
+    err:           'Oops!',
+    errBody:       'Something went wrong. Please try again.',
+    netErr:        'Connection problem',
+    netErrBody:    'Check your internet and try again.',
+    disabled:      'Game unavailable',
+    disabledBody:  'Hungry Cat Wheel is currently disabled.',
+    bigWin:        'BIG WIN! 🎉',
+    jackpot:       '🏆 JACKPOT!',
+    lastWin:       'Last win: ',
+    title:         'Hungry Cat',
+    statusBet:     'Next round in ',
+    statusSpin:    'Spinning…',
+    statusWon:     'You won ×',
+    statusNoWin:   'No win this round',
+    statusPick:    'Pick your bet',
+    statusNoCoins: 'Not enough coins',
+    statusErr:     'Connection error — tap retry',
+    secs:          's'
   },
   ar: {
-    play:         'العب',
-    spinning:     'يدور…',
-    cont:         'متابعة',
-    gotIt:        'فهمت!',
-    help:         'طريقة اللعب',
-    helpBody:     'اختر رهانك واضغط العب لإطعام القط. كل طعام يدفع الرهان × المضاعف. الأطعمة النادرة تدفع أكثر!',
-    selectBet:    'اختر الرهان',
-    noCoins:      'لا توجد عملات كافية',
-    noCoinsBody:  'اشحن محفظتك لمواصلة إطعام القط.',
-    err:          'عذراً!',
-    errBody:      'حدث خطأ ما. حاول مرة أخرى.',
-    netErr:       'مشكلة في الاتصال',
-    netErrBody:   'تحقق من الإنترنت وحاول مجدداً.',
-    disabled:     'اللعبة غير متاحة',
-    disabledBody: 'عجلة القط الجائع متوقفة حالياً.',
-    bigWin:       'فوز كبير! 🎉',
-    jackpot:      '🏆 الجائزة الكبرى!',
-    lastWin:      'آخر فوز: ',
-    title:        'القط الجائع'
+    play:          'العب',
+    spinning:      'يدور…',
+    cont:          'متابعة',
+    gotIt:         'فهمت!',
+    help:          'طريقة اللعب',
+    helpBody:      'اختر رهانك واضغط العب لإطعام القط. كل طعام يدفع الرهان × المضاعف.',
+    noCoins:       'لا توجد عملات كافية',
+    noCoinsBody:   'اشحن محفظتك لمواصلة إطعام القط.',
+    err:           'عذراً!',
+    errBody:       'حدث خطأ. حاول مرة أخرى.',
+    netErr:        'مشكلة في الاتصال',
+    netErrBody:    'تحقق من الإنترنت وحاول مجدداً.',
+    disabled:      'اللعبة غير متاحة',
+    disabledBody:  'عجلة القط الجائع متوقفة حالياً.',
+    bigWin:        'فوز كبير! 🎉',
+    jackpot:       '🏆 الجائزة الكبرى!',
+    lastWin:       'آخر فوز: ',
+    title:         'القط الجائع',
+    statusBet:     'الجولة التالية خلال ',
+    statusSpin:    'جاري اللف…',
+    statusWon:     'ربحت ×',
+    statusNoWin:   'لم تربح هذه الجولة',
+    statusPick:    'اختر الرهان',
+    statusNoCoins: 'رصيد غير كاف',
+    statusErr:     'خطأ في الاتصال',
+    secs:          's'
   }
 };
 function t(k) { return (S.isArabic ? T.ar : T.en)[k] || k; }
@@ -470,12 +531,13 @@ window.onSroodMessage = function(msg) {
   if (!msg || !msg.type) return;
   var p = msg.payload || {};
   switch (msg.type) {
-    case 'INIT_GAME':      onInit(p);         break;
-    case 'BALANCE_UPDATE': setBalance(p.balance); break;
-    case 'SPIN_ACCEPTED':  /* animation already running */ break;
-    case 'SPIN_RESULT':    onSpinResult(p);   break;
-    case 'SPIN_REJECTED':  onSpinRejected(p); break;
-    case 'ERROR':          onSpinRejected(p); break;
+    case 'INIT_GAME':      onInit(p);                       break;
+    case 'BALANCE_UPDATE': setBalance(p.balance);           break;
+    case 'HISTORY_UPDATE': onHistoryUpdate(p.results);      break;
+    case 'SPIN_ACCEPTED':  /* animation running */           break;
+    case 'SPIN_RESULT':    onSpinResult(p);                 break;
+    case 'SPIN_REJECTED':  onSpinRejected(p);               break;
+    case 'ERROR':          onSpinRejected(p);               break;
   }
 };
 
@@ -486,23 +548,28 @@ function onInit(p) {
   if (Array.isArray(p.betChips) && p.betChips.length) S.betChips = p.betChips;
   S.selectedBet = S.betChips[0];
   S.foods = Array.isArray(p.foods) ? p.foods : [];
+  // Seed history from the server-side latest results included in INIT_GAME
+  if (Array.isArray(p.latestResults) && p.latestResults.length) {
+    S.history = p.latestResults.slice(0, 20);
+  }
 
   if (S.isArabic) document.documentElement.dir = 'rtl';
 
-  document.getElementById('gameTitle').textContent = t('title');
-  document.getElementById('resOk').textContent     = t('cont');
-  document.getElementById('helpOk').textContent    = t('gotIt');
-  document.getElementById('msgOk').textContent     = t('gotIt');
-  document.getElementById('helpTitle').textContent = t('help');
-  document.getElementById('helpBody').textContent  = t('helpBody');
-  document.getElementById('chipsLabel').textContent = t('selectBet');
+  document.getElementById('gameTitle').textContent  = t('title');
+  document.getElementById('resOk').textContent      = t('cont');
+  document.getElementById('helpOk').textContent     = t('gotIt');
+  document.getElementById('msgOk').textContent      = t('gotIt');
+  document.getElementById('helpTitle').textContent  = t('help');
+  document.getElementById('helpBody').textContent   = t('helpBody');
 
   setBalance(S.balance);
   renderChips();
   renderWheel();
   renderRules();
+  renderHistory();
   updatePlayBtn();
   document.getElementById('btnPlay').disabled = false;
+  startBettingPhase();
 }
 
 function setBalance(v) {
@@ -526,6 +593,116 @@ function updatePlayBtn() {
   }
 }
 
+// ── Status strip ───────────────────────────────────────────────────────────────
+function setStatus(phase, extra) {
+  var dot  = document.getElementById('sdot');
+  var txt  = document.getElementById('statusText');
+  dot.className = 'sdot';
+  var msg = '';
+  if (phase === 'bet') {
+    dot.classList.add('d-bet');
+    msg = t('statusBet') + (extra || '') + t('secs');
+  } else if (phase === 'spin') {
+    dot.classList.add('d-spin');
+    msg = t('statusSpin');
+  } else if (phase === 'won') {
+    dot.classList.add('d-win');
+    msg = t('statusWon') + (extra || '') + ' 🎉';
+  } else if (phase === 'low') {
+    dot.classList.add('d-low');
+    msg = '×' + (extra || '') + '  +' + fmt(S.pendingResult ? S.pendingResult.rewardAmount : 0) + ' 🪙';
+  } else if (phase === 'nocoins') {
+    dot.classList.add('d-err');
+    msg = t('statusNoCoins');
+  } else if (phase === 'err') {
+    dot.classList.add('d-err');
+    msg = t('statusErr');
+  } else if (phase === 'pick') {
+    dot.classList.add('d-bet');
+    msg = t('statusPick');
+  }
+  if (txt) txt.textContent = msg;
+}
+
+// ── Round cycle ────────────────────────────────────────────────────────────────
+function startBettingPhase() {
+  stopRoundTimer();
+  if (S.state !== 'idle') return;
+  S.roundSecs = ROUND_DURATION;
+  setStatus('bet', S.roundSecs);
+  S.roundTimer = setInterval(function() {
+    if (S.state !== 'idle') { stopRoundTimer(); return; }
+    S.roundSecs--;
+    if (S.roundSecs <= 0) {
+      S.roundSecs = ROUND_DURATION;
+    }
+    setStatus('bet', S.roundSecs);
+  }, 1000);
+}
+
+function stopRoundTimer() {
+  if (S.roundTimer) { clearInterval(S.roundTimer); S.roundTimer = null; }
+}
+
+// ── History strip ──────────────────────────────────────────────────────────────
+function histClass(h) {
+  // Green for profitable spins (user won more than bet)
+  if (h.rewardAmount != null && h.betAmount != null && h.rewardAmount > h.betAmount) {
+    var m = h.multiplier;
+    if (m >= 15) return 'gold';
+    if (m >= 5)  return 'purple';
+    return 'win';
+  }
+  var m = h.multiplier;
+  if (m >= 15) return 'gold';
+  if (m >= 5)  return 'purple';
+  return 'muted';
+}
+
+function renderHistory() {
+  var inner = document.getElementById('historyInner');
+  if (!inner) return;
+  inner.innerHTML = '';
+  if (S.history.length === 0) {
+    // Skeleton placeholders while waiting for first results
+    var wait = document.createElement('span');
+    wait.className = 'hc ph';
+    wait.style.fontSize = '10px';
+    wait.style.letterSpacing = '0';
+    wait.textContent = S.isArabic ? 'في انتظار النتائج...' : 'Waiting for results...';
+    inner.appendChild(wait);
+    return;
+  }
+  // Newest on the left (index 0 = most recent from DB, or last pushed locally)
+  for (var j = 0; j < S.history.length; j++) {
+    var h = S.history[j];
+    var chip = document.createElement('span');
+    chip.className = 'hc ' + histClass(h);
+    var icon = h.foodIcon || '';
+    chip.textContent = (icon ? icon + ' ' : '') + '×' + h.multiplier;
+    inner.appendChild(chip);
+  }
+}
+
+function onHistoryUpdate(results) {
+  if (!Array.isArray(results)) return;
+  S.history = results.slice(0, 20);
+  renderHistory();
+}
+
+function addHistory(result) {
+  // Prepend newest result so it appears first (left side of banner)
+  S.history.unshift({
+    multiplier:   result.multiplier,
+    rarity:       result.rarity,
+    foodIcon:     result.foodIcon || '',
+    rewardAmount: result.rewardAmount,
+    betAmount:    result.betAmount
+  });
+  if (S.history.length > 20) S.history.pop();
+  renderHistory();
+}
+
 // ── Render chips ───────────────────────────────────────────────────────────────
 function renderChips() {
   var box = document.getElementById('chips');
@@ -534,6 +711,7 @@ function renderChips() {
     var b = document.createElement('button');
     b.className = 'chip' + (v === S.selectedBet ? ' sel' : '');
     b.textContent = fmt(v);
+    b.setAttribute('type', 'button');
     b.onclick = function() {
       if (S.state === 'spinning') return;
       play('tap');
@@ -551,6 +729,8 @@ function renderWheel() {
   wheel.querySelectorAll('.food-node').forEach(function(n) { n.remove(); });
   var n = S.foods.length;
   if (!n) return;
+  // Use narrower orbital on small screens so nodes stay inside the ring
+  var orb = window.innerWidth < 380 ? 37 : 40;
   S.foods.forEach(function(f, i) {
     var node = document.createElement('div');
     node.className = 'food-node r-' + (f.rarity || 'common');
@@ -559,8 +739,8 @@ function renderWheel() {
       '<div class="ic">' + f.icon + '</div>' +
       '<div class="mult">×' + f.multiplier + '</div>';
     var ang = (i / n) * 2 * Math.PI - Math.PI / 2;
-    node.style.left = (50 + 46 * Math.cos(ang)) + '%';
-    node.style.top  = (50 + 46 * Math.sin(ang)) + '%';
+    node.style.left = (50 + orb * Math.cos(ang)) + '%';
+    node.style.top  = (50 + orb * Math.sin(ang)) + '%';
     wheel.appendChild(node);
   });
 }
@@ -589,25 +769,41 @@ function uuid() {
 }
 
 function startSpin() {
-  if (S.state !== 'idle' || !S.foods.length) return;
+  // Guard: only one spin at a time + debounce rapid double-taps
+  if (S.state !== 'idle' || !S.foods.length || S.spinGuard) return;
   if (S.balance < S.selectedBet) {
+    setStatus('nocoins');
     showMsg('😿', t('noCoins'), t('noCoinsBody'));
     return;
   }
+
+  S.spinGuard = true;
+  setTimeout(function() { S.spinGuard = false; }, 600);
+
   play('spin');
+  stopRoundTimer();
   S.state = 'spinning';
   S.pendingResult = null;
-  document.getElementById('btnPlay').disabled = true;
-  updatePlayBtn();
 
-  // Optimistic deduction — authoritative value arrives in SPIN_RESULT
+  var btn = document.getElementById('btnPlay');
+  btn.disabled = true;
+  updatePlayBtn();
+  setStatus('spin');
+  setChipsEnabled(false);
+
+  // Optimistic balance deduction (authoritative value arrives in SPIN_RESULT)
   setBalance(S.balance - S.selectedBet);
   startCycle(72);
 
-  send('REQUEST_SPIN', {
-    gameKey: 'hungry_cat',
+  send('PLAY_SPIN', {
     betAmount: S.selectedBet,
     clientSpinId: uuid()
+  });
+}
+
+function setChipsEnabled(on) {
+  document.querySelectorAll('.chip').forEach(function(c) {
+    c.disabled = !on;
   });
 }
 
@@ -679,6 +875,7 @@ function landed() {
   fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
 
   setBalance(p.newBalance);
+  addHistory(p);
 
   var rare = p.rarity === 'rare' || p.rarity === 'epic' || p.rarity === 'legendary';
   if (rare) confetti(p.rarity === 'legendary' ? 90 : 45, p.rarity === 'legendary');
@@ -691,6 +888,13 @@ function landed() {
   }
   play('coin');
 
+  // Update status strip with result
+  if (p.multiplier >= 2) {
+    setStatus('won', p.multiplier);
+  } else {
+    setStatus('low', p.multiplier);
+  }
+
   setTimeout(function() { showResult(p, rare); }, 750);
 }
 
@@ -698,15 +902,30 @@ function showResult(p, rare) {
   S.state = 'result';
   var pop = document.getElementById('resultPopup');
   pop.classList.toggle('gold', p.rarity === 'legendary' || p.rarity === 'epic');
-  document.getElementById('resIcon').textContent = p.foodIcon;
-  document.getElementById('resTitle').textContent =
+  document.getElementById('resIcon').textContent   = p.foodIcon;
+  document.getElementById('resTitle').textContent  =
     p.rarity === 'legendary' ? t('jackpot') : (rare ? t('bigWin') : p.foodName);
-  document.getElementById('resMult').textContent = '×' + p.multiplier;
+  document.getElementById('resMult').textContent   = '×' + p.multiplier;
   document.getElementById('resReward').textContent = '+' + fmt(p.rewardAmount) + ' 🪙';
-  document.getElementById('resOk').textContent = t('cont');
+  document.getElementById('resOk').textContent     = t('cont');
   document.getElementById('ovResult').classList.add('show');
-  document.getElementById('lastWin').innerHTML =
-    t('lastWin') + '<b>' + p.foodIcon + ' +' + fmt(p.rewardAmount) + ' 🪙</b>';
+
+  // Animate dismiss progress bar and auto-close after 2.5s
+  var bar = document.getElementById('dismissBar');
+  if (bar) {
+    bar.className = 'dismiss-bar';
+    void bar.offsetWidth;
+    bar.className = 'dismiss-bar go';
+  }
+  clearTimeout(S.autoDismiss);
+  S.autoDismiss = setTimeout(dismissResult, 2500);
+}
+
+function dismissResult() {
+  clearTimeout(S.autoDismiss);
+  document.getElementById('ovResult').classList.remove('show');
+  resetIdle();
+  send('SPIN_ANIMATION_DONE', {});
 }
 
 function onSpinRejected(p) {
@@ -717,29 +936,44 @@ function onSpinRejected(p) {
   }
   S.litIndex = -1;
   var code = p && p.code;
-  if (code === 'insufficient_coins') showMsg('😿', t('noCoins'), t('noCoinsBody'));
-  else if (code === 'game_disabled')  showMsg('🚧', t('disabled'), t('disabledBody'));
-  else if (code === 'network_error')  showMsg('📡', t('netErr'), t('netErrBody'));
-  else if (code === 'spin_in_progress') return;
-  else showMsg('😿', t('err'), t('errBody'));
+  if (code === 'insufficient_coins') {
+    setStatus('nocoins');
+    showMsg('😿', t('noCoins'), t('noCoinsBody'));
+  } else if (code === 'game_disabled') {
+    setStatus('err');
+    showMsg('🚧', t('disabled'), t('disabledBody'));
+  } else if (code === 'network_error') {
+    setStatus('err');
+    showMsg('📡', t('netErr'), t('netErrBody'));
+  } else if (code === 'spin_in_progress') {
+    // silently ignore — spin guard already prevented duplicate UI
+  } else {
+    setStatus('err');
+    showMsg('😿', t('err'), t('errBody'));
+  }
   send('REQUEST_BALANCE', {});
   resetIdle();
 }
 
 function resetIdle() {
   stopCycle();
+  stopRoundTimer();
   S.state = 'idle';
   S.pendingResult = null;
+  S.spinGuard = false;
   var btn = document.getElementById('btnPlay');
   btn.disabled = false;
+  btn.removeAttribute('disabled');
   updatePlayBtn();
+  setChipsEnabled(true);
   var cat = document.getElementById('cat');
   cat.classList.remove('eat');
   cat.textContent = '🐱';
   document.querySelectorAll('.food-node').forEach(function(n) {
-    n.classList.remove('lit','winner');
+    n.classList.remove('lit', 'winner');
   });
   S.litIndex = -1;
+  startBettingPhase();
 }
 
 // ── Confetti ───────────────────────────────────────────────────────────────────
@@ -767,44 +1001,26 @@ function showMsg(icon, title, body) {
   document.getElementById('ovMsg').classList.add('show');
 }
 
-// ── Wire up controls ───────────────────────────────────────────────────────────
+// ── Controls ───────────────────────────────────────────────────────────────────
 document.getElementById('btnPlay').onclick  = startSpin;
 document.getElementById('btnBack').onclick  = function() { play('tap'); send('GAME_CLOSED', {}); };
 document.getElementById('btnHelp').onclick  = function() { play('tap'); document.getElementById('ovHelp').classList.add('show'); };
 document.getElementById('helpOk').onclick   = function() { document.getElementById('ovHelp').classList.remove('show'); };
 document.getElementById('msgOk').onclick    = function() { document.getElementById('ovMsg').classList.remove('show'); };
-document.getElementById('resOk').onclick    = function() {
-  document.getElementById('ovResult').classList.remove('show');
-  resetIdle();
-  send('SPIN_ANIMATION_DONE', {});
-};
+document.getElementById('resOk').onclick    = dismissResult;
 document.getElementById('btnSound').onclick = function() {
   S.soundOn = !S.soundOn;
   document.getElementById('btnSound').textContent = S.soundOn ? '🔊' : '🔇';
   send('AUDIO_TOGGLE', { on: S.soundOn });
 };
 
-// Signal Flutter we are ready
+// Boot — GAME_READY triggers INIT_GAME (with latestResults) from Flutter.
+// REQUEST_HISTORY is a fallback refresh in case the user re-opens mid-session.
 send('GAME_READY', {});
+send('REQUEST_HISTORY', {});
 
-// Demo fallback: if Flutter never sends INIT_GAME (browser preview), self-init after 400ms
-setTimeout(function() {
-  if (S.foods.length > 0) return;
-  onInit({
-    balance: 10000,
-    betChips: [100, 500, 1000, 2000, 5000],
-    foods: [
-      { foodId:'f1', icon:'🍪', name:'Cookie',      multiplier:1.5, rarity:'common' },
-      { foodId:'f2', icon:'🍕', name:'Pizza',        multiplier:2,   rarity:'common' },
-      { foodId:'f3', icon:'🍗', name:'Chicken',      multiplier:3,   rarity:'uncommon' },
-      { foodId:'f4', icon:'🍣', name:'Sushi',        multiplier:5,   rarity:'uncommon' },
-      { foodId:'f5', icon:'🎂', name:'Cake',         multiplier:8,   rarity:'rare' },
-      { foodId:'f6', icon:'🦐', name:'Lobster',      multiplier:15,  rarity:'epic' },
-      { foodId:'f7', icon:'🥩', name:'Steak',        multiplier:25,  rarity:'epic' },
-      { foodId:'f8', icon:'💎', name:'Diamond Fish', multiplier:50,  rarity:'legendary' }
-    ]
-  });
-}, 400);
 </script>
 </body>
 </html>
+
+

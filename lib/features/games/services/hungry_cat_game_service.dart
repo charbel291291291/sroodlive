@@ -45,6 +45,20 @@ class HungryCatGameService {
     return (data?['coins_balance'] as int?) ?? 0;
   }
 
+  Future<List<HungryCatHistoryEntry>> fetchRecentSpins({
+    int limit = 20,
+  }) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'get_hungry_cat_history',
+      params: {'p_limit': limit},
+    );
+    final rows = data as List<dynamic>;
+    return rows
+        .map((e) =>
+            HungryCatHistoryEntry.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<HungryCatSpinResult> playSpin({
     required int betAmount,
     required String clientSpinId,

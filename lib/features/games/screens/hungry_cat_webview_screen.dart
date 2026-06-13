@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
@@ -46,9 +47,16 @@ class _HungryCatWebViewScreenState extends State<HungryCatWebViewScreen> {
   @override
   void initState() {
     super.initState();
+    // Black navigation bar so no grey bar shows beneath the WebView.
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: Color(0xFF08030F),
+      systemNavigationBarIconBrightness: Brightness.light,
+    ));
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0xFF0C0518))
+      ..setBackgroundColor(const Color(0xFF08030F))
       ..addJavaScriptChannel(
         'SroodBridge',
         onMessageReceived: (message) => _onWebMessage(message.message),
@@ -73,6 +81,14 @@ class _HungryCatWebViewScreenState extends State<HungryCatWebViewScreen> {
       ..loadFlutterAsset('assets/games/hungry_cat/index.html');
   }
 
+  @override
+  void dispose() {
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      systemNavigationBarColor: Colors.transparent,
+    ));
+    super.dispose();
+  }
+
   // ── Web → Flutter ───────────────────────────────────────────────────────────
 
   Future<void> _onWebMessage(String raw) async {
@@ -88,8 +104,10 @@ class _HungryCatWebViewScreenState extends State<HungryCatWebViewScreen> {
         await _initGame();
       case 'REQUEST_BALANCE':
         await _sendBalance();
-      case 'REQUEST_SPIN':
+      case 'PLAY_SPIN':
         await _handleSpinRequest(msg['payload'] as Map<String, dynamic>?);
+      case 'REQUEST_HISTORY':
+        await _sendHistory();
       case 'SPIN_ANIMATION_DONE':
         break;
       case 'GAME_CLOSED':
@@ -122,6 +140,15 @@ class _HungryCatWebViewScreenState extends State<HungryCatWebViewScreen> {
           .maybeSingle();
       final balance = await _service.fetchCoinBalance();
       final foods = await _service.fetchFoodConfig();
+      // Fetch the user's latest 20 spins so the history banner is populated
+      // immediately without a second round-trip from the web side.
+      List<Map<String, dynamic>> latestResults;
+      try {
+        final history = await _service.fetchRecentSpins();
+        latestResults = history.map((h) => h.toBridgeJson()).toList();
+      } catch (_) {
+        latestResults = [];
+      }
 
       _postToWeb('INIT_GAME', {
         'userId': user.id,
@@ -132,6 +159,7 @@ class _HungryCatWebViewScreenState extends State<HungryCatWebViewScreen> {
         'isArabic': widget.isArabic,
         'betChips': const [100, 500, 1000, 2000, 5000],
         'foods': foods.map((f) => f.toBridgeJson()).toList(),
+        'latestResults': latestResults,
       });
     } catch (e) {
       _postToWeb('ERROR', {'code': 'init_failed', 'message': '$e'});
@@ -142,6 +170,15 @@ class _HungryCatWebViewScreenState extends State<HungryCatWebViewScreen> {
     try {
       final balance = await _service.fetchCoinBalance();
       _postToWeb('BALANCE_UPDATE', {'balance': balance});
+    } catch (_) {}
+  }
+
+  Future<void> _sendHistory() async {
+    try {
+      final history = await _service.fetchRecentSpins();
+      _postToWeb('HISTORY_UPDATE', {
+        'results': history.map((h) => h.toBridgeJson()).toList(),
+      });
     } catch (_) {}
   }
 
@@ -166,6 +203,7 @@ class _HungryCatWebViewScreenState extends State<HungryCatWebViewScreen> {
     }
 
     _spinInFlight = true;
+    HapticFeedback.lightImpact();
     _postToWeb('SPIN_ACCEPTED', {'clientSpinId': clientSpinId});
 
     try {
@@ -174,6 +212,14 @@ class _HungryCatWebViewScreenState extends State<HungryCatWebViewScreen> {
         clientSpinId: clientSpinId,
         roomId: widget.roomId,
       );
+      // Haptic on win: heavy for legendary/epic, medium otherwise.
+      if (result.rarity == 'legendary') {
+        HapticFeedback.heavyImpact();
+      } else if (result.rarity == 'epic' || result.rarity == 'rare') {
+        HapticFeedback.mediumImpact();
+      } else {
+        HapticFeedback.selectionClick();
+      }
       _postToWeb('SPIN_RESULT', result.toBridgeJson());
     } catch (e) {
       final code = _mapErrorCode('$e');
@@ -235,8 +281,9 @@ class _HungryCatWebViewScreenState extends State<HungryCatWebViewScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFF0C0518),
+        backgroundColor: const Color(0xFF08030F),
         body: SafeArea(
+          bottom: false, // Web handles bottom inset via env(safe-area-inset-bottom)
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -252,7 +299,7 @@ class _HungryCatWebViewScreenState extends State<HungryCatWebViewScreen> {
 
   Widget _buildLoading() {
     return Container(
-      color: const Color(0xFF0C0518),
+      color: const Color(0xFF08030F),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -284,7 +331,7 @@ class _HungryCatWebViewScreenState extends State<HungryCatWebViewScreen> {
 
   Widget _buildError() {
     return Container(
-      color: const Color(0xFF0C0518),
+      color: const Color(0xFF08030F),
       padding: const EdgeInsets.all(24),
       child: Center(
         child: Container(
