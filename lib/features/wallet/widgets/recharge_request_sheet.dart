@@ -186,8 +186,8 @@ class _RechargeRequestSheetState extends State<RechargeRequestSheet> {
                 const SizedBox(height: 8),
                 Text(
                   isArabic
-                      ? '\u0627\u0644\u0633\u0639\u0631 \u0627\u0644\u0623\u0633\u0627\u0633\u064a: 1 USD = 500,000 \u0639\u0645\u0644\u0629'
-                      : 'Base rate: 1 USD = 500,000 SrOOd Coins',
+                      ? '\u0627\u0644\u0633\u0639\u0631 \u0627\u0644\u0623\u0633\u0627\u0633\u064a: 1 USD = 20,000 \u0639\u0645\u0644\u0629'
+                      : 'Base rate: 1 USD = 20,000 SrOOd Coins',
                   style: const TextStyle(
                     color: Color(0xFFF0C15A),
                     fontSize: 12,

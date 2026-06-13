@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#0C0518" />
+<title>Hungry Cat Wheel</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(180deg, #12061F 0%, #07030D 55%, #050208 100%);
+    color: #fff;
+    display: flex; flex-direction: column;
+  }
+
+  /* ── Top bar ─────────────────────────────────────────── */
+  .topbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px;
+  }
+  .topbar .btn-icon {
+    width: 38px; height: 38px; border-radius: 12px; border: 1px solid #4A3470;
+    background: #160B24; color: #D8CFEA; font-size: 17px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .topbar .title { font-weight: 900; font-size: 16px; flex: 1; text-align: center; }
+  .balance-pill {
+    display: flex; align-items: center; gap: 5px;
+    background: #1B102B; border: 1px solid rgba(240,193,90,.45);
+    border-radius: 999px; padding: 6px 12px; font-weight: 900; font-size: 13px;
+    color: #F0C15A;
+  }
+
+  /* ── Wheel area ──────────────────────────────────────── */
+  .wheel-wrap { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
+  .wheel {
+    position: relative; width: min(86vw, 46vh); height: min(86vw, 46vh);
+  }
+  .wheel-ring {
+    position: absolute; inset: 0; border-radius: 50%;
+    border: 2px solid rgba(139,38,217,.35);
+    box-shadow: 0 0 60px rgba(139,38,217,.25) inset, 0 0 40px rgba(139,38,217,.18);
+  }
+  .cat {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    font-size: clamp(46px, 13vw, 72px); z-index: 2;
+    animation: breathe 2.6s ease-in-out infinite;
+    transition: transform .18s;
+  }
+  @keyframes breathe { 0%,100% { transform: translate(-50%,-50%) scale(1); } 50% { transform: translate(-50%,-50%) scale(1.06); } }
+  .cat.eat { animation: none; transform: translate(-50%,-50%) scale(1.25) rotate(-8deg); }
+
+  .food-node {
+    position: absolute; width: 56px; height: 56px; margin: -28px;
+    border-radius: 16px; background: #160B24; border: 1.5px solid #3A2460;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transition: border-color .12s, box-shadow .12s, transform .12s, background .12s;
+    animation: pulse 3s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 rgba(139,38,217,0); } 50% { box-shadow: 0 0 10px rgba(139,38,217,.25); } }
+  .food-node .ic { font-size: 21px; line-height: 1; }
+  .food-node .mult { font-size: 9.5px; font-weight: 900; color: #BCAED6; margin-top: 2px; }
+  .food-node.r-uncommon { border-color: #2E7D5B; }
+  .food-node.r-rare { border-color: #2D5FA8; }
+  .food-node.r-epic { border-color: #7B3FBF; }
+  .food-node.r-legendary { border-color: #F0C15A; background: #221506; }
+  .food-node.lit {
+    border-color: #F0C15A; background: #2B1C08; transform: scale(1.18);
+    box-shadow: 0 0 18px rgba(240,193,90,.65); animation: none; z-index: 3;
+  }
+  .food-node.winner {
+    border-color: #F0C15A; background: #33210A; transform: scale(1.3);
+    box-shadow: 0 0 30px rgba(240,193,90,.9); animation: none; z-index: 4;
+  }
+
+  .float-reward {
+    position: absolute; left: 50%; top: 38%; transform: translateX(-50%);
+    font-size: 26px; font-weight: 900; color: #63E6A1; z-index: 9;
+    pointer-events: none; opacity: 0; text-shadow: 0 2px 12px rgba(0,0,0,.6);
+  }
+  .float-reward.go { animation: floatUp 1.4s ease-out forwards; }
+  @keyframes floatUp { 0% { opacity: 0; transform: translate(-50%, 0); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -90px); } }
+
+  /* ── Bottom panel ────────────────────────────────────── */
+  .panel { padding: 8px 14px 18px; }
+  .last-win {
+    text-align: center; font-size: 12px; font-weight: 700; color: #9E91B8;
+    min-height: 17px; margin-bottom: 8px;
+  }
+  .last-win b { color: #F0C15A; }
+  .chips { display: flex; gap: 8px; justify-content: center; margin-bottom: 12px; }
+  .chip {
+    flex: 1; max-width: 76px; padding: 9px 0; border-radius: 14px;
+    background: #160B24; border: 1.5px solid #3A2460; color: #BCAED6;
+    font-weight: 900; font-size: 13px; text-align: center; transition: all .15s;
+  }
+  .chip.sel {
+    background: linear-gradient(135deg, #9B59F5, #4C1D95); color: #fff;
+    border-color: rgba(255,255,255,.3); box-shadow: 0 4px 16px rgba(139,92,246,.5);
+    transform: scale(1.06);
+  }
+  .play-btn {
+    width: 100%; padding: 16px 0; border: 1px solid rgba(255,255,255,.22);
+    border-radius: 18px; font-size: 17px; font-weight: 900; color: #12061F;
+    background: linear-gradient(135deg, #F0C15A, #92400E);
+    box-shadow: 0 6px 20px rgba(240,193,90,.45);
+    transition: transform .12s, opacity .2s;
+  }
+  .play-btn:active { transform: scale(.96); }
+  .play-btn[disabled] { opacity: .45; }
+
+  /* ── Popups ──────────────────────────────────────────── */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(4,2,8,.72); z-index: 20;
+    display: none; align-items: center; justify-content: center; padding: 28px;
+  }
+  .overlay.show { display: flex; }
+  .popup {
+    width: 100%; max-width: 340px; background: #1B102A; border-radius: 24px;
+    border: 1px solid #4A3470; padding: 24px 20px; text-align: center;
+    animation: popIn .28s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes popIn { from { transform: scale(.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .popup.gold { border-color: #F0C15A; box-shadow: 0 0 50px rgba(240,193,90,.35); }
+  .popup .big-ic { font-size: 54px; }
+  .popup h2 { font-size: 20px; font-weight: 900; margin: 10px 0 6px; }
+  .popup p { font-size: 14px; color: #BCAED6; line-height: 1.45; }
+  .popup .reward-line { font-size: 26px; font-weight: 900; color: #63E6A1; margin: 10px 0; }
+  .popup .pbtn {
+    margin-top: 16px; width: 100%; padding: 13px 0; border: none; border-radius: 16px;
+    background: linear-gradient(135deg, #9B59F5, #4C1D95); color: #fff;
+    font-size: 15px; font-weight: 900;
+  }
+  .rules-list { text-align: start; margin-top: 10px; max-height: 42vh; overflow-y: auto; }
+  .rules-list .row {
+    display: flex; justify-content: space-between; padding: 7px 4px;
+    border-bottom: 1px solid #2A1840; font-size: 13.5px; font-weight: 700;
+  }
+  .rules-list .row .nm { color: #D8CFEA; }
+  .rules-list .row .mt { color: #F0C15A; font-weight: 900; }
+
+  .shake { animation: shake .5s; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); } 20% { transform: translateX(-7px); }
+    40% { transform: translateX(7px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(5px); }
+  }
+
+  .confetti-bit {
+    position: fixed; top: -12px; width: 9px; height: 9px; z-index: 30;
+    pointer-events: none; border-radius: 2px;
+    animation: confFall linear forwards;
+  }
+  @keyframes confFall { to { transform: translateY(110vh) rotate(720deg); } }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <button class="btn-icon" id="btnBack">←</button>
+  <button class="btn-icon" id="btnHelp">?</button>
+  <div class="title" id="gameTitle">Hungry Cat Wheel</div>
+  <button class="btn-icon" id="btnSound">🔊</button>
+  <div class="balance-pill">🪙 <span id="balance">0</span></div>
+</div>
+
+<div class="wheel-wrap">
+  <div class="wheel" id="wheel">
+    <div class="wheel-ring"></div>
+    <div class="cat" id="cat">🐱</div>
+  </div>
+  <div class="float-reward" id="floatReward"></div>
+</div>
+
+<div class="panel">
+  <div class="last-win" id="lastWin"></div>
+  <div class="chips" id="chips"></div>
+  <button class="play-btn" id="btnPlay" disabled>PLAY</button>
+</div>
+
+<!-- Result popup -->
+<div class="overlay" id="ovResult">
+  <div class="popup" id="resultPopup">
+    <div class="big-ic" id="resIcon">🍪</div>
+    <h2 id="resTitle">Cookie!</h2>
+    <p id="resSub">x1.5</p>
+    <div class="reward-line" id="resReward">+0</div>
+    <button class="pbtn" id="resOk">Continue</button>
+  </div>
+</div>
+
+<!-- Generic message popup (errors / insufficient coins) -->
+<div class="overlay" id="ovMsg">
+  <div class="popup">
+    <div class="big-ic" id="msgIcon">😿</div>
+    <h2 id="msgTitle"></h2>
+    <p id="msgBody"></p>
+    <button class="pbtn" id="msgOk">OK</button>
+  </div>
+</div>
+
+<!-- Help / rules popup -->
+<div class="overlay" id="ovHelp">
+  <div class="popup">
+    <div class="big-ic">🐱</div>
+    <h2 id="helpTitle">How to play</h2>
+    <p id="helpBody">Pick a bet, tap Play and feed the cat. Each food pays bet × multiplier. Rarer foods pay more!</p>
+    <div class="rules-list" id="rulesList"></div>
+    <button class="pbtn" id="helpOk">Got it</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── State ─────────────────────────────────────────────────────────────────────
+var S = {
+  state: 'idle',          // idle | spinning | result
+  foods: [],
+  betChips: [100, 500, 1000, 2000, 5000],
+  selectedBet: 100,
+  balance: 0,
+  isArabic: false,
+  soundOn: true,
+  litIndex: -1,
+  cycleTimer: null,
+  pendingResult: null
+};
+
+var T = {
+  en: { play: 'PLAY', cont: 'Continue', gotIt: 'Got it', help: 'How to play',
+        helpBody: 'Pick a bet, tap Play and feed the cat. Each food pays bet × multiplier. Rarer foods pay more!',
+        noCoins: 'Not enough coins', noCoinsBody: 'Recharge your wallet to keep feeding the cat.',
+        err: 'Oops', errBody: 'Something went wrong. Please try again.',
+        netErr: 'Connection problem', netErrBody: 'Check your internet and try again.',
+        disabled: 'Game unavailable', disabledBody: 'Hungry Cat Wheel is currently disabled.',
+        bigWin: 'BIG WIN!', jackpot: 'GOLDEN JACKPOT!', lastWin: 'Last win: ',
+        title: 'Hungry Cat Wheel' },
+  ar: { play: 'العب', cont: 'متابعة', gotIt: 'فهمت', help: 'طريقة اللعب',
+        helpBody: 'اختر رهانك واضغط العب لإطعام القط. كل طعام يدفع الرهان × المضاعف. الأطعمة النادرة تدفع أكثر!',
+        noCoins: 'لا توجد عملات كافية', noCoinsBody: 'اشحن محفظتك لمواصلة إطعام القط.',
+        err: 'عذراً', errBody: 'حدث خطأ ما. حاول مرة أخرى.',
+        netErr: 'مشكلة في الاتصال', netErrBody: 'تحقق من الإنترنت وحاول مجدداً.',
+        disabled: 'اللعبة غير متاحة', disabledBody: 'عجلة القط الجائع متوقفة حالياً.',
+        bigWin: 'فوز كبير!', jackpot: 'الجائزة الذهبية!', lastWin: 'آخر فوز: ',
+        title: 'عجلة القط الجائع' }
+};
+function t(k) { return (S.isArabic ? T.ar : T.en)[k]; }
+
+// ── Sound hooks (placeholder paths — guarded so missing files never break) ───
+var SOUNDS = {};
+['tap','spin','tick','win','jackpot','coin','meow'].forEach(function (k) {
+  try { SOUNDS[k] = new Audio('sounds/' + k + '.mp3'); } catch (e) {}
+});
+function play(k) {
+  if (!S.soundOn || !SOUNDS[k]) return;
+  try { SOUNDS[k].currentTime = 0; SOUNDS[k].play().catch(function(){}); } catch (e) {}
+}
+
+// ── Bridge ────────────────────────────────────────────────────────────────────
+function send(type, payload) {
+  try {
+    if (window.SroodBridge) {
+      SroodBridge.postMessage(JSON.stringify({ type: type, payload: payload || {} }));
+    }
+  } catch (e) {}
+}
+
+window.onSroodMessage = function (msg) {
+  if (!msg || !msg.type) return;
+  var p = msg.payload || {};
+  switch (msg.type) {
+    case 'INIT_GAME':       onInit(p); break;
+    case 'BALANCE_UPDATE':  setBalance(p.balance); break;
+    case 'SPIN_ACCEPTED':   /* spin already animating */ break;
+    case 'SPIN_RESULT':     onSpinResult(p); break;
+    case 'SPIN_REJECTED':   onSpinRejected(p); break;
+    case 'ERROR':           onSpinRejected(p); break;
+  }
+};
+
+// ── Init / layout ─────────────────────────────────────────────────────────────
+function onInit(p) {
+  S.isArabic = !!p.isArabic;
+  S.balance = p.balance || 0;
+  if (Array.isArray(p.betChips) && p.betChips.length) S.betChips = p.betChips;
+  S.selectedBet = S.betChips[0];
+  S.foods = Array.isArray(p.foods) ? p.foods : [];
+
+  if (S.isArabic) document.documentElement.dir = 'rtl';
+  document.getElementById('gameTitle').textContent = t('title');
+  document.getElementById('btnPlay').textContent = t('play');
+  document.getElementById('resOk').textContent = t('cont');
+  document.getElementById('helpOk').textContent = t('gotIt');
+  document.getElementById('msgOk').textContent = t('gotIt');
+  document.getElementById('helpTitle').textContent = t('help');
+  document.getElementById('helpBody').textContent = t('helpBody');
+
+  setBalance(S.balance);
+  renderChips();
+  renderWheel();
+  renderRules();
+  document.getElementById('btnPlay').disabled = false;
+}
+
+function setBalance(v) {
+  if (typeof v !== 'number') return;
+  S.balance = v;
+  document.getElementById('balance').textContent = fmt(v);
+}
+
+function fmt(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 10000) return (n / 1000).toFixed(1) + 'K';
+  return String(n);
+}
+
+function renderChips() {
+  var box = document.getElementById('chips');
+  box.innerHTML = '';
+  S.betChips.forEach(function (v) {
+    var b = document.createElement('button');
+    b.className = 'chip' + (v === S.selectedBet ? ' sel' : '');
+    b.textContent = fmt(v);
+    b.onclick = function () {
+      if (S.state === 'spinning') return;
+      play('tap');
+      S.selectedBet = v;
+      renderChips();
+    };
+    box.appendChild(b);
+  });
+}
+
+function renderWheel() {
+  var wheel = document.getElementById('wheel');
+  wheel.querySelectorAll('.food-node').forEach(function (n) { n.remove(); });
+  var n = S.foods.length;
+  if (!n) return;
+  S.foods.forEach(function (f, i) {
+    var node = document.createElement('div');
+    node.className = 'food-node r-' + (f.rarity || 'common');
+    node.id = 'food-' + i;
+    node.innerHTML = '<div class="ic">' + f.icon + '</div><div class="mult">x' + f.multiplier + '</div>';
+    var ang = (i / n) * 2 * Math.PI - Math.PI / 2;
+    node.style.left = (50 + 46 * Math.cos(ang)) + '%';
+    node.style.top = (50 + 46 * Math.sin(ang)) + '%';
+    wheel.appendChild(node);
+  });
+}
+
+function renderRules() {
+  var list = document.getElementById('rulesList');
+  list.innerHTML = '';
+  S.foods.forEach(function (f) {
+    var row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = '<span class="nm">' + f.icon + ' ' + f.name + '</span><span class="mt">x' + f.multiplier + '</span>';
+    list.appendChild(row);
+  });
+}
+
+// ── Spin flow ─────────────────────────────────────────────────────────────────
+function uuid() {
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    var r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+
+function startSpin() {
+  if (S.state !== 'idle' || !S.foods.length) return;
+  if (S.balance < S.selectedBet) {
+    showMsg('😿', t('noCoins'), t('noCoinsBody'));
+    return;
+  }
+  play('spin');
+  S.state = 'spinning';
+  S.pendingResult = null;
+  document.getElementById('btnPlay').disabled = true;
+
+  // Optimistic balance display; the authoritative value arrives in SPIN_RESULT
+  setBalance(S.balance - S.selectedBet);
+
+  startCycle(70);
+
+  send('REQUEST_SPIN', {
+    gameKey: 'hungry_cat',
+    betAmount: S.selectedBet,
+    clientSpinId: uuid()
+  });
+}
+
+function startCycle(intervalMs) {
+  stopCycle();
+  S.cycleTimer = setInterval(function () {
+    setLit((S.litIndex + 1) % S.foods.length);
+    play('tick');
+    // If a result is waiting, begin the deceleration landing
+    if (S.pendingResult) {
+      var target = S.foods.findIndex(function (f) { return f.foodId === S.pendingResult.foodId; });
+      if (target < 0) target = 0;
+      stopCycle();
+      decelerateTo(target, intervalMs);
+    }
+  }, intervalMs);
+}
+
+function decelerateTo(target, baseMs) {
+  // One extra full lap, then land on target with growing delays
+  var steps = (target - S.litIndex + S.foods.length) % S.foods.length + S.foods.length;
+  var i = 0;
+  function step() {
+    setLit((S.litIndex + 1) % S.foods.length);
+    play('tick');
+    i++;
+    if (i >= steps) { landed(); return; }
+    var progress = i / steps;
+    setTimeout(step, baseMs + progress * progress * 260);
+  }
+  setTimeout(step, baseMs);
+}
+
+function stopCycle() {
+  if (S.cycleTimer) { clearInterval(S.cycleTimer); S.cycleTimer = null; }
+}
+
+function setLit(i) {
+  if (S.litIndex >= 0) {
+    var prev = document.getElementById('food-' + S.litIndex);
+    if (prev) prev.classList.remove('lit');
+  }
+  S.litIndex = i;
+  var cur = document.getElementById('food-' + i);
+  if (cur) cur.classList.add('lit');
+}
+
+function onSpinResult(p) {
+  if (S.state !== 'spinning') return;
+  S.pendingResult = p;
+  // If the cycle already stopped (edge case), land immediately
+  if (!S.cycleTimer) {
+    var target = S.foods.findIndex(function (f) { return f.foodId === p.foodId; });
+    decelerateTo(target < 0 ? 0 : target, 70);
+  }
+}
+
+function landed() {
+  var p = S.pendingResult;
+  if (!p) { resetIdle(); return; }
+
+  var node = document.getElementById('food-' + S.litIndex);
+  if (node) { node.classList.remove('lit'); node.classList.add('winner'); }
+
+  // Cat reaction
+  var cat = document.getElementById('cat');
+  cat.classList.add('eat');
+  cat.textContent = '😻';
+  play('meow');
+
+  // Floating reward text
+  var fl = document.getElementById('floatReward');
+  fl.textContent = '+' + fmt(p.rewardAmount);
+  fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
+
+  setBalance(p.newBalance);
+
+  var rare = p.rarity === 'rare' || p.rarity === 'epic' || p.rarity === 'legendary';
+  if (rare) confetti(p.rarity === 'legendary' ? 90 : 45, p.rarity === 'legendary');
+  if (p.rarity === 'legendary') {
+    document.body.classList.add('shake');
+    setTimeout(function () { document.body.classList.remove('shake'); }, 600);
+    play('jackpot');
+  } else {
+    play('win');
+  }
+  play('coin');
+
+  setTimeout(function () { showResult(p, rare); }, 700);
+}
+
+function showResult(p, rare) {
+  S.state = 'result';
+  var pop = document.getElementById('resultPopup');
+  pop.classList.toggle('gold', p.rarity === 'legendary' || p.rarity === 'epic');
+  document.getElementById('resIcon').textContent = p.foodIcon;
+  document.getElementById('resTitle').textContent =
+    p.rarity === 'legendary' ? t('jackpot') : (rare ? t('bigWin') : p.foodName);
+  document.getElementById('resSub').textContent = p.foodName + '  ·  x' + p.multiplier;
+  document.getElementById('resReward').textContent = '+' + fmt(p.rewardAmount) + ' 🪙';
+  document.getElementById('ovResult').classList.add('show');
+  document.getElementById('lastWin').innerHTML =
+    t('lastWin') + '<b>' + p.foodIcon + ' +' + fmt(p.rewardAmount) + '</b>';
+}
+
+function onSpinRejected(p) {
+  stopCycle();
+  if (S.litIndex >= 0) {
+    var n = document.getElementById('food-' + S.litIndex);
+    if (n) n.classList.remove('lit');
+  }
+  S.litIndex = -1;
+  var code = p && p.code;
+  if (code === 'insufficient_coins') showMsg('😿', t('noCoins'), t('noCoinsBody'));
+  else if (code === 'game_disabled') showMsg('🚧', t('disabled'), t('disabledBody'));
+  else if (code === 'network_error') showMsg('📡', t('netErr'), t('netErrBody'));
+  else if (code === 'spin_in_progress') { /* keep current spin running */ return; }
+  else showMsg('😿', t('err'), t('errBody'));
+  send('REQUEST_BALANCE', {});
+  resetIdle();
+}
+
+function resetIdle() {
+  stopCycle();
+  S.state = 'idle';
+  S.pendingResult = null;
+  document.getElementById('btnPlay').disabled = false;
+  var cat = document.getElementById('cat');
+  cat.classList.remove('eat');
+  cat.textContent = '🐱';
+  document.querySelectorAll('.food-node').forEach(function (n) {
+    n.classList.remove('lit', 'winner');
+  });
+  S.litIndex = -1;
+}
+
+function confetti(count, golden) {
+  var colors = golden
+    ? ['#F0C15A', '#FFE9A8', '#B8860B', '#FFF6D8']
+    : ['#9B59F5', '#F0C15A', '#63E6A1', '#60A5FA', '#FF6B8A'];
+  for (var i = 0; i < count; i++) {
+    var bit = document.createElement('div');
+    bit.className = 'confetti-bit';
+    bit.style.left = Math.random() * 100 + 'vw';
+    bit.style.background = colors[Math.floor(Math.random() * colors.length)];
+    bit.style.animationDuration = (1.6 + Math.random() * 1.6) + 's';
+    bit.style.animationDelay = (Math.random() * 0.4) + 's';
+    document.body.appendChild(bit);
+    (function (el) { setTimeout(function () { el.remove(); }, 3800); })(bit);
+  }
+}
+
+// ── Popup helpers ─────────────────────────────────────────────────────────────
+function showMsg(icon, title, body) {
+  document.getElementById('msgIcon').textContent = icon;
+  document.getElementById('msgTitle').textContent = title;
+  document.getElementById('msgBody').textContent = body;
+  document.getElementById('ovMsg').classList.add('show');
+}
+
+// ── Wire up controls ──────────────────────────────────────────────────────────
+document.getElementById('btnPlay').onclick = startSpin;
+document.getElementById('btnBack').onclick = function () { play('tap'); send('GAME_CLOSED', {}); };
+document.getElementById('btnHelp').onclick = function () { play('tap'); document.getElementById('ovHelp').classList.add('show'); };
+document.getElementById('helpOk').onclick = function () { document.getElementById('ovHelp').classList.remove('show'); };
+document.getElementById('msgOk').onclick = function () { document.getElementById('ovMsg').classList.remove('show'); };
+document.getElementById('resOk').onclick = function () {
+  document.getElementById('ovResult').classList.remove('show');
+  resetIdle();
+  send('SPIN_ANIMATION_DONE', {});
+};
+document.getElementById('btnSound').onclick = function () {
+  S.soundOn = !S.soundOn;
+  document.getElementById('btnSound').textContent = S.soundOn ? '🔊' : '🔇';
+  send('AUDIO_TOGGLE', { on: S.soundOn });
+};
+
+// Tell Flutter we're ready to receive INIT_GAME
+send('GAME_READY', {});
+</script>
+</body>
+</html>

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/constants/coin_constants.dart';
 import '../../../core/supabase/supabase_service.dart';
 
 class WithdrawalScreen extends StatefulWidget {
@@ -41,15 +43,42 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
     },
   ];
 
-  static const int _minDiamonds = 500;
-  static const double _diamondsPerUsd = 100.0;
+  static const int _minDiamonds = CoinConstants.minimumWithdrawalDiamonds;
+  static const int _diamondsPerUsd = CoinConstants.diamondsPerUsd;
 
-  double get _estimatedUsd => _diamondsToWithdraw / _diamondsPerUsd;
+  bool _hasAgency = false;
+
+  double get _grossUsd => _diamondsToWithdraw / _diamondsPerUsd;
+
+  double get _hostShareRate => _hasAgency
+      ? CoinConstants.hostShareWithAgency
+      : CoinConstants.hostShareNoAgency;
+
+  double get _estimatedUsd => _grossUsd * _hostShareRate;
+
+  double get _agencyShareUsd =>
+      _hasAgency ? _grossUsd * CoinConstants.agencyShare : 0;
+
+  double get _platformShareUsd => _grossUsd - _estimatedUsd - _agencyShareUsd;
 
   @override
   void initState() {
     super.initState();
     _loadDiamonds();
+    _loadAgencyStatus();
+  }
+
+  Future<void> _loadAgencyStatus() async {
+    try {
+      final data = await SupabaseService.requiredClient.rpc(
+        'preview_withdrawal_split',
+        params: {'p_diamonds': _minDiamonds},
+      );
+      final rows = data as List<dynamic>;
+      if (rows.isEmpty || !mounted) return;
+      final row = rows.first as Map<String, dynamic>;
+      setState(() => _hasAgency = row['has_agency'] == true);
+    } catch (_) {}
   }
 
   @override
@@ -71,9 +100,9 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
       if (!mounted) return;
       setState(() {
         _availableDiamonds = (data?['diamonds_balance'] as int?) ?? 0;
-        _diamondsToWithdraw = _availableDiamonds
-            .clamp(_minDiamonds, _availableDiamonds)
-            .toInt();
+        _diamondsToWithdraw = _availableDiamonds < _minDiamonds
+            ? _minDiamonds
+            : _availableDiamonds;
       });
     } catch (_) {}
   }
@@ -86,14 +115,12 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
       final user = SupabaseService.requiredClient.auth.currentUser;
       if (user == null) throw Exception('Not logged in');
 
-      await SupabaseService.requiredClient.from('withdrawal_requests').insert({
-        'user_id': user.id,
-        'diamonds': _diamondsToWithdraw,
-        'method': _method,
-        'account_details': _accountController.text.trim(),
-        'notes': _notesController.text.trim(),
-        'estimated_usd': _estimatedUsd,
-        'status': 'pending',
+      // Split + balance hold computed and enforced SQL-side
+      await SupabaseService.requiredClient.rpc('request_withdrawal', params: {
+        'p_diamonds': _diamondsToWithdraw,
+        'p_method': _method,
+        'p_account_details': _accountController.text.trim(),
+        'p_notes': _notesController.text.trim(),
       });
 
       if (!mounted) return;
@@ -149,6 +176,8 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
                         ),
                         const SizedBox(height: 10),
                         _buildDiamondsSlider(isArabic),
+                        const SizedBox(height: 12),
+                        _buildSplitBreakdown(isArabic),
                         const SizedBox(height: 20),
                         _buildSectionLabel(
                           isArabic ? 'طريقة السحب' : 'Withdrawal method',
@@ -494,6 +523,77 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSplitBreakdown(bool isArabic) {
+    final dir = isArabic ? TextDirection.rtl : TextDirection.ltr;
+    final hostPct = (_hostShareRate * 100).round();
+
+    Widget row(String label, String value, {Color? color, bool bold = false}) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          textDirection: dir,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: color ?? const Color(0xFF9E91B8),
+                fontSize: bold ? 14 : 12.5,
+                fontWeight: bold ? FontWeight.w900 : FontWeight.w700,
+              ),
+            ),
+            Text(
+              value,
+              style: TextStyle(
+                color: color ?? const Color(0xFFD8CFEA),
+                fontSize: bold ? 16 : 13,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF120A1E),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF63E6A1).withValues(alpha: 0.30),
+        ),
+      ),
+      child: Column(
+        children: [
+          row(
+            isArabic ? 'القيمة الإجمالية' : 'Gross value',
+            '\$${_grossUsd.toStringAsFixed(2)}',
+          ),
+          row(
+            isArabic
+                ? 'حصتك ($hostPct٪)'
+                : 'Your share ($hostPct%)',
+            '\$${_estimatedUsd.toStringAsFixed(2)}',
+            color: const Color(0xFF63E6A1),
+            bold: true,
+          ),
+          if (_hasAgency)
+            row(
+              isArabic ? 'حصة الوكالة (5٪)' : 'Agency share (5%)',
+              '\$${_agencyShareUsd.toStringAsFixed(2)}',
+            ),
+          row(
+            isArabic
+                ? 'رسوم المنصة (${(100 - hostPct - (_hasAgency ? 5 : 0))}٪)'
+                : 'Platform fee (${100 - hostPct - (_hasAgency ? 5 : 0)}%)',
+            '\$${_platformShareUsd.toStringAsFixed(2)}',
           ),
         ],
       ),

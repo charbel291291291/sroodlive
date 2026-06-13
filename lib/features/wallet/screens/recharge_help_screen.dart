@@ -211,7 +211,7 @@ class _RateCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  isArabic ? '1 \$ = 500,000 عملة' : '1 USD = 500,000 coins',
+                  isArabic ? '1 \$ = 20,000 عملة' : '1 USD = 20,000 coins',
                   style: const TextStyle(
                     color: Color(0xFFF4C95D),
                     fontSize: 22,
