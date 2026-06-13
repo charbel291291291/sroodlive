@@ -373,7 +373,7 @@ class _CrashGameScreenState extends State<CrashGameScreen> {
               label: isArabic ? 'القط الجائع' : 'Hungry Cat',
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (_) => HungryCatWebViewScreen(isArabic: isArabic),
+                  builder: (_) => HungryCatWebviewScreen(isArabic: isArabic),
                 ),
               ),
             ),

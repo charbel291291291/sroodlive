@@ -131,6 +131,65 @@ class HungryCatHistoryEntry {
       };
 }
 
+/// Returned by start_hungry_cat_round RPC.
+class HungryCatRoundInfo {
+  const HungryCatRoundInfo({required this.roundId});
+  final String roundId;
+
+  factory HungryCatRoundInfo.fromJson(Map<String, dynamic> json) {
+    return HungryCatRoundInfo(
+      roundId: json['round_id']?.toString() ?? '',
+    );
+  }
+}
+
+/// Returned by settle_hungry_cat_round RPC.
+class HungryCatRoundResult {
+  const HungryCatRoundResult({
+    required this.winningFoodId,
+    required this.winningFoodIcon,
+    required this.winningFoodName,
+    required this.winningMultiplier,
+    required this.rarity,
+    required this.userTotalBet,
+    required this.userWinAmount,
+    required this.newBalance,
+  });
+
+  final String winningFoodId;
+  final String winningFoodIcon;
+  final String winningFoodName;
+  final double winningMultiplier;
+  final String rarity;
+  final int userTotalBet;
+  final int userWinAmount;
+  final int newBalance;
+
+  factory HungryCatRoundResult.fromJson(Map<String, dynamic> json) {
+    return HungryCatRoundResult(
+      winningFoodId: json['winning_food_id']?.toString() ?? '',
+      winningFoodIcon: json['winning_food_icon']?.toString() ?? '🍽️',
+      winningFoodName: json['winning_food_name']?.toString() ?? '',
+      winningMultiplier: _toDouble(json['winning_multiplier']),
+      rarity: json['rarity']?.toString() ?? 'common',
+      userTotalBet: json['user_total_bet'] is int ? json['user_total_bet'] as int : 0,
+      userWinAmount: json['user_win_amount'] is int ? json['user_win_amount'] as int : 0,
+      newBalance: json['new_balance'] is int ? json['new_balance'] as int : 0,
+    );
+  }
+
+  Map<String, dynamic> toBridgeJson() => {
+        'winningFoodId': winningFoodId,
+        'winningFoodIcon': winningFoodIcon,
+        'winningFoodName': winningFoodName,
+        'winningMultiplier': winningMultiplier,
+        'rarity': rarity,
+        'userTotalBet': userTotalBet,
+        'userWinAmount': userWinAmount,
+        'newBalance': newBalance,
+      };
+}
+
 double _toDouble(dynamic value) {
   if (value is double) return value;
   if (value is int) return value.toDouble();

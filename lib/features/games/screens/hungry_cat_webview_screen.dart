@@ -1,53 +1,61 @@
+import 'dart:async';
 import 'dart:convert';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
+import '../models/hungry_cat_models.dart';
 import '../services/hungry_cat_game_service.dart';
 
-/// Hungry Cat Wheel — local-asset WebView mini game.
+/// Hungry Cat — automatic betting wheel.
 ///
-/// Bridge protocol (mirrors the Rocket Crash integration style):
-///   Web → Flutter (via the `SroodBridge` JS channel):
-///     GAME_READY, REQUEST_BALANCE, REQUEST_SPIN, SPIN_ANIMATION_DONE,
-///     GAME_CLOSED, AUDIO_TOGGLE
-///   Flutter → Web (via window.onSroodMessage):
-///     INIT_GAME, BALANCE_UPDATE, SPIN_ACCEPTED, SPIN_RESULT,
-///     SPIN_REJECTED, ERROR
+/// Round cycle (Flutter-driven clock):
+///   BETTING  10 s  → user taps food cards via PLACE_BET
+///   LOCKED    4 s  → bets closed, spin animation runs in HTML
+///   RESULT    3 s  → winner shown, balance updated
+///   → next round starts automatically
 ///
-/// The WebView never decides money: REQUEST_SPIN goes to the
-/// `play_hungry_cat_spin` RPC which settles everything server-side, then the
-/// result is handed back for animation only.
-class HungryCatWebViewScreen extends StatefulWidget {
-  const HungryCatWebViewScreen({
-    required this.isArabic,
-    this.roomId,
-    super.key,
-  });
-
+/// Security: all coin deduction, winner selection, and payout happen inside
+/// Supabase RPCs. The Flutter client drives the clock and bridge only.
+///
+/// Bridge (Web → Flutter):  GAME_READY, PLACE_BET, CLEAR_BETS,
+///                           REQUEST_HISTORY, GAME_CLOSED
+/// Bridge (Flutter → Web):  INIT_GAME, ROUND_STARTED, ROUND_TICK,
+///                           BET_ACCEPTED, BET_REJECTED, BETS_CLEARED,
+///                           SPIN_STARTED, ROUND_RESULT, BALANCE_UPDATE,
+///                           HISTORY_UPDATE, ERROR
+class HungryCatWebviewScreen extends StatefulWidget {
+  const HungryCatWebviewScreen({required this.isArabic, super.key});
   final bool isArabic;
-  final String? roomId;
 
   @override
-  State<HungryCatWebViewScreen> createState() => _HungryCatWebViewScreenState();
+  State<HungryCatWebviewScreen> createState() =>
+      _HungryCatWebviewScreenState();
 }
 
-class _HungryCatWebViewScreenState extends State<HungryCatWebViewScreen> {
-  late final WebViewController _controller;
-  final HungryCatGameService _service = const HungryCatGameService();
+enum _Phase { init, betting, locked, settling, result }
 
-  bool _loading = true;
-  bool _error = false;
-  String? _errorMessage;
-  bool _spinInFlight = false;
+class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen> {
+  late final WebViewController _controller;
+  final _service = const HungryCatGameService();
+
+  bool _pageLoaded = false;
+  bool _pageError = false;
+  String? _pageErrorMsg;
+
+  _Phase _phase = _Phase.init;
+  String? _roundId;
+  int _bettingSecsLeft = 10;
+  static const int _bettingDuration = 10;
+
+  Timer? _countdown;
+  Timer? _phaseDelay;
 
   @override
   void initState() {
     super.initState();
-    // Black navigation bar so no grey bar shows beneath the WebView.
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
@@ -59,21 +67,21 @@ class _HungryCatWebViewScreenState extends State<HungryCatWebViewScreen> {
       ..setBackgroundColor(const Color(0xFF08030F))
       ..addJavaScriptChannel(
         'SroodBridge',
-        onMessageReceived: (message) => _onWebMessage(message.message),
+        onMessageReceived: (msg) => _onWebMessage(msg.message),
       )
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageFinished: (_) {
             if (!mounted) return;
-            setState(() => _loading = false);
+            setState(() => _pageLoaded = true);
           },
-          onWebResourceError: (error) {
-            if (error.isForMainFrame == false) return;
+          onWebResourceError: (e) {
+            if (e.isForMainFrame == false) return;
             if (!mounted) return;
             setState(() {
-              _loading = false;
-              _error = true;
-              _errorMessage = error.description;
+              _pageLoaded = true;
+              _pageError = true;
+              _pageErrorMsg = e.description;
             });
           },
         ),
@@ -83,13 +91,19 @@ class _HungryCatWebViewScreenState extends State<HungryCatWebViewScreen> {
 
   @override
   void dispose() {
+    _stopTimers();
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       systemNavigationBarColor: Colors.transparent,
     ));
     super.dispose();
   }
 
-  // ── Web → Flutter ───────────────────────────────────────────────────────────
+  void _stopTimers() {
+    _countdown?.cancel();
+    _phaseDelay?.cancel();
+  }
+
+  // ── Web → Flutter ────────────────────────────────────────────────────────────
 
   Future<void> _onWebMessage(String raw) async {
     Map<String, dynamic> msg;
@@ -99,197 +113,245 @@ class _HungryCatWebViewScreenState extends State<HungryCatWebViewScreen> {
       return;
     }
 
-    switch (msg['type'] as String?) {
+    final type = msg['type'] as String? ?? '';
+    final payload = (msg['payload'] as Map<String, dynamic>?) ?? {};
+
+    switch (type) {
       case 'GAME_READY':
         await _initGame();
-      case 'REQUEST_BALANCE':
-        await _sendBalance();
-      case 'PLAY_SPIN':
-        await _handleSpinRequest(msg['payload'] as Map<String, dynamic>?);
+      case 'PLACE_BET':
+        await _handlePlaceBet(payload);
+      case 'CLEAR_BETS':
+        await _handleClearBets(payload);
       case 'REQUEST_HISTORY':
         await _sendHistory();
-      case 'SPIN_ANIMATION_DONE':
-        break;
       case 'GAME_CLOSED':
         if (mounted) Navigator.of(context).maybePop();
-      case 'AUDIO_TOGGLE':
-        // Sound state lives inside the web game; nothing to persist app-side.
-        break;
     }
   }
+
+  // ── Init ─────────────────────────────────────────────────────────────────────
 
   Future<void> _initGame() async {
     try {
       final client = SupabaseService.requiredClient;
       final user = client.auth.currentUser;
       if (user == null) {
-        _postToWeb('ERROR', {'code': 'missing_user'});
+        _post('ERROR', {'code': 'not_authenticated'});
         return;
       }
 
       final enabled = await _service.isGameEnabled();
       if (!enabled) {
-        _postToWeb('ERROR', {'code': 'game_disabled'});
+        _post('ERROR', {'code': 'game_disabled'});
         return;
       }
 
-      final profile = await client
-          .from('profiles')
-          .select('display_name, avatar_url')
-          .eq('id', user.id)
-          .maybeSingle();
-      final balance = await _service.fetchCoinBalance();
       final foods = await _service.fetchFoodConfig();
-      // Fetch the user's latest 20 spins so the history banner is populated
-      // immediately without a second round-trip from the web side.
-      List<Map<String, dynamic>> latestResults;
+      final balance = await _service.fetchCoinBalance();
+      List<HungryCatHistoryEntry> history;
       try {
-        final history = await _service.fetchRecentSpins();
-        latestResults = history.map((h) => h.toBridgeJson()).toList();
+        history = await _service.fetchRecentRounds();
       } catch (_) {
-        latestResults = [];
+        history = [];
       }
 
-      _postToWeb('INIT_GAME', {
-        'userId': user.id,
-        'displayName': profile?['display_name'] ?? 'Player',
-        'avatarUrl': profile?['avatar_url'],
-        'roomId': widget.roomId,
-        'balance': balance,
+      _post('INIT_GAME', {
         'isArabic': widget.isArabic,
-        'betChips': const [100, 500, 1000, 2000, 5000],
+        'balance': balance,
+        'betChips': [100, 500, 1000, 2000, 5000],
         'foods': foods.map((f) => f.toBridgeJson()).toList(),
-        'latestResults': latestResults,
+        'latestResults': history.map((h) => h.toBridgeJson()).toList(),
       });
+
+      // Start the first round after a brief delay so the HTML can render.
+      _phaseDelay = Timer(const Duration(milliseconds: 600), _startNextRound);
     } catch (e) {
-      _postToWeb('ERROR', {'code': 'init_failed', 'message': '$e'});
+      _post('ERROR', {'code': 'init_failed', 'message': '$e'});
     }
   }
 
-  Future<void> _sendBalance() async {
+  // ── Round lifecycle ──────────────────────────────────────────────────────────
+
+  Future<void> _startNextRound() async {
+    if (!mounted) return;
     try {
-      final balance = await _service.fetchCoinBalance();
-      _postToWeb('BALANCE_UPDATE', {'balance': balance});
-    } catch (_) {}
+      final round = await _service.startRound();
+      if (!mounted) return;
+      _roundId = round.roundId;
+      _bettingSecsLeft = _bettingDuration;
+      _phase = _Phase.betting;
+      _post('ROUND_STARTED', {'roundId': round.roundId});
+      _startCountdown();
+    } catch (e) {
+      if (!mounted) return;
+      // Retry after 3 s (e.g., game_disabled, network blip).
+      _phaseDelay = Timer(const Duration(seconds: 3), _startNextRound);
+    }
+  }
+
+  void _startCountdown() {
+    _countdown?.cancel();
+    _post('ROUND_TICK', {'secondsLeft': _bettingSecsLeft});
+    _countdown = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      if (_phase != _Phase.betting) {
+        t.cancel();
+        return;
+      }
+      _bettingSecsLeft--;
+      _post('ROUND_TICK', {'secondsLeft': _bettingSecsLeft});
+      if (_bettingSecsLeft <= 0) {
+        t.cancel();
+        _transitionToLocked();
+      }
+    });
+  }
+
+  void _transitionToLocked() {
+    if (!mounted) return;
+    _phase = _Phase.locked;
+    _post('SPIN_STARTED', {'roundId': _roundId});
+    _phaseDelay = Timer(const Duration(seconds: 4), _settleRound);
+  }
+
+  Future<void> _settleRound() async {
+    if (!mounted || _roundId == null) return;
+    _phase = _Phase.settling;
+    try {
+      final result = await _service.settleRound(roundId: _roundId!);
+      if (!mounted) return;
+      if (result.userWinAmount > 0) HapticFeedback.mediumImpact();
+      _post('ROUND_RESULT', result.toBridgeJson());
+      _phase = _Phase.result;
+      _phaseDelay = Timer(const Duration(seconds: 3), _startNextRound);
+    } catch (e) {
+      if (!mounted) return;
+      _post('ERROR', {'code': 'settle_failed'});
+      _phase = _Phase.result;
+      _phaseDelay = Timer(const Duration(seconds: 3), _startNextRound);
+    }
+  }
+
+  // ── Bet handlers ─────────────────────────────────────────────────────────────
+
+  Future<void> _handlePlaceBet(Map<String, dynamic> payload) async {
+    if (_phase != _Phase.betting) {
+      _post('BET_REJECTED', {'code': 'betting_closed'});
+      return;
+    }
+    final roundId = payload['roundId'] as String?;
+    final foodId = payload['foodId'] as String?;
+    final amount = _parseInt(payload['amount']);
+
+    if (roundId == null || foodId == null || amount <= 0) {
+      _post('BET_REJECTED', {'code': 'invalid_bet'});
+      return;
+    }
+    if (roundId != _roundId) {
+      _post('BET_REJECTED', {'code': 'round_mismatch'});
+      return;
+    }
+
+    try {
+      final result = await _service.placeBet(
+        roundId: roundId,
+        foodId: foodId,
+        amount: amount,
+      );
+      if (!mounted) return;
+      HapticFeedback.lightImpact();
+      _post('BET_ACCEPTED', {
+        'roundId': roundId,
+        'foodId': foodId,
+        'amount': amount,
+        'newBalance': result['new_balance'],
+      });
+    } catch (e) {
+      if (!mounted) return;
+      _post('BET_REJECTED', {
+        'code': _mapBetError('$e'),
+        'foodId': foodId,
+      });
+    }
+  }
+
+  Future<void> _handleClearBets(Map<String, dynamic> payload) async {
+    if (_phase != _Phase.betting || _roundId == null) return;
+    final roundId = payload['roundId'] as String?;
+    if (roundId != _roundId) return;
+
+    try {
+      final result = await _service.refundRoundBets(roundId: _roundId!);
+      if (!mounted) return;
+      _post('BETS_CLEARED', {
+        'refundedAmount': result['refunded_amount'],
+        'newBalance': result['new_balance'],
+      });
+    } catch (e) {
+      if (!mounted) return;
+      _post('ERROR', {'code': 'refund_failed'});
+    }
   }
 
   Future<void> _sendHistory() async {
     try {
-      final history = await _service.fetchRecentSpins();
-      _postToWeb('HISTORY_UPDATE', {
+      final history = await _service.fetchRecentRounds();
+      if (!mounted) return;
+      _post('HISTORY_UPDATE', {
         'results': history.map((h) => h.toBridgeJson()).toList(),
       });
     } catch (_) {}
   }
 
-  Future<void> _handleSpinRequest(Map<String, dynamic>? payload) async {
-    if (payload == null) return;
+  // ── Flutter → Web ────────────────────────────────────────────────────────────
 
-    // Block duplicate spins: one in flight at a time.
-    if (_spinInFlight) {
-      _postToWeb('SPIN_REJECTED', {'code': 'spin_in_progress'});
-      return;
-    }
-
-    final betAmount = payload['betAmount'] is int
-        ? payload['betAmount'] as int
-        : int.tryParse('${payload['betAmount']}') ?? 0;
-    final clientSpinId =
-        payload['clientSpinId'] as String? ?? _generateUuidV4();
-
-    if (betAmount <= 0) {
-      _postToWeb('SPIN_REJECTED', {'code': 'invalid_bet_amount'});
-      return;
-    }
-
-    _spinInFlight = true;
-    HapticFeedback.lightImpact();
-    _postToWeb('SPIN_ACCEPTED', {'clientSpinId': clientSpinId});
-
-    try {
-      final result = await _service.playSpin(
-        betAmount: betAmount,
-        clientSpinId: clientSpinId,
-        roomId: widget.roomId,
-      );
-      // Haptic on win: heavy for legendary/epic, medium otherwise.
-      if (result.rarity == 'legendary') {
-        HapticFeedback.heavyImpact();
-      } else if (result.rarity == 'epic' || result.rarity == 'rare') {
-        HapticFeedback.mediumImpact();
-      } else {
-        HapticFeedback.selectionClick();
-      }
-      _postToWeb('SPIN_RESULT', result.toBridgeJson());
-    } catch (e) {
-      final code = _mapErrorCode('$e');
-      _postToWeb('SPIN_REJECTED', {'code': code});
-    } finally {
-      _spinInFlight = false;
-    }
-  }
-
-  String _mapErrorCode(String error) {
-    if (error.contains('insufficient_coins')) return 'insufficient_coins';
-    if (error.contains('game_disabled')) return 'game_disabled';
-    if (error.contains('invalid_bet_amount')) return 'invalid_bet_amount';
-    if (error.contains('invalid_food_config')) return 'invalid_food_config';
-    if (error.contains('not_authenticated')) return 'missing_user';
-    return 'network_error';
-  }
-
-  // ── Flutter → Web ───────────────────────────────────────────────────────────
-
-  void _postToWeb(String type, Map<String, dynamic> payload) {
+  void _post(String type, Map<String, dynamic> payload) {
+    if (!mounted) return;
     final message = jsonEncode({'type': type, 'payload': payload});
-    final encoded = jsonEncode(message); // escape as a JS string literal
+    final encoded = jsonEncode(message);
     _controller.runJavaScript(
       'window.onSroodMessage && window.onSroodMessage(JSON.parse($encoded));',
     );
   }
 
-  String _generateUuidV4() {
-    final rng = math.Random.secure();
-    final bytes = List<int>.generate(16, (_) => rng.nextInt(256));
-    bytes[6] = (bytes[6] & 0x0f) | 0x40;
-    bytes[8] = (bytes[8] & 0x3f) | 0x80;
-    String hex(int b) => b.toRadixString(16).padLeft(2, '0');
-    final h = bytes.map(hex).join();
-    return '${h.substring(0, 8)}-${h.substring(8, 12)}-'
-        '${h.substring(12, 16)}-${h.substring(16, 20)}-${h.substring(20)}';
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+
+  int _parseInt(dynamic v) {
+    if (v is int) return v;
+    if (v is double) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? 0;
+    return 0;
   }
 
-  // ── UI ──────────────────────────────────────────────────────────────────────
+  String _mapBetError(String e) {
+    if (e.contains('insufficient_coins')) return 'insufficient_coins';
+    if (e.contains('betting_closed')) return 'betting_closed';
+    if (e.contains('round_not_found')) return 'round_not_found';
+    if (e.contains('invalid_food')) return 'invalid_food';
+    return 'network_error';
+  }
+
+  // ── UI ───────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      // Don't let a back-gesture interrupt an unsettled spin silently — the
-      // RPC is atomic so funds are safe either way, but warn the user.
-      canPop: !_spinInFlight,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && _spinInFlight) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                widget.isArabic
-                    ? 'انتظر انتهاء الدورة الحالية...'
-                    : 'Wait for the current spin to finish...',
-              ),
-            ),
-          );
-        }
-      },
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) => _stopTimers(),
       child: Scaffold(
         backgroundColor: const Color(0xFF08030F),
         body: SafeArea(
-          bottom: false, // Web handles bottom inset via env(safe-area-inset-bottom)
+          bottom: false,
           child: Stack(
             fit: StackFit.expand,
             children: [
               WebViewWidget(controller: _controller),
-              if (_loading) _buildLoading(),
-              if (_error) _buildError(),
+              if (!_pageLoaded) _buildLoading(),
+              if (_pageError) _buildError(),
             ],
           ),
         ),
@@ -318,7 +380,7 @@ class _HungryCatWebViewScreenState extends State<HungryCatWebViewScreen> {
             Text(
               widget.isArabic ? 'جاري تحميل اللعبة...' : 'Loading game...',
               style: const TextStyle(
-                color: Color(0xFF7A6890),
+                color: Color(0xFFF0C15A),
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
               ),
@@ -347,16 +409,16 @@ class _HungryCatWebViewScreenState extends State<HungryCatWebViewScreen> {
               const Text('🐱', style: TextStyle(fontSize: 48)),
               const SizedBox(height: 12),
               const Text(
-                'Hungry Cat Wheel',
+                'Hungry Cat',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Color(0xFFF0C15A),
                   fontSize: 22,
                   fontWeight: FontWeight.w900,
                 ),
               ),
               const SizedBox(height: 10),
               Text(
-                _errorMessage ??
+                _pageErrorMsg ??
                     (widget.isArabic
                         ? 'تعذر تحميل اللعبة.'
                         : 'Failed to load the game.'),
@@ -373,16 +435,14 @@ class _HungryCatWebViewScreenState extends State<HungryCatWebViewScreen> {
                 child: ElevatedButton(
                   onPressed: () {
                     setState(() {
-                      _loading = true;
-                      _error = false;
-                      _errorMessage = null;
+                      _pageLoaded = false;
+                      _pageError = false;
+                      _pageErrorMsg = null;
                     });
-                    _controller
-                        .loadFlutterAsset('assets/games/hungry_cat/index.html');
+                    _controller.loadFlutterAsset(
+                        'assets/games/hungry_cat/index.html');
                   },
-                  child: Text(
-                    widget.isArabic ? 'إعادة المحاولة' : 'Retry',
-                  ),
+                  child: Text(widget.isArabic ? 'إعادة المحاولة' : 'Retry'),
                 ),
               ),
             ],

@@ -79,4 +79,62 @@ class HungryCatGameService {
     }
     return HungryCatSpinResult.fromJson(rows.first as Map<String, dynamic>);
   }
+
+  // ── Betting round methods ────────────────────────────────────────────────────
+
+  Future<HungryCatRoundInfo> startRound() async {
+    final data = await SupabaseService.requiredClient
+        .rpc('start_hungry_cat_round') as Map<String, dynamic>;
+    return HungryCatRoundInfo.fromJson(data);
+  }
+
+  Future<Map<String, dynamic>> placeBet({
+    required String roundId,
+    required String foodId,
+    required int amount,
+  }) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'place_hungry_cat_bet',
+      params: {
+        'p_round_id': roundId,
+        'p_food_id': foodId,
+        'p_amount': amount,
+      },
+    ) as Map<String, dynamic>;
+    return data;
+  }
+
+  Future<Map<String, dynamic>> refundRoundBets({
+    required String roundId,
+  }) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'refund_hungry_cat_round_bets',
+      params: {'p_round_id': roundId},
+    ) as Map<String, dynamic>;
+    return data;
+  }
+
+  Future<HungryCatRoundResult> settleRound({
+    required String roundId,
+  }) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'settle_hungry_cat_round',
+      params: {'p_round_id': roundId},
+    ) as Map<String, dynamic>;
+    return HungryCatRoundResult.fromJson(data);
+  }
+
+  Future<List<HungryCatHistoryEntry>> fetchRecentRounds({
+    int limit = 20,
+  }) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'get_hungry_cat_recent_rounds',
+      params: {'p_limit': limit},
+    );
+    final rows = data as List<dynamic>;
+    return rows
+        .map((e) =>
+            HungryCatHistoryEntry.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
 }
