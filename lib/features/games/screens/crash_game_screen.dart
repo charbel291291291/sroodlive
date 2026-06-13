@@ -7,6 +7,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
 import '../services/crash_game_service.dart';
+import 'gold_ladder_quiz_screen.dart';
 import 'hungry_cat_webview_screen.dart';
 import 'spin_wheel_screen.dart';
 
@@ -370,10 +371,20 @@ class _CrashGameScreenState extends State<CrashGameScreen> {
             _GamePill(
               emoji: '\u{1F431}',
               label: isArabic ? 'القط الجائع' : 'Hungry Cat',
-              isNew: true,
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) => HungryCatWebViewScreen(isArabic: isArabic),
+                ),
+              ),
+            ),
+            const SizedBox(width: 7),
+            _GamePill(
+              emoji: '🏆',
+              label: isArabic ? 'سلم الذهب' : 'Gold Ladder',
+              isNew: true,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => GoldLadderQuizScreen(isArabic: isArabic),
                 ),
               ),
             ),
