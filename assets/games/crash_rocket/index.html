@@ -33,6 +33,7 @@ body::before{
   color:#C4B8DC;font-size:16px;
   display:flex;align-items:center;justify-content:center;
   flex-shrink:0;transition:background .15s;cursor:pointer;
+  touch-action:manipulation;
 }
 .btn-icon:active{background:rgba(255,255,255,.14);}
 .topbar-title{
@@ -89,13 +90,15 @@ body::before{
   width:84px;height:6px;border-radius:4px;
   background:linear-gradient(90deg,transparent,rgba(139,38,217,.8),rgba(240,193,90,.6),rgba(139,38,217,.8),transparent);
   box-shadow:0 0 22px rgba(139,38,217,.55);
+  pointer-events:none;
 }
 
-/* Rocket wrapper */
+/* Rocket wrapper — all children are decorative */
 #rwrap{
   position:absolute;left:50%;bottom:20%;
   transform:translateX(-50%);
   transition:bottom 100ms linear;will-change:bottom;
+  pointer-events:none;
 }
 
 /* Rocket animations */
@@ -114,6 +117,7 @@ body::before{
   background:radial-gradient(ellipse,rgba(139,38,217,.42),transparent 70%);
   filter:blur(12px);
   animation:aura-pulse 1.1s ease-in-out infinite;opacity:0;
+  pointer-events:none;
 }
 @keyframes aura-pulse{0%,100%{opacity:.4}50%{opacity:1}}
 
@@ -123,6 +127,7 @@ body::before{
   bottom:100%;margin-bottom:-4px;width:8px;border-radius:4px;
   background:linear-gradient(to bottom,rgba(139,38,217,.95),rgba(240,193,90,.5),transparent);
   height:0;opacity:0;transition:height 200ms ease;
+  pointer-events:none;
 }
 
 /* Flame */
@@ -133,6 +138,7 @@ body::before{
   border-radius:50% 50% 70% 70%;
   animation:flame-flicker .12s ease-in-out infinite;
   transform-origin:top center;opacity:0;
+  pointer-events:none;
 }
 @keyframes flame-flicker{
   0%,100%{transform:translateX(-50%) scaleX(1) scaleY(1);opacity:.9}
@@ -147,6 +153,7 @@ body::before{
   width:24px;height:24px;border-radius:50%;
   background:rgba(200,160,255,.22);
   animation:smoke-rise .55s ease-out infinite;opacity:0;
+  pointer-events:none;
 }
 @keyframes smoke-rise{
   0%{transform:translateX(-50%) scale(.5);opacity:.35}
@@ -215,6 +222,9 @@ body::before{
   display:flex;gap:1px;flex-shrink:0;
   background:rgba(74,52,112,.35);
   z-index:1;position:relative;
+  /* breathing room above the Flutter bottom nav bar (SafeArea handles inset,
+     but keep a small fixed pad for visual comfort) */
+  padding-bottom:max(12px, env(safe-area-inset-bottom));
 }
 .slot{
   flex:1;padding:9px 10px 12px;background:#07021A;
@@ -233,7 +243,7 @@ body::before{
   background:rgba(139,38,217,.12);color:#fff;
   font-size:16px;font-weight:700;
   display:flex;align-items:center;justify-content:center;
-  cursor:pointer;flex-shrink:0;
+  cursor:pointer;flex-shrink:0;touch-action:manipulation;
 }
 .adj:active{background:rgba(139,38,217,.3)}
 .amt-in{
@@ -254,6 +264,7 @@ body::before{
   background:rgba(12,6,22,.7);color:#6A5888;
   font-size:10px;font-weight:800;text-align:center;
   cursor:pointer;white-space:nowrap;transition:all .12s;
+  touch-action:manipulation;
 }
 .chip:active{background:rgba(139,38,217,.28);color:#fff}
 .chip:disabled{opacity:.3;cursor:default}
@@ -263,6 +274,7 @@ body::before{
 .mbtn{
   flex:1;padding:5px;font-size:10px;font-weight:800;letter-spacing:.5px;
   background:transparent;color:#6A5888;cursor:pointer;border:none;text-align:center;
+  touch-action:manipulation;
 }
 .mbtn.on{background:rgba(139,38,217,.32);color:#fff}
 .mbtn:disabled{opacity:.5;cursor:default}
@@ -287,7 +299,7 @@ body::before{
 .arm{
   width:100%;padding:10px;border-radius:11px;border:none;
   font-size:12px;font-weight:900;letter-spacing:.5px;
-  cursor:pointer;transition:all .15s;
+  cursor:pointer;transition:all .15s;touch-action:manipulation;
 }
 .arm.idle{
   background:linear-gradient(135deg,#8B26D9,#6B1AA0);color:#fff;
@@ -337,6 +349,15 @@ body::before{
   pointer-events:none;white-space:nowrap;max-width:80vw;text-align:center;
 }
 #toast.show{opacity:1}
+
+/* ── Small-screen tweaks (≤ 380px) ───────────────────────── */
+@media(max-width:380px){
+  #stage{min-height:0}
+  .slot{padding:7px 8px 8px;gap:5px}
+  .arm{padding:8px}
+  #rounds{padding:5px 8px}
+  .topbar{padding:8px 10px 6px}
+}
 </style>
 </head>
 <body>

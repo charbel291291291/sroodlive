@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
@@ -28,15 +29,21 @@ class _CrashGameScreenState extends State<CrashGameScreen> {
   // Active real-round polling
   Timer? _pollTimer;
   String? _activeRoundId;
-  // Track which betIds we've already reported as cashed-out to the web
   final Set<String> _reportedCashouts = {};
 
   @override
   void initState() {
     super.initState();
+    // Black navigation bar so no grey bar shows behind the game.
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: Color(0xFF08030F),
+      systemNavigationBarIconBrightness: Brightness.light,
+    ));
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0xFF08060F))
+      ..setBackgroundColor(const Color(0xFF08030F))
       ..addJavaScriptChannel(
         'SroodBridge',
         onMessageReceived: (msg) => _onWebMessage(msg.message),
@@ -64,6 +71,9 @@ class _CrashGameScreenState extends State<CrashGameScreen> {
   @override
   void dispose() {
     _stopPolling();
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      systemNavigationBarColor: Colors.transparent,
+    ));
     super.dispose();
   }
 
@@ -193,7 +203,6 @@ class _CrashGameScreenState extends State<CrashGameScreen> {
         'cashoutMultiplier': resp['cashout_multiplier'],
         'winAmount': resp['win_amount'],
       });
-      // If the server says the round already crashed, end it immediately
       if (resp['crash_multiplier'] != null &&
           (resp['status'] == 'crashed' || resp['status'] == 'cashed_out')) {
         _stopPolling();
@@ -205,7 +214,6 @@ class _CrashGameScreenState extends State<CrashGameScreen> {
         }
       }
     } catch (e) {
-      // Restore the slot to running so the user can try again
       _post('CASHOUT_RESULT', {
         'slotIndex': slotIndex,
         'status': 'running',
@@ -235,7 +243,6 @@ class _CrashGameScreenState extends State<CrashGameScreen> {
       final result = await _service.getRoundResult(roundId);
       if (!mounted) return;
 
-      // Report any newly cashed-out bets (auto-cashout)
       final bets = result['bets'] as List<dynamic>? ?? [];
       for (final b in bets) {
         final bet = b as Map<String, dynamic>;
@@ -244,14 +251,9 @@ class _CrashGameScreenState extends State<CrashGameScreen> {
         if (bet['status'] == 'cashed_out' &&
             !_reportedCashouts.contains(betId)) {
           _reportedCashouts.add(betId);
-          // Find which slot index owns this betId — the web page tracks it
-          // We send without slotIndex and let the web side match by betId.
-          // Instead we search the armed bets mapping we sent in LAUNCH_ACCEPTED.
-          // Simplest: send with slotIndex=-1 and web ignores unknown slots.
-          // Better: we pass betId and web matches.
           _post('CASHOUT_RESULT', {
             'betId': betId,
-            'slotIndex': -1, // web matches by betId
+            'slotIndex': -1,
             'status': 'cashed_out',
             'cashoutMultiplier': bet['cashout_multiplier'],
             'winAmount': bet['win_amount'],
@@ -296,7 +298,7 @@ class _CrashGameScreenState extends State<CrashGameScreen> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: _pollTimer == null, // block back during active real round
+      canPop: _pollTimer == null,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -311,16 +313,24 @@ class _CrashGameScreenState extends State<CrashGameScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFF08060F),
+        backgroundColor: const Color(0xFF08030F),
         body: SafeArea(
-          bottom: false,
-          child: Stack(
-            fit: StackFit.expand,
+          // bottom: true accounts for both Android system nav bar AND the
+          // app's BottomNavigationBar (HomeScreen uses extendBody: true, which
+          // folds the nav bar height into MediaQuery.padding.bottom).
+          child: Column(
             children: [
-              WebViewWidget(controller: _controller),
-              if (_loading) _buildLoading(),
-              if (_error) _buildError(),
-              if (!_loading && !_error) _buildShortcuts(),
+              _buildGameSelector(),
+              Expanded(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    WebViewWidget(controller: _controller),
+                    if (_loading) _buildLoading(),
+                    if (_error) _buildError(),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -328,9 +338,54 @@ class _CrashGameScreenState extends State<CrashGameScreen> {
     );
   }
 
+  // Compact horizontal game-switcher bar — sits above the WebView so it never
+  // overlaps the game's own title/topbar.
+  Widget _buildGameSelector() {
+    final isArabic = widget.isArabic;
+    return Container(
+      height: 40,
+      color: const Color(0xFF06020D),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _GamePill(
+              emoji: '🚀',
+              label: isArabic ? 'كراش روكت' : 'Crash Rocket',
+              selected: true,
+              onTap: () {},
+            ),
+            const SizedBox(width: 7),
+            _GamePill(
+              emoji: '\u{1F3A1}',
+              label: isArabic ? 'عجلة الحظ' : 'Spin Wheel',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => SpinWheelScreen(isArabic: isArabic),
+                ),
+              ),
+            ),
+            const SizedBox(width: 7),
+            _GamePill(
+              emoji: '\u{1F431}',
+              label: isArabic ? 'القط الجائع' : 'Hungry Cat',
+              isNew: true,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => HungryCatWebViewScreen(isArabic: isArabic),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildLoading() {
     return Container(
-      color: const Color(0xFF08060F),
+      color: const Color(0xFF08030F),
       child: const Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -353,7 +408,7 @@ class _CrashGameScreenState extends State<CrashGameScreen> {
 
   Widget _buildError() {
     return Container(
-      color: const Color(0xFF08060F),
+      color: const Color(0xFF08030F),
       padding: const EdgeInsets.all(24),
       child: Center(
         child: Container(
@@ -412,56 +467,23 @@ class _CrashGameScreenState extends State<CrashGameScreen> {
       ),
     );
   }
-
-  Widget _buildShortcuts() {
-    final isArabic = widget.isArabic;
-    return Positioned(
-      top: 8,
-      right: isArabic ? null : 12,
-      left: isArabic ? 12 : null,
-      child: Column(
-        crossAxisAlignment:
-            isArabic ? CrossAxisAlignment.start : CrossAxisAlignment.end,
-        children: [
-          _Pill(
-            emoji: '\u{1F3A1}',
-            label: isArabic ? 'عجلة الحظ' : 'Spin Wheel',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => SpinWheelScreen(isArabic: isArabic),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          _Pill(
-            emoji: '\u{1F431}',
-            label: isArabic ? 'القط الجائع' : 'Hungry Cat',
-            isNew: true,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => HungryCatWebViewScreen(isArabic: isArabic),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
-// ── Shortcut pill ──────────────────────────────────────────────────────────────
+// ── Game pill ──────────────────────────────────────────────────────────────────
 
-class _Pill extends StatelessWidget {
-  const _Pill({
+class _GamePill extends StatelessWidget {
+  const _GamePill({
     required this.emoji,
     required this.label,
     required this.onTap,
+    this.selected = false,
     this.isNew = false,
   });
 
   final String emoji;
   final String label;
   final VoidCallback onTap;
+  final bool selected;
   final bool isNew;
 
   @override
@@ -469,47 +491,55 @@ class _Pill extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: const Color(0xFF1B0D2A).withValues(alpha: 0.92),
+          color: selected
+              ? const Color(0xFF8B26D9).withValues(alpha: 0.22)
+              : const Color(0xFF1B0D2A).withValues(alpha: 0.8),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: const Color(0xFF8B26D9).withValues(alpha: 0.7),
+            color: selected
+                ? const Color(0xFF8B26D9)
+                : const Color(0xFF3A2460).withValues(alpha: 0.7),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF8B26D9).withValues(alpha: 0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF8B26D9).withValues(alpha: 0.4),
+                    blurRadius: 10,
+                  ),
+                ]
+              : [],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 14)),
-            const SizedBox(width: 5),
+            Text(emoji, style: const TextStyle(fontSize: 13)),
+            const SizedBox(width: 4),
             Text(
               label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
+              style: TextStyle(
+                color: selected
+                    ? Colors.white
+                    : Colors.white.withValues(alpha: 0.55),
+                fontSize: 11,
                 fontWeight: FontWeight.w800,
               ),
             ),
             if (isNew) ...[
-              const SizedBox(width: 6),
+              const SizedBox(width: 5),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF0C15A),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Text(
                   'NEW',
                   style: TextStyle(
                     color: Color(0xFF12061F),
-                    fontSize: 8.5,
+                    fontSize: 7.5,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 0.5,
                   ),
