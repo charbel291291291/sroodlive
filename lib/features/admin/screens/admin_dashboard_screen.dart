@@ -159,9 +159,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     try {
       final roles = await _accessService.fetchCurrentUserRoles();
-      final canAccess = roles.any(
-        (role) => AdminRoleSpec.all.any((spec) => spec.role == role),
-      );
+      final canAccess = AdminAccessService.isAdminRole(roles);
 
       if (!canAccess) {
         if (!mounted) return;
