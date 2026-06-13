@@ -5,399 +5,472 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
 <title>Crash Rocket</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-:root{
-  --bg:#08060f;--card:#160b24;--gold:#f0c15a;--purple:#8b26d9;
-  --green:#22c55e;--red:#ef4444;--muted:#7a6890;--border:rgba(74,52,112,0.5);
+/* ── Reset ─────────────────────────────────────────────── */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:-apple-system,'Segoe UI',Roboto,sans-serif;
+  background:#08030F;color:#fff;
+  display:flex;flex-direction:column;
 }
-html,body{height:100%;background:var(--bg);color:#fff;
-  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden}
-#app{display:flex;flex-direction:column;height:100vh;height:100dvh}
 
-/* ── Header ── */
-#hdr{display:flex;align-items:center;justify-content:space-between;
-  padding:8px 12px;background:rgba(8,6,15,.97);
-  border-bottom:1px solid var(--border);flex-shrink:0;z-index:10}
-#bal{display:flex;align-items:center;gap:5px;
-  background:rgba(240,193,90,.1);border:1px solid rgba(240,193,90,.3);
-  border-radius:10px;padding:5px 10px}
-#bal-amt{color:var(--gold);font-weight:900;font-size:13px;font-variant-numeric:tabular-nums}
-.logo{display:flex;align-items:center;gap:6px}
-.logo-sq{width:26px;height:26px;border-radius:7px;
-  background:linear-gradient(135deg,#8b26d9,#4b168c);
+/* Ambient glow */
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 90% 40% at 50% 28%,rgba(91,33,182,.2) 0%,transparent 70%);
+}
+
+/* ── Top bar ────────────────────────────────────────────── */
+.topbar{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 14px 8px;position:relative;z-index:10;
+  flex-shrink:0;
+}
+.btn-icon{
+  width:38px;height:38px;border-radius:13px;
+  border:1px solid rgba(255,255,255,.11);
+  background:rgba(255,255,255,.05);
+  color:#C4B8DC;font-size:16px;
   display:flex;align-items:center;justify-content:center;
-  font-weight:900;font-size:12px;box-shadow:0 0 10px rgba(139,38,217,.5)}
-.logo-text{font-size:12px;font-weight:900;
-  background:linear-gradient(90deg,#f0c15a,#c084fc);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
-#close-btn{width:32px;height:32px;border-radius:9px;border:1px solid var(--border);
-  background:rgba(42,31,74,.4);color:var(--muted);font-size:15px;
-  display:flex;align-items:center;justify-content:center;cursor:pointer}
+  flex-shrink:0;transition:background .15s;cursor:pointer;
+}
+.btn-icon:active{background:rgba(255,255,255,.14);}
+.topbar-title{
+  flex:1;text-align:center;font-weight:900;font-size:15px;letter-spacing:.2px;
+  background:linear-gradient(90deg,#F0C15A 0%,#C084FC 50%,#F0C15A 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.balance-pill{
+  display:flex;align-items:center;gap:5px;
+  background:rgba(240,193,90,.1);
+  border:1.5px solid rgba(240,193,90,.4);
+  border-radius:999px;padding:5px 12px;
+  font-weight:900;font-size:13px;color:#F0C15A;flex-shrink:0;
+}
 
-/* ── Stage ── */
-#stage{flex:1;position:relative;overflow:hidden;
-  background:linear-gradient(180deg,#0a0416 0%,#08060f 100%);min-height:0}
+/* ── Stage ──────────────────────────────────────────────── */
+#stage{
+  flex:1;position:relative;overflow:hidden;
+  background:linear-gradient(180deg,#050212 0%,#08030F 100%);
+  min-height:0;z-index:1;
+}
 
 /* Stars */
-.stars{position:absolute;left:0;right:0;top:-660px;bottom:0;pointer-events:none;
-  background-size:330px 330px;background-repeat:repeat;will-change:transform;
-  animation:stars-move 60s linear infinite}
-#s1{background-image:
-  radial-gradient(1.4px 1.4px at 22px 44px,rgba(255,255,255,.9),transparent),
-  radial-gradient(1px 1px at 110px 130px,rgba(255,255,255,.7),transparent),
-  radial-gradient(1.6px 1.6px at 210px 70px,rgba(255,255,255,.85),transparent),
-  radial-gradient(1px 1px at 300px 190px,rgba(255,255,255,.6),transparent),
-  radial-gradient(1.2px 1.2px at 70px 250px,rgba(255,255,255,.8),transparent),
-  radial-gradient(1px 1px at 260px 290px,rgba(255,255,255,.55),transparent);opacity:.7}
-#s2{background-image:
-  radial-gradient(1px 1px at 60px 90px,rgba(168,85,247,.7),transparent),
-  radial-gradient(1.3px 1.3px at 180px 160px,rgba(96,165,250,.6),transparent),
-  radial-gradient(1px 1px at 290px 40px,rgba(240,193,90,.55),transparent),
-  radial-gradient(1px 1px at 130px 280px,rgba(255,255,255,.45),transparent);
-  opacity:.5;animation-duration:95s}
-.fast{animation-duration:4s!important}
+.stars{
+  position:absolute;left:0;right:0;top:-660px;bottom:0;
+  pointer-events:none;background-size:330px 330px;
+  background-repeat:repeat;will-change:transform;
+  animation:stars-move 60s linear infinite;
+}
+#s1{
+  background-image:
+    radial-gradient(1.4px 1.4px at 22px 44px,rgba(255,255,255,.9),transparent),
+    radial-gradient(1px 1px at 110px 130px,rgba(255,255,255,.7),transparent),
+    radial-gradient(1.6px 1.6px at 210px 70px,rgba(255,255,255,.85),transparent),
+    radial-gradient(1px 1px at 300px 190px,rgba(255,255,255,.6),transparent),
+    radial-gradient(1.2px 1.2px at 70px 250px,rgba(255,255,255,.8),transparent),
+    radial-gradient(1px 1px at 260px 290px,rgba(255,255,255,.55),transparent);
+  opacity:.7;
+}
+#s2{
+  background-image:
+    radial-gradient(1px 1px at 60px 90px,rgba(168,85,247,.7),transparent),
+    radial-gradient(1.3px 1.3px at 180px 160px,rgba(96,165,250,.6),transparent),
+    radial-gradient(1px 1px at 290px 40px,rgba(240,193,90,.55),transparent),
+    radial-gradient(1px 1px at 130px 280px,rgba(255,255,255,.45),transparent);
+  opacity:.5;animation-duration:95s;
+}
+.stars-fast{animation-duration:3s!important}
 @keyframes stars-move{from{transform:translateY(0)}to{transform:translateY(660px)}}
 
 /* Launchpad */
-#pad{position:absolute;bottom:18%;left:50%;transform:translateX(-50%);
-  width:72px;height:8px;border-radius:5px;
-  background:linear-gradient(90deg,transparent,rgba(139,38,217,.7),rgba(240,193,90,.5),rgba(139,38,217,.7),transparent);
-  box-shadow:0 0 18px rgba(139,38,217,.5)}
+#pad{
+  position:absolute;bottom:17%;left:50%;transform:translateX(-50%);
+  width:84px;height:6px;border-radius:4px;
+  background:linear-gradient(90deg,transparent,rgba(139,38,217,.8),rgba(240,193,90,.6),rgba(139,38,217,.8),transparent);
+  box-shadow:0 0 22px rgba(139,38,217,.55);
+}
 
-/* Rocket wrapper — bottom% driven by JS */
-#rwrap{position:absolute;left:50%;bottom:20%;
-  transform:translateX(-50%);transition:bottom 120ms linear;will-change:bottom}
+/* Rocket wrapper */
+#rwrap{
+  position:absolute;left:50%;bottom:20%;
+  transform:translateX(-50%);
+  transition:bottom 100ms linear;will-change:bottom;
+}
 
-/* Rocket SVG animations */
-#rocket.idle{animation:bob-idle 2.6s ease-in-out infinite}
-#rocket.flying{animation:bob-fly 1.4s ease-in-out infinite}
+/* Rocket animations */
+#rocket.idle   {animation:bob-idle 2.6s ease-in-out infinite}
+#rocket.flying {animation:bob-fly 1.4s ease-in-out infinite}
 #rocket.launching{animation:launch-shake .1s linear infinite}
-#rocket.crashed{animation:crash-spin .62s ease-in forwards}
+#rocket.crashed{animation:crash-spin .65s ease-in forwards}
 @keyframes bob-idle{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
-@keyframes bob-fly{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes bob-fly {0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 @keyframes launch-shake{0%,100%{transform:translate(0,0)}25%{transform:translate(-2px,-1px)}50%{transform:translate(2px,-2px)}75%{transform:translate(-2px,-1px)}}
-@keyframes crash-spin{0%{transform:rotate(0deg);opacity:1}40%{transform:rotate(-24deg);opacity:.7}75%{transform:rotate(24deg);opacity:.35}100%{transform:rotate(0deg);opacity:0}}
+@keyframes crash-spin{0%{transform:rotate(0) scale(1);opacity:1}40%{transform:rotate(-24deg) scale(1.1);opacity:.7}75%{transform:rotate(24deg) scale(.75);opacity:.3}100%{transform:rotate(0) scale(.5);opacity:0}}
 
 /* Aura */
-#aura{position:absolute;inset:-18px;border-radius:50%;
-  background:radial-gradient(ellipse,rgba(139,38,217,.38),transparent 70%);
-  filter:blur(10px);animation:aura-pulse 1.1s ease-in-out infinite;opacity:0}
-@keyframes aura-pulse{0%,100%{opacity:.45}50%{opacity:1}}
+#aura{
+  position:absolute;inset:-24px;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(139,38,217,.42),transparent 70%);
+  filter:blur(12px);
+  animation:aura-pulse 1.1s ease-in-out infinite;opacity:0;
+}
+@keyframes aura-pulse{0%,100%{opacity:.4}50%{opacity:1}}
 
 /* Trail */
-#trail{position:absolute;left:50%;transform:translateX(-50%);
-  bottom:100%;margin-bottom:-4px;width:7px;border-radius:4px;
-  background:linear-gradient(to bottom,rgba(139,38,217,.95),rgba(240,193,90,.4),transparent);
-  height:0;opacity:0;transition:height 200ms ease}
+#trail{
+  position:absolute;left:50%;transform:translateX(-50%);
+  bottom:100%;margin-bottom:-4px;width:8px;border-radius:4px;
+  background:linear-gradient(to bottom,rgba(139,38,217,.95),rgba(240,193,90,.5),transparent);
+  height:0;opacity:0;transition:height 200ms ease;
+}
 
 /* Flame */
-#flame{position:absolute;top:100%;left:50%;
-  transform:translateX(-50%);width:20px;height:30px;
+#flame{
+  position:absolute;top:100%;left:50%;
+  transform:translateX(-50%);width:24px;height:36px;
   background:radial-gradient(ellipse at 50% 0%,#fff 0%,#f0c15a 30%,#f97316 60%,transparent 100%);
   border-radius:50% 50% 70% 70%;
   animation:flame-flicker .12s ease-in-out infinite;
-  transform-origin:top center;opacity:0}
+  transform-origin:top center;opacity:0;
+}
 @keyframes flame-flicker{
   0%,100%{transform:translateX(-50%) scaleX(1) scaleY(1);opacity:.9}
-  25%{transform:translateX(-50%) scaleX(1.1) scaleY(.92);opacity:1}
-  50%{transform:translateX(-50%) scaleX(.9) scaleY(1.08);opacity:.85}}
+  25%{transform:translateX(-50%) scaleX(1.12) scaleY(.9);opacity:1}
+  50%{transform:translateX(-50%) scaleX(.88) scaleY(1.1);opacity:.85}
+}
 
 /* Smoke */
-#smoke{position:absolute;top:100%;left:50%;transform:translateX(-50%) scale(.5);
-  width:22px;height:22px;border-radius:50%;
-  background:rgba(200,160,255,.25);
-  animation:smoke-rise .55s ease-out infinite;opacity:0}
+#smoke{
+  position:absolute;top:100%;left:50%;
+  transform:translateX(-50%) scale(.5);
+  width:24px;height:24px;border-radius:50%;
+  background:rgba(200,160,255,.22);
+  animation:smoke-rise .55s ease-out infinite;opacity:0;
+}
 @keyframes smoke-rise{
   0%{transform:translateX(-50%) scale(.5);opacity:.35}
-  60%{transform:translateX(-50%) translateY(14px) scale(1);opacity:.18}
-  100%{transform:translateX(-50%) translateY(28px) scale(1.6);opacity:0}}
+  60%{transform:translateX(-50%) translateY(16px) scale(1);opacity:.18}
+  100%{transform:translateX(-50%) translateY(32px) scale(1.6);opacity:0}
+}
 
 /* Explosion */
-#exp{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);
-  pointer-events:none;display:none}
-.p{position:absolute;width:8px;height:8px;border-radius:50%;
-  animation:p-out .6s ease-out forwards}
-@keyframes p-out{0%{transform:translate(0,0) scale(1);opacity:1}
-  100%{transform:var(--tx,40px) var(--ty,-40px) scale(0);opacity:0}}
+#exp{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);pointer-events:none;display:none}
+.p{position:absolute;width:9px;height:9px;border-radius:50%;animation:p-out .65s ease-out forwards}
+@keyframes p-out{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:var(--tx,40px) var(--ty,-40px) scale(0);opacity:0}}
 
 /* Multiplier */
-#mux-wrap{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  text-align:center;pointer-events:none}
-#mux{font-size:58px;font-weight:900;letter-spacing:-2px;line-height:1;
-  font-variant-numeric:tabular-nums;color:var(--green);
+#mux-wrap{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  text-align:center;pointer-events:none;
+}
+#mux{
+  font-size:clamp(52px,14vw,76px);font-weight:900;letter-spacing:-2px;line-height:1;
+  font-variant-numeric:tabular-nums;color:#22C55E;
   text-shadow:0 0 30px rgba(34,197,94,.5),0 0 60px rgba(34,197,94,.2);
-  transition:color .2s}
-#mux.gold{color:var(--gold);text-shadow:0 0 30px rgba(240,193,90,.5)}
-#mux.red{color:var(--red);text-shadow:0 0 30px rgba(239,68,68,.5)}
-#mux-lbl{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:2px;margin-top:4px}
+  transition:color .2s,text-shadow .2s;
+}
+#mux.gold{color:#F0C15A;text-shadow:0 0 30px rgba(240,193,90,.55),0 0 60px rgba(240,193,90,.2)}
+#mux.red {color:#EF4444;text-shadow:0 0 30px rgba(239,68,68,.55),0 0 60px rgba(239,68,68,.2)}
+#mux-lbl{font-size:11px;font-weight:700;color:#6A5888;letter-spacing:2px;margin-top:6px;white-space:nowrap}
 
 /* Phase badge */
-#badge{position:absolute;top:10px;left:50%;transform:translateX(-50%);
-  padding:3px 12px;border-radius:999px;font-size:10px;font-weight:900;
-  letter-spacing:1.5px;border:1px solid;white-space:nowrap}
-#badge.b{background:rgba(240,193,90,.12);border-color:rgba(240,193,90,.4);color:var(--gold)}
-#badge.f{background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.4);color:var(--green)}
-#badge.c{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.4);color:var(--red)}
-
-/* Countdown overlay */
-#cd{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  font-size:76px;font-weight:900;color:var(--gold);
-  text-shadow:0 0 40px rgba(240,193,90,.6);
-  opacity:0;pointer-events:none;transition:opacity .15s}
+#badge{
+  position:absolute;top:10px;left:50%;transform:translateX(-50%);
+  padding:4px 14px;border-radius:999px;font-size:10px;font-weight:900;
+  letter-spacing:1.5px;border:1px solid;white-space:nowrap;
+}
+#badge.b{background:rgba(240,193,90,.12);border-color:rgba(240,193,90,.4);color:#F0C15A}
+#badge.f{background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.4);color:#22C55E}
+#badge.c{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.4);color:#EF4444}
 
 /* Screen shake */
 @keyframes shake{
   0%,100%{transform:translate(0,0)}15%{transform:translate(-10px,8px)}
   30%{transform:translate(10px,-8px)}45%{transform:translate(-7px,5px)}
-  60%{transform:translate(7px,-5px)}80%{transform:translate(-4px,2px)}}
+  60%{transform:translate(7px,-5px)}80%{transform:translate(-4px,2px)}
+}
 .shaking{animation:shake .55s ease-out}
 
-/* ── Rounds bar ── */
-#rounds{display:flex;gap:5px;padding:7px 10px;overflow-x:auto;flex-shrink:0;
-  scrollbar-width:none;background:rgba(0,0,0,.3);
-  border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+/* ── Rounds bar ─────────────────────────────────────────── */
+#rounds{
+  display:flex;gap:5px;padding:7px 10px;
+  overflow-x:auto;flex-shrink:0;scrollbar-width:none;
+  background:rgba(0,0,0,.3);
+  border-top:1px solid rgba(74,52,112,.5);
+  border-bottom:1px solid rgba(74,52,112,.5);
+  z-index:1;position:relative;
+}
 #rounds::-webkit-scrollbar{display:none}
-.rc{flex-shrink:0;padding:3px 9px;border-radius:7px;font-size:11px;
-  font-weight:800;font-variant-numeric:tabular-nums;border:1px solid}
-.rh{background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.4);color:var(--green)}
-.rm{background:rgba(240,193,90,.1);border-color:rgba(240,193,90,.35);color:var(--gold)}
-.rl{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.35);color:var(--red)}
+.rc{
+  flex-shrink:0;padding:3px 10px;border-radius:8px;
+  font-size:11px;font-weight:800;font-variant-numeric:tabular-nums;border:1px solid;
+}
+.rh{background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.4);color:#22C55E}
+.rm{background:rgba(240,193,90,.1);border-color:rgba(240,193,90,.35);color:#F0C15A}
+.rl{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.35);color:#EF4444}
 
-/* ── Slots ── */
-#slots{display:flex;gap:1px;flex-shrink:0;background:var(--border)}
-.slot{flex:1;padding:9px 9px 12px;background:var(--card);display:flex;flex-direction:column;gap:7px}
+/* ── Bet slots ──────────────────────────────────────────── */
+#slots{
+  display:flex;gap:1px;flex-shrink:0;
+  background:rgba(74,52,112,.35);
+  z-index:1;position:relative;
+}
+.slot{
+  flex:1;padding:9px 10px 12px;background:#07021A;
+  display:flex;flex-direction:column;gap:7px;
+}
 .slot-hdr{display:flex;align-items:center;justify-content:space-between}
-.slot-lbl{font-size:10px;font-weight:900;color:var(--muted);letter-spacing:1px}
+.slot-lbl{font-size:10px;font-weight:900;color:#6A5888;letter-spacing:1px}
 .slot-res{font-size:11px;font-weight:800}
-.win{color:var(--green)}.loss{color:var(--red)}
+.win{color:#22C55E}.loss{color:#EF4444}
 
 /* Amount row */
 .amt-row{display:flex;align-items:center;gap:4px}
-.adj{width:24px;height:24px;border-radius:7px;border:1px solid var(--border);
-  background:rgba(139,38,217,.15);color:#fff;font-size:15px;font-weight:700;
-  display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
-  user-select:none}
-.amt-in{flex:1;background:rgba(22,11,36,.8);border:1px solid var(--border);
-  border-radius:7px;color:#fff;font-size:13px;font-weight:800;
-  text-align:center;padding:3px 2px;font-variant-numeric:tabular-nums;
-  min-width:0;width:0}
+.adj{
+  width:26px;height:26px;border-radius:8px;
+  border:1px solid rgba(74,52,112,.6);
+  background:rgba(139,38,217,.12);color:#fff;
+  font-size:16px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;flex-shrink:0;
+}
+.adj:active{background:rgba(139,38,217,.3)}
+.amt-in{
+  flex:1;background:rgba(8,4,18,.85);
+  border:1px solid rgba(74,52,112,.6);
+  border-radius:8px;color:#fff;font-size:13px;font-weight:800;
+  text-align:center;padding:4px 2px;
+  font-variant-numeric:tabular-nums;min-width:0;width:0;
+}
 .amt-in:focus{outline:none;border-color:rgba(139,38,217,.7)}
 .amt-in:disabled{opacity:.5}
 
 /* Chips */
 .chips{display:flex;gap:3px}
-.chip{flex:1;min-width:0;padding:3px 1px;border-radius:5px;border:1px solid var(--border);
-  background:rgba(22,11,36,.6);color:var(--muted);font-size:10px;font-weight:800;
-  text-align:center;cursor:pointer;white-space:nowrap;user-select:none}
-.chip:active{background:rgba(139,38,217,.25)}
+.chip{
+  flex:1;min-width:0;padding:4px 1px;
+  border-radius:7px;border:1px solid rgba(74,52,112,.6);
+  background:rgba(12,6,22,.7);color:#6A5888;
+  font-size:10px;font-weight:800;text-align:center;
+  cursor:pointer;white-space:nowrap;transition:all .12s;
+}
+.chip:active{background:rgba(139,38,217,.28);color:#fff}
 .chip:disabled{opacity:.3;cursor:default}
 
 /* Mode toggle */
-.mode{display:flex;border-radius:7px;overflow:hidden;border:1px solid var(--border)}
-.mbtn{flex:1;padding:4px;font-size:10px;font-weight:800;letter-spacing:.5px;
-  background:transparent;color:var(--muted);cursor:pointer;border:none;text-align:center}
-.mbtn.on{background:rgba(139,38,217,.35);color:#fff}
+.mode{display:flex;border-radius:8px;overflow:hidden;border:1px solid rgba(74,52,112,.6)}
+.mbtn{
+  flex:1;padding:5px;font-size:10px;font-weight:800;letter-spacing:.5px;
+  background:transparent;color:#6A5888;cursor:pointer;border:none;text-align:center;
+}
+.mbtn.on{background:rgba(139,38,217,.32);color:#fff}
 .mbtn:disabled{opacity:.5;cursor:default}
 
-/* Auto target */
-.auto-row{display:flex;align-items:center;gap:5px;overflow:hidden;max-height:0;transition:max-height .2s}
+/* Auto target row */
+.auto-row{
+  display:flex;align-items:center;gap:5px;
+  overflow:hidden;max-height:0;transition:max-height .2s;
+}
 .auto-row.vis{max-height:32px}
-.auto-lbl{font-size:10px;color:var(--muted);font-weight:700;white-space:nowrap}
-.auto-in{flex:1;background:rgba(22,11,36,.8);border:1px solid var(--border);
-  border-radius:6px;color:#fff;font-size:12px;font-weight:800;
-  text-align:center;padding:3px;min-width:0;width:0}
+.auto-lbl{font-size:10px;color:#6A5888;font-weight:700;white-space:nowrap}
+.auto-in{
+  flex:1;background:rgba(8,4,18,.85);
+  border:1px solid rgba(74,52,112,.6);
+  border-radius:7px;color:#fff;font-size:12px;font-weight:800;
+  text-align:center;padding:3px;min-width:0;width:0;
+}
 .auto-in:focus{outline:none;border-color:rgba(139,38,217,.7)}
 .auto-in:disabled{opacity:.5}
 
-/* Arm button */
-.arm{width:100%;padding:9px;border-radius:10px;border:none;
-  font-size:12px;font-weight:900;letter-spacing:.5px;cursor:pointer;transition:all .15s}
-.arm.idle{background:linear-gradient(135deg,#8b26d9,#6b1aa0);color:#fff;
-  box-shadow:0 4px 12px rgba(139,38,217,.4)}
-.arm.armed{background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;
-  box-shadow:0 4px 12px rgba(34,197,94,.4);animation:apulse 1.4s ease-in-out infinite}
-.arm.cashout{background:linear-gradient(135deg,#f0c15a,#d97706);color:#000;
-  box-shadow:0 4px 12px rgba(240,193,90,.4);animation:cpulse .8s ease-in-out infinite;font-size:11px}
-.arm.faded{background:rgba(22,11,36,.5);color:var(--muted);border:1px solid var(--border)}
+/* ARM button */
+.arm{
+  width:100%;padding:10px;border-radius:11px;border:none;
+  font-size:12px;font-weight:900;letter-spacing:.5px;
+  cursor:pointer;transition:all .15s;
+}
+.arm.idle{
+  background:linear-gradient(135deg,#8B26D9,#6B1AA0);color:#fff;
+  box-shadow:0 4px 14px rgba(139,38,217,.4);
+}
+.arm.armed{
+  background:linear-gradient(135deg,#22C55E,#16A34A);color:#fff;
+  box-shadow:0 4px 14px rgba(34,197,94,.4);
+  animation:apulse 1.4s ease-in-out infinite;
+}
+.arm.cashout{
+  background:linear-gradient(135deg,#F0C15A,#D97706);color:#120820;
+  box-shadow:0 4px 14px rgba(240,193,90,.4);
+  animation:cpulse .8s ease-in-out infinite;font-size:11px;
+}
+.arm.faded{
+  background:rgba(12,6,22,.7);color:#6A5888;
+  border:1px solid rgba(74,52,112,.5);
+}
 .arm:disabled{cursor:default}
 .arm:active:not(:disabled){transform:scale(.97)}
-@keyframes apulse{0%,100%{box-shadow:0 4px 12px rgba(34,197,94,.4)}50%{box-shadow:0 4px 22px rgba(34,197,94,.7)}}
-@keyframes cpulse{0%,100%{box-shadow:0 4px 12px rgba(240,193,90,.4)}50%{box-shadow:0 4px 22px rgba(240,193,90,.7)}}
+@keyframes apulse{0%,100%{box-shadow:0 4px 14px rgba(34,197,94,.4)}50%{box-shadow:0 4px 26px rgba(34,197,94,.7)}}
+@keyframes cpulse{0%,100%{box-shadow:0 4px 14px rgba(240,193,90,.4)}50%{box-shadow:0 4px 26px rgba(240,193,90,.7)}}
 
-/* Overlay */
-#ov{position:fixed;inset:0;background:var(--bg);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:100}
+/* ── Loading overlay ────────────────────────────────────── */
+#ov{
+  position:fixed;inset:0;background:#08030F;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  z-index:100;
+}
 #ov.gone{display:none}
-.spin{width:42px;height:42px;border:3px solid rgba(139,38,217,.3);
-  border-top-color:var(--purple);border-radius:50%;animation:sp .8s linear infinite}
+.spin-ring{
+  width:44px;height:44px;
+  border:3px solid rgba(139,38,217,.3);
+  border-top-color:#8B26D9;
+  border-radius:50%;animation:sp .8s linear infinite;
+}
 @keyframes sp{to{transform:rotate(360deg)}}
-.ov-msg{color:var(--muted);font-size:14px;font-weight:700;text-align:center;padding:0 24px}
-.ov-btn{padding:11px 30px;border-radius:13px;border:none;
-  background:var(--purple);color:#fff;font-size:14px;font-weight:900;cursor:pointer}
+.ov-msg{color:#7A6890;font-size:14px;font-weight:700;text-align:center;padding:0 24px}
 
-/* Toast */
-#toast{position:fixed;top:52px;left:50%;transform:translateX(-50%);
-  background:rgba(22,11,36,.97);border:1px solid var(--border);
-  border-radius:11px;padding:7px 16px;font-size:12px;font-weight:700;
+/* ── Toast ──────────────────────────────────────────────── */
+#toast{
+  position:fixed;top:58px;left:50%;transform:translateX(-50%);
+  background:rgba(12,6,22,.97);border:1px solid rgba(74,52,112,.55);
+  border-radius:12px;padding:8px 18px;font-size:12px;font-weight:700;
   color:#fff;z-index:200;opacity:0;transition:opacity .2s;
-  pointer-events:none;white-space:nowrap;max-width:80vw;text-align:center}
+  pointer-events:none;white-space:nowrap;max-width:80vw;text-align:center;
+}
 #toast.show{opacity:1}
 </style>
 </head>
 <body>
-<div id="app">
 
-  <!-- Header -->
-  <div id="hdr">
-    <div id="bal">
-      <span style="font-size:13px">🪙</span>
-      <span id="bal-amt">—</span>
+<!-- Top bar -->
+<div class="topbar">
+  <button class="btn-icon" id="btnBack">←</button>
+  <div class="topbar-title" id="gameTitle">Crash Rocket</div>
+  <button class="btn-icon" id="btnSound">🔊</button>
+  <div class="balance-pill">🪙&nbsp;<span id="bal-amt">—</span></div>
+</div>
+
+<!-- Stage -->
+<div id="stage">
+  <div class="stars" id="s1"></div>
+  <div class="stars" id="s2"></div>
+  <div id="pad"></div>
+
+  <div id="rwrap">
+    <div id="aura"></div>
+    <div id="trail"></div>
+    <div id="rocket" class="idle">
+      <svg width="56" height="82" viewBox="0 0 52 76" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="bg" x1="0" y1="0" x2="52" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#6b21a8"/>
+            <stop offset="50%" stop-color="#9333ea"/>
+            <stop offset="100%" stop-color="#6b21a8"/>
+          </linearGradient>
+          <linearGradient id="ng" x1="0" y1="0" x2="52" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#7c3aed"/>
+            <stop offset="100%" stop-color="#a855f7"/>
+          </linearGradient>
+        </defs>
+        <path d="M26 2 L40 26 L12 26 Z" fill="url(#ng)"/>
+        <rect x="14" y="24" width="24" height="32" rx="4" fill="url(#bg)"/>
+        <circle cx="26" cy="36" r="7" fill="#1e1b4b" stroke="#818cf8" stroke-width="1.5"/>
+        <circle cx="24" cy="34" r="2" fill="rgba(129,140,248,0.45)"/>
+        <path d="M14 48 L3 62 L14 58 Z" fill="#7c3aed"/>
+        <path d="M38 48 L49 62 L38 58 Z" fill="#7c3aed"/>
+        <rect x="18" y="54" width="16" height="8" rx="2" fill="#4c1d95"/>
+        <rect x="16" y="60" width="20" height="4" rx="2" fill="#6d28d9"/>
+        <path d="M18 26 L22 26 L22 54 L18 54 Z" fill="rgba(255,255,255,0.07)"/>
+      </svg>
     </div>
-    <div class="logo">
-      <div class="logo-sq">S</div>
-      <div>
-        <div class="logo-text">SrOOd LIVE</div>
-        <div style="font-size:10px;font-weight:800;color:#8b26d9;line-height:1.1">Crash Rocket</div>
-      </div>
-    </div>
-    <div id="close-btn" onclick="flutter('GAME_CLOSED')">✕</div>
+    <div id="flame"></div>
+    <div id="smoke"></div>
   </div>
 
-  <!-- Stage -->
-  <div id="stage">
-    <div class="stars" id="s1"></div>
-    <div class="stars" id="s2"></div>
-    <div id="pad"></div>
+  <div id="exp"></div>
 
-    <div id="rwrap">
-      <div id="aura"></div>
-      <div id="trail"></div>
-      <div id="rocket" class="idle">
-        <svg width="52" height="76" viewBox="0 0 52 76" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="bg" x1="0" y1="0" x2="52" y2="0" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#6b21a8"/><stop offset="50%" stop-color="#9333ea"/><stop offset="100%" stop-color="#6b21a8"/>
-            </linearGradient>
-            <linearGradient id="ng" x1="0" y1="0" x2="52" y2="0" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#7c3aed"/><stop offset="100%" stop-color="#a855f7"/>
-            </linearGradient>
-          </defs>
-          <!-- nose -->
-          <path d="M26 2 L40 26 L12 26 Z" fill="url(#ng)"/>
-          <!-- body -->
-          <rect x="14" y="24" width="24" height="32" rx="4" fill="url(#bg)"/>
-          <!-- window -->
-          <circle cx="26" cy="36" r="7" fill="#1e1b4b" stroke="#818cf8" stroke-width="1.5"/>
-          <circle cx="24" cy="34" r="2" fill="rgba(129,140,248,0.45)"/>
-          <!-- fins -->
-          <path d="M14 48 L3 62 L14 58 Z" fill="#7c3aed"/>
-          <path d="M38 48 L49 62 L38 58 Z" fill="#7c3aed"/>
-          <!-- nozzle -->
-          <rect x="18" y="54" width="16" height="8" rx="2" fill="#4c1d95"/>
-          <rect x="16" y="60" width="20" height="4" rx="2" fill="#6d28d9"/>
-          <!-- shine -->
-          <path d="M18 26 L22 26 L22 54 L18 54 Z" fill="rgba(255,255,255,0.07)" rx="2"/>
-        </svg>
-      </div>
-      <div id="flame"></div>
-      <div id="smoke"></div>
-    </div>
-
-    <div id="exp"></div>
-
-    <div id="mux-wrap">
-      <div id="mux">1.00×</div>
-      <div id="mux-lbl">WAITING</div>
-    </div>
-
-    <div id="cd">10</div>
-    <div id="badge" class="b">LOADING</div>
+  <div id="mux-wrap">
+    <div id="mux">1.00×</div>
+    <div id="mux-lbl">WAITING</div>
   </div>
 
-  <!-- Rounds bar -->
-  <div id="rounds"><span class="rc rm">—</span></div>
+  <div id="badge" class="b">LOADING</div>
+</div>
 
-  <!-- Bet slots -->
-  <div id="slots">
-    <!-- Slot 0 -->
-    <div class="slot">
-      <div class="slot-hdr">
-        <span class="slot-lbl" id="l0">BET 1</span>
-        <span class="slot-res" id="r0"></span>
-      </div>
-      <div class="amt-row">
-        <div class="adj" onclick="adj(0,-500)">−</div>
-        <input class="amt-in" id="a0" type="number" value="1000" min="100" step="100"
-               onchange="syncAmt(0)" oninput="syncAmt(0)"/>
-        <div class="adj" onclick="adj(0,500)">+</div>
-      </div>
-      <div class="chips" id="ch0">
-        <button class="chip" onclick="chip(0,100)">100</button>
-        <button class="chip" onclick="chip(0,500)">500</button>
-        <button class="chip" onclick="chip(0,1000)">1K</button>
-        <button class="chip" onclick="chip(0,2000)">2K</button>
-        <button class="chip" onclick="chip(0,5000)">5K</button>
-      </div>
-      <div class="mode">
-        <button class="mbtn on" id="m0m" onclick="mode(0,'manual')">MANUAL</button>
-        <button class="mbtn" id="m0a" onclick="mode(0,'auto')">AUTO</button>
-      </div>
-      <div class="auto-row" id="ar0">
-        <span class="auto-lbl">Cash at</span>
-        <input class="auto-in" id="at0" type="number" value="2.00" min="1.05" step="0.05"/>
-        <span class="auto-lbl">×</span>
-      </div>
-      <button class="arm idle" id="arm0" onclick="tap(0)">ARM BET</button>
-    </div>
+<!-- Rounds bar -->
+<div id="rounds"><span class="rc rm">—</span></div>
 
-    <!-- Slot 1 -->
-    <div class="slot">
-      <div class="slot-hdr">
-        <span class="slot-lbl" id="l1">BET 2</span>
-        <span class="slot-res" id="r1"></span>
-      </div>
-      <div class="amt-row">
-        <div class="adj" onclick="adj(1,-500)">−</div>
-        <input class="amt-in" id="a1" type="number" value="1000" min="100" step="100"
-               onchange="syncAmt(1)" oninput="syncAmt(1)"/>
-        <div class="adj" onclick="adj(1,500)">+</div>
-      </div>
-      <div class="chips" id="ch1">
-        <button class="chip" onclick="chip(1,100)">100</button>
-        <button class="chip" onclick="chip(1,500)">500</button>
-        <button class="chip" onclick="chip(1,1000)">1K</button>
-        <button class="chip" onclick="chip(1,2000)">2K</button>
-        <button class="chip" onclick="chip(1,5000)">5K</button>
-      </div>
-      <div class="mode">
-        <button class="mbtn on" id="m1m" onclick="mode(1,'manual')">MANUAL</button>
-        <button class="mbtn" id="m1a" onclick="mode(1,'auto')">AUTO</button>
-      </div>
-      <div class="auto-row" id="ar1">
-        <span class="auto-lbl">Cash at</span>
-        <input class="auto-in" id="at1" type="number" value="2.00" min="1.05" step="0.05"/>
-        <span class="auto-lbl">×</span>
-      </div>
-      <button class="arm idle" id="arm1" onclick="tap(1)">ARM BET</button>
+<!-- Bet slots -->
+<div id="slots">
+  <!-- Slot 0 -->
+  <div class="slot">
+    <div class="slot-hdr">
+      <span class="slot-lbl" id="l0">BET 1</span>
+      <span class="slot-res" id="r0"></span>
     </div>
+    <div class="amt-row">
+      <div class="adj" onclick="adj(0,-500)">−</div>
+      <input class="amt-in" id="a0" type="number" value="1000" min="100" step="100"
+             onchange="syncAmt(0)" oninput="syncAmt(0)"/>
+      <div class="adj" onclick="adj(0,500)">+</div>
+    </div>
+    <div class="chips" id="ch0"></div>
+    <div class="mode">
+      <button class="mbtn on" id="m0m" onclick="mode(0,'manual')">MANUAL</button>
+      <button class="mbtn"    id="m0a" onclick="mode(0,'auto')">AUTO</button>
+    </div>
+    <div class="auto-row" id="ar0">
+      <span class="auto-lbl" id="atl0">Cash at</span>
+      <input class="auto-in" id="at0" type="number" value="2.00" min="1.05" step="0.05"/>
+      <span class="auto-lbl">×</span>
+    </div>
+    <button class="arm idle" id="arm0" onclick="tap(0)">ARM BET</button>
+  </div>
+
+  <!-- Slot 1 -->
+  <div class="slot">
+    <div class="slot-hdr">
+      <span class="slot-lbl" id="l1">BET 2</span>
+      <span class="slot-res" id="r1"></span>
+    </div>
+    <div class="amt-row">
+      <div class="adj" onclick="adj(1,-500)">−</div>
+      <input class="amt-in" id="a1" type="number" value="1000" min="100" step="100"
+             onchange="syncAmt(1)" oninput="syncAmt(1)"/>
+      <div class="adj" onclick="adj(1,500)">+</div>
+    </div>
+    <div class="chips" id="ch1"></div>
+    <div class="mode">
+      <button class="mbtn on" id="m1m" onclick="mode(1,'manual')">MANUAL</button>
+      <button class="mbtn"    id="m1a" onclick="mode(1,'auto')">AUTO</button>
+    </div>
+    <div class="auto-row" id="ar1">
+      <span class="auto-lbl" id="atl1">Cash at</span>
+      <input class="auto-in" id="at1" type="number" value="2.00" min="1.05" step="0.05"/>
+      <span class="auto-lbl">×</span>
+    </div>
+    <button class="arm idle" id="arm1" onclick="tap(1)">ARM BET</button>
   </div>
 </div>
 
 <!-- Loading overlay -->
 <div id="ov">
-  <div style="font-size:48px">🚀</div>
-  <div class="spin"></div>
+  <div style="font-size:52px">🚀</div>
+  <div class="spin-ring"></div>
   <div class="ov-msg" id="ov-msg">Loading game...</div>
 </div>
 
 <div id="toast"></div>
 
 <script>
-// ── State ────────────────────────────────────────────────────────────────────
+'use strict';
+
+// ── State ─────────────────────────────────────────────────────────────────────
 const G = {
   phase: 'IDLE',   // IDLE BETTING LAUNCHING FLYING PREVIEW ENDED
   balance: null,
   isArabic: false,
+  soundOn: true,
+  chips: [100, 500, 1000, 2000, 5000],
   roundId: null,
   startedAt: null,
   multiplier: 1,
@@ -410,21 +483,81 @@ const G = {
   rafId: null,
   lastTick: 0,
   slots: [
-    {st:'idle',mode:'manual',amt:1000,autoT:2.0,betId:null},
-    {st:'idle',mode:'manual',amt:1000,autoT:2.0,betId:null},
+    {st:'idle', mode:'manual', amt:1000, autoT:2.0, betId:null},
+    {st:'idle', mode:'manual', amt:1000, autoT:2.0, betId:null},
   ],
 }
 const RATE = 0.15, BET_SECS = 10, END_MS = 3200, TICK = 80
 
-// ── DOM ───────────────────────────────────────────────────────────────────────
+// ── Translations ──────────────────────────────────────────────────────────────
+const TR = {
+  en: {
+    title:'Crash Rocket',
+    bet1:'BET 1',       bet2:'BET 2',
+    manual:'MANUAL',    auto:'AUTO',
+    cashAt:'Cash at',
+    arm:'ARM BET',
+    armed:'✓ ARMED — CANCEL',
+    launching:'LAUNCHING...',
+    cashout:'CASH OUT',
+    cashingOut:'CASHING OUT...',
+    cashedOut:'✓ CASHED OUT',
+    notArmed:'NOT ARMED',
+    busted:'BUSTED',
+    phaseBetting:'BETTING',
+    phaseFlying:'FLYING',
+    phasePreview:'PREVIEW',
+    phaseCrashed:'CRASHED!',
+    phaseLaunching:'LAUNCHING',
+    nextRound:'NEXT ROUND',
+    loading:'Loading game...',
+    insufficientCoins:'Insufficient coins',
+    gameDisabled:'Game disabled',
+    invalidBet:'Invalid bet amount',
+    notAuth:'Please log in',
+    netError:'Network error',
+    errGeneric:'Something went wrong',
+  },
+  ar: {
+    title:'صاروخ الانهيار',
+    bet1:'الرهان 1', bet2:'الرهان 2',
+    manual:'يدوي',            auto:'تلقائي',
+    cashAt:'اسحب عند',
+    arm:'راهن',
+    armed:'✓ مراهن — إلغاء',
+    launching:'جاري الانطلاق...',
+    cashout:'اسحب',
+    cashingOut:'جاري السحب...',
+    cashedOut:'✓ تم السحب',
+    notArmed:'غير مراهن',
+    busted:'خسرت',
+    phaseBetting:'مرحلة الرهان',
+    phaseFlying:'طيران',
+    phasePreview:'معاينة',
+    phaseCrashed:'تحطم!',
+    phaseLaunching:'انطلاق',
+    nextRound:'الجولة التالية',
+    loading:'جاري التحميل...',
+    insufficientCoins:'رصيد غير كاف',
+    gameDisabled:'اللعبة معطلة',
+    invalidBet:'مبلغ رهان غير صالح',
+    notAuth:'يرجى تسجيل الدخول',
+    netError:'خطأ في الشبكة',
+    errGeneric:'حدث خطأ ما',
+  }
+}
+function t(k) { return (G.isArabic ? TR.ar : TR.en)[k] || k }
+
+// ── DOM refs ──────────────────────────────────────────────────────────────────
 const D = id => document.getElementById(id)
 const OV = D('ov'), BADGE = D('badge'), MUX = D('mux'), MUX_LBL = D('mux-lbl')
-const CD = D('cd'), RWRAP = D('rwrap'), ROCKET = D('rocket')
+const MUX_WRAP = D('mux-wrap')
+const RWRAP = D('rwrap'), ROCKET = D('rocket')
 const FLAME = D('flame'), SMOKE = D('smoke'), AURA = D('aura')
 const TRAIL = D('trail'), EXP = D('exp'), STAGE = D('stage')
 const S1 = D('s1'), S2 = D('s2'), ROUNDS = D('rounds'), TOAST = D('toast')
 
-// ── Flutter bridge ────────────────────────────────────────────────────────────
+// ── Flutter bridge ─────────────────────────────────────────────────────────────
 function flutter(type, payload) {
   const m = JSON.stringify({type, payload: payload || {}})
   if (window.SroodBridge) SroodBridge.postMessage(m)
@@ -434,22 +567,34 @@ function flutter(type, payload) {
 window.onSroodMessage = function(msg) {
   const {type, payload} = msg
   switch (type) {
-    case 'INIT_GAME':       initGame(payload); break
+    case 'INIT_GAME':       initGame(payload);          break
     case 'BALANCE_UPDATE':  setBalance(payload.balance); break
-    case 'LAUNCH_ACCEPTED': onAccepted(payload); break
-    case 'LAUNCH_PREVIEW':  onPreview(payload); break
-    case 'LAUNCH_FAILED':   onFailed(payload); break
-    case 'CASHOUT_RESULT':  onCashout(payload); break
-    case 'ROUND_ENDED':     onEnded(payload); break
+    case 'LAUNCH_ACCEPTED': onAccepted(payload);        break
+    case 'LAUNCH_PREVIEW':  onPreview(payload);         break
+    case 'LAUNCH_FAILED':   onFailed(payload);          break
+    case 'CASHOUT_RESULT':  onCashout(payload);         break
+    case 'ROUND_ENDED':     onEnded(payload);           break
     case 'HISTORY_UPDATE':  renderRounds(payload.rounds || []); break
-    case 'ERROR':           onErr(payload); break
+    case 'ERROR':           onErr(payload);             break
   }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 function initGame(p) {
   G.isArabic = !!p.isArabic
+  if (p.betChips && p.betChips.length) G.chips = p.betChips
+
+  if (G.isArabic) document.documentElement.dir = 'rtl'
+
+  // Localize all static labels
+  D('gameTitle').textContent = t('title')
+  D('l0').textContent = t('bet1');   D('l1').textContent = t('bet2')
+  D('m0m').textContent = t('manual'); D('m0a').textContent = t('auto')
+  D('m1m').textContent = t('manual'); D('m1a').textContent = t('auto')
+  D('atl0').textContent = t('cashAt'); D('atl1').textContent = t('cashAt')
+
   setBalance(p.balance)
+  renderChips(0); renderChips(1)
   OV.classList.add('gone')
   flutter('REQUEST_HISTORY')
   startBetting()
@@ -462,14 +607,31 @@ function setBalance(v) {
 
 function onErr(p) {
   console.warn('[Error]', p)
-  toast(p.message || 'Error')
+  toast(p.message || t('errGeneric'))
   if (G.phase === 'IDLE') {
-    D('ov-msg').textContent = p.message || 'Failed to load.'
+    D('ov-msg').textContent = p.message || (G.isArabic ? 'فشل التحميل.' : 'Failed to load.')
     OV.classList.remove('gone')
   }
 }
 
-// ── Betting phase ─────────────────────────────────────────────────────────────
+// ── Chip render ────────────────────────────────────────────────────────────────
+function renderChips(i) {
+  const box = D('ch' + i)
+  box.innerHTML = ''
+  G.chips.forEach(v => {
+    const b = document.createElement('button')
+    b.className = 'chip'
+    b.textContent = fmt(v)
+    b.onclick = () => {
+      if (G.slots[i].st !== 'idle') return
+      D('a' + i).value = v
+      G.slots[i] = {...G.slots[i], amt: v}
+    }
+    box.appendChild(b)
+  })
+}
+
+// ── Betting phase ──────────────────────────────────────────────────────────────
 function startBetting() {
   clearTimeout(G.bTimer); cancelRaf()
   G.phase = 'BETTING'; G.roundId = null; G.startedAt = null
@@ -477,7 +639,7 @@ function startBetting() {
   G.secsLeft = BET_SECS
 
   // Slots that weren't armed reset to idle
-  G.slots.forEach((s,i) => {
+  G.slots.forEach((s, i) => {
     if (s.st !== 'armed') G.slots[i] = {...s, st:'idle', betId:null}
   })
 
@@ -489,9 +651,8 @@ function startBetting() {
 
   let secs = BET_SECS
   const tick = () => {
-    secs--
-    G.secsLeft = secs
-    CD.textContent = secs
+    secs--; G.secsLeft = secs
+    MUX_LBL.textContent = t('nextRound') + ' • ' + secs + 's'
     if (secs <= 0) launch()
     else G.bTimer = setTimeout(tick, 1000)
   }
@@ -505,7 +666,7 @@ function launch() {
   setFlight(true)
 
   const armed = G.slots
-    .map((s,i) => s.st === 'armed' ? {slotIndex:i, betAmount:s.amt, mode:s.mode, autoTarget:s.autoT} : null)
+    .map((s, i) => s.st === 'armed' ? {slotIndex:i, betAmount:s.amt, mode:s.mode, autoTarget:s.autoT} : null)
     .filter(Boolean)
 
   if (!armed.length) {
@@ -517,7 +678,7 @@ function launch() {
   }
 }
 
-// ── Launch responses ──────────────────────────────────────────────────────────
+// ── Launch responses ───────────────────────────────────────────────────────────
 function onAccepted(p) {
   G.phase = 'FLYING'; G.isReal = true
   G.roundId = p.roundId; G.startedAt = p.startedAt
@@ -535,12 +696,12 @@ function onPreview(p) {
 }
 
 function onFailed(p) {
-  G.slots.forEach((s,i) => { if (s.st === 'armed') G.slots[i] = {...s, st:'idle'} })
+  G.slots.forEach((s, i) => { if (s.st === 'armed') G.slots[i] = {...s, st:'idle'} })
   toast(codeMsg(p.code))
   startBetting()
 }
 
-// ── Flight tick ───────────────────────────────────────────────────────────────
+// ── Flight tick ────────────────────────────────────────────────────────────────
 function startTick() { cancelRaf(); G.lastTick = 0; raf() }
 
 function raf() {
@@ -569,10 +730,8 @@ function raf() {
 
 function cancelRaf() { if (G.rafId) { cancelAnimationFrame(G.rafId); G.rafId = null } }
 
-// ── Cashout ───────────────────────────────────────────────────────────────────
+// ── Cashout ────────────────────────────────────────────────────────────────────
 function onCashout(p) {
-  // slotIndex=-1 means Flutter is sending an auto-cashout from polling;
-  // resolve the slot by betId instead.
   let i = p.slotIndex
   if (i === -1 && p.betId) {
     i = G.slots.findIndex(s => s.betId === p.betId)
@@ -580,20 +739,16 @@ function onCashout(p) {
   if (i < 0 || i >= G.slots.length) return
   const s = G.slots[i]
   G.slots[i] = {...s, st: p.status, cashMux: p.cashoutMultiplier, win: p.winAmount}
-  if (p.status === 'cashed_out' && G.balance != null) {
-    G.balance += p.winAmount || 0
-    D('bal-amt').textContent = fmt(G.balance)
-  }
   renderSlot(i)
 }
 
-// ── Round ended ───────────────────────────────────────────────────────────────
+// ── Round ended ────────────────────────────────────────────────────────────────
 function onEnded(p) {
   if (G.phase !== 'FLYING' && G.phase !== 'PREVIEW') return
   cancelRaf()
   G.phase = 'ENDED'; G.crashMux = p.crashMultiplier; G.multiplier = p.crashMultiplier
 
-  G.slots.forEach((s,i) => {
+  G.slots.forEach((s, i) => {
     if (s.st === 'running' || s.st === 'cashing_out')
       G.slots[i] = {...s, st:'crashed', win:0}
   })
@@ -607,7 +762,7 @@ function onEnded(p) {
   setTimeout(startBetting, END_MS)
 }
 
-// ── Visual helpers ────────────────────────────────────────────────────────────
+// ── Visuals ────────────────────────────────────────────────────────────────────
 function updateMux(m) {
   MUX.textContent = m.toFixed(2) + '×'
   MUX.className = m >= 3 ? 'gold' : ''
@@ -616,7 +771,7 @@ function updateMux(m) {
 function updateRocket(m) {
   const pct = Math.min(0.9, (m - 1) / 9)
   RWRAP.style.bottom = (20 + pct * 55) + '%'
-  TRAIL.style.height = Math.min(120, pct * 130) + 'px'
+  TRAIL.style.height = Math.min(130, pct * 140) + 'px'
 }
 
 function setFlight(on) {
@@ -626,69 +781,66 @@ function setFlight(on) {
   TRAIL.style.opacity = on ? '1' : '0'
 }
 
-function setStarFast(f) { S1.classList.toggle('fast', f); S2.classList.toggle('fast', f) }
+function setStarFast(f) {
+  S1.classList.toggle('stars-fast', f)
+  S2.classList.toggle('stars-fast', f)
+}
 
 function doCrash(mux) {
   STAGE.classList.add('shaking')
   setTimeout(() => STAGE.classList.remove('shaking'), 600)
   MUX.textContent = mux.toFixed(2) + '×'; MUX.className = 'red'
-  MUX_LBL.textContent = 'CRASHED AT'
+  MUX_LBL.textContent = G.isArabic ? 'تحطم عند' : 'CRASHED AT'
   // Particles
   EXP.innerHTML = ''; EXP.style.display = 'block'
   const cols = ['#f0c15a','#ef4444','#a855f7','#22c55e','#fff']
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < 16; i++) {
     const p = document.createElement('div')
     p.className = 'p'
-    const a = (i / 14) * Math.PI * 2, d = 30 + Math.random() * 50
+    const a = (i / 16) * Math.PI * 2, d = 28 + Math.random() * 55
     p.style.background = cols[i % cols.length]
-    p.style.setProperty('--tx', Math.cos(a)*d + 'px')
-    p.style.setProperty('--ty', Math.sin(a)*d + 'px')
-    p.style.animationDelay = Math.random()*80 + 'ms'
+    p.style.setProperty('--tx', Math.cos(a) * d + 'px')
+    p.style.setProperty('--ty', Math.sin(a) * d + 'px')
+    p.style.animationDelay = Math.random() * 80 + 'ms'
     EXP.appendChild(p)
   }
   setTimeout(() => { EXP.style.display = 'none'; EXP.innerHTML = '' }, 800)
 }
 
-// ── Phase render ──────────────────────────────────────────────────────────────
+// ── Phase render ───────────────────────────────────────────────────────────────
 function renderPhase() {
   const ph = G.phase
   if (ph === 'BETTING') {
-    BADGE.textContent = G.isArabic ? 'مرحلة الرهان' : 'BETTING'
-    BADGE.className = 'b'
+    BADGE.textContent = t('phaseBetting'); BADGE.className = 'b'
     MUX.textContent = '—'; MUX.className = 'gold'
-    MUX_LBL.textContent = G.isArabic ? 'الجولة التالية' : 'NEXT ROUND'
-    CD.textContent = G.secsLeft; CD.style.opacity = '1'
+    MUX_LBL.textContent = t('nextRound') + ' • ' + G.secsLeft + 's'
     ROCKET.className = 'idle'; setFlight(false)
   } else if (ph === 'LAUNCHING') {
-    BADGE.textContent = G.isArabic ? 'انطلاق' : 'LAUNCHING'
-    BADGE.className = 'b'; CD.style.opacity = '0'
+    BADGE.textContent = t('phaseLaunching'); BADGE.className = 'b'
     MUX.textContent = '1.00×'; MUX.className = ''
-    MUX_LBL.textContent = G.isArabic ? 'جاري' : 'FLYING'
+    MUX_LBL.textContent = t('phaseFlying')
   } else if (ph === 'FLYING' || ph === 'PREVIEW') {
-    BADGE.textContent = G.isReal
-      ? (G.isArabic ? 'طيران' : 'FLYING')
-      : (G.isArabic ? 'معاينة' : 'PREVIEW')
-    BADGE.className = 'f'; CD.style.opacity = '0'
-    MUX.className = ''; MUX_LBL.textContent = G.isReal ? 'FLYING' : 'PREVIEW'
+    BADGE.textContent = G.isReal ? t('phaseFlying') : t('phasePreview')
+    BADGE.className = 'f'
+    MUX.className = ''; MUX_LBL.textContent = G.isReal ? t('phaseFlying') : t('phasePreview')
     ROCKET.className = 'flying'; setFlight(true)
   } else if (ph === 'ENDED') {
-    BADGE.textContent = G.isArabic ? 'تحطم!' : 'CRASHED!'
-    BADGE.className = 'c'
+    BADGE.textContent = t('phaseCrashed'); BADGE.className = 'c'
     ROCKET.className = 'crashed'; setFlight(false)
   }
   renderAllSlots()
 }
 
-// ── Slot render ───────────────────────────────────────────────────────────────
+// ── Slot render ────────────────────────────────────────────────────────────────
 function renderAllSlots() { renderSlot(0); renderSlot(1) }
 
 function renderSlot(i) {
   const s = G.slots[i], ph = G.phase
-  const arm = D('arm'+i), res = D('r'+i)
-  const ain = D('a'+i)
-  const mm = D('m'+i+'m'), ma = D('m'+i+'a')
-  const ar = D('ar'+i), atin = D('at'+i)
-  const chips = document.querySelectorAll('#ch'+i+' .chip')
+  const arm = D('arm' + i), res = D('r' + i)
+  const ain = D('a' + i)
+  const mm = D('m' + i + 'm'), ma = D('m' + i + 'a')
+  const ar = D('ar' + i), atin = D('at' + i)
+  const chips = document.querySelectorAll('#ch' + i + ' .chip')
 
   const canEdit = ph === 'BETTING' && s.st === 'idle'
   ain.disabled = !canEdit; mm.disabled = !canEdit
@@ -704,45 +856,43 @@ function renderSlot(i) {
     res.textContent = '+' + fmt(s.win); res.className = 'slot-res win'
   } else if (s.st === 'crashed') {
     res.textContent = '−' + fmt(s.amt); res.className = 'slot-res loss'
-  } else if (s.st === 'running' && s.cashMux) {
-    res.textContent = s.cashMux.toFixed(2) + '×'
   }
 
-  // Arm button state
+  // ARM button state
   arm.dataset.cashout = '0'
   if (ph === 'BETTING') {
     if (s.st === 'idle') {
-      arm.textContent = G.isArabic ? 'راهن' : 'ARM BET'
+      arm.textContent = t('arm')
       arm.className = 'arm idle'; arm.disabled = false
     } else if (s.st === 'armed') {
-      arm.textContent = G.isArabic ? '✓ مراهن — إلغاء' : '✓ ARMED — CANCEL'
+      arm.textContent = t('armed')
       arm.className = 'arm armed'; arm.disabled = false
     }
   } else if (ph === 'LAUNCHING') {
-    arm.textContent = G.isArabic ? 'جاري...' : 'LAUNCHING...'
+    arm.textContent = t('launching')
     arm.className = 'arm faded'; arm.disabled = true
   } else if (ph === 'FLYING' || ph === 'PREVIEW') {
     if (s.st === 'running') {
       const pot = Math.floor(s.amt * G.multiplier)
-      arm.textContent = (G.isArabic ? 'سحب ' : 'CASH OUT  ') + fmt(pot)
+      arm.textContent = t('cashout') + '  ' + fmt(pot)
       arm.className = 'arm cashout'; arm.disabled = ph === 'PREVIEW'
-      arm.dataset.cashout = i
+      arm.dataset.cashout = String(i)
     } else if (s.st === 'cashing_out') {
-      arm.textContent = G.isArabic ? 'جاري السحب...' : 'CASHING OUT...'
+      arm.textContent = t('cashingOut')
       arm.className = 'arm faded'; arm.disabled = true
     } else if (s.st === 'cashed_out') {
-      arm.textContent = G.isArabic ? '✓ تم السحب' : '✓ CASHED OUT'
+      arm.textContent = t('cashedOut')
       arm.className = 'arm faded'; arm.disabled = true
     } else {
-      arm.textContent = G.isArabic ? 'غير مراهن' : 'NOT ARMED'
+      arm.textContent = t('notArmed')
       arm.className = 'arm faded'; arm.disabled = true
     }
   } else if (ph === 'ENDED') {
     arm.disabled = true; arm.className = 'arm faded'
     arm.textContent = s.st === 'cashed_out'
-      ? (G.isArabic ? '✓ تم السحب' : '✓ CASHED OUT')
+      ? t('cashedOut')
       : s.st === 'crashed'
-        ? (G.isArabic ? 'خسرت' : 'BUSTED')
+        ? t('busted')
         : '—'
   }
 }
@@ -751,22 +901,22 @@ function renderSlot(i) {
 function updateCashoutBtns() {
   if (G.phase !== 'FLYING' && G.phase !== 'PREVIEW') return
   for (let i = 0; i < 2; i++) {
-    const btn = D('arm'+i)
+    const btn = D('arm' + i)
     if (btn && btn.dataset.cashout === String(i)) {
       const pot = Math.floor(G.slots[i].amt * G.multiplier)
-      btn.textContent = (G.isArabic ? 'سحب ' : 'CASH OUT  ') + fmt(pot)
+      btn.textContent = t('cashout') + '  ' + fmt(pot)
     }
   }
 }
 
-// ── Slot interactions ─────────────────────────────────────────────────────────
+// ── Slot interactions ──────────────────────────────────────────────────────────
 function tap(i) {
   const s = G.slots[i]
   if (G.phase === 'FLYING' && s.st === 'running') { doCashout(i); return }
   if (G.phase !== 'BETTING') return
   if (s.st === 'idle') {
-    const amt = parseInt(D('a'+i).value) || 1000
-    if (G.balance != null && amt > G.balance) { toast(G.isArabic ? 'رصيد غير كافي' : 'Insufficient coins'); return }
+    const amt = parseInt(D('a' + i).value) || 1000
+    if (G.balance != null && amt > G.balance) { toast(t('insufficientCoins')); return }
     G.slots[i] = {...s, st:'armed', amt}
   } else if (s.st === 'armed') {
     G.slots[i] = {...s, st:'idle'}
@@ -783,19 +933,14 @@ function doCashout(i) {
 }
 
 function adj(i, delta) {
-  const inp = D('a'+i)
+  const inp = D('a' + i)
   const v = Math.max(100, (parseInt(inp.value) || 1000) + delta)
   inp.value = v; G.slots[i] = {...G.slots[i], amt: v}
 }
 
 function syncAmt(i) {
-  const v = Math.max(100, parseInt(D('a'+i).value) || 100)
+  const v = Math.max(100, parseInt(D('a' + i).value) || 100)
   G.slots[i] = {...G.slots[i], amt: v}
-}
-
-function chip(i, amt) {
-  if (G.slots[i].st !== 'idle') return
-  D('a'+i).value = amt; G.slots[i] = {...G.slots[i], amt}
 }
 
 function mode(i, m) {
@@ -804,27 +949,32 @@ function mode(i, m) {
   renderSlot(i)
 }
 
-// ── Rounds bar ────────────────────────────────────────────────────────────────
+// ── Rounds bar ─────────────────────────────────────────────────────────────────
 function renderRounds(rounds) {
   if (!rounds.length) return
-  ROUNDS.innerHTML = rounds.slice(0,10).map(r => {
+  ROUNDS.innerHTML = rounds.slice(0, 12).map(r => {
     const m = r.crash_multiplier || 1
     const cls = m >= 3 ? 'rh' : m >= 1.5 ? 'rm' : 'rl'
-    return `<span class="rc ${cls}">${m.toFixed(2)}×</span>`
+    return '<span class="rc ' + cls + '">' + m.toFixed(2) + '×</span>'
   }).join('')
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────────
 function fmt(n) {
-  if (n >= 1e6) return (n/1e6).toFixed(1)+'M'
-  if (n >= 1e3) return (n/1e3).toFixed(1)+'K'
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M'
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K'
   return Math.round(n).toString()
 }
 
 function codeMsg(c) {
-  const m = {insufficient_coins:'Insufficient coins',game_disabled:'Game disabled',
-    invalid_bet_amount:'Invalid bet amount',not_authenticated:'Please log in',network_error:'Network error'}
-  return m[c] || 'Something went wrong'
+  const map = {
+    insufficient_coins:  t('insufficientCoins'),
+    game_disabled:       t('gameDisabled'),
+    invalid_bet_amount:  t('invalidBet'),
+    not_authenticated:   t('notAuth'),
+    network_error:       t('netError'),
+  }
+  return map[c] || t('errGeneric')
 }
 
 let toastT
@@ -833,8 +983,17 @@ function toast(msg) {
   clearTimeout(toastT); toastT = setTimeout(() => TOAST.classList.remove('show'), 2800)
 }
 
-// ── Boot ──────────────────────────────────────────────────────────────────────
+// ── Controls ───────────────────────────────────────────────────────────────────
+D('btnBack').onclick  = () => flutter('GAME_CLOSED')
+D('btnSound').onclick = () => {
+  G.soundOn = !G.soundOn
+  D('btnSound').textContent = G.soundOn ? '🔊' : '🔇'
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => flutter('GAME_READY'))
+
 </script>
 </body>
 </html>
+
