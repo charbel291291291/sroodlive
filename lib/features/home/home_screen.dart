@@ -112,43 +112,50 @@ class _BottomNavBar extends StatelessWidget {
       ),
     ];
 
+    // Adaptive height: the bar hugs its content instead of a fixed 82px box,
+    // so it never overflows on shorter usable heights, Arabic line metrics, or
+    // larger system font scales. Text scaling is clamped so accessibility font
+    // sizes can't blow out the layout. SafeArea keeps it clear of the system
+    // navigation bar (3-button or gesture).
     return SafeArea(
       minimum: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-      child: Container(
-        height: 82,
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(30),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF241638), Color(0xFF130A20)],
-          ),
-          border: Border.all(color: const Color(0xFF5A3A86)),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF8B26D9).withValues(alpha: 0.30),
-              blurRadius: 28,
-              offset: const Offset(0, 14),
+      child: MediaQuery.withClampedTextScaling(
+        maxScaleFactor: 1.15,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(30),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF241638), Color(0xFF130A20)],
             ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            for (int i = 0; i < items.length; i++)
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => onSelected(i),
-                  behavior: HitTestBehavior.opaque,
-                  child: _NavTile(
-                    item: items[i],
-                    isArabic: isArabic,
-                    selected: selectedIndex == i,
+            border: Border.all(color: const Color(0xFF5A3A86)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF8B26D9).withValues(alpha: 0.30),
+                blurRadius: 28,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              for (int i = 0; i < items.length; i++)
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => onSelected(i),
+                    behavior: HitTestBehavior.opaque,
+                    child: _NavTile(
+                      item: items[i],
+                      isArabic: isArabic,
+                      selected: selectedIndex == i,
+                    ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

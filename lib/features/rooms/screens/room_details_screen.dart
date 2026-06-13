@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -166,6 +167,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   void initState() {
     super.initState();
     _roomLocked = widget.room.isLocked;
+    // _loadMembers() ends by calling _syncMicConnectionWithSeat(), which now
+    // connects to the room audio for listening even when the user is not on a
+    // mic seat — so every participant hears the room.
     _loadMembers();
     _loadRoomGifts();
     _startHeartbeat();
@@ -294,6 +298,13 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
             // waiting for the DB read — avoids the read-before-write race on
             // the receiver's phone.
             final record = payload.newRecord;
+            if (kDebugMode) {
+              debugPrint(
+                '[Gift] event received room=${widget.room.id} '
+                'id=${record['id']} code=${record['gift_code']} '
+                'sender=${record['sender_id']} receiver=${record['receiver_id']}',
+              );
+            }
             if (record.isNotEmpty) {
               final giftCode = record['gift_code'] as String? ?? '';
               final giftName = record['gift_name'] as String? ?? '';
@@ -326,7 +337,26 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
             });
           },
         )
-        .subscribe();
+        .subscribe((status, [error]) {
+          if (kDebugMode) {
+            debugPrint('[Gift] realtime channel status=$status error=$error');
+          }
+          // Surface a clean message instead of silently failing if the room
+          // gift realtime channel can't be established.
+          if (!mounted) return;
+          if (status == RealtimeSubscribeStatus.channelError ||
+              status == RealtimeSubscribeStatus.timedOut) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  widget.isArabic
+                      ? 'تعذر الاتصال بث الهدايا المباشر. قد لا تظهر الهدايا فوراً.'
+                      : 'Live gift connection failed. Gifts may not appear instantly.',
+                ),
+              ),
+            );
+          }
+        });
   }
 
   Future<void> _loadRoomGifts({
@@ -1329,12 +1359,51 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     final justTookSeat = shouldPublishMic && !_wasCurrentUserOnMic;
 
     _syncingMicConnection = true;
+    var attemptingPublish = false;
 
     try {
+      // Always connect so we can HEAR the room \u2014 even as a pure listener who
+      // never takes a mic seat. The microphone is published separately, only
+      // when the user is actually on a seat. This is what makes audio two-way:
+      // previously a listener never connected at all and heard nobody.
+      if (!_connectedAudio) {
+        if (mounted) {
+          setState(() {
+            _connectingAudio = true;
+          });
+        }
+
+        await _liveKitRoomService.connect(
+          roomId: widget.room.id,
+          microphoneEnabled: false,
+        );
+
+        if (mounted) {
+          setState(() {
+            _connectedAudio = true;
+          });
+        }
+
+        if (kDebugMode) {
+          debugPrint(
+            '[Room] Audio connected (listening) room=${widget.room.id}',
+          );
+        }
+      }
+
       if (shouldPublishMic) {
+        attemptingPublish = true;
         final hasMicrophonePermission = await _ensureMicrophonePermission();
 
         if (!hasMicrophonePermission) {
+          // Stay connected so the user still hears the room; just don't publish.
+          await _liveKitRoomService.setMicrophoneEnabled(false);
+          if (mounted) {
+            setState(() {
+              _micEnabled = false;
+              _wasCurrentUserOnMic = false;
+            });
+          }
           return;
         }
 
@@ -1342,20 +1411,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
             ? true
             : !(member?.isMuted ?? false);
 
-        if (!_connectedAudio) {
-          if (mounted) {
-            setState(() {
-              _connectingAudio = true;
-            });
-          }
-
-          await _liveKitRoomService.connect(
-            roomId: widget.room.id,
-            microphoneEnabled: desiredMicEnabled,
-          );
-        } else {
-          await _liveKitRoomService.setMicrophoneEnabled(desiredMicEnabled);
-        }
+        await _liveKitRoomService.setMicrophoneEnabled(desiredMicEnabled);
 
         if (justTookSeat && member?.isMuted == true) {
           await _roomsService.setMyMuteStatus(
@@ -1367,16 +1423,19 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         if (!mounted) return;
 
         setState(() {
-          _connectedAudio = true;
           _micEnabled = desiredMicEnabled;
           _wasCurrentUserOnMic = true;
         });
+
+        if (kDebugMode) {
+          debugPrint('[Room] Mic published enabled=$desiredMicEnabled');
+        }
         return;
       }
 
-      if (_connectedAudio) {
-        await _liveKitRoomService.setMicrophoneEnabled(false);
-      }
+      // Not on a mic seat \u2192 make sure the mic is off, but stay connected so we
+      // keep hearing other speakers.
+      await _liveKitRoomService.setMicrophoneEnabled(false);
 
       if (member != null && !member.isMuted) {
         await _roomsService.setMyMuteStatus(
@@ -1400,15 +1459,19 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         _wasCurrentUserOnMic = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            widget.isArabic
-                ? '\u062a\u0639\u0630\u0631 \u062a\u0634\u063a\u064a\u0644 \u0627\u0644\u0645\u0627\u064a\u0643. \u062a\u0623\u0643\u062f \u0645\u0646 \u0625\u0630\u0646 \u0627\u0644\u0645\u064a\u0643\u0631\u0648\u0641\u0648\u0646.'
-                : 'Could not start the microphone. Please check microphone permission.',
+      // Only surface the microphone error when we were actually trying to
+      // publish \u2014 a listen-only connection issue shouldn't blame the mic.
+      if (attemptingPublish) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              widget.isArabic
+                  ? '\u062a\u0639\u0630\u0631 \u062a\u0634\u063a\u064a\u0644 \u0627\u0644\u0645\u0627\u064a\u0643. \u062a\u0623\u0643\u062f \u0645\u0646 \u0625\u0630\u0646 \u0627\u0644\u0645\u064a\u0643\u0631\u0648\u0641\u0648\u0646.'
+                  : 'Could not start the microphone. Please check microphone permission.',
+            ),
           ),
-        ),
-      );
+        );
+      }
     } finally {
       _syncingMicConnection = false;
 
@@ -1591,11 +1654,20 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     }
 
     try {
+      if (kDebugMode) {
+        debugPrint(
+          '[Gift] send tapped room=${widget.room.id} '
+          'receiver=${result.receiverUserId} gift=${result.gift.code}',
+        );
+      }
       await _giftsService.sendGift(
         roomId: widget.room.id,
         receiverId: result.receiverUserId,
         gift: result.gift,
       );
+      if (kDebugMode) {
+        debugPrint('[Gift] send + wallet debit succeeded (RPC)');
+      }
     } catch (error) {
       if (!mounted) return;
 

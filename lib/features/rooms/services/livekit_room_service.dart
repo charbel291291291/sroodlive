@@ -24,7 +24,14 @@ class LiveKitRoomService {
     final tokenResponse = await _tokenService.getToken(roomId: roomId);
 
     final room = Room(
-      roomOptions: const RoomOptions(adaptiveStream: true, dynacast: true),
+      // speakerOn:true routes remote audio to the loudspeaker on mobile so a
+      // listener actually hears the room (the default earpiece route is easy to
+      // miss in a social audio room).
+      roomOptions: const RoomOptions(
+        adaptiveStream: true,
+        dynacast: true,
+        defaultAudioOutputOptions: AudioOutputOptions(speakerOn: true),
+      ),
     );
 
     _setupEventListeners(room);
@@ -38,7 +45,15 @@ class LiveKitRoomService {
       'remoteParticipants=${room.remoteParticipants.length}',
     );
 
-    // Enable microphone AFTER connection so the track is published
+    // Force loudspeaker output so remote participants are audible.
+    try {
+      await room.setSpeakerOn(true);
+    } catch (e) {
+      debugPrint('[LiveKit] setSpeakerOn failed: $e');
+    }
+
+    // Enable microphone AFTER connection so the track is published. Listeners
+    // connect with microphoneEnabled=false — they still subscribe and hear.
     await room.localParticipant?.setMicrophoneEnabled(microphoneEnabled);
     debugPrint('[LiveKit] Microphone enabled=$microphoneEnabled');
 

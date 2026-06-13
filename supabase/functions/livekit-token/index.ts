@@ -154,7 +154,12 @@ serve(async (req) => {
       }
     }
 
-    const canPublish = role === "host" || role === "speaker";
+    // Grant publish capability to everyone so a participant who takes a mic
+    // seat can talk immediately, without needing a fresh token / reconnect.
+    // Who actually transmits is governed by the seat + mute state in the app
+    // (the mic is only enabled while on a seat). Everyone can subscribe so all
+    // participants hear the room.
+    const canPublish = true;
 
     const now = Math.floor(Date.now() / 1000);
     const livekitRoomName = room.livekit_room_name || `srood_${room.id}`;
