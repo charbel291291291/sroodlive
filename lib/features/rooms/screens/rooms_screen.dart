@@ -192,6 +192,8 @@ class _RoomsScreenState extends State<RoomsScreen> {
     final crossAxisAlignment = widget.isArabic
         ? CrossAxisAlignment.end
         : CrossAxisAlignment.start;
+    final screenW = MediaQuery.of(context).size.width;
+    final isCompact = screenW < 380;
 
     return Container(
       decoration: const BoxDecoration(
@@ -205,18 +207,27 @@ class _RoomsScreenState extends State<RoomsScreen> {
         child: RefreshIndicator(
           onRefresh: _loadRooms,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(22, 22, 22, 110),
+            padding: EdgeInsets.fromLTRB(
+              isCompact ? 14 : 22,
+              isCompact ? 14 : 22,
+              isCompact ? 14 : 22,
+              110,
+            ),
             children: [
               Row(
                 children: [
                   Expanded(
                     child: Text(
                       widget.isArabic
-                          ? '\u063a\u0631\u0641 \u0645\u0628\u0627\u0634\u0631\u0629'
-                          : 'Live Rooms',
+                          ? (isCompact
+                                ? '\u063a\u0631\u0641'
+                                : '\u063a\u0631\u0641 \u0645\u0628\u0627\u0634\u0631\u0629')
+                          : (isCompact ? 'Rooms' : 'Live Rooms'),
                       textAlign: textAlign,
-                      style: const TextStyle(
-                        fontSize: 34,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: isCompact ? 22.0 : 34.0,
                         fontWeight: FontWeight.w900,
                         letterSpacing: -0.8,
                       ),
@@ -228,10 +239,15 @@ class _RoomsScreenState extends State<RoomsScreen> {
                         builder: (_) => SearchScreen(isArabic: widget.isArabic),
                       ),
                     ),
-                    icon: const Icon(
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints(
+                      minWidth: isCompact ? 36 : 40,
+                      minHeight: isCompact ? 36 : 40,
+                    ),
+                    icon: Icon(
                       Icons.search_rounded,
-                      color: Color(0xFFBCAED6),
-                      size: 26,
+                      color: const Color(0xFFBCAED6),
+                      size: isCompact ? 22 : 26,
                     ),
                   ),
                   IconButton(
@@ -241,38 +257,112 @@ class _RoomsScreenState extends State<RoomsScreen> {
                             LeaderboardScreen(isArabic: widget.isArabic),
                       ),
                     ),
-                    icon: const Icon(
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints(
+                      minWidth: isCompact ? 36 : 40,
+                      minHeight: isCompact ? 36 : 40,
+                    ),
+                    icon: Icon(
                       Icons.emoji_events_rounded,
-                      color: Color(0xFFF0C15A),
-                      size: 24,
+                      color: const Color(0xFFF0C15A),
+                      size: isCompact ? 20 : 24,
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            RoomScheduleScreen(isArabic: widget.isArabic),
+                  if (isCompact)
+                    PopupMenuButton<String>(
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(
+                        Icons.more_vert_rounded,
+                        color: Color(0xFFBCAED6),
+                        size: 22,
+                      ),
+                      color: const Color(0xFF201033),
+                      onSelected: (v) {
+                        if (v == 'schedule') {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) =>
+                                  RoomScheduleScreen(isArabic: widget.isArabic),
+                            ),
+                          );
+                        } else if (v == 'notifications') {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) =>
+                                  NotificationsScreen(isArabic: widget.isArabic),
+                            ),
+                          );
+                        }
+                      },
+                      itemBuilder: (_) => [
+                        PopupMenuItem(
+                          value: 'schedule',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.calendar_month_rounded,
+                                  color: Color(0xFFBCAED6), size: 18),
+                              const SizedBox(width: 8),
+                              Text(
+                                widget.isArabic ? '\u0627\u0644\u062c\u062f\u0648\u0644' : 'Schedule',
+                                style: const TextStyle(color: Color(0xFFE8DFFF)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'notifications',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.notifications_outlined,
+                                  color: Color(0xFFBCAED6), size: 18),
+                              const SizedBox(width: 8),
+                              Text(
+                                widget.isArabic ? '\u0627\u0644\u0625\u0634\u0639\u0627\u0631\u0627\u062a' : 'Notifications',
+                                style: const TextStyle(color: Color(0xFFE8DFFF)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    )
+                  else ...[
+                    IconButton(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) =>
+                              RoomScheduleScreen(isArabic: widget.isArabic),
+                        ),
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 40,
+                        minHeight: 40,
+                      ),
+                      icon: const Icon(
+                        Icons.calendar_month_rounded,
+                        color: Color(0xFFBCAED6),
+                        size: 24,
                       ),
                     ),
-                    icon: const Icon(
-                      Icons.calendar_month_rounded,
-                      color: Color(0xFFBCAED6),
-                      size: 24,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            NotificationsScreen(isArabic: widget.isArabic),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) =>
+                              NotificationsScreen(isArabic: widget.isArabic),
+                        ),
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 40,
+                        minHeight: 40,
+                      ),
+                      icon: const Icon(
+                        Icons.notifications_outlined,
+                        color: Color(0xFFBCAED6),
+                        size: 26,
                       ),
                     ),
-                    icon: const Icon(
-                      Icons.notifications_outlined,
-                      color: Color(0xFFBCAED6),
-                      size: 26,
-                    ),
-                  ),
+                  ],
                   const SizedBox(width: 4),
                   Container(
                     decoration: BoxDecoration(
@@ -895,26 +985,32 @@ class _RoomCard extends StatelessWidget {
             const SizedBox(height: 18),
             Row(
               textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                _RoomPill(
-                  icon: Icons.language_rounded,
-                  label: room.language.toUpperCase(),
+                Flexible(
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    textDirection:
+                        isArabic ? TextDirection.rtl : TextDirection.ltr,
+                    children: [
+                      _RoomPill(
+                        icon: Icons.language_rounded,
+                        label: room.language.toUpperCase(),
+                      ),
+                      _RoomPill(
+                        icon: Icons.people_rounded,
+                        label: '$activeCount/${room.maxSeats}',
+                      ),
+                      if (room.isLocked)
+                        _RoomPill(
+                          icon: Icons.lock_rounded,
+                          label: isArabic ? '\u0645\u0642\u0641\u0644\u0629' : 'Locked',
+                        ),
+                    ],
+                  ),
                 ),
                 const SizedBox(width: 8),
-                _RoomPill(
-                  icon: Icons.people_rounded,
-                  label: '$activeCount/${room.maxSeats}',
-                ),
-                if (room.isLocked) ...[
-                  const SizedBox(width: 8),
-                  _RoomPill(
-                    icon: Icons.lock_rounded,
-                    label: isArabic
-                        ? '\u0645\u0642\u0641\u0644\u0629'
-                        : 'Locked',
-                  ),
-                ],
-                const Spacer(),
                 Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(999),
@@ -928,7 +1024,13 @@ class _RoomCard extends StatelessWidget {
                   ),
                   child: FilledButton.icon(
                     onPressed: onJoin,
-                    icon: const Icon(Icons.login_rounded),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    icon: const Icon(Icons.login_rounded, size: 16),
                     label: Text(isArabic ? '\u062f\u062e\u0648\u0644' : 'Join'),
                   ),
                 ),
