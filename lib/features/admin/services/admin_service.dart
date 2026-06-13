@@ -11,6 +11,12 @@ class AdminService {
   String? get currentEmail =>
       SupabaseService.requiredClient.auth.currentUser?.email;
 
+  /// Emits whenever the auth session changes (sign-in, sign-out, token
+  /// refresh, initial session restore). The admin screen listens to this so
+  /// its access check re-runs after the session settles instead of only once.
+  Stream<AuthState> authStateChanges() =>
+      SupabaseService.requiredClient.auth.onAuthStateChange;
+
   Future<void> signIn({required String email, required String password}) async {
     await SupabaseService.requiredClient.auth.signInWithPassword(
       email: email,

@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../shared/branding/branding_assets.dart';
 import '../models/admin_models.dart';
@@ -63,6 +66,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   List<String> _roles = const [];
   String? _error;
 
+  StreamSubscription<AuthState>? _authSub;
+  bool _loadInFlight = false;
+  bool _reloadQueued = false;
+
   AdminOverview? _overview;
   List<AdminRechargeRequest> _pending = const [];
   List<AdminWithdrawalRequest> _pendingWithdrawals = const [];
@@ -93,11 +100,28 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   void initState() {
     super.initState();
+    // Re-run the access check whenever the auth session changes, so a late
+    // session restore, a token refresh, or a sign-in/out updates the gate
+    // instead of being stuck on a one-shot result.
+    _authSub = _adminService.authStateChanges().listen((state) {
+      switch (state.event) {
+        case AuthChangeEvent.signedIn:
+        case AuthChangeEvent.signedOut:
+        case AuthChangeEvent.tokenRefreshed:
+        case AuthChangeEvent.initialSession:
+        case AuthChangeEvent.userUpdated:
+          _load();
+          break;
+        default:
+          break;
+      }
+    });
     _load();
   }
 
   @override
   void dispose() {
+    _authSub?.cancel();
     _walletLookupController.dispose();
     _userSearchController.dispose();
     _coinsController.dispose();
@@ -108,7 +132,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     super.dispose();
   }
 
+  // Re-entrancy guard: if an auth event fires while a load is running, queue a
+  // single follow-up load instead of racing two concurrent fetches.
   Future<void> _load() async {
+    if (_loadInFlight) {
+      _reloadQueued = true;
+      return;
+    }
+    _loadInFlight = true;
+    try {
+      await _loadInternal();
+    } finally {
+      _loadInFlight = false;
+      if (_reloadQueued) {
+        _reloadQueued = false;
+        unawaited(_load());
+      }
+    }
+  }
+
+  Future<void> _loadInternal() async {
     setState(() {
       _isLoading = true;
       _error = null;
@@ -910,10 +953,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       passwordController: _adminPasswordController,
                       onLogin: _adminLogin,
                     )
-                  : const _AdminShellMessage(
+                  : _AdminShellMessage(
                       icon: Icons.lock_rounded,
                       title: 'Not authorized',
-                      subtitle: 'This dashboard is only for admin roles.',
+                      subtitle: _adminService.currentEmail != null
+                          ? 'Signed in as ${_adminService.currentEmail}, which has no admin role. Sign out and use an admin account.'
+                          : 'This dashboard is only for admin roles.',
+                      onSignOut: _adminService.currentEmail != null
+                          ? _adminSignOut
+                          : null,
                     )
             : _error != null
             ? _AdminShellMessage(
@@ -4868,17 +4916,20 @@ class _AdminShellMessage extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.onRetry,
+    this.onSignOut,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback? onRetry;
+  final VoidCallback? onSignOut;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       color: _kBg,
+      padding: const EdgeInsets.all(24),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
@@ -4896,6 +4947,22 @@ class _AdminShellMessage extends StatelessWidget {
                   ),
                   icon: const Icon(Icons.refresh_rounded, size: 16),
                   label: const Text('Retry'),
+                ),
+              ],
+              if (onSignOut != null) ...[
+                const SizedBox(height: 14),
+                FilledButton.icon(
+                  onPressed: onSignOut,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _kNavAccent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 12,
+                    ),
+                  ),
+                  icon: const Icon(Icons.logout_rounded, size: 16),
+                  label: const Text('Sign out / switch account'),
                 ),
               ],
             ],
