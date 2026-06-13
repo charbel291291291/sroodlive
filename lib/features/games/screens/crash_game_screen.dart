@@ -204,15 +204,9 @@ class _CrashGameScreenState extends State<CrashGameScreen> {
         'cashoutMultiplier': resp['cashout_multiplier'],
         'winAmount': resp['win_amount'],
       });
-      if (resp['crash_multiplier'] != null &&
-          (resp['status'] == 'crashed' || resp['status'] == 'cashed_out')) {
-        _stopPolling();
-        if (resp['status'] == 'crashed') {
-          _post('ROUND_ENDED', {
-            'crashMultiplier': resp['crash_multiplier'],
-            'real': true,
-          });
-        }
+      // Immediately reflect the new wallet balance after a successful cashout.
+      if (resp['new_balance'] != null) {
+        _post('BALANCE_UPDATE', {'balance': resp['new_balance']});
       }
     } catch (e) {
       _post('CASHOUT_RESULT', {

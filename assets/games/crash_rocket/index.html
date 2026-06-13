@@ -668,6 +668,8 @@ function startBetting() {
   setFlight(false)
   setStarFast(false)
   RWRAP.style.bottom = '20%'
+  RWRAP.style.transform = 'translateX(-50%)'
+  ROCKET.style.transform = ''
   TRAIL.style.height = '0'
 
   let secs = BET_SECS
@@ -791,7 +793,11 @@ function updateMux(m) {
 
 function updateRocket(m) {
   const pct = Math.min(0.9, (m - 1) / 9)
-  RWRAP.style.bottom = (20 + pct * 55) + '%'
+  RWRAP.style.bottom = (20 + pct * 52) + '%'
+  // Curved path: gentle rightward drift as rocket gains altitude
+  const drift = Math.pow(pct, 0.5) * 28
+  RWRAP.style.transform = 'translateX(calc(-50% + ' + drift + 'px))'
+  ROCKET.style.transform = 'rotate(' + Math.min(14, pct * 17) + 'deg)'
   TRAIL.style.height = Math.min(130, pct * 140) + 'px'
 }
 
