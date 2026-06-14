@@ -117,8 +117,7 @@ drop policy if exists "loto_settings_public_read"  on public.loto_settings;
 drop policy if exists "loto_settings_admin_write"  on public.loto_settings;
 create policy "loto_settings_public_read" on public.loto_settings for select using (true);
 create policy "loto_settings_admin_write" on public.loto_settings for all using (
-  exists (select 1 from public.user_roles
-          where user_id = auth.uid() and role in ('super_admin','finance_admin'))
+  public.has_app_role('super_admin') or public.has_app_role('finance_admin')
 );
 
 -- Draws: public read
@@ -133,8 +132,7 @@ create policy "loto_tickets_own_read" on public.loto_tickets
 -- Audit: admin read only
 drop policy if exists "loto_audit_admin_read" on public.loto_admin_audit_logs;
 create policy "loto_audit_admin_read" on public.loto_admin_audit_logs for select using (
-  exists (select 1 from public.user_roles
-          where user_id = auth.uid() and role in ('super_admin','finance_admin'))
+  public.has_app_role('super_admin') or public.has_app_role('finance_admin')
 );
 
 -- ── 7. loto_create_next_draw_if_needed() ─────────────────────────────────────
@@ -590,10 +588,7 @@ as $$
 declare
   v_admin_id uuid := auth.uid();
 begin
-  if not exists (
-    select 1 from public.user_roles
-    where user_id = v_admin_id and role in ('super_admin','finance_admin')
-  ) then
+  if not (public.has_app_role('super_admin') or public.has_app_role('finance_admin')) then
     raise exception 'permission_denied';
   end if;
 
@@ -624,10 +619,7 @@ declare
   v_admin_id uuid := auth.uid();
   v_ticket   record;
 begin
-  if not exists (
-    select 1 from public.user_roles
-    where user_id = v_admin_id and role in ('super_admin','finance_admin')
-  ) then
+  if not (public.has_app_role('super_admin') or public.has_app_role('finance_admin')) then
     raise exception 'permission_denied';
   end if;
 
@@ -686,10 +678,7 @@ declare
   v_admin_id uuid := auth.uid();
   v_old      jsonb;
 begin
-  if not exists (
-    select 1 from public.user_roles
-    where user_id = v_admin_id and role in ('super_admin','finance_admin')
-  ) then
+  if not (public.has_app_role('super_admin') or public.has_app_role('finance_admin')) then
     raise exception 'permission_denied';
   end if;
 
@@ -731,10 +720,7 @@ as $$
 declare
   v_admin_id uuid := auth.uid();
 begin
-  if not exists (
-    select 1 from public.user_roles
-    where user_id = v_admin_id and role in ('super_admin','finance_admin')
-  ) then
+  if not (public.has_app_role('super_admin') or public.has_app_role('finance_admin')) then
     raise exception 'permission_denied';
   end if;
 
