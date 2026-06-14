@@ -1,10 +1,11 @@
+﻿import 'package:flutter/foundation.dart';
+
 import '../../../core/supabase/supabase_service.dart';
 
 class AdminAccessService {
   const AdminAccessService();
 
-  /// Roles that may open the admin dashboard. Both 'admin' and 'super_admin'
-  /// are authorized admin roles, alongside the existing scoped admin roles.
+  /// Roles allowed to open the admin dashboard.
   static const Set<String> adminRoles = {
     'super_admin',
     'admin',
@@ -18,24 +19,59 @@ class AdminAccessService {
     'viewer',
   };
 
-  /// True if any of [roles] is an authorized admin role. Comparison is
-  /// trimmed and case-insensitive so a stored value like 'Super_Admin' or
-  /// ' super_admin ' still grants access.
+  static String normalizeRole(String role) => role.trim().toLowerCase();
+
+  static List<String> normalizeRoles(Iterable<String> roles) {
+    return roles
+        .map(normalizeRole)
+        .where((role) => role.isNotEmpty)
+        .toSet()
+        .toList();
+  }
+
   static bool isAdminRole(Iterable<String> roles) {
-    return roles.any(
-      (role) => adminRoles.contains(role.trim().toLowerCase()),
-    );
+    final normalized = normalizeRoles(roles);
+    return normalized.any(adminRoles.contains);
   }
 
   Future<List<String>> fetchCurrentUserRoles() async {
-    final data = await SupabaseService.requiredClient
-        .from('app_user_roles')
-        .select('role');
+    final client = SupabaseService.requiredClient;
+    final user = client.auth.currentUser;
 
-    return (data as List<dynamic>)
-        .map((item) => (item as Map<String, dynamic>)['role']?.toString() ?? '')
-        .where((role) => role.isNotEmpty)
-        .toList();
+    if (user == null) {
+      if (kDebugMode) {
+        debugPrint('[AdminAccess] No authenticated user found.');
+      }
+      return const [];
+    }
+
+    try {
+      final data = await client
+          .from('app_user_roles')
+          .select('role')
+          .eq('user_id', user.id);
+
+      final roles = normalizeRoles(
+        (data as List<dynamic>).map(
+          (item) => (item as Map<String, dynamic>)['role']?.toString() ?? '',
+        ),
+      );
+
+      if (kDebugMode) {
+        debugPrint('[AdminAccess] User email: ${user.email}');
+        debugPrint('[AdminAccess] User id: ${user.id}');
+        debugPrint('[AdminAccess] Roles: $roles');
+        debugPrint('[AdminAccess] Can access admin: ${isAdminRole(roles)}');
+      }
+
+      return roles;
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('[AdminAccess] Failed to fetch roles: $error');
+        debugPrintStack(stackTrace: stackTrace);
+      }
+      return const [];
+    }
   }
 
   Future<bool> canAccessAdmin() async {
