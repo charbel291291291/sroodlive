@@ -18,16 +18,22 @@ import '../services/gifts_service.dart';
 import '../services/livekit_room_service.dart';
 import '../services/rooms_service.dart';
 import '../services/room_management_service.dart';
+import '../services/room_messages_service.dart';
 import '../utils/vip_room_features.dart';
 import '../../vip/services/vip_privilege_service.dart';
 import '../widgets/room_tools_sheet.dart';
 import 'room_owner_management_screen.dart';
 
-const double _micSeatAvatarSize = 59;
-const double _micSeatOuterSize = 64;
-const double _micSeatIconSize = 26;
-const double _micSeatBadgeHorizontalPadding = 8;
-const double _micSeatSupportSlotHeight = 20;
+// Seat sizes — host > occupied > empty, never the reverse.
+const double _hostSeatAvatarSize = 84.0;
+const double _hostSeatOuterSize  = 90.0;
+const double _seatAvatarSize     = 70.0;
+const double _seatOuterSize      = 76.0;
+const double _emptySeatSize      = 68.0;
+const double _micSeatIconSize    = 26.0;
+const double _micSeatBadgeHorizontalPadding = 8.0;
+const double _micSeatSupportSlotHeight      = 20.0;
+
 
 class RoomDetailsScreen extends StatefulWidget {
   const RoomDetailsScreen({
@@ -80,6 +86,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   bool _isSendingGift = false;
   RoomMember? _selectedMicMoveMember;
   int _giftEventSeed = 0;
+
+  // ── Room chat / comments ──────────────────────────────────────────────────
+  final _msgService = const RoomMessagesService();
+  final List<RoomMessage> _chatMessages = [];
+  RealtimeChannel? _messagesChannel;
+  bool _isSendingMessage = false;
 
   static const Duration _giftVisibleDuration = Duration(minutes: 1);
 
@@ -184,6 +196,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     _startGiftFeedCleanupTimer();
     _subscribeToMembers();
     _subscribeToGiftTransactions();
+    _loadMessages();
+    _subscribeToMessages();
   }
 
   @override
@@ -207,6 +221,13 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     if (giftTransactionsChannel != null) {
       unawaited(
         SupabaseService.requiredClient.removeChannel(giftTransactionsChannel),
+      );
+    }
+
+    final messagesChannel = _messagesChannel;
+    if (messagesChannel != null) {
+      unawaited(
+        SupabaseService.requiredClient.removeChannel(messagesChannel),
       );
     }
 
@@ -565,10 +586,117 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     } catch (_) {}
   }
 
+  // ── Room messages ──────────────────────────────────────────────────────────
+
+  Future<void> _loadMessages() async {
+    final msgs = await _msgService.fetchRecent(widget.room.id);
+    if (!mounted) return;
+    setState(() {
+      _chatMessages
+        ..clear()
+        ..addAll(msgs);
+    });
+  }
+
+  void _subscribeToMessages() {
+    _messagesChannel = SupabaseService.requiredClient
+        .channel('room_messages_${widget.room.id}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'room_messages',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'room_id',
+            value: widget.room.id,
+          ),
+          callback: (payload) {
+            if (!mounted) return;
+            try {
+              final row = payload.newRecord;
+              // Fetch sender profile to enrich the message.
+              SupabaseService.requiredClient
+                  .from('profiles')
+                  .select('display_name, username, avatar_url, vip_level')
+                  .eq('id', row['sender_id'] as String)
+                  .maybeSingle()
+                  .then((profile) {
+                if (!mounted) return;
+                final enriched = {
+                  ...row,
+                  'profiles': profile,
+                };
+                final msg = RoomMessage.fromJson(
+                  enriched.map((k, v) => MapEntry(k, v)),
+                );
+                // Avoid duplicate from optimistic local insert.
+                if (_chatMessages.any((m) => m.id == msg.id)) return;
+                setState(() {
+                  _chatMessages.add(msg);
+                  if (_chatMessages.length > 100) {
+                    _chatMessages.removeRange(0, _chatMessages.length - 100);
+                  }
+                });
+              });
+            } catch (_) {}
+          },
+        )
+        .subscribe();
+  }
+
+  Future<void> _sendChatMessage(String text) async {
+    if (text.trim().isEmpty) return;
+    setState(() => _isSendingMessage = true);
+
+    // Optimistic insert using current user profile.
+    final me = SupabaseService.requiredClient.auth.currentUser;
+    final myMember = _myMember;
+    if (me != null) {
+      final optimistic = RoomMessage(
+        id: 'optimistic_${DateTime.now().millisecondsSinceEpoch}',
+        roomId: widget.room.id,
+        senderId: me.id,
+        senderName: myMember?.displayName ?? 'You',
+        senderAvatarUrl: myMember?.avatarUrl,
+        senderVipLevel: myMember?.effectiveVipLevel ?? 0,
+        senderRole: myMember?.role ?? 'listener',
+        message: text.trim(),
+        messageType: 'text',
+        createdAt: DateTime.now(),
+      );
+      setState(() => _chatMessages.add(optimistic));
+    }
+
+    try {
+      await _msgService.sendMessage(
+        roomId: widget.room.id,
+        message: text,
+        senderRole: _myMember?.role ?? 'listener',
+      );
+    } catch (_) {
+      // Remove optimistic on failure.
+      if (mounted) {
+        setState(() => _chatMessages.removeWhere(
+          (m) => m.id.startsWith('optimistic_'),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _isSendingMessage = false);
+    }
+  }
+
   void _clearChat() {
-    // Chat messages are scoped to the in-memory feed; clear the visible feed.
-    // This is a host-only UX action — messages in the DB are not deleted.
-    setState(() => _roomGifts = const []);
+    // Clear the visible chat feed. Host-only UX action.
+    setState(() {
+      _roomGifts = const [];
+      _chatMessages.clear();
+      _chatMessages.add(RoomMessage.local(
+        roomId: widget.room.id,
+        message: widget.isArabic
+            ? 'قام المضيف بمسح الدردشة.'
+            : 'The room owner has cleaned the chat.',
+      ));
+    });
   }
 
   void _openToolsSheet() {
@@ -2035,6 +2163,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                         gifts: _roomGifts,
                         loadingGifts: _loadingGifts,
                         onProfileTap: _openUserProfileSheet,
+                        chatMessages: _chatMessages,
                       ),
                     ],
                   ),
@@ -2051,10 +2180,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                     micEnabled: _micEnabled,
                     isOnMic: _isCurrentUserOnMic,
                     leaving: _leaving,
+                    isSendingMessage: _isSendingMessage,
                     onToggleMic: _toggleMic,
                     onLeaveRoom: _leaveRoom,
                     onGiftTap: _openGiftSheet,
                     onMoreTap: _openToolsSheet,
+                    onSendMessage: _sendChatMessage,
                     bottomPad: bottomPad,
                   ),
                 ),
@@ -3233,45 +3364,54 @@ class _LiveSeatBubble extends StatelessWidget {
     final canManageSeat = !seat.isEmpty && isHost && seat.member != null;
     final occupiedByHost = seat.role == 'host';
     final effectiveVipLevel = seat.member?.effectiveVipLevel ?? 0;
+
+    // Size hierarchy: host > occupied > empty
+    final outerSize = occupiedByHost
+        ? _hostSeatOuterSize
+        : seat.isEmpty
+            ? _emptySeatSize
+            : _seatOuterSize;
+    final avatarRadius =
+        (occupiedByHost ? _hostSeatAvatarSize : _seatAvatarSize) / 2;
+
     final label = seat.isEmpty
-        ? (isArabic
-              ? '\u0645\u0627\u064a\u0643 ${seat.number}'
-              : 'Mic ${seat.number}')
+        ? (isArabic ? '\u0645\u0627\u064a\u0643 ${seat.number}' : 'Mic ${seat.number}')
         : seat.name;
     final badge = selectedForMove
         ? (isArabic ? '\u0646\u0642\u0644' : 'Move')
         : seat.isEmpty
-        ? (isArabic ? '\u0627\u0636\u063a\u0637' : 'Tap')
-        : occupiedByHost
-        ? (isArabic ? '\u0645\u0636\u064a\u0641' : 'Host')
-        : (isArabic ? '\u0645\u062a\u062d\u062f\u062b' : 'Speaker');
+            ? (isArabic ? '\u0627\u0636\u063a\u0637' : 'Tap')
+            : occupiedByHost
+                ? (isArabic ? '\u0645\u0636\u064a\u0641' : 'Host')
+                : (isArabic ? '\u0645\u062a\u062d\u062f\u062b' : 'Speaker');
 
-    // Visual tokens for this seat state
     final Color borderColor = selectedForMove
         ? const Color(0xFF67E8A5)
         : occupiedByHost
-        ? const Color(0xFFF0C15A)
-        : seat.isEmpty
-        ? Colors.white.withValues(alpha: 0.18)
-        : const Color(0xFF8B26D9).withValues(alpha: 0.55);
+            ? const Color(0xFFF0C15A)
+            : seat.isEmpty
+                ? Colors.white.withValues(alpha: 0.18)
+                : const Color(0xFF8B26D9).withValues(alpha: 0.55);
+
+    final double borderWidth = occupiedByHost ? 2.4 : 1.8;
 
     final List<BoxShadow> glowShadows = [
       if (selectedForMove)
         BoxShadow(
-          color: const Color(0xFF67E8A5).withValues(alpha: 0.50),
-          blurRadius: 22,
+          color: const Color(0xFF67E8A5).withValues(alpha: 0.55),
+          blurRadius: 24,
           spreadRadius: 2,
         )
       else if (occupiedByHost)
         BoxShadow(
-          color: const Color(0xFFF0C15A).withValues(alpha: 0.40),
-          blurRadius: 20,
-          spreadRadius: 1,
+          color: const Color(0xFFF0C15A).withValues(alpha: 0.55),
+          blurRadius: 30,
+          spreadRadius: 3,
         )
       else if (!seat.isEmpty)
         BoxShadow(
-          color: const Color(0xFF8B26D9).withValues(alpha: 0.30),
-          blurRadius: 14,
+          color: const Color(0xFF8B26D9).withValues(alpha: 0.35),
+          blurRadius: 16,
           spreadRadius: -2,
         ),
     ];
@@ -3279,111 +3419,107 @@ class _LiveSeatBubble extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // ── Avatar circle ────────────────────────────────────────────────
-        InkWell(
-          customBorder: const CircleBorder(),
+        GestureDetector(
           onTap: canAssignSeat
               ? () => onEmptySeatTap(seat.number)
               : canManageSeat
-              ? () => onOccupiedSeatTap(seat.member!, seat.number)
-              : null,
+                  ? () => onOccupiedSeatTap(seat.member!, seat.number)
+                  : null,
           onLongPress: canManageSeat
               ? () => onOccupiedSeatLongPress(seat.member!, seat.number)
               : null,
-          child: Container(
-            width: _micSeatOuterSize,
-            height: _micSeatOuterSize,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: seat.isEmpty
-                  ? Colors.white.withValues(alpha: 0.08)
-                  : null,
-              border: Border.all(color: borderColor, width: 1.8),
-              boxShadow: glowShadows,
-            ),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (seat.isEmpty)
-                  Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.add_rounded,
-                          color: Colors.white.withValues(alpha: 0.55),
-                          size: _micSeatIconSize,
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  Center(
-                    child: SizedBox(
-                      width: _micSeatOuterSize,
-                      height: _micSeatOuterSize,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: seat.member == null
-                            ? null
-                            : () => onProfileTap(seat.member!.userId),
-                        child: AvatarWithFrame(
-                          imageUrl: seat.member?.avatarUrl,
-                          radius: _micSeatAvatarSize / 2,
-                          frameKey: seat.member?.selectedAvatarFrameKey,
-                          vipLevel: effectiveVipLevel,
-                          showVipBadge: effectiveVipLevel > 0,
-                          compact: true,
-                          fallbackIcon: seat.isMuted
-                              ? Icons.mic_off_rounded
-                              : Icons.person_rounded,
-                        ),
+          child: seat.isEmpty
+              ? Container(
+                  width: outerSize,
+                  height: outerSize,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: 0.07),
+                    border: Border.all(color: borderColor, width: borderWidth),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF4ADE80).withValues(alpha: 0.14),
+                        blurRadius: 14,
                       ),
-                    ),
+                    ],
                   ),
-                // Muted indicator — small badge bottom-right
-                if (!seat.isEmpty && seat.isMuted)
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      width: 20,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: const Color(0xFFE63946),
-                        border: Border.all(
-                          color: Colors.black,
-                          width: 1.5,
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.mic_off_rounded,
-                        color: Colors.white,
-                        size: 11,
+                  child: Icon(
+                    Icons.add_rounded,
+                    color: Colors.white.withValues(alpha: 0.55),
+                    size: _micSeatIconSize,
+                  ),
+                )
+              : Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: seat.member == null
+                          ? null
+                          : () => onProfileTap(seat.member!.userId),
+                      child: AvatarWithFrame(
+                        imageUrl: seat.member?.avatarUrl,
+                        radius: avatarRadius,
+                        frameKey: seat.member?.selectedAvatarFrameKey,
+                        vipLevel: effectiveVipLevel,
+                        showVipBadge: false,
+                        compact: !occupiedByHost,
+                        fallbackIcon: seat.isMuted
+                            ? Icons.mic_off_rounded
+                            : Icons.person_rounded,
                       ),
                     ),
-                  ),
-              ],
-            ),
-          ),
+                    IgnorePointer(
+                      child: Container(
+                        width: outerSize,
+                        height: outerSize,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: borderColor, width: borderWidth),
+                          boxShadow: glowShadows,
+                        ),
+                      ),
+                    ),
+                    if (seat.isMuted)
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          width: 22,
+                          height: 22,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFFE63946),
+                            border:
+                                Border.all(color: Colors.black, width: 1.5),
+                          ),
+                          child: const Icon(
+                            Icons.mic_off_rounded,
+                            color: Colors.white,
+                            size: 12,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
         ),
-        const SizedBox(height: 6),
-        // ── Name label ───────────────────────────────────────────────────
+        SizedBox(height: occupiedByHost ? 8 : 6),
         Text(
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 11,
+            fontSize: occupiedByHost ? 12 : 11,
             fontWeight: FontWeight.w800,
             color: seat.isEmpty
                 ? Colors.white.withValues(alpha: 0.45)
                 : effectiveVipLevel > 0
-                ? VipVisualStyle.nameColor(effectiveVipLevel, context)
-                : Colors.white,
+                    ? VipVisualStyle.nameColor(effectiveVipLevel, context)
+                    : Colors.white,
             shadows: const [Shadow(blurRadius: 4, color: Colors.black54)],
           ),
         ),
@@ -3396,50 +3532,53 @@ class _LiveSeatBubble extends StatelessWidget {
             ),
           ),
         ],
-        // ── Role badge ───────────────────────────────────────────────────
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: _micSeatBadgeHorizontalPadding,
-            vertical: 2,
-          ),
-          decoration: BoxDecoration(
-            color: selectedForMove
-                ? const Color(0xFF67E8A5).withValues(alpha: 0.20)
-                : occupiedByHost
-                ? const Color(0xFFF0C15A).withValues(alpha: 0.18)
-                : canAssignSeat
-                ? Colors.white.withValues(alpha: 0.08)
-                : const Color(0xFF8B26D9).withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(
+        if (!seat.isEmpty && effectiveVipLevel > 0) ...[
+          const SizedBox(height: 3),
+          VipBadge(vipLevel: effectiveVipLevel, compact: true),
+        ] else
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: _micSeatBadgeHorizontalPadding,
+              vertical: 2,
+            ),
+            decoration: BoxDecoration(
               color: selectedForMove
-                  ? const Color(0xFF67E8A5).withValues(alpha: 0.8)
+                  ? const Color(0xFF67E8A5).withValues(alpha: 0.20)
                   : occupiedByHost
-                  ? const Color(0xFFF0C15A).withValues(alpha: 0.7)
-                  : canAssignSeat
-                  ? Colors.white.withValues(alpha: 0.2)
-                  : const Color(0xFF8B26D9).withValues(alpha: 0.5),
-              width: 0.8,
+                      ? const Color(0xFFF0C15A).withValues(alpha: 0.18)
+                      : canAssignSeat
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : const Color(0xFF8B26D9).withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: selectedForMove
+                    ? const Color(0xFF67E8A5).withValues(alpha: 0.8)
+                    : occupiedByHost
+                        ? const Color(0xFFF0C15A).withValues(alpha: 0.7)
+                        : canAssignSeat
+                            ? Colors.white.withValues(alpha: 0.2)
+                            : const Color(0xFF8B26D9).withValues(alpha: 0.5),
+                width: 0.8,
+              ),
+            ),
+            child: Text(
+              badge,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: occupiedByHost ? 10 : 9,
+                fontWeight: FontWeight.w900,
+                color: selectedForMove
+                    ? const Color(0xFF67E8A5)
+                    : occupiedByHost
+                        ? const Color(0xFFF0C15A)
+                        : canAssignSeat
+                            ? Colors.white.withValues(alpha: 0.55)
+                            : Colors.white.withValues(alpha: 0.8),
+              ),
             ),
           ),
-          child: Text(
-            badge,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w900,
-              color: selectedForMove
-                  ? const Color(0xFF67E8A5)
-                  : occupiedByHost
-                  ? const Color(0xFFF0C15A)
-                  : canAssignSeat
-                  ? Colors.white.withValues(alpha: 0.55)
-                  : Colors.white.withValues(alpha: 0.8),
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -3452,6 +3591,7 @@ class _LiveChatPanel extends StatelessWidget {
     required this.gifts,
     required this.loadingGifts,
     required this.onProfileTap,
+    required this.chatMessages,
   });
 
   final String roomName;
@@ -3459,6 +3599,7 @@ class _LiveChatPanel extends StatelessWidget {
   final List<RoomGiftTransaction> gifts;
   final bool loadingGifts;
   final ValueChanged<String> onProfileTap;
+  final List<RoomMessage> chatMessages;
 
   @override
   Widget build(BuildContext context) {
@@ -3540,6 +3681,178 @@ class _LiveChatPanel extends StatelessWidget {
                 onProfileTap: onProfileTap,
               ),
             ),
+          // ── Live chat comments ──────────────────────────────────────────
+          if (chatMessages.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6, left: 4, right: 4),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.09),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.chat_bubble_rounded, color: Colors.white.withValues(alpha: 0.7), size: 13),
+                        const SizedBox(width: 5),
+                        Text(
+                          isArabic ? '\u062f\u0631\u062f\u0634\u0629' : 'Chat',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.8),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ...chatMessages.reversed.take(6).toList().reversed.map(
+              (msg) => _ChatBubbleRow(
+                message: msg,
+                isArabic: isArabic,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── Live room chat bubble ─────────────────────────────────────────────────────
+
+class _ChatBubbleRow extends StatelessWidget {
+  const _ChatBubbleRow({required this.message, required this.isArabic});
+
+  final RoomMessage message;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    final isSystem = message.isSystem;
+    if (isSystem) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+            ),
+            child: Text(
+              message.message,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.65),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final vipLevel = message.senderVipLevel;
+    final nameColor = vipLevel > 0
+        ? VipVisualStyle.nameColor(vipLevel, context)
+        : const Color(0xFF9BE8FF);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        children: [
+          // Sender avatar
+          _RoomAvatar(
+            avatarUrl: message.senderAvatarUrl,
+            frameKey: null,
+            vipLevel: vipLevel,
+            size: 28,
+            selected: false,
+            fallbackIcon: Icons.person_rounded,
+          ),
+          const SizedBox(width: 7),
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.40),
+                borderRadius: BorderRadius.only(
+                  topLeft: isArabic ? const Radius.circular(14) : const Radius.circular(4),
+                  topRight: isArabic ? const Radius.circular(4) : const Radius.circular(14),
+                  bottomLeft: const Radius.circular(14),
+                  bottomRight: const Radius.circular(14),
+                ),
+                border: Border.all(
+                  color: vipLevel > 0
+                      ? const Color(0xFFF0C15A).withValues(alpha: 0.22)
+                      : Colors.white.withValues(alpha: 0.10),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: isArabic
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+                    children: [
+                      Text(
+                        message.senderName,
+                        style: TextStyle(
+                          color: nameColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      if (message.senderRole == 'host') ...[
+                        const SizedBox(width: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0C15A).withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            'HOST',
+                            style: TextStyle(
+                              color: Color(0xFFF0C15A),
+                              fontSize: 8,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    message.message,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -4956,17 +5269,19 @@ class _GiftSendBar extends StatelessWidget {
   }
 }
 
-class _LiveBottomActionBar extends StatelessWidget {
+class _LiveBottomActionBar extends StatefulWidget {
   const _LiveBottomActionBar({
     required this.isArabic,
     required this.connectingAudio,
     required this.micEnabled,
     required this.isOnMic,
     required this.leaving,
+    required this.isSendingMessage,
     required this.onToggleMic,
     required this.onLeaveRoom,
     required this.onGiftTap,
     required this.onMoreTap,
+    required this.onSendMessage,
     this.bottomPad = 0,
   });
 
@@ -4975,11 +5290,35 @@ class _LiveBottomActionBar extends StatelessWidget {
   final bool micEnabled;
   final bool isOnMic;
   final bool leaving;
+  final bool isSendingMessage;
   final VoidCallback onToggleMic;
   final VoidCallback onLeaveRoom;
   final VoidCallback onGiftTap;
   final VoidCallback onMoreTap;
+  final Future<void> Function(String) onSendMessage;
   final double bottomPad;
+
+  @override
+  State<_LiveBottomActionBar> createState() => _LiveBottomActionBarState();
+}
+
+class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
+  final _ctrl = TextEditingController();
+  bool _isTyping = false;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final text = _ctrl.text.trim();
+    if (text.isEmpty) return;
+    _ctrl.clear();
+    setState(() => _isTyping = false);
+    await widget.onSendMessage(text);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -4987,48 +5326,71 @@ class _LiveBottomActionBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.60),
         border: Border(
-          top: BorderSide(
-            color: Colors.white.withValues(alpha: 0.08),
-          ),
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
         ),
       ),
-      padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + bottomPad),
+      padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + widget.bottomPad),
       child: Row(
-        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
         children: [
-          // Chat input pill
+          // Chat input pill — real keyboard input
           Expanded(
-            child: GestureDetector(
-              onTap: onGiftTap, // tapping opens gift/chat sheet
-              child: Container(
-                height: 40,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.09),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.15),
-                  ),
+            child: Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.09),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _isTyping
+                      ? const Color(0xFF8B26D9).withValues(alpha: 0.55)
+                      : Colors.white.withValues(alpha: 0.15),
                 ),
-                child: Row(
-                  textDirection:
-                      isArabic ? TextDirection.rtl : TextDirection.ltr,
-                  children: [
-                    Icon(
-                      Icons.chat_bubble_outline_rounded,
-                      size: 15,
-                      color: Colors.white.withValues(alpha: 0.40),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      isArabic ? '\u0623\u0647\u0644\u0627\u064b...' : 'Hi...',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.40),
-                        fontSize: 13,
+              ),
+              child: Row(
+                textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _ctrl,
+                      textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      maxLength: 300,
+                      maxLines: 1,
+                      buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                        hintText: widget.isArabic ? '\u0623\u0647\u0644\u0627\u064b...' : 'Hi...',
+                        hintStyle: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.40),
+                          fontSize: 13,
+                        ),
                       ),
+                      onChanged: (v) => setState(() => _isTyping = v.trim().isNotEmpty),
+                      onSubmitted: (_) => _submit(),
                     ),
-                  ],
-                ),
+                  ),
+                  if (_isTyping)
+                    GestureDetector(
+                      onTap: widget.isSendingMessage ? null : _submit,
+                      child: widget.isSendingMessage
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Color(0xFFF0C15A),
+                              ),
+                            )
+                          : const Icon(
+                              Icons.send_rounded,
+                              color: Color(0xFFF0C15A),
+                              size: 18,
+                            ),
+                    ),
+                ],
               ),
             ),
           ),
@@ -5037,35 +5399,33 @@ class _LiveBottomActionBar extends StatelessWidget {
           _BarIconButton(
             icon: Icons.card_giftcard_rounded,
             color: const Color(0xFFF0C15A),
-            onTap: onGiftTap,
+            onTap: widget.onGiftTap,
           ),
           const SizedBox(width: 6),
           // More button
           _BarIconButton(
             icon: Icons.more_horiz_rounded,
             color: Colors.white,
-            onTap: onMoreTap,
+            onTap: widget.onMoreTap,
           ),
-          if (isOnMic) ...[
+          if (widget.isOnMic) ...[
             const SizedBox(width: 6),
-            // Mic toggle
             _BarIconButton(
-              icon: micEnabled ? Icons.mic_rounded : Icons.mic_off_rounded,
-              color: micEnabled
+              icon: widget.micEnabled ? Icons.mic_rounded : Icons.mic_off_rounded,
+              color: widget.micEnabled
                   ? const Color(0xFFF0C15A)
                   : const Color(0xFFE63946),
               highlighted: true,
-              busy: connectingAudio,
-              onTap: connectingAudio ? null : onToggleMic,
+              busy: widget.connectingAudio,
+              onTap: widget.connectingAudio ? null : widget.onToggleMic,
             ),
           ],
           const SizedBox(width: 6),
-          // Leave button
           _BarIconButton(
             icon: Icons.logout_rounded,
             color: const Color(0xFFFF5C7A),
-            busy: leaving,
-            onTap: leaving ? null : onLeaveRoom,
+            busy: widget.leaving,
+            onTap: widget.leaving ? null : widget.onLeaveRoom,
           ),
         ],
       ),
