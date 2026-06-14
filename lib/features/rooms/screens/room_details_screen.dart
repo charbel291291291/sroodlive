@@ -712,6 +712,24 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     });
   }
 
+  void _sendSalute() {
+    if (_currentUserId == null) return;
+    final senderName = _members
+            .where((m) => m.userId == _currentUserId)
+            .firstOrNull
+            ?.displayName ??
+        (widget.isArabic ? 'مستخدم' : 'User');
+    final text = widget.isArabic
+        ? '$senderName أرسل تحية للغرفة 👋'
+        : '$senderName sent a salute to the room 👋';
+    setState(() {
+      _chatMessages.add(RoomMessage.local(
+        roomId: widget.room.id,
+        message: text,
+      ));
+    });
+  }
+
   void _openToolsSheet() {
     showModalBottomSheet<void>(
       context: context,
@@ -726,6 +744,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         isLocked: _roomLocked,
         onToggleLock: _toggleRoomLock,
         onClearChat: _clearChat,
+        onSalute: _sendSalute,
       ),
     );
   }

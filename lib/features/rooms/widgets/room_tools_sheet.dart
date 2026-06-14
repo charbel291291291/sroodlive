@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../games/screens/crash_game_screen.dart';
 import '../../games/screens/gold_ladder_quiz_screen.dart';
@@ -30,6 +31,7 @@ class RoomToolsSheet extends StatefulWidget {
     required this.isLocked,
     required this.onToggleLock,
     required this.onClearChat,
+    required this.onSalute,
     super.key,
   });
 
@@ -41,6 +43,7 @@ class RoomToolsSheet extends StatefulWidget {
   final bool isLocked;
   final Future<void> Function() onToggleLock;
   final VoidCallback onClearChat;
+  final VoidCallback onSalute;
 
   @override
   State<RoomToolsSheet> createState() => _RoomToolsSheetState();
@@ -49,9 +52,47 @@ class RoomToolsSheet extends StatefulWidget {
 class _RoomToolsSheetState extends State<RoomToolsSheet> {
   final _mgmt = const RoomManagementService();
   bool _soundOn = true;
+  bool _visualOn = true;
   bool _lockBusy = false;
+  DateTime? _lastSalute;
+
+  static const _kSoundKey = 'room_pref_sound';
+  static const _kVisualKey = 'room_pref_visual';
+  static const _kMicModeKey = 'room_pref_mic_mode';
 
   bool get _canManage => widget.isOwner || widget.isHost;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrefs();
+  }
+
+  Future<void> _loadPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _soundOn = prefs.getBool(_kSoundKey) ?? true;
+        _visualOn = prefs.getBool(_kVisualKey) ?? true;
+      });
+    }
+  }
+
+  Future<void> _toggleSound() async {
+    HapticFeedback.selectionClick();
+    final next = !_soundOn;
+    setState(() => _soundOn = next);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kSoundKey, next);
+  }
+
+  Future<void> _toggleVisual() async {
+    HapticFeedback.selectionClick();
+    final next = !_visualOn;
+    setState(() => _visualOn = next);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kVisualKey, next);
+  }
 
   String _t(String ar, String en) => widget.isArabic ? ar : en;
 
@@ -200,6 +241,61 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
     );
   }
 
+  void _handleSalute() {
+    final now = DateTime.now();
+    if (_lastSalute != null &&
+        now.difference(_lastSalute!) < const Duration(seconds: 30)) {
+      final remaining =
+          30 - now.difference(_lastSalute!).inSeconds;
+      _snack(
+        _t('يمكنك الترحيب مرة أخرى بعد $remaining ثانية',
+            'You can salute again in $remaining seconds.'),
+        isError: true,
+      );
+      return;
+    }
+    setState(() => _lastSalute = now);
+    HapticFeedback.mediumImpact();
+    Navigator.of(context).pop();
+    widget.onSalute();
+  }
+
+  void _openTeamPk() {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _TeamPkSheet(
+        isArabic: widget.isArabic,
+        canManage: _canManage,
+      ),
+    );
+  }
+
+  void _openMicMode() {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _MicModeSheet(
+        isArabic: widget.isArabic,
+        prefKey: _kMicModeKey,
+      ),
+    );
+  }
+
+  void _openBackground() {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _BackgroundSheet(isArabic: widget.isArabic),
+    );
+  }
+
   Future<void> _handleToggleLock() async {
     HapticFeedback.mediumImpact();
     setState(() => _lockBusy = true);
@@ -259,13 +355,16 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                           icon: Icons.groups_2_rounded,
                           labelAr: 'بي كي',
                           labelEn: 'Team PK',
-                          onTap: () => _showComingSoon('بي كي', 'Team PK'),
+                          onTap: _canManage
+                              ? _openTeamPk
+                              : () => _requirePermission(() {}),
+                          disabled: !_canManage,
                         ),
                         _ToolDef(
                           icon: Icons.military_tech_rounded,
                           labelAr: 'تحية',
                           labelEn: 'Salute',
-                          onTap: () => _showComingSoon('تحية', 'Salute'),
+                          onTap: _handleSalute,
                         ),
                         _ToolDef(
                           icon: Icons.redeem_rounded,
@@ -344,8 +443,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                           labelAr: 'ميكروفون',
                           labelEn: 'Mic Mode',
                           onTap: _canManage
-                              ? () => _showComingSoon(
-                                  'وضع الميكروفون', 'Mic Mode')
+                              ? _openMicMode
                               : () => _requirePermission(() {}),
                           disabled: !_canManage,
                         ),
@@ -353,11 +451,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                           icon: Icons.wallpaper_rounded,
                           labelAr: 'الخلفية',
                           labelEn: 'Background',
-                          onTap: _canManage
-                              ? () =>
-                                  _showComingSoon('الخلفية', 'Background')
-                              : () => _requirePermission(() {}),
-                          disabled: !_canManage,
+                          onTap: _openBackground,
                         ),
                         _ToolDef(
                           icon: Icons.person_off_rounded,
@@ -389,17 +483,19 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                               ? const Color(0xFF1A8CB0)
                               : null,
                           isToggled: _soundOn,
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            setState(() => _soundOn = !_soundOn);
-                          },
+                          onTap: _toggleSound,
                         ),
                         _ToolDef(
-                          icon: Icons.auto_awesome_rounded,
-                          labelAr: 'مؤثرات',
-                          labelEn: 'Visual',
-                          onTap: () => _showComingSoon(
-                              'تأثير بصري', 'Visual Effect'),
+                          icon: _visualOn
+                              ? Icons.auto_awesome_rounded
+                              : Icons.auto_awesome_outlined,
+                          labelAr: _visualOn ? 'مؤثرات' : 'بدون مؤثرات',
+                          labelEn: _visualOn ? 'Visual' : 'Visual Off',
+                          accent: _visualOn
+                              ? const Color(0xFF8B26D9)
+                              : null,
+                          isToggled: _visualOn,
+                          onTap: _toggleVisual,
                         ),
                       ],
                     ),
@@ -670,6 +766,449 @@ class _SectionLabel extends StatelessWidget {
 // Coming Soon sheet
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Team PK Sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _TeamPkSheet extends StatefulWidget {
+  const _TeamPkSheet({required this.isArabic, required this.canManage});
+  final bool isArabic;
+  final bool canManage;
+
+  @override
+  State<_TeamPkSheet> createState() => _TeamPkSheetState();
+}
+
+class _TeamPkSheetState extends State<_TeamPkSheet> {
+  int _teamA = 0;
+  int _teamB = 0;
+  bool _running = false;
+
+  String _t(String ar, String en) => widget.isArabic ? ar : en;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    return Container(
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomInset),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF231440), Color(0xFF160C2F)],
+        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _Handle(),
+          const SizedBox(height: 8),
+          Text(
+            _t('منافسة الفرق', 'Team PK'),
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _PkTeamBox(
+                label: _t('الفريق أ', 'Team A'),
+                score: _teamA,
+                color: const Color(0xFF8B26D9),
+                canManage: widget.canManage && _running,
+                onAdd: () => setState(() => _teamA++),
+                onRemove: () => setState(() {
+                  if (_teamA > 0) _teamA--;
+                }),
+              ),
+              Text(
+                'VS',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.4),
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              _PkTeamBox(
+                label: _t('الفريق ب', 'Team B'),
+                score: _teamB,
+                color: const Color(0xFFF0C15A),
+                canManage: widget.canManage && _running,
+                onAdd: () => setState(() => _teamB++),
+                onRemove: () => setState(() {
+                  if (_teamB > 0) _teamB--;
+                }),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          if (widget.canManage)
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _running
+                          ? const Color(0xFFE63946)
+                          : const Color(0xFF8B26D9),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        if (_running) {
+                          _running = false;
+                          _teamA = 0;
+                          _teamB = 0;
+                        } else {
+                          _running = true;
+                        }
+                      });
+                    },
+                    child: Text(_running
+                        ? _t('إيقاف وإعادة تعيين', 'Stop & Reset')
+                        : _t('بدء المنافسة', 'Start PK')),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PkTeamBox extends StatelessWidget {
+  const _PkTeamBox({
+    required this.label,
+    required this.score,
+    required this.color,
+    required this.canManage,
+    required this.onAdd,
+    required this.onRemove,
+  });
+
+  final String label;
+  final int score;
+  final Color color;
+  final bool canManage;
+  final VoidCallback onAdd;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(label,
+            style: TextStyle(
+                color: color, fontWeight: FontWeight.w700, fontSize: 14)),
+        const SizedBox(height: 8),
+        Text(
+          '$score',
+          style: TextStyle(
+              color: Colors.white, fontSize: 48, fontWeight: FontWeight.w900),
+        ),
+        if (canManage)
+          Row(
+            children: [
+              IconButton(
+                onPressed: onRemove,
+                icon: Icon(Icons.remove_circle_outline_rounded, color: color),
+              ),
+              IconButton(
+                onPressed: onAdd,
+                icon: Icon(Icons.add_circle_outline_rounded, color: color),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mic Mode Sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _MicModeSheet extends StatefulWidget {
+  const _MicModeSheet({required this.isArabic, required this.prefKey});
+  final bool isArabic;
+  final String prefKey;
+
+  @override
+  State<_MicModeSheet> createState() => _MicModeSheetState();
+}
+
+class _MicModeSheetState extends State<_MicModeSheet> {
+  int _selected = 0;
+
+  static const _modes = [
+    (ar: 'حر', en: 'Free', icon: Icons.mic_rounded, descAr: 'أي شخص يمكنه صعود المنبر', descEn: 'Anyone can take a mic seat'),
+    (ar: 'قائمة انتظار', en: 'Queue', icon: Icons.queue_rounded, descAr: 'يجب الموافقة على طلبات المنبر', descEn: 'Mic requests need approval'),
+    (ar: 'المضيف فقط', en: 'Host Only', icon: Icons.admin_panel_settings_rounded, descAr: 'يتحكم المضيف بالمنابر', descEn: 'Host controls all mic seats'),
+    (ar: 'مغلق', en: 'Locked', icon: Icons.lock_rounded, descAr: 'لا يمكن لأحد صعود المنبر', descEn: 'No one can take a mic seat'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    SharedPreferences.getInstance().then((prefs) {
+      if (mounted) setState(() => _selected = prefs.getInt(widget.prefKey) ?? 0);
+    });
+  }
+
+  Future<void> _pick(int index) async {
+    setState(() => _selected = index);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(widget.prefKey, index);
+  }
+
+  String _t(String ar, String en) => widget.isArabic ? ar : en;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    return Container(
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomInset),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF231440), Color(0xFF160C2F)],
+        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _Handle(),
+          const SizedBox(height: 8),
+          Text(
+            _t('وضع الميكروفون', 'Mic Mode'),
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 16),
+          ...List.generate(_modes.length, (i) {
+            final mode = _modes[i];
+            final isSelected = _selected == i;
+            return GestureDetector(
+              onTap: () => _pick(i),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  color: isSelected
+                      ? const Color(0xFF8B26D9).withValues(alpha: 0.18)
+                      : Colors.white.withValues(alpha: 0.05),
+                  border: Border.all(
+                    color: isSelected
+                        ? const Color(0xFF8B26D9)
+                        : Colors.white.withValues(alpha: 0.08),
+                    width: isSelected ? 1.5 : 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(mode.icon,
+                        color: isSelected
+                            ? const Color(0xFFC875FF)
+                            : Colors.white.withValues(alpha: 0.5),
+                        size: 22),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _t(mode.ar, mode.en),
+                            style: TextStyle(
+                              color: isSelected
+                                  ? Colors.white
+                                  : Colors.white.withValues(alpha: 0.7),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _t(mode.descAr, mode.descEn),
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.45),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isSelected)
+                      const Icon(Icons.check_circle_rounded,
+                          color: Color(0xFFC875FF), size: 20),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Background Sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _BackgroundSheet extends StatefulWidget {
+  const _BackgroundSheet({required this.isArabic});
+  final bool isArabic;
+
+  @override
+  State<_BackgroundSheet> createState() => _BackgroundSheetState();
+}
+
+class _BackgroundSheetState extends State<_BackgroundSheet> {
+  int _selected = 0;
+  static const _kBgKey = 'room_pref_background';
+
+  static const _themes = [
+    (ar: 'ليلي كلاسيكي', en: 'Classic Night', colors: [Color(0xFF231440), Color(0xFF160C2F), Color(0xFF0C0619)]),
+    (ar: 'شفق أرجواني', en: 'Purple Dusk', colors: [Color(0xFF2D1B69), Color(0xFF11998e), Color(0xFF1A0D33)]),
+    (ar: 'نار ذهبية', en: 'Golden Flame', colors: [Color(0xFF3D1C02), Color(0xFF7B3F00), Color(0xFF1A0900)]),
+    (ar: 'سماء زرقاء', en: 'Deep Ocean', colors: [Color(0xFF0A1628), Color(0xFF1A3A5C), Color(0xFF0D1F35)]),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    SharedPreferences.getInstance().then((prefs) {
+      if (mounted) setState(() => _selected = prefs.getInt(_kBgKey) ?? 0);
+    });
+  }
+
+  Future<void> _pick(int index) async {
+    setState(() => _selected = index);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_kBgKey, index);
+  }
+
+  String _t(String ar, String en) => widget.isArabic ? ar : en;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    return Container(
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomInset),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF231440), Color(0xFF160C2F)],
+        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _Handle(),
+          const SizedBox(height: 8),
+          Text(
+            _t('خلفية الغرفة', 'Room Background'),
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _t('يُحفظ اختيارك محلياً على هذا الجهاز فقط.',
+                'Your selection is saved locally on this device only.'),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.45),
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 20),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 2.4,
+            ),
+            itemCount: _themes.length,
+            itemBuilder: (_, i) {
+              final theme = _themes[i];
+              final isSelected = _selected == i;
+              return GestureDetector(
+                onTap: () => _pick(i),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: theme.colors,
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isSelected
+                          ? const Color(0xFFF0C15A)
+                          : Colors.white.withValues(alpha: 0.12),
+                      width: isSelected ? 2 : 1,
+                    ),
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Text(
+                        _t(theme.ar, theme.en),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                      if (isSelected)
+                        Positioned(
+                          top: 6,
+                          right: 6,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFF0C15A),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.check,
+                                size: 12, color: Colors.black),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 class _ComingSoonSheet extends StatelessWidget {
   const _ComingSoonSheet(
       {required this.featureName, required this.isArabic});
