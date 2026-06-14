@@ -68,10 +68,12 @@ class RoomManagementService {
     String roomId, {
     String? name,
     String? description,
+    String? coverUrl,
   }) async {
     final updates = <String, dynamic>{};
     if (name != null) updates['name'] = name;
     if (description != null) updates['description'] = description;
+    if (coverUrl != null) updates['cover_url'] = coverUrl;
     if (updates.isEmpty) return;
 
     await SupabaseService.requiredClient

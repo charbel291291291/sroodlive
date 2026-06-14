@@ -17,7 +17,9 @@ import '../models/room_member.dart';
 import '../services/gifts_service.dart';
 import '../services/livekit_room_service.dart';
 import '../services/rooms_service.dart';
+import '../services/room_management_service.dart';
 import '../utils/vip_room_features.dart';
+import '../widgets/room_tools_sheet.dart';
 import 'room_owner_management_screen.dart';
 
 const double _micSeatAvatarSize = 59;
@@ -53,6 +55,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   bool _micEnabled = true;
   bool _lockBusy = false;
   late bool _roomLocked;
+  int _moderatorCount = 0;
   String? _roleBusyUserId;
 
   List<RoomMember> _members = const [];
@@ -172,6 +175,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     // mic seat — so every participant hears the room.
     _loadMembers();
     _loadRoomGifts();
+    _loadModeratorCount();
     _startHeartbeat();
     _startMembersRefresh();
     _startGiftFeedCleanupTimer();
@@ -541,6 +545,37 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     }
 
     return result.trim();
+  }
+
+  Future<void> _loadModeratorCount() async {
+    try {
+      final mods = await const RoomManagementService().getModerators(widget.room.id);
+      if (mounted) setState(() => _moderatorCount = mods.length);
+    } catch (_) {}
+  }
+
+  void _clearChat() {
+    // Chat messages are scoped to the in-memory feed; clear the visible feed.
+    // This is a host-only UX action — messages in the DB are not deleted.
+    setState(() => _roomGifts = const []);
+  }
+
+  void _openToolsSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => RoomToolsSheet(
+        room: widget.room,
+        isArabic: widget.isArabic,
+        isOwner: _iAmRoomOwner,
+        isHost: _iAmHost,
+        moderatorCount: _moderatorCount,
+        isLocked: _roomLocked,
+        onToggleLock: _toggleRoomLock,
+        onClearChat: _clearChat,
+      ),
+    );
   }
 
   Future<void> _toggleRoomLock() async {
@@ -1978,6 +2013,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                     onToggleMic: _toggleMic,
                     onLeaveRoom: _leaveRoom,
                     onGiftTap: _openGiftSheet,
+                    onMoreTap: _openToolsSheet,
                   ),
                 ],
               ),
@@ -4534,6 +4570,7 @@ class _LiveBottomActionBar extends StatelessWidget {
     required this.onToggleMic,
     required this.onLeaveRoom,
     required this.onGiftTap,
+    required this.onMoreTap,
   });
 
   final bool isArabic;
@@ -4544,6 +4581,7 @@ class _LiveBottomActionBar extends StatelessWidget {
   final VoidCallback onToggleMic;
   final VoidCallback onLeaveRoom;
   final VoidCallback onGiftTap;
+  final VoidCallback onMoreTap;
 
   @override
   Widget build(BuildContext context) {
@@ -4571,6 +4609,15 @@ class _LiveBottomActionBar extends StatelessWidget {
             busy: false,
             disabled: false,
             onPressed: onGiftTap,
+          ),
+          const SizedBox(width: 8),
+          _LiveActionButton(
+            icon: Icons.more_horiz_rounded,
+            label: isArabic ? '\u0623\u062f\u0648\u0627\u062a' : 'More',
+            highlighted: false,
+            busy: false,
+            disabled: false,
+            onPressed: onMoreTap,
           ),
           if (isOnMic) ...[
             const SizedBox(width: 8),

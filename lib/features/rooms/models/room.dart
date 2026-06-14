@@ -11,6 +11,7 @@ class Room {
     required this.createdAt,
     this.description,
     this.language = 'ar',
+    this.coverUrl,
   });
 
   final String id;
@@ -24,6 +25,7 @@ class Room {
   final bool isLocked;
   final bool isClosed;
   final DateTime createdAt;
+  final String? coverUrl;
 
   factory Room.fromJson(Map<String, dynamic> json) {
     return Room(
@@ -38,6 +40,7 @@ class Room {
       isLocked: json['is_locked'] as bool? ?? false,
       isClosed: json['is_closed'] as bool? ?? false,
       createdAt: DateTime.parse(json['created_at'].toString()),
+      coverUrl: json['cover_url']?.toString(),
     );
   }
 }
