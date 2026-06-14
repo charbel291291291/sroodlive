@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/utils/vip_visuals.dart';
 import '../../../shared/widgets/vip_framed_avatar.dart';
+import '../../vip/screens/vip_settings_screen.dart';
 import '../services/gamification_service.dart';
 
 class VipCenterScreen extends StatefulWidget {
@@ -119,6 +120,11 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
           _CurrentStatusCard(
             vipLevel: widget.currentVipLevel,
             expiresAt: widget.vipExpiresAt,
+            isArabic: widget.isArabic,
+          ),
+          const SizedBox(height: 12),
+          _VipSettingsButton(
+            vipLevel: widget.currentVipLevel,
             isArabic: widget.isArabic,
           ),
           const SizedBox(height: 20),
@@ -825,6 +831,56 @@ class _ContactSupportButton extends StatelessWidget {
             size: 22,
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// VIP Settings shortcut button
+// ---------------------------------------------------------------------------
+
+class _VipSettingsButton extends StatelessWidget {
+  const _VipSettingsButton({required this.vipLevel, required this.isArabic});
+
+  final int vipLevel;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => VipSettingsScreen(
+            isArabic: isArabic,
+            effectiveVipLevel: vipLevel,
+          ),
+        ),
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: const Color(0xFF0D1A2A),
+          border: Border.all(color: const Color(0xFF1A8CB0).withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+          children: [
+            const Icon(Icons.settings_rounded, color: Color(0xFF5DDCFF), size: 20),
+            const SizedBox(width: 12),
+            Text(
+              isArabic ? 'إعدادات VIP' : 'VIP Setting',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+              ),
+            ),
+            const Spacer(),
+            const Icon(Icons.chevron_right_rounded, color: Colors.white54, size: 20),
+          ],
+        ),
       ),
     );
   }

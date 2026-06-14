@@ -73,7 +73,8 @@ class VipVisuals {
 VipVisuals? getVipVisualStyle(int? vipLevel) {
   final raw = vipLevel ?? 0;
   if (raw <= 0) return null;
-  final level = raw.clamp(1, 10);
+  // Level > 9 treated as VIP9 (VIP10 removed from app).
+  final level = raw.clamp(1, 9);
 
   final spec = switch (level) {
     // 1 - Silver: clean, light, simple premium.
@@ -157,18 +158,13 @@ VipVisuals? getVipVisualStyle(int? vipLevel) {
       opacity: 0.38,
       weight: FontWeight.w900,
     ),
-    // 10 - Royal crown, strongest gold glow, highest status.
+    // 9 is max — fallback matches level 9.
     _ => const _Spec(
-      name: Color(0xFFFFE9A8),
-      gradient: [
-        Color(0xFFFFF3C4),
-        Color(0xFFFFD24A),
-        Color(0xFFFF4FD8),
-        Color(0xFF7D2BFF),
-      ],
-      glow: Color(0xFFFFD24A),
-      accent: Color(0xFFFFD978),
-      opacity: 0.42,
+      name: Color(0xFFFFC857),
+      gradient: [Color(0xFFFFE08A), Color(0xFFFF4A2A), Color(0xFFE0002B)],
+      glow: Color(0xFFFF5A2A),
+      accent: Color(0xFFFF7A3A),
+      opacity: 0.38,
       weight: FontWeight.w900,
     ),
   };

@@ -19,6 +19,7 @@ import '../services/livekit_room_service.dart';
 import '../services/rooms_service.dart';
 import '../services/room_management_service.dart';
 import '../utils/vip_room_features.dart';
+import '../../vip/services/vip_privilege_service.dart';
 import '../widgets/room_tools_sheet.dart';
 import 'room_owner_management_screen.dart';
 
@@ -1254,6 +1255,26 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         ),
       );
       return;
+    }
+
+    // Check Anti-Kick VIP privilege setting.
+    if (!_iAmRoomOwner && !_iAmSuperAdmin) {
+      final kickBlocked = await const VipPrivilegeService().isKickBlocked(
+        targetUserId: member.userId,
+        actorIsRoomOwner: _iAmRoomOwner,
+        actorIsSuperAdmin: _iAmSuperAdmin,
+      );
+      if (!mounted) return;
+      if (kickBlocked) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+            widget.isArabic
+                ? 'هذا المستخدم VIP محمي من الطرد'
+                : 'This VIP user is protected from kick.',
+          ),
+        ));
+        return;
+      }
     }
 
     final confirmed = await _confirmVipKick(member);

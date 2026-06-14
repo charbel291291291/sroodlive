@@ -7,7 +7,9 @@ import 'package:flutter/material.dart';
 
 /// Returns the asset path for the PNG frame that matches [level] (1-10).
 /// Returns `null` for level 0 or any out-of-range value.
-String? vipFrameAssetPath(int level) => switch (level) {
+/// Returns the asset path for the VIP PNG frame matching [level] (1–9).
+/// Returns `null` for level 0 or out-of-range. VIP10 is not supported.
+String? vipFrameAssetPath(int level) => switch (level.clamp(0, 9)) {
   1 => 'assets/images/vip_frames/11.png',
   2 => 'assets/images/vip_frames/2.png',
   3 => 'assets/images/vip_frames/3.png',
@@ -17,7 +19,6 @@ String? vipFrameAssetPath(int level) => switch (level) {
   7 => 'assets/images/vip_frames/7.png',
   8 => 'assets/images/vip_frames/88.png',
   9 => 'assets/images/vip_frames/99.png',
-  10 => 'assets/images/vip_frames/100.png',
   _ => null,
 };
 
@@ -57,7 +58,7 @@ class VipFramedAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final level = (vipLevel ?? 0).clamp(0, 10);
+    final level = (vipLevel ?? 0).clamp(0, 9);
     final framePath = level > 0 ? vipFrameAssetPath(level) : null;
     final innerSize = size * innerAvatarScale.clamp(0.4, 1.0);
     final url = imageUrl?.trim();

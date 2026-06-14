@@ -1,7 +1,10 @@
 import '../../../core/supabase/supabase_service.dart';
+import '../../vip/services/vip_privilege_service.dart';
 
 class FollowService {
   const FollowService();
+
+  static const _vipSvc = VipPrivilegeService();
 
   Future<bool> isFollowing(String targetUserId) async {
     final client = SupabaseService.requiredClient;
@@ -35,6 +38,12 @@ class FollowService {
 
     if (user.id == targetUserId) {
       throw StateError('Cannot follow yourself.');
+    }
+
+    // Respect "Not being Followed" VIP privilege.
+    final blocked = await _vipSvc.isFollowBlocked(targetUserId);
+    if (blocked) {
+      throw StateError('follow_blocked_by_vip');
     }
 
     await client.from('user_follows').upsert({
