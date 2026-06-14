@@ -57,6 +57,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   late bool _roomLocked;
   int _moderatorCount = 0;
   String? _roleBusyUserId;
+  String? _activeAnnouncementText;
 
   List<RoomMember> _members = const [];
   RealtimeChannel? _membersChannel;
@@ -176,6 +177,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     _loadMembers();
     _loadRoomGifts();
     _loadModeratorCount();
+    _loadAnnouncement();
     _startHeartbeat();
     _startMembersRefresh();
     _startGiftFeedCleanupTimer();
@@ -551,6 +553,14 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     try {
       final mods = await const RoomManagementService().getModerators(widget.room.id);
       if (mounted) setState(() => _moderatorCount = mods.length);
+    } catch (_) {}
+  }
+
+  Future<void> _loadAnnouncement() async {
+    try {
+      final ann = await const RoomManagementService()
+          .getActiveAnnouncement(widget.room.id);
+      if (mounted) setState(() => _activeAnnouncementText = ann?.message);
     } catch (_) {}
   }
 
@@ -1925,6 +1935,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                     isLocked: _roomLocked,
                     isHost: _iAmHost,
                     isArabic: widget.isArabic,
+                    announcement: _activeAnnouncementText,
                   ),
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 220),
@@ -2038,6 +2049,7 @@ class _CompactRoomHeader extends StatelessWidget {
     required this.isLocked,
     required this.isHost,
     required this.isArabic,
+    this.announcement,
   });
 
   final Room room;
@@ -2045,96 +2057,222 @@ class _CompactRoomHeader extends StatelessWidget {
   final bool isLocked;
   final bool isHost;
   final bool isArabic;
+  final String? announcement;
 
   @override
   Widget build(BuildContext context) {
-    final textAlign = isArabic ? TextAlign.right : TextAlign.left;
-    final crossAxisAlignment = isArabic
-        ? CrossAxisAlignment.end
-        : CrossAxisAlignment.start;
+    final textDir = isArabic ? TextDirection.rtl : TextDirection.ltr;
+    final hasCover = room.coverUrl != null;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-      decoration: BoxDecoration(
-        color: const Color(0xFF12091D),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF4A3470)),
-      ),
-      child: Row(
-        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+    return Directionality(
+      textDirection: textDir,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
+          // \u2500\u2500 Main identity card \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
           Container(
-            width: 38,
-            height: 38,
+            width: double.infinity,
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              color: const Color(0xFFF0C15A).withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFF4A3470).withValues(alpha: 0.7),
+              ),
             ),
-            child: const Icon(
-              Icons.mic_rounded,
-              color: Color(0xFFF0C15A),
-              size: 21,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: crossAxisAlignment,
-              mainAxisSize: MainAxisSize.min,
+            child: Stack(
               children: [
-                Text(
-                  room.name,
-                  textAlign: textAlign,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.2,
+                // Background (cover or gradient)
+                if (hasCover)
+                  Positioned.fill(
+                    child: Image.network(
+                      room.coverUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (ctx, err, stack) => const _RoomDefaultBg(),
+                    ),
+                  )
+                else
+                  const Positioned.fill(child: _RoomDefaultBg()),
+
+                // Dark overlay for readability
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: hasCover ? 0.45 : 0.0),
+                          Colors.black.withValues(alpha: hasCover ? 0.75 : 0.0),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  room.description?.isNotEmpty == true
-                      ? room.description!
-                      : (isArabic
-                            ? '\u0644\u0627 \u064a\u0648\u062c\u062f \u0648\u0635\u0641'
-                            : 'No description'),
-                  textAlign: textAlign,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFFCFC6DE),
-                    fontWeight: FontWeight.w500,
+
+                // Content row
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                  child: Row(
+                    children: [
+                      // Room icon / avatar
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0C15A).withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: const Color(0xFFF0C15A)
+                                .withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.mic_rounded,
+                          color: Color(0xFFF0C15A),
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+
+                      // Name + description
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              room.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                shadows: hasCover
+                                    ? [
+                                        const Shadow(
+                                          blurRadius: 6,
+                                          color: Colors.black54,
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                            ),
+                            if (room.description?.isNotEmpty == true) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                room.description!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: hasCover
+                                      ? Colors.white.withValues(alpha: 0.8)
+                                      : const Color(0xFFCFC6DE),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(width: 8),
+
+                      // Status pills column
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _MiniRoomStatusPill(
+                            icon: Icons.event_seat_rounded,
+                            label: '$activeSpeakerCount/${room.maxSeats}',
+                          ),
+                          const SizedBox(height: 4),
+                          _MiniRoomStatusPill(
+                            icon: isLocked
+                                ? Icons.lock_rounded
+                                : Icons.lock_open_rounded,
+                            label: isArabic
+                                ? (isLocked ? '\u0645\u0642\u0641\u0644\u0629' : '\u0645\u0641\u062a\u0648\u062d\u0629')
+                                : (isLocked ? 'Locked' : 'Open'),
+                          ),
+                          if (isHost) ...[
+                            const SizedBox(height: 4),
+                            _MiniRoomStatusPill(
+                              icon: Icons.admin_panel_settings_rounded,
+                              label: isArabic ? '\u0645\u0636\u064a\u0641' : 'Host',
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          _MiniRoomStatusPill(
-            icon: Icons.event_seat_rounded,
-            label: '$activeSpeakerCount/${room.maxSeats}',
-          ),
-          const SizedBox(width: 6),
-          _MiniRoomStatusPill(
-            icon: isLocked ? Icons.lock_rounded : Icons.lock_open_rounded,
-            label: isArabic
-                ? (isLocked
-                      ? '\u0645\u0642\u0641\u0644\u0629'
-                      : '\u0645\u0641\u062a\u0648\u062d\u0629')
-                : (isLocked ? 'Locked' : 'Open'),
-          ),
-          if (isHost) ...[
-            const SizedBox(width: 6),
-            _MiniRoomStatusPill(
-              icon: Icons.admin_panel_settings_rounded,
-              label: isArabic ? '\u0645\u0636\u064a\u0641' : 'Host',
+
+          // \u2500\u2500 Announcement strip \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+          if (announcement != null && announcement!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E0E38),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: const Color(0xFF8B26D9).withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.campaign_rounded,
+                      color: Color(0xFFF0C15A),
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        announcement!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontWeight: FontWeight.w500,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ],
         ],
+      ),
+    );
+  }
+}
+
+/// Premium gradient fallback when there's no room cover image.
+class _RoomDefaultBg extends StatelessWidget {
+  const _RoomDefaultBg();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1E0A3C), Color(0xFF12091D)],
+        ),
       ),
     );
   }

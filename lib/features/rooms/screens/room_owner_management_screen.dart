@@ -162,17 +162,99 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
 
   // ── Actions ──────────────────────────────────────────────────────────────
 
-  Future<void> _toggleLock() async {
-    try {
-      await _roomSvc.setRoomLocked(roomId: _roomId, isLocked: !_isLocked);
-      setState(() => _isLocked = !_isLocked);
-      _snack(
-        _isLocked
-            ? _t('تم قفل الغرفة', 'Room locked')
-            : _t('تم فتح الغرفة', 'Room unlocked'),
+  /// Prompts for a password and returns it, or null if cancelled / empty.
+  Future<String?> _askForPassword() async {
+    final ctrl = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A0D33),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          _t('تعيين كلمة مرور للغرفة', 'Set room password'),
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+        ),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          obscureText: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: _t('3 أحرف على الأقل', 'Minimum 3 characters'),
+            hintStyle: const TextStyle(color: Color(0xFF7A6A94)),
+            filled: true,
+            fillColor: Colors.white.withValues(alpha: 0.07),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            prefixIcon: const Icon(Icons.lock_rounded, color: Color(0xFF8B26D9)),
+          ),
+          onSubmitted: (_) => Navigator.of(ctx).pop(ctrl.text.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(_t('إلغاء', 'Cancel'),
+                style: const TextStyle(color: Color(0xFF9E8AB8))),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFF8B26D9)),
+            onPressed: () {
+              if (ctrl.text.trim().length < 3) return;
+              Navigator.of(ctx).pop(ctrl.text.trim());
+            },
+            child: Text(_t('قفل', 'Lock')),
+          ),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    if (result == null || result.trim().length < 3) return null;
+    return result.trim();
+  }
+
+  String _friendlyError(dynamic e) {
+    final s = e.toString();
+    if (e is RoomPasswordRequiredException || s.contains('room_password_required')) {
+      return _t(
+        'يرجى إدخال كلمة مرور لقفل الغرفة',
+        'Please set a password to lock the room',
       );
+    }
+    if (s.contains('wrong_room_password')) {
+      return _t('كلمة المرور غير صحيحة', 'Incorrect room password');
+    }
+    if (s.contains('locked_room')) {
+      return _t('الغرفة مقفلة', 'Room is locked');
+    }
+    if (s.contains('closed_room')) {
+      return _t('الغرفة مغلقة', 'Room is closed');
+    }
+    return _t('حدث خطأ، يرجى المحاولة مجدداً', 'Something went wrong, please try again');
+  }
+
+  Future<void> _toggleLock() async {
+    final enabling = !_isLocked;
+
+    String? password;
+    if (enabling) {
+      password = await _askForPassword();
+      if (password == null) return; // user cancelled
+    }
+
+    try {
+      await _roomSvc.setRoomLocked(
+        roomId: _roomId,
+        isLocked: enabling,
+        password: password,
+      );
+      setState(() => _isLocked = enabling);
+      _snack(enabling
+          ? _t('تم قفل الغرفة', 'Room locked')
+          : _t('تم فتح الغرفة', 'Room unlocked'));
     } catch (e) {
-      _snack('${_t("خطأ", "Error")}: $e', error: true);
+      _snack(_friendlyError(e), error: true);
     }
   }
 
@@ -186,7 +268,7 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
       );
       _snack(_t('تم الحفظ', 'Saved'));
     } catch (e) {
-      _snack('${_t("خطأ", "Error")}: $e', error: true);
+      _snack(_friendlyError(e), error: true);
     } finally {
       if (mounted) setState(() => _savingMeta = false);
     }
@@ -198,7 +280,7 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
       await _loadMembers();
       if (mounted) setState(() {});
     } catch (e) {
-      _snack('${_t("خطأ", "Error")}: $e', error: true);
+      _snack(_friendlyError(e), error: true);
     }
   }
 
@@ -209,7 +291,7 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
       if (mounted) setState(() {});
       _snack(_t('تم الطرد', 'Member removed'));
     } catch (e) {
-      _snack('${_t("خطأ", "Error")}: $e', error: true);
+      _snack(_friendlyError(e), error: true);
     }
   }
 
@@ -230,7 +312,7 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
       if (mounted) setState(() {});
       _snack(_t('تم حظر المستخدم', 'User banned'));
     } catch (e) {
-      _snack('${_t("خطأ", "Error")}: $e', error: true);
+      _snack(_friendlyError(e), error: true);
     }
   }
 
@@ -241,7 +323,7 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
       if (mounted) setState(() {});
       _snack(_t('تم رفع الحظر', 'Ban removed'));
     } catch (e) {
-      _snack('${_t("خطأ", "Error")}: $e', error: true);
+      _snack(_friendlyError(e), error: true);
     }
   }
 
@@ -252,7 +334,7 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
       if (mounted) setState(() {});
       _snack(_t('تم تعيين مشرف', 'Moderator added'));
     } catch (e) {
-      _snack('${_t("خطأ", "Error")}: $e', error: true);
+      _snack(_friendlyError(e), error: true);
     }
   }
 
@@ -263,7 +345,7 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
       if (mounted) setState(() {});
       _snack(_t('تم إزالة المشرف', 'Moderator removed'));
     } catch (e) {
-      _snack('${_t("خطأ", "Error")}: $e', error: true);
+      _snack(_friendlyError(e), error: true);
     }
   }
 
@@ -277,7 +359,7 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
       if (mounted) setState(() {});
       _snack(_t('تم نشر الإعلان', 'Announcement published'));
     } catch (e) {
-      _snack('${_t("خطأ", "Error")}: $e', error: true);
+      _snack(_friendlyError(e), error: true);
     } finally {
       if (mounted) setState(() => _savingAnnouncement = false);
     }
@@ -291,7 +373,7 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
       if (mounted) setState(() {});
       _snack(_t('تم حذف الإعلان', 'Announcement cleared'));
     } catch (e) {
-      _snack('${_t("خطأ", "Error")}: $e', error: true);
+      _snack(_friendlyError(e), error: true);
     }
   }
 
@@ -394,7 +476,7 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
       await _loadSchedules();
       if (mounted) setState(() {});
     } catch (e) {
-      _snack('${_t("خطأ", "Error")}: $e', error: true);
+      _snack(_friendlyError(e), error: true);
     }
   }
 
@@ -404,18 +486,43 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
       await _loadSchedules();
       if (mounted) setState(() {});
     } catch (e) {
-      _snack('${_t("خطأ", "Error")}: $e', error: true);
+      _snack(_friendlyError(e), error: true);
     }
   }
 
   void _snack(String msg, {bool error = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: error ? Colors.red[800] : const Color(0xFF2A1745),
-      ),
-    );
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(
+                error ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
+                color: error ? const Color(0xFFFF6B7A) : const Color(0xFF6EE7B7),
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Expanded(child: Text(msg, style: const TextStyle(color: Colors.white))),
+            ],
+          ),
+          backgroundColor: error
+              ? const Color(0xFF2A0F1A)
+              : const Color(0xFF0F2A1E),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(
+              color: error
+                  ? const Color(0xFFE63946).withValues(alpha: 0.5)
+                  : const Color(0xFF10B981).withValues(alpha: 0.5),
+            ),
+          ),
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          duration: const Duration(seconds: 4),
+        ),
+      );
   }
 
   // ── Build ────────────────────────────────────────────────────────────────
@@ -480,28 +587,44 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
         padding: const EdgeInsets.all(16),
         children: [
           _SectionHeader(label: _t('إحصائيات', 'Stats')),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
+          const SizedBox(height: 10),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 2.4,
             children: [
-              _StatChip(
+              _StatCard(
+                icon: Icons.headphones_rounded,
                 label: _t('مستمعون', 'Listeners'),
                 value: '${_stats['listeners'] ?? 0}',
+                iconColor: const Color(0xFF7B8CDE),
               ),
-              _StatChip(
+              _StatCard(
+                icon: Icons.mic_rounded,
                 label: _t('متحدثون', 'Speakers'),
                 value: '${_stats['speakers'] ?? 0}',
+                iconColor: const Color(0xFF4FC3F7),
               ),
-              _StatChip(
+              _StatCard(
+                icon: Icons.card_giftcard_rounded,
                 label: _t('الهدايا', 'Gifts'),
                 value: _formatCoins(_stats['total_gift_coins'] ?? 0),
-                gold: true,
+                iconColor: const Color(0xFFF0C15A),
+                valueColor: const Color(0xFFF0C15A),
               ),
-              _StatChip(
+              _StatCard(
+                icon: Icons.block_rounded,
                 label: _t('محظورون', 'Banned'),
                 value: '${_stats['ban_count'] ?? 0}',
-                red: (_stats['ban_count'] ?? 0) > 0,
+                iconColor: (_stats['ban_count'] ?? 0) > 0
+                    ? const Color(0xFFE63946)
+                    : const Color(0xFF9E8AB8),
+                valueColor: (_stats['ban_count'] ?? 0) > 0
+                    ? const Color(0xFFE63946)
+                    : null,
               ),
             ],
           ),
@@ -509,27 +632,66 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
           _SectionHeader(label: _t('قفل الغرفة', 'Room Lock')),
           const SizedBox(height: 8),
           _GlassCard(
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  _isLocked ? Icons.lock_rounded : Icons.lock_open_rounded,
-                  color: _isLocked
-                      ? const Color(0xFFF0C15A)
-                      : const Color(0xFF9E8AB8),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    _isLocked
-                        ? _t('الغرفة مقفلة', 'Room is locked')
-                        : _t('الغرفة مفتوحة', 'Room is open'),
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                  ),
-                ),
-                Switch(
-                  value: _isLocked,
-                  activeThumbColor: const Color(0xFF8B26D9),
-                  onChanged: (_) => _toggleLock(),
+                Row(
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: _isLocked
+                            ? const Color(0xFFF0C15A).withValues(alpha: 0.16)
+                            : Colors.white.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        _isLocked ? Icons.lock_rounded : Icons.lock_open_rounded,
+                        color: _isLocked
+                            ? const Color(0xFFF0C15A)
+                            : const Color(0xFF9E8AB8),
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _isLocked
+                                ? _t('الغرفة مقفلة', 'Room is locked')
+                                : _t('الغرفة مفتوحة', 'Room is open'),
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _isLocked
+                                ? _t(
+                                    'يحتاج الانضمام إلى كلمة مرور',
+                                    'Joining requires a password',
+                                  )
+                                : _t(
+                                    'يمكن لأي شخص الانضمام',
+                                    'Anyone can join freely',
+                                  ),
+                            style: const TextStyle(
+                                color: Color(0xFF9E8AB8), fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: _isLocked,
+                      activeThumbColor: const Color(0xFF8B26D9),
+                      onChanged: (_) => _toggleLock(),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1204,47 +1366,61 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _StatChip extends StatelessWidget {
-  const _StatChip({
+class _StatCard extends StatelessWidget {
+  const _StatCard({
+    required this.icon,
     required this.label,
     required this.value,
-    this.gold = false,
-    this.red = false,
+    required this.iconColor,
+    this.valueColor,
   });
 
+  final IconData icon;
   final String label;
   final String value;
-  final bool gold;
-  final bool red;
+  final Color iconColor;
+  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: const Color(0xFF1A0E2B),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFF2A1745)),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Row(
         children: [
-          Text(
-            value,
-            style: TextStyle(
-              color: red
-                  ? Colors.red[400]
-                  : gold
-                  ? const Color(0xFFF0C15A)
-                  : Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(10),
             ),
+            child: Icon(icon, color: iconColor, size: 18),
           ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(color: Color(0xFF9E8AB8), fontSize: 11),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: valueColor ?? Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(
+                  label,
+                  style: const TextStyle(color: Color(0xFF9E8AB8), fontSize: 11),
+                ),
+              ],
+            ),
           ),
         ],
       ),
