@@ -6,6 +6,7 @@ import '../../games/screens/crash_game_screen.dart';
 import '../../games/screens/gold_ladder_quiz_screen.dart';
 import '../../games/screens/hungry_cat_webview_screen.dart';
 import '../../games/screens/spin_wheel_screen.dart';
+import '../../games/screens/srood_loto_screen.dart';
 import '../services/room_management_service.dart';
 import '../models/room_ban.dart';
 import 'room_settings_sheet.dart';
@@ -1323,6 +1324,13 @@ class _GameCenterSheet extends StatelessWidget {
         labelEn: 'Gold Ladder',
         accent: const Color(0xFFFFD978),
         screen: GoldLadderQuizScreen(isArabic: isArabic),
+      ),
+      _GameEntry(
+        icon: Icons.grain_rounded,
+        labelAr: 'سرود لوتو',
+        labelEn: 'Srood Loto',
+        accent: const Color(0xFFF0C15A),
+        screen: SroodLotoScreen(isArabic: isArabic),
       ),
     ];
 

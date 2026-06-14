@@ -10,6 +10,7 @@ import '../services/admin_access_service.dart';
 import '../services/admin_service.dart';
 import '../../games/screens/hungry_cat_admin_panel.dart';
 import '../../games/screens/rocket_crash_admin_panel.dart';
+import '../../games/screens/srood_loto_admin_panel.dart';
 import 'owner_game_control_screen.dart';
 import 'vip_visual_preview_screen.dart';
 
@@ -1705,7 +1706,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         SizedBox(
           height: panelHeight,
           child: DefaultTabController(
-            length: 2,
+            length: 3,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1719,9 +1720,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     labelColor: Color(0xFFF0C15A),
                     unselectedLabelColor: Color(0xFF64748B),
                     indicatorColor: Color(0xFFF0C15A),
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.start,
                     tabs: [
                       Tab(icon: Text('🐱'), text: 'Hungry Cat'),
                       Tab(icon: Text('🚀'), text: 'Rocket Crash'),
+                      Tab(icon: Text('🎰'), text: 'Srood Loto'),
                     ],
                   ),
                 ),
@@ -1731,6 +1735,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     children: const [
                       HungryCatAdminPanel(),
                       RocketCrashAdminPanel(),
+                      SroodLotoAdminPanel(),
                     ],
                   ),
                 ),
