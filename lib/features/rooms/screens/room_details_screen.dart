@@ -1898,18 +1898,31 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
     return Scaffold(
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.black,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        foregroundColor: Colors.white,
         title: Text(
           widget.isArabic ? '\u0627\u0644\u063a\u0631\u0641\u0629' : 'Room',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            shadows: [Shadow(blurRadius: 8, color: Colors.black54)],
+          ),
         ),
         actions: [
           if (_iAmRoomOwner)
             IconButton(
               icon: const Icon(Icons.manage_accounts_rounded),
-              tooltip: widget.isArabic
-                  ? '\u0625\u062f\u0627\u0631\u0629 \u0627\u0644\u063a\u0631\u0641\u0629'
-                  : 'Manage Room',
+              tooltip: widget.isArabic ? '\u0625\u062f\u0627\u0631\u0629 \u0627\u0644\u063a\u0631\u0641\u0629' : 'Manage Room',
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.black.withValues(alpha: 0.35),
+              ),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) => RoomOwnerManagementScreen(
@@ -1919,103 +1932,99 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                 ),
               ),
             ),
+          const SizedBox(width: 8),
         ],
       ),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            RefreshIndicator(
-              onRefresh: () => _loadMembers(),
-              child: ListView(
-                padding: const EdgeInsets.all(24),
-                children: [
-                  _CompactRoomHeader(
-                    room: widget.room,
-                    activeSpeakerCount: _activeSpeakerCount,
-                    isLocked: _roomLocked,
-                    isHost: _iAmHost,
-                    isArabic: widget.isArabic,
-                    announcement: _activeAnnouncementText,
-                  ),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    child: _latestGiftBanner == null
-                        ? const SizedBox.shrink()
-                        : Padding(
-                            key: ValueKey(_latestGiftBanner!.id),
-                            padding: const EdgeInsets.only(top: 12),
-                            child: _GiftRoomBanner(
-                              gift: _latestGiftBanner!,
-                              isArabic: widget.isArabic,
-                              onProfileTap: _openUserProfileSheet,
-                            ),
-                          ),
-                  ),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    child:
-                        _latestGiftBanner != null ||
-                            _latestVipEntryMember == null
-                        ? const SizedBox.shrink()
-                        : Padding(
-                            key: ValueKey(_latestVipEntryMember!.userId),
-                            padding: const EdgeInsets.only(top: 12),
-                            child: _VipEntryRoomBanner(
-                              member: _latestVipEntryMember!,
-                              isArabic: widget.isArabic,
-                            ),
-                          ),
-                  ),
-                  const SizedBox(height: 18),
-                  _LiveRoomStage(
-                    members: _members,
-                    maxSeats: widget.room.maxSeats,
-                    isArabic: widget.isArabic,
-                    activeSpeakerCount: _activeSpeakerCount,
-                    isHost: _iAmHost,
-                    onEmptySeatTap: _pickListenerForSeat,
-                    onOccupiedSeatTap: _handleOccupiedSeatTap,
-                    onOccupiedSeatLongPress: _showMemberSeatActions,
-                    onProfileTap: _openUserProfileSheet,
-                    memberCount: _members.length,
-                    onParticipantsTap: _showParticipantsSheet,
-                    supportByUserId: _giftSupportByUserId,
-                    selectedMoveUserId: _selectedMicMoveMember?.userId,
-                  ),
-                  if (_iAmHost) ...[
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: _lockBusy ? null : _toggleRoomLock,
-                      icon: _lockBusy
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Icon(
-                              _roomLocked
-                                  ? Icons.lock_open_rounded
-                                  : Icons.lock_rounded,
-                            ),
-                      label: Text(
-                        widget.isArabic
-                            ? (_roomLocked
-                                  ? '\u0641\u062a\u062d \u0627\u0644\u063a\u0631\u0641\u0629'
-                                  : '\u0642\u0641\u0644 \u0627\u0644\u063a\u0631\u0641\u0629')
-                            : (_roomLocked ? 'Unlock room' : 'Lock room'),
+      body: Stack(
+        children: [
+          // \u2500\u2500 1. Full-screen immersive background \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+          _FullRoomBackground(room: widget.room),
+
+          // \u2500\u2500 2. Scrollable content + pinned bottom bar \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+          SafeArea(
+            bottom: false,
+            child: Stack(
+              children: [
+                RefreshIndicator(
+                  onRefresh: () => _loadMembers(),
+                  color: const Color(0xFF8B26D9),
+                  backgroundColor: const Color(0xFF1A0D33),
+                  child: ListView(
+                    // Extra bottom padding for the pinned bar
+                    padding: EdgeInsets.fromLTRB(
+                        14, 0, 14, 100 + bottomPad),
+                    children: [
+                      _CompactRoomHeader(
+                        room: widget.room,
+                        activeSpeakerCount: _activeSpeakerCount,
+                        isLocked: _roomLocked,
+                        isHost: _iAmHost,
+                        isArabic: widget.isArabic,
+                        announcement: _activeAnnouncementText,
                       ),
-                    ),
-                  ],
-                  const SizedBox(height: 18),
-                  _LiveChatPanel(
-                    roomName: widget.room.name,
-                    isArabic: widget.isArabic,
-                    gifts: _roomGifts,
-                    loadingGifts: _loadingGifts,
-                    onProfileTap: _openUserProfileSheet,
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        child: _latestGiftBanner == null
+                            ? const SizedBox.shrink()
+                            : Padding(
+                                key: ValueKey(_latestGiftBanner!.id),
+                                padding: const EdgeInsets.only(top: 10),
+                                child: _GiftRoomBanner(
+                                  gift: _latestGiftBanner!,
+                                  isArabic: widget.isArabic,
+                                  onProfileTap: _openUserProfileSheet,
+                                ),
+                              ),
+                      ),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        child: _latestGiftBanner != null ||
+                                _latestVipEntryMember == null
+                            ? const SizedBox.shrink()
+                            : Padding(
+                                key: ValueKey(
+                                    _latestVipEntryMember!.userId),
+                                padding: const EdgeInsets.only(top: 10),
+                                child: _VipEntryRoomBanner(
+                                  member: _latestVipEntryMember!,
+                                  isArabic: widget.isArabic,
+                                ),
+                              ),
+                      ),
+                      const SizedBox(height: 14),
+                      _LiveRoomStage(
+                        members: _members,
+                        maxSeats: widget.room.maxSeats,
+                        isArabic: widget.isArabic,
+                        activeSpeakerCount: _activeSpeakerCount,
+                        isHost: _iAmHost,
+                        onEmptySeatTap: _pickListenerForSeat,
+                        onOccupiedSeatTap: _handleOccupiedSeatTap,
+                        onOccupiedSeatLongPress: _showMemberSeatActions,
+                        onProfileTap: _openUserProfileSheet,
+                        memberCount: _members.length,
+                        onParticipantsTap: _showParticipantsSheet,
+                        supportByUserId: _giftSupportByUserId,
+                        selectedMoveUserId: _selectedMicMoveMember?.userId,
+                      ),
+                      const SizedBox(height: 14),
+                      _LiveChatPanel(
+                        roomName: widget.room.name,
+                        isArabic: widget.isArabic,
+                        gifts: _roomGifts,
+                        loadingGifts: _loadingGifts,
+                        onProfileTap: _openUserProfileSheet,
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 18),
-                  _LiveBottomActionBar(
+                ),
+
+                // \u2500\u2500 Pinned bottom action bar \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: _LiveBottomActionBar(
                     isArabic: widget.isArabic,
                     connectingAudio: _connectingAudio,
                     micEnabled: _micEnabled,
@@ -2025,18 +2034,24 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                     onLeaveRoom: _leaveRoom,
                     onGiftTap: _openGiftSheet,
                     onMoreTap: _openToolsSheet,
+                    bottomPad: bottomPad,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            _GiftEventOverlay(events: _giftEvents, isArabic: widget.isArabic),
-            if (_activeLuxuryGiftVideo != null)
-              _LuxuryGiftVideoOverlay(
-                playback: _activeLuxuryGiftVideo!,
-                onDone: _clearLuxuryGiftVideo,
-              ),
-          ],
-        ),
+          ),
+
+          // \u2500\u2500 3. Gift floating event overlay \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+          _GiftEventOverlay(
+              events: _giftEvents, isArabic: widget.isArabic),
+
+          // \u2500\u2500 4. Full-screen luxury gift video \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+          if (_activeLuxuryGiftVideo != null)
+            _LuxuryGiftVideoOverlay(
+              playback: _activeLuxuryGiftVideo!,
+              onDone: _clearLuxuryGiftVideo,
+            ),
+        ],
       ),
     );
   }
@@ -2260,7 +2275,134 @@ class _CompactRoomHeader extends StatelessWidget {
   }
 }
 
-/// Premium gradient fallback when there's no room cover image.
+/// Full-screen immersive background for the live room.
+/// Shows cover image (if set) with a dark readability overlay,
+/// or a premium decorative gradient when no cover exists.
+class _FullRoomBackground extends StatelessWidget {
+  const _FullRoomBackground({required this.room});
+  final Room room;
+
+  @override
+  Widget build(BuildContext context) {
+    final coverUrl = room.coverUrl;
+    return SizedBox.expand(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Base image or gradient
+          if (coverUrl != null)
+            Image.network(
+              coverUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (ctx, err, stack) =>
+                  const _RoomGradientBg(),
+            )
+          else
+            const _RoomGradientBg(),
+
+          // Cinematic dark overlay — stronger at top (AppBar area) and bottom
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withValues(alpha: coverUrl != null ? 0.55 : 0.0),
+                  Colors.black.withValues(alpha: 0.60),
+                  Colors.black.withValues(alpha: 0.85),
+                ],
+                stops: const [0.0, 0.45, 1.0],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Rich purple/gold gradient used when no cover image is set.
+class _RoomGradientBg extends StatelessWidget {
+  const _RoomGradientBg();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Base deep purple gradient
+        Container(
+          decoration: const BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment(0, -0.3),
+              radius: 1.4,
+              colors: [Color(0xFF3D1260), Color(0xFF1A0633), Color(0xFF080314)],
+            ),
+          ),
+        ),
+        // Gold glow — top center
+        Positioned(
+          top: -80,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: Container(
+              width: 280,
+              height: 280,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    const Color(0xFFF0C15A).withValues(alpha: 0.12),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        // Purple glow — bottom right
+        Positioned(
+          bottom: 50,
+          right: -40,
+          child: Container(
+            width: 200,
+            height: 200,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  const Color(0xFF8B26D9).withValues(alpha: 0.22),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+        ),
+        // Blue glow — bottom left
+        Positioned(
+          bottom: 120,
+          left: -30,
+          child: Container(
+            width: 160,
+            height: 160,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  const Color(0xFF1A6FFF).withValues(alpha: 0.14),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Compact gradient fallback inside header cover preview.
 class _RoomDefaultBg extends StatelessWidget {
   const _RoomDefaultBg();
 
@@ -2271,7 +2413,7 @@ class _RoomDefaultBg extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF1E0A3C), Color(0xFF12091D)],
+          colors: [Color(0xFF2A0E50), Color(0xFF12091D)],
         ),
       ),
     );
@@ -2349,61 +2491,73 @@ class _LiveRoomStage extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.fromLTRB(14, 16, 14, 20),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF2D1247), Color(0xFF170B27), Color(0xFF0C0614)],
+        borderRadius: BorderRadius.circular(28),
+        color: Colors.black.withValues(alpha: 0.30),
+        border: Border.all(
+          color: const Color(0xFF8B26D9).withValues(alpha: 0.30),
         ),
-        border: Border.all(color: Color(0xFF6F4A9B)),
         boxShadow: [
           BoxShadow(
-            color: Color(0xFF8B26D9).withValues(alpha: 0.18),
-            blurRadius: 28,
-            offset: Offset(0, 14),
+            color: const Color(0xFF8B26D9).withValues(alpha: 0.10),
+            blurRadius: 32,
+            spreadRadius: -4,
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: crossAxisAlignment,
         children: [
+          // Stage header row
           Row(
             textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
             children: [
+              // Left: title + seat count
               Expanded(
                 child: Column(
                   crossAxisAlignment: crossAxisAlignment,
                   children: [
                     Text(
-                      isArabic
-                          ? '\u0645\u0646\u0635\u0629 \u0627\u0644\u0635\u0648\u062a'
-                          : 'Voice Stage',
+                      isArabic ? '\u0645\u0646\u0635\u0629 \u0627\u0644\u0635\u0648\u062a' : 'Voice Stage',
                       textAlign: textAlign,
                       style: const TextStyle(
-                        fontSize: 22,
+                        fontSize: 20,
                         fontWeight: FontWeight.w900,
-                        letterSpacing: -0.4,
+                        color: Colors.white,
+                        letterSpacing: -0.3,
+                        shadows: [
+                          Shadow(blurRadius: 6, color: Colors.black45),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 3),
                     Row(
                       textDirection: isArabic
                           ? TextDirection.rtl
                           : TextDirection.ltr,
                       children: [
+                        Container(
+                          width: 7,
+                          height: 7,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Color(0xFF4ADE80),
+                          ),
+                        ),
+                        const SizedBox(width: 5),
                         Flexible(
                           child: Text(
                             isArabic
-                                ? '$activeSpeakerCount/$maxSeats \u0645\u0642\u0627\u0639\u062f \u0646\u0634\u0637\u0629'
-                                : '$activeSpeakerCount/$maxSeats active seats',
+                                ? '$activeSpeakerCount/$maxSeats \u0645\u0642\u0639\u062f \u0646\u0634\u0637'
+                                : '$activeSpeakerCount/$maxSeats active',
                             textAlign: textAlign,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFFD8CFEA),
-                              fontWeight: FontWeight.w700,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.7),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
@@ -2418,9 +2572,10 @@ class _LiveRoomStage extends StatelessWidget {
                   ],
                 ),
               ),
+              // Right: animated EQ icon
               Container(
-                width: 48,
-                height: 48,
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: const LinearGradient(
@@ -2428,33 +2583,34 @@ class _LiveRoomStage extends StatelessWidget {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Color(0xFFF0C15A).withValues(alpha: 0.30),
-                      blurRadius: 18,
-                      offset: Offset(0, 8),
+                      color: const Color(0xFFF0C15A).withValues(alpha: 0.35),
+                      blurRadius: 16,
+                      spreadRadius: -2,
                     ),
                   ],
                 ),
                 child: const Icon(
                   Icons.graphic_eq_rounded,
                   color: Color(0xFF160B26),
+                  size: 22,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 20),
+          // Seat grid
           LayoutBuilder(
             builder: (context, constraints) {
-              final compactGrid = constraints.maxWidth < 360;
-
+              final compactGrid = constraints.maxWidth < 340;
               return GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: seats.length,
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 4,
-                  mainAxisSpacing: compactGrid ? 14 : 18,
-                  crossAxisSpacing: compactGrid ? 8 : 10,
-                  childAspectRatio: compactGrid ? 0.50 : 0.52,
+                  mainAxisSpacing: compactGrid ? 12 : 16,
+                  crossAxisSpacing: compactGrid ? 6 : 8,
+                  childAspectRatio: compactGrid ? 0.50 : 0.53,
                 ),
                 itemBuilder: (context, index) {
                   return _LiveSeatBubble(
@@ -3069,9 +3225,40 @@ class _LiveSeatBubble extends StatelessWidget {
         ? (isArabic ? '\u0645\u0636\u064a\u0641' : 'Host')
         : (isArabic ? '\u0645\u062a\u062d\u062f\u062b' : 'Speaker');
 
+    // Visual tokens for this seat state
+    final Color borderColor = selectedForMove
+        ? const Color(0xFF67E8A5)
+        : occupiedByHost
+        ? const Color(0xFFF0C15A)
+        : seat.isEmpty
+        ? Colors.white.withValues(alpha: 0.18)
+        : const Color(0xFF8B26D9).withValues(alpha: 0.55);
+
+    final List<BoxShadow> glowShadows = [
+      if (selectedForMove)
+        BoxShadow(
+          color: const Color(0xFF67E8A5).withValues(alpha: 0.50),
+          blurRadius: 22,
+          spreadRadius: 2,
+        )
+      else if (occupiedByHost)
+        BoxShadow(
+          color: const Color(0xFFF0C15A).withValues(alpha: 0.40),
+          blurRadius: 20,
+          spreadRadius: 1,
+        )
+      else if (!seat.isEmpty)
+        BoxShadow(
+          color: const Color(0xFF8B26D9).withValues(alpha: 0.30),
+          blurRadius: 14,
+          spreadRadius: -2,
+        ),
+    ];
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // ── Avatar circle ────────────────────────────────────────────────
         InkWell(
           customBorder: const CircleBorder(),
           onTap: canAssignSeat
@@ -3088,100 +3275,99 @@ class _LiveSeatBubble extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: seat.isEmpty
-                  ? const LinearGradient(
-                      colors: [Color(0xFF241638), Color(0xFF130A20)],
-                    )
+              color: seat.isEmpty
+                  ? Colors.white.withValues(alpha: 0.08)
                   : null,
-              border: Border.all(
-                color: selectedForMove
-                    ? const Color(0xFF67E8A5)
-                    : seat.isEmpty
-                    ? const Color(0xFF5A3A86)
-                    : Colors.transparent,
-                width: selectedForMove ? 2.4 : 0,
-              ),
-              boxShadow: selectedForMove
-                  ? [
-                      BoxShadow(
-                        color: const Color(0xFF67E8A5).withValues(alpha: 0.42),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ]
-                  : seat.isEmpty
-                  ? []
-                  : [],
+              border: Border.all(color: borderColor, width: 1.8),
+              boxShadow: glowShadows,
             ),
             child: Stack(
               fit: StackFit.expand,
               children: [
                 if (seat.isEmpty)
-                  const Icon(
-                    Icons.add_rounded,
-                    color: Color(0xFFD8CFEA),
-                    size: _micSeatIconSize,
+                  Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.add_rounded,
+                          color: Colors.white.withValues(alpha: 0.55),
+                          size: _micSeatIconSize,
+                        ),
+                      ],
+                    ),
                   )
                 else
                   Center(
                     child: SizedBox(
                       width: _micSeatOuterSize,
                       height: _micSeatOuterSize,
-                      child: Center(
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: seat.member == null
-                              ? null
-                              : () => onProfileTap(seat.member!.userId),
-                          child: AvatarWithFrame(
-                            imageUrl: seat.member?.avatarUrl,
-                            radius: _micSeatAvatarSize / 2,
-                            frameKey: seat.member?.selectedAvatarFrameKey,
-                            vipLevel: effectiveVipLevel,
-                            showVipBadge: effectiveVipLevel > 0,
-                            compact: true,
-                            fallbackIcon: seat.isMuted
-                                ? Icons.mic_off_rounded
-                                : Icons.person_rounded,
-                          ),
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: seat.member == null
+                            ? null
+                            : () => onProfileTap(seat.member!.userId),
+                        child: AvatarWithFrame(
+                          imageUrl: seat.member?.avatarUrl,
+                          radius: _micSeatAvatarSize / 2,
+                          frameKey: seat.member?.selectedAvatarFrameKey,
+                          vipLevel: effectiveVipLevel,
+                          showVipBadge: effectiveVipLevel > 0,
+                          compact: true,
+                          fallbackIcon: seat.isMuted
+                              ? Icons.mic_off_rounded
+                              : Icons.person_rounded,
                         ),
                       ),
                     ),
                   ),
+                // Muted indicator — small badge bottom-right
                 if (!seat.isEmpty && seat.isMuted)
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.black.withValues(alpha: 0.32),
-                    ),
-                    child: const Icon(
-                      Icons.mic_off_rounded,
-                      color: Colors.white,
-                      size: 24,
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFFE63946),
+                        border: Border.all(
+                          color: Colors.black,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.mic_off_rounded,
+                        color: Colors.white,
+                        size: 11,
+                      ),
                     ),
                   ),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
+        // ── Name label ───────────────────────────────────────────────────
         Text(
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w900,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
             color: seat.isEmpty
-                ? const Color(0xFF9E91B8)
+                ? Colors.white.withValues(alpha: 0.45)
                 : effectiveVipLevel > 0
                 ? VipVisualStyle.nameColor(effectiveVipLevel, context)
                 : Colors.white,
+            shadows: const [Shadow(blurRadius: 4, color: Colors.black54)],
           ),
         ),
         if (seat.supportAmount > 0) ...[
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           SizedBox(
             height: _micSeatSupportSlotHeight,
             child: Center(
@@ -3189,24 +3375,30 @@ class _LiveSeatBubble extends StatelessWidget {
             ),
           ),
         ],
+        // ── Role badge ───────────────────────────────────────────────────
         Container(
           padding: const EdgeInsets.symmetric(
             horizontal: _micSeatBadgeHorizontalPadding,
-            vertical: 3,
+            vertical: 2,
           ),
           decoration: BoxDecoration(
-            color: canAssignSeat || occupiedByHost
+            color: selectedForMove
+                ? const Color(0xFF67E8A5).withValues(alpha: 0.20)
+                : occupiedByHost
                 ? const Color(0xFFF0C15A).withValues(alpha: 0.18)
-                : selectedForMove
-                ? const Color(0xFF67E8A5).withValues(alpha: 0.18)
-                : const Color(0xFF241638),
+                : canAssignSeat
+                ? Colors.white.withValues(alpha: 0.08)
+                : const Color(0xFF8B26D9).withValues(alpha: 0.18),
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
               color: selectedForMove
-                  ? const Color(0xFF67E8A5)
+                  ? const Color(0xFF67E8A5).withValues(alpha: 0.8)
                   : occupiedByHost
-                  ? const Color(0xFFF0C15A)
-                  : const Color(0xFF5A3A86),
+                  ? const Color(0xFFF0C15A).withValues(alpha: 0.7)
+                  : canAssignSeat
+                  ? Colors.white.withValues(alpha: 0.2)
+                  : const Color(0xFF8B26D9).withValues(alpha: 0.5),
+              width: 0.8,
             ),
           ),
           child: Text(
@@ -3215,13 +3407,15 @@ class _LiveSeatBubble extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: FontWeight.w900,
               color: selectedForMove
                   ? const Color(0xFF67E8A5)
                   : occupiedByHost
                   ? const Color(0xFFF0C15A)
-                  : const Color(0xFFD8CFEA),
+                  : canAssignSeat
+                  ? Colors.white.withValues(alpha: 0.55)
+                  : Colors.white.withValues(alpha: 0.8),
             ),
           ),
         ),
@@ -3247,63 +3441,74 @@ class _LiveChatPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textAlign = isArabic ? TextAlign.right : TextAlign.left;
-    final textDirection = isArabic ? TextDirection.rtl : TextDirection.ltr;
+    final textDir = isArabic ? TextDirection.rtl : TextDirection.ltr;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF12091D),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF4A3470)),
-      ),
+    return Directionality(
+      textDirection: textDir,
       child: Column(
-        crossAxisAlignment: isArabic
-            ? CrossAxisAlignment.end
-            : CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            textDirection: textDirection,
-            children: [
-              const Icon(
-                Icons.card_giftcard_rounded,
-                color: Color(0xFFF0C15A),
-                size: 20,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  isArabic
-                      ? '\u0627\u0644\u0647\u062f\u0627\u064a\u0627'
-                      : 'Gifts',
-                  textAlign: textAlign,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 15,
+          // Section label row
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10, left: 4, right: 4),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0C15A).withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color:
+                          const Color(0xFFF0C15A).withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.card_giftcard_rounded,
+                        color: Color(0xFFF0C15A),
+                        size: 14,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        isArabic ? '\u0627\u0644\u0647\u062f\u0627\u064a\u0627' : 'Gifts',
+                        style: const TextStyle(
+                          color: Color(0xFFF0C15A),
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              if (loadingGifts)
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-            ],
+                if (loadingGifts) ...[
+                  const SizedBox(width: 10),
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 1.5, color: Color(0xFFF0C15A)),
+                  ),
+                ],
+              ],
+            ),
           ),
-          const SizedBox(height: 10),
+          // Chat bubble list
           if (gifts.isEmpty && !loadingGifts)
-            Text(
-              isArabic
-                  ? '\u0644\u0627 \u062a\u0648\u062c\u062f \u0647\u062f\u0627\u064a\u0627 \u0628\u0639\u062f'
-                  : 'No gifts yet',
-              textAlign: textAlign,
-              style: const TextStyle(
-                color: Color(0xFFD8CFEA),
-                fontWeight: FontWeight.w800,
-                fontSize: 13,
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Center(
+                child: Text(
+                  isArabic ? '\u0644\u0627 \u062a\u0648\u062c\u062f \u0647\u062f\u0627\u064a\u0627 \u0628\u0639\u062f' : 'No gifts yet',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.35),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             )
           else
@@ -3542,66 +3747,98 @@ class _GiftFeedRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _RoomAvatar(
-            avatarUrl: gift.sender?.avatarUrl,
-            frameKey: gift.sender?.selectedAvatarFrameKey,
-            vipLevel: senderVip,
-            size: 28,
-            selected: false,
-            fallbackIcon: Icons.person_rounded,
+          // Sender avatar
+          GestureDetector(
             onTap: gift.sender == null
                 ? null
                 : () => onProfileTap(gift.sender!.userId),
-          ),
-          const SizedBox(width: 6),
-          _GiftMiniImage(gift: gift.giftPreview, size: 28),
-          const SizedBox(width: 6),
-          _RoomAvatar(
-            avatarUrl: gift.receiver?.avatarUrl,
-            frameKey: gift.receiver?.selectedAvatarFrameKey,
-            vipLevel: receiverVip,
-            size: 28,
-            selected: false,
-            fallbackIcon: Icons.person_rounded,
-            onTap: gift.receiver == null
-                ? null
-                : () => onProfileTap(gift.receiver!.userId),
+            child: _RoomAvatar(
+              avatarUrl: gift.sender?.avatarUrl,
+              frameKey: gift.sender?.selectedAvatarFrameKey,
+              vipLevel: senderVip,
+              size: 32,
+              selected: false,
+              fallbackIcon: Icons.person_rounded,
+            ),
           ),
           const SizedBox(width: 8),
+          // Chat bubble
           Expanded(
-            child: Column(
-              crossAxisAlignment: isArabic
-                  ? CrossAxisAlignment.end
-                  : CrossAxisAlignment.start,
-              children: [
-                Text(
-                  text,
-                  textAlign: isArabic ? TextAlign.right : TextAlign.left,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: senderVip > 0
-                        ? VipVisualStyle.nameColor(senderVip, context)
-                        : const Color(0xFFD8CFEA),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.only(
+                  topLeft: isArabic
+                      ? const Radius.circular(14)
+                      : const Radius.circular(4),
+                  topRight: isArabic
+                      ? const Radius.circular(4)
+                      : const Radius.circular(14),
+                  bottomLeft: const Radius.circular(14),
+                  bottomRight: const Radius.circular(14),
                 ),
-                if (senderVip > 0 || receiverVip > 0) ...[
-                  const SizedBox(height: 3),
-                  Wrap(
-                    spacing: 4,
-                    runSpacing: 3,
-                    children: [
-                      if (senderVip > 0)
-                        VipBadge(vipLevel: senderVip, compact: true),
-                      if (receiverVip > 0)
-                        VipBadge(vipLevel: receiverVip, compact: true),
-                    ],
+                border: Border.all(
+                  color: senderVip > 0
+                      ? const Color(0xFFF0C15A).withValues(alpha: 0.30)
+                      : Colors.white.withValues(alpha: 0.10),
+                ),
+              ),
+              child: Row(
+                textDirection:
+                    isArabic ? TextDirection.rtl : TextDirection.ltr,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Gift image
+                  _GiftMiniImage(gift: gift.giftPreview, size: 26),
+                  const SizedBox(width: 8),
+                  // Text
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: isArabic
+                          ? CrossAxisAlignment.end
+                          : CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          text,
+                          textAlign: isArabic
+                              ? TextAlign.right
+                              : TextAlign.left,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: senderVip > 0
+                                ? VipVisualStyle.nameColor(
+                                    senderVip, context)
+                                : Colors.white.withValues(alpha: 0.9),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            height: 1.3,
+                          ),
+                        ),
+                        if (senderVip > 0 || receiverVip > 0) ...[
+                          const SizedBox(height: 4),
+                          Wrap(
+                            spacing: 4,
+                            runSpacing: 3,
+                            children: [
+                              if (senderVip > 0)
+                                VipBadge(
+                                    vipLevel: senderVip, compact: true),
+                              if (receiverVip > 0)
+                                VipBadge(
+                                    vipLevel: receiverVip, compact: true),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 ],
-              ],
+              ),
             ),
           ),
         ],
@@ -4709,6 +4946,7 @@ class _LiveBottomActionBar extends StatelessWidget {
     required this.onLeaveRoom,
     required this.onGiftTap,
     required this.onMoreTap,
+    this.bottomPad = 0,
   });
 
   final bool isArabic;
@@ -4720,63 +4958,93 @@ class _LiveBottomActionBar extends StatelessWidget {
   final VoidCallback onLeaveRoom;
   final VoidCallback onGiftTap;
   final VoidCallback onMoreTap;
+  final double bottomPad;
 
   @override
   Widget build(BuildContext context) {
-    final micLabel = micEnabled
-        ? (isArabic ? '\u0643\u062a\u0645' : 'Mute')
-        : (isArabic ? '\u0641\u062a\u062d' : 'Unmute');
-
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF241638), Color(0xFF160B26)],
+        color: Colors.black.withValues(alpha: 0.60),
+        border: Border(
+          top: BorderSide(
+            color: Colors.white.withValues(alpha: 0.08),
+          ),
         ),
-        border: Border.all(color: const Color(0xFF5A3A86)),
       ),
+      padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + bottomPad),
       child: Row(
         textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
         children: [
-          _LiveActionButton(
-            icon: Icons.card_giftcard_rounded,
-            label: isArabic ? '\u0647\u062f\u064a\u0629' : 'Gift',
-            highlighted: false,
-            busy: false,
-            disabled: false,
-            onPressed: onGiftTap,
+          // Chat input pill
+          Expanded(
+            child: GestureDetector(
+              onTap: onGiftTap, // tapping opens gift/chat sheet
+              child: Container(
+                height: 40,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.09),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.15),
+                  ),
+                ),
+                child: Row(
+                  textDirection:
+                      isArabic ? TextDirection.rtl : TextDirection.ltr,
+                  children: [
+                    Icon(
+                      Icons.chat_bubble_outline_rounded,
+                      size: 15,
+                      color: Colors.white.withValues(alpha: 0.40),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      isArabic ? '\u0623\u0647\u0644\u0627\u064b...' : 'Hi...',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.40),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
           const SizedBox(width: 8),
-          _LiveActionButton(
+          // Gift button
+          _BarIconButton(
+            icon: Icons.card_giftcard_rounded,
+            color: const Color(0xFFF0C15A),
+            onTap: onGiftTap,
+          ),
+          const SizedBox(width: 6),
+          // More button
+          _BarIconButton(
             icon: Icons.more_horiz_rounded,
-            label: isArabic ? '\u0623\u062f\u0648\u0627\u062a' : 'More',
-            highlighted: false,
-            busy: false,
-            disabled: false,
-            onPressed: onMoreTap,
+            color: Colors.white,
+            onTap: onMoreTap,
           ),
           if (isOnMic) ...[
-            const SizedBox(width: 8),
-            _LiveActionButton(
+            const SizedBox(width: 6),
+            // Mic toggle
+            _BarIconButton(
               icon: micEnabled ? Icons.mic_rounded : Icons.mic_off_rounded,
-              label: micLabel,
+              color: micEnabled
+                  ? const Color(0xFFF0C15A)
+                  : const Color(0xFFE63946),
               highlighted: true,
               busy: connectingAudio,
-              disabled: connectingAudio,
-              onPressed: onToggleMic,
+              onTap: connectingAudio ? null : onToggleMic,
             ),
           ],
-          const SizedBox(width: 8),
-          _LiveActionButton(
+          const SizedBox(width: 6),
+          // Leave button
+          _BarIconButton(
             icon: Icons.logout_rounded,
-            label: isArabic ? '\u062e\u0631\u0648\u062c' : 'Leave',
-            highlighted: false,
-            danger: true,
+            color: const Color(0xFFFF5C7A),
             busy: leaving,
-            disabled: leaving,
-            onPressed: onLeaveRoom,
+            onTap: leaving ? null : onLeaveRoom,
           ),
         ],
       ),
@@ -4784,82 +5052,59 @@ class _LiveBottomActionBar extends StatelessWidget {
   }
 }
 
-class _LiveActionButton extends StatelessWidget {
-  const _LiveActionButton({
+/// Compact circular icon button for the bottom action bar.
+class _BarIconButton extends StatelessWidget {
+  const _BarIconButton({
     required this.icon,
-    required this.label,
-    required this.highlighted,
-    required this.busy,
-    required this.disabled,
-    required this.onPressed,
-    this.danger = false,
+    required this.color,
+    required this.onTap,
+    this.highlighted = false,
+    this.busy = false,
   });
 
   final IconData icon;
-  final String label;
+  final Color color;
+  final VoidCallback? onTap;
   final bool highlighted;
   final bool busy;
-  final bool disabled;
-  final bool danger;
-  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    final color = danger
-        ? const Color(0xFFFF5C7A)
-        : highlighted
-        ? const Color(0xFFF0C15A)
-        : const Color(0xFFD8CFEA);
-
-    return Expanded(
+    return GestureDetector(
+      onTap: onTap,
       child: Opacity(
-        opacity: disabled ? 0.45 : 1,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: disabled ? null : onPressed,
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 11),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
+        opacity: onTap == null ? 0.45 : 1.0,
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: highlighted
+                ? color.withValues(alpha: 0.18)
+                : Colors.white.withValues(alpha: 0.09),
+            border: Border.all(
               color: highlighted
-                  ? const Color(0xFFF0C15A).withValues(alpha: 0.16)
-                  : const Color(0xFF12091D),
-              border: Border.all(
-                color: highlighted
-                    ? const Color(0xFFF0C15A)
-                    : const Color(0xFF4A3470),
-              ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (busy)
-                  const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                else
-                  Icon(icon, color: color, size: 21),
-                const SizedBox(height: 5),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
+                  ? color.withValues(alpha: 0.6)
+                  : Colors.white.withValues(alpha: 0.15),
+              width: 1.2,
             ),
           ),
+          child: busy
+              ? Center(
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: color),
+                  ),
+                )
+              : Icon(icon, color: color, size: 18),
         ),
       ),
     );
   }
 }
+
 
 class _SupportPill extends StatelessWidget {
   const _SupportPill({required this.amount, required this.compact});
