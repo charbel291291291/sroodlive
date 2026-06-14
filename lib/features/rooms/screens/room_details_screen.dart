@@ -3795,18 +3795,261 @@ class _LiveChatPanel extends StatelessWidget {
   }
 }
 
+// ── VIP chat frame design system ─────────────────────────────────────────────
+
+@immutable
+class _VipChatStyle {
+  const _VipChatStyle({
+    required this.bubbleBg,
+    required this.borderColor,
+    required this.borderWidth,
+    required this.glowColor,
+    required this.glowBlur,
+    required this.glowAlpha,
+    required this.avatarRingColor,
+    required this.avatarRingWidth,
+    required this.badgeBg,
+    required this.badgeFg,
+    required this.cornerRadius,
+    this.secondaryRingColor,
+    this.gradientColors,
+    this.animated = false,
+  });
+
+  final Color bubbleBg;
+  final Color borderColor;
+  final double borderWidth;
+  final Color glowColor;
+  final double glowBlur;
+  final double glowAlpha;
+  final Color avatarRingColor;
+  final double avatarRingWidth;
+  final Color badgeBg;
+  final Color badgeFg;
+  final double cornerRadius;
+  final Color? secondaryRingColor;
+  final List<Color>? gradientColors;
+  final bool animated;
+}
+
+class _VipChatTheme {
+  const _VipChatTheme._();
+
+  static _VipChatStyle resolve(int rawLevel) => switch (rawLevel.clamp(0, 9)) {
+        0 => _s0,
+        1 => _s1,
+        2 => _s2,
+        3 => _s3,
+        4 => _s4,
+        5 => _s5,
+        6 => _s6,
+        7 => _s7,
+        8 => _s8,
+        _ => _s9,
+      };
+
+  static const _s0 = _VipChatStyle(
+    bubbleBg: Color(0xFF101014),
+    borderColor: Color(0x1AFFFFFF),
+    borderWidth: 0.8,
+    glowColor: Color(0x00000000),
+    glowBlur: 0,
+    glowAlpha: 0,
+    avatarRingColor: Color(0x22FFFFFF),
+    avatarRingWidth: 0,
+    badgeBg: Color(0x22FFFFFF),
+    badgeFg: Color(0xB3FFFFFF),
+    cornerRadius: 14,
+  );
+
+  static const _s1 = _VipChatStyle(
+    bubbleBg: Color(0xFF120D04),
+    borderColor: Color(0xFFB87C36),
+    borderWidth: 1.0,
+    glowColor: Color(0xFFB87C36),
+    glowBlur: 10,
+    glowAlpha: 0.22,
+    avatarRingColor: Color(0xFFB87C36),
+    avatarRingWidth: 1.2,
+    badgeBg: Color(0x33B87C36),
+    badgeFg: Color(0xFFE8AE60),
+    cornerRadius: 14,
+  );
+
+  static const _s2 = _VipChatStyle(
+    bubbleBg: Color(0xFF140808),
+    borderColor: Color(0xFFCE6E66),
+    borderWidth: 1.2,
+    glowColor: Color(0xFFCE6E66),
+    glowBlur: 12,
+    glowAlpha: 0.26,
+    avatarRingColor: Color(0xFFCE6E66),
+    avatarRingWidth: 1.3,
+    badgeBg: Color(0x33CE6E66),
+    badgeFg: Color(0xFFFFB0A6),
+    cornerRadius: 14,
+    gradientColors: [Color(0xFF1C0C0A), Color(0xFF140808)],
+  );
+
+  static const _s3 = _VipChatStyle(
+    bubbleBg: Color(0xFF130F00),
+    borderColor: Color(0xFFCCA020),
+    borderWidth: 1.4,
+    glowColor: Color(0xFFCCA020),
+    glowBlur: 14,
+    glowAlpha: 0.30,
+    avatarRingColor: Color(0xFFCCA020),
+    avatarRingWidth: 1.4,
+    badgeBg: Color(0x3DCCA020),
+    badgeFg: Color(0xFFFFD978),
+    cornerRadius: 15,
+    gradientColors: [Color(0xFF1A1200), Color(0xFF130F00)],
+  );
+
+  static const _s4 = _VipChatStyle(
+    bubbleBg: Color(0xFF0C0516),
+    borderColor: Color(0xFF9A6ED0),
+    borderWidth: 1.5,
+    glowColor: Color(0xFF9A6ED0),
+    glowBlur: 16,
+    glowAlpha: 0.32,
+    avatarRingColor: Color(0xFF9A6ED0),
+    avatarRingWidth: 1.5,
+    badgeBg: Color(0x449A6ED0),
+    badgeFg: Color(0xFFE4B5FF),
+    cornerRadius: 15,
+    secondaryRingColor: Color(0x55CCA020),
+    gradientColors: [Color(0xFF130A22), Color(0xFF0C0516)],
+  );
+
+  static const _s5 = _VipChatStyle(
+    bubbleBg: Color(0xFF130A00),
+    borderColor: Color(0xFFE0A800),
+    borderWidth: 1.6,
+    glowColor: Color(0xFFE0A800),
+    glowBlur: 18,
+    glowAlpha: 0.38,
+    avatarRingColor: Color(0xFFE0A800),
+    avatarRingWidth: 1.8,
+    badgeBg: Color(0x44E0A800),
+    badgeFg: Color(0xFFFFD15C),
+    cornerRadius: 15,
+    gradientColors: [Color(0xFF1E1200), Color(0xFF130A00)],
+  );
+
+  static const _s6 = _VipChatStyle(
+    bubbleBg: Color(0xFF120008),
+    borderColor: Color(0xFFBB1A38),
+    borderWidth: 1.8,
+    glowColor: Color(0xFFBB1A38),
+    glowBlur: 20,
+    glowAlpha: 0.38,
+    avatarRingColor: Color(0xFFBB1A38),
+    avatarRingWidth: 1.8,
+    badgeBg: Color(0x44BB1A38),
+    badgeFg: Color(0xFFFF8FAF),
+    cornerRadius: 16,
+    secondaryRingColor: Color(0x55E0A800),
+    gradientColors: [Color(0xFF1C0010), Color(0xFF120008)],
+  );
+
+  static const _s7 = _VipChatStyle(
+    bubbleBg: Color(0xFF02061C),
+    borderColor: Color(0xFF1A5CE8),
+    borderWidth: 1.8,
+    glowColor: Color(0xFF1A5CE8),
+    glowBlur: 22,
+    glowAlpha: 0.42,
+    avatarRingColor: Color(0xFF1A5CE8),
+    avatarRingWidth: 2.0,
+    badgeBg: Color(0x441A5CE8),
+    badgeFg: Color(0xFF80CCFF),
+    cornerRadius: 16,
+    secondaryRingColor: Color(0x66E0A800),
+    gradientColors: [Color(0xFF060C28), Color(0xFF02061C)],
+    animated: true,
+  );
+
+  static const _s8 = _VipChatStyle(
+    bubbleBg: Color(0xFF07001A),
+    borderColor: Color(0xFF8822D8),
+    borderWidth: 2.0,
+    glowColor: Color(0xFF8822D8),
+    glowBlur: 26,
+    glowAlpha: 0.46,
+    avatarRingColor: Color(0xFF8822D8),
+    avatarRingWidth: 2.0,
+    badgeBg: Color(0x448822D8),
+    badgeFg: Color(0xFFD9A8FF),
+    cornerRadius: 16,
+    secondaryRingColor: Color(0x77FFD978),
+    gradientColors: [Color(0xFF0E0028), Color(0xFF07001A)],
+    animated: true,
+  );
+
+  static const _s9 = _VipChatStyle(
+    bubbleBg: Color(0xFF0A0008),
+    borderColor: Color(0xFFD00060),
+    borderWidth: 2.2,
+    glowColor: Color(0xFFD00060),
+    glowBlur: 30,
+    glowAlpha: 0.52,
+    avatarRingColor: Color(0xFFFFD978),
+    avatarRingWidth: 2.2,
+    badgeBg: Color(0x55D00060),
+    badgeFg: Color(0xFFFF88CC),
+    cornerRadius: 16,
+    secondaryRingColor: Color(0x88FFD978),
+    gradientColors: [Color(0xFF180014), Color(0xFF0A0008)],
+    animated: true,
+  );
+}
+
 // ── Live room chat bubble ─────────────────────────────────────────────────────
 
-class _ChatBubbleRow extends StatelessWidget {
+class _ChatBubbleRow extends StatefulWidget {
   const _ChatBubbleRow({required this.message, required this.isArabic});
 
   final RoomMessage message;
   final bool isArabic;
 
   @override
+  State<_ChatBubbleRow> createState() => _ChatBubbleRowState();
+}
+
+class _ChatBubbleRowState extends State<_ChatBubbleRow>
+    with SingleTickerProviderStateMixin {
+  AnimationController? _ctrl;
+  late final Animation<double> _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    final lvl = widget.message.senderVipLevel;
+    if (lvl >= 7) {
+      _ctrl = AnimationController(
+        vsync: this,
+        duration: Duration(milliseconds: lvl == 9 ? 1600 : 2200),
+      )..repeat(reverse: true);
+      _pulse = Tween<double>(begin: 0.60, end: 1.0)
+          .animate(CurvedAnimation(parent: _ctrl!, curve: Curves.easeInOut));
+    } else {
+      _pulse = const AlwaysStoppedAnimation(1.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl?.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final isSystem = message.isSystem;
-    if (isSystem) {
+    final msg = widget.message;
+    final isArabic = widget.isArabic;
+
+    if (msg.isSystem) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 3),
         child: Center(
@@ -3818,7 +4061,7 @@ class _ChatBubbleRow extends StatelessWidget {
               border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
             ),
             child: Text(
-              message.message,
+              msg.message,
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.65),
@@ -3832,10 +4075,12 @@ class _ChatBubbleRow extends StatelessWidget {
       );
     }
 
-    final vipLevel = message.senderVipLevel;
+    final vipLevel = msg.senderVipLevel.clamp(0, 9);
+    final style = _VipChatTheme.resolve(vipLevel);
     final nameColor = vipLevel > 0
         ? VipVisualStyle.nameColor(vipLevel, context)
         : const Color(0xFF9BE8FF);
+    final isHost = msg.senderRole == 'host';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
@@ -3843,85 +4088,208 @@ class _ChatBubbleRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
         children: [
-          // Sender avatar
-          _RoomAvatar(
-            avatarUrl: message.senderAvatarUrl,
-            frameKey: null,
-            vipLevel: vipLevel,
-            size: 28,
-            selected: false,
-            fallbackIcon: Icons.person_rounded,
-          ),
+          _buildAvatar(style, msg, vipLevel),
           const SizedBox(width: 7),
           Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.40),
-                borderRadius: BorderRadius.only(
-                  topLeft: isArabic ? const Radius.circular(14) : const Radius.circular(4),
-                  topRight: isArabic ? const Radius.circular(4) : const Radius.circular(14),
-                  bottomLeft: const Radius.circular(14),
-                  bottomRight: const Radius.circular(14),
-                ),
-                border: Border.all(
-                  color: vipLevel > 0
-                      ? const Color(0xFFF0C15A).withValues(alpha: 0.22)
-                      : Colors.white.withValues(alpha: 0.10),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: isArabic
-                    ? CrossAxisAlignment.end
-                    : CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-                    children: [
-                      Text(
-                        message.senderName,
-                        style: TextStyle(
-                          color: nameColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      if (message.senderRole == 'host') ...[
-                        const SizedBox(width: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF0C15A).withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Text(
-                            'HOST',
-                            style: TextStyle(
-                              color: Color(0xFFF0C15A),
-                              fontSize: 8,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    message.message,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      height: 1.3,
-                    ),
-                  ),
-                ],
+            child: AnimatedBuilder(
+              animation: _pulse,
+              builder: (ctx, _) => _buildBubble(
+                ctx, style, msg, nameColor, isHost, isArabic, vipLevel,
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAvatar(_VipChatStyle style, RoomMessage msg, int vipLevel) {
+    final hasRing = style.avatarRingWidth > 0;
+    final avatar = _RoomAvatar(
+      avatarUrl: msg.senderAvatarUrl,
+      frameKey: null,
+      vipLevel: hasRing ? 0 : vipLevel,
+      size: 28,
+      selected: false,
+      fallbackIcon: Icons.person_rounded,
+    );
+    if (!hasRing) return avatar;
+
+    return SizedBox(
+      width: 32,
+      height: 32,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          IgnorePointer(
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: style.avatarRingColor,
+                  width: style.avatarRingWidth,
+                ),
+                boxShadow: vipLevel >= 4
+                    ? [
+                        BoxShadow(
+                          color: style.avatarRingColor.withValues(alpha: 0.40),
+                          blurRadius: 8,
+                        ),
+                      ]
+                    : null,
+              ),
+            ),
+          ),
+          avatar,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBubble(
+    BuildContext context,
+    _VipChatStyle style,
+    RoomMessage msg,
+    Color nameColor,
+    bool isHost,
+    bool isArabic,
+    int vipLevel,
+  ) {
+    final glowFactor = _pulse.value;
+    final isRtl = isArabic;
+    final crossAxis =
+        isRtl ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+
+    final tailR = vipLevel >= 3 ? style.cornerRadius : 4.0;
+    final radius = BorderRadius.only(
+      topLeft: Radius.circular(isRtl ? tailR : style.cornerRadius),
+      topRight: Radius.circular(isRtl ? style.cornerRadius : tailR),
+      bottomLeft: Radius.circular(style.cornerRadius),
+      bottomRight: Radius.circular(style.cornerRadius),
+    );
+
+    final shadows = <BoxShadow>[
+      if (style.glowAlpha > 0)
+        BoxShadow(
+          color: style.glowColor.withValues(alpha: style.glowAlpha * glowFactor),
+          blurRadius: style.glowBlur,
+          spreadRadius: 0,
+        ),
+      if (style.secondaryRingColor != null)
+        BoxShadow(
+          color: style.secondaryRingColor!,
+          blurRadius: 0,
+          spreadRadius: 1.2,
+        ),
+      if (vipLevel == 9)
+        BoxShadow(
+          color: const Color(0xFFFFD978).withValues(alpha: 0.22 * glowFactor),
+          blurRadius: 20,
+          spreadRadius: -2,
+        ),
+    ];
+
+    final deco = style.gradientColors != null
+        ? BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: style.gradientColors!,
+            ),
+            borderRadius: radius,
+            border: Border.all(color: style.borderColor, width: style.borderWidth),
+            boxShadow: shadows,
+          )
+        : BoxDecoration(
+            color: style.bubbleBg,
+            borderRadius: radius,
+            border: Border.all(color: style.borderColor, width: style.borderWidth),
+            boxShadow: shadows,
+          );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: deco,
+      child: Column(
+        crossAxisAlignment: crossAxis,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+            children: [
+              Flexible(
+                child: Text(
+                  msg.senderName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: nameColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              if (isHost) ...[
+                const SizedBox(width: 4),
+                _buildBadge(
+                  'HOST',
+                  const Color(0xFFF0C15A),
+                  const Color(0x30F0C15A),
+                  borderColor: const Color(0xFFF0C15A).withValues(alpha: 0.40),
+                ),
+              ],
+              if (vipLevel > 0) ...[
+                const SizedBox(width: 3),
+                _buildBadge(
+                  'VIP $vipLevel',
+                  nameColor,
+                  style.badgeBg,
+                  borderColor: style.borderWidth > 1.2
+                      ? style.borderColor.withValues(alpha: 0.50)
+                      : null,
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 3),
+          Text(
+            msg.message,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBadge(
+    String label,
+    Color textColor,
+    Color bg, {
+    Color? borderColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+        border: borderColor != null
+            ? Border.all(color: borderColor, width: 0.6)
+            : null,
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: textColor,
+          fontSize: 8,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.5,
+        ),
       ),
     );
   }
