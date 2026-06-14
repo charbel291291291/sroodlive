@@ -25,19 +25,19 @@ import '../widgets/room_tools_sheet.dart';
 import 'room_owner_management_screen.dart';
 
 // Seat sizes — host > occupied > empty, never the reverse.
-const double _hostSeatAvatarSize = 88.0;
-const double _hostSeatOuterSize  = 94.0;
-const double _seatAvatarSize     = 76.0;
-const double _seatOuterSize      = 82.0;
-const double _emptySeatSize      = 72.0;
-const double _micSeatIconSize    = 28.0;
+const double _hostSeatAvatarSize = 82.0;  // visual: 82*1.35=110.7px frame
+const double _hostSeatOuterSize  = 86.0;  // layout anchor (host)
+const double _seatAvatarSize     = 72.0;  // visual: 72*1.35=97.2px frame (VIP)
+const double _seatOuterSize      = 76.0;  // layout anchor (normal)
+const double _emptySeatSize      = 80.0;  // slightly larger than normal ring
+const double _micSeatIconSize    = 26.0;
 const double _micSeatBadgeHorizontalPadding = 8.0;
 const double _micSeatSupportSlotHeight      = 20.0;
 // Fixed height for the avatar zone inside every grid cell.
-// Must be >= _hostSeatOuterSize (94) so the host avatar is never clipped.
+// Must be >= _hostSeatOuterSize (86) so the host avatar is never clipped.
 // All seat states (empty/normal/host/VIP) use the same zone height so the
 // grid cell measured height never changes when a seat transitions state.
-const double _kAvatarAreaHeight = 98.0;
+const double _kAvatarAreaHeight = 92.0;
 
 
 class RoomDetailsScreen extends StatefulWidget {
@@ -3422,25 +3422,25 @@ class _LiveSeatBubble extends StatelessWidget {
         ),
       ] else if (occupiedByHost) ...[
         BoxShadow(
-          color: const Color(0xFFF0C15A).withValues(alpha: 0.70),
-          blurRadius: 24,
-          spreadRadius: 2,
+          color: const Color(0xFFF0C15A).withValues(alpha: 0.55),
+          blurRadius: 16,
+          spreadRadius: 1,
         ),
         BoxShadow(
-          color: const Color(0xFFD99A2B).withValues(alpha: 0.40),
-          blurRadius: 48,
-          spreadRadius: 8,
+          color: const Color(0xFFD99A2B).withValues(alpha: 0.25),
+          blurRadius: 28,
+          spreadRadius: 2,
         ),
       ] else if (!seat.isEmpty) ...[
         BoxShadow(
-          color: const Color(0xFF8B26D9).withValues(alpha: 0.45),
-          blurRadius: 18,
+          color: const Color(0xFF8B26D9).withValues(alpha: 0.35),
+          blurRadius: 12,
           spreadRadius: 0,
         ),
         BoxShadow(
-          color: const Color(0xFF8B26D9).withValues(alpha: 0.20),
-          blurRadius: 36,
-          spreadRadius: 4,
+          color: const Color(0xFF8B26D9).withValues(alpha: 0.15),
+          blurRadius: 22,
+          spreadRadius: 2,
         ),
       ],
     ];
@@ -3560,7 +3560,7 @@ class _LiveSeatBubble extends StatelessWidget {
         avatarZone,
 
         // ── Zone 2: name — always 16 px ───────────────────────────────────
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         SizedBox(
           height: 16,
           child: Align(
