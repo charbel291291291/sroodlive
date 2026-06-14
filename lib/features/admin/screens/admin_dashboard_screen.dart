@@ -9,6 +9,7 @@ import '../models/admin_models.dart';
 import '../services/admin_access_service.dart';
 import '../services/admin_service.dart';
 import '../../games/screens/hungry_cat_admin_panel.dart';
+import 'owner_game_control_screen.dart';
 
 enum _AdminModule {
   overview,
@@ -91,6 +92,30 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   List<AdminGiftCategory> _giftCategories = const [];
   List<AdminPromoBanner> _promoBanners = const [];
   AdminWalletSummary? _walletLookup;
+
+  // Hidden 7-tap trigger for owner panel
+  int _ownerTapCount = 0;
+  DateTime? _ownerTapLast;
+
+  void _onBrandTap() {
+    final now = DateTime.now();
+    if (_ownerTapLast != null &&
+        now.difference(_ownerTapLast!) > const Duration(seconds: 3)) {
+      _ownerTapCount = 0;
+    }
+    _ownerTapLast = now;
+    _ownerTapCount++;
+    if (_ownerTapCount >= 7) {
+      _ownerTapCount = 0;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const OwnerGameControlScreen(),
+          settings:
+              const RouteSettings(name: OwnerGameControlScreen.routeName),
+        ),
+      );
+    }
+  }
 
   bool get _isSuper => _roles.contains('super_admin');
   bool get _canFinance => _isSuper || _roles.contains('finance_admin');
@@ -982,6 +1007,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           pendingCount: _pending.length,
                           onSelected: (module) =>
                               setState(() => _module = module),
+                          onBrandTap: _onBrandTap,
                         ),
                       Expanded(
                         child: Column(
@@ -3333,12 +3359,14 @@ class _AdminSideNav extends StatelessWidget {
     required this.roles,
     required this.pendingCount,
     required this.onSelected,
+    this.onBrandTap,
   });
 
   final _AdminModule selected;
   final List<String> roles;
   final int pendingCount;
   final ValueChanged<_AdminModule> onSelected;
+  final VoidCallback? onBrandTap;
 
   @override
   Widget build(BuildContext context) {
@@ -3350,10 +3378,14 @@ class _AdminSideNav extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Brand header
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 20, 20, 0),
-            child: _AdminBrand(),
+          // Brand header — tap 7× quickly to open owner control panel
+          GestureDetector(
+            onTap: onBrandTap,
+            behavior: HitTestBehavior.opaque,
+            child: const Padding(
+              padding: EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: _AdminBrand(),
+            ),
           ),
           const SizedBox(height: 8),
           const Divider(color: _kBorder, height: 24, indent: 16, endIndent: 16),
