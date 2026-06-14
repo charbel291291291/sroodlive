@@ -25,12 +25,12 @@ import '../widgets/room_tools_sheet.dart';
 import 'room_owner_management_screen.dart';
 
 // Seat sizes — host > occupied > empty, never the reverse.
-const double _hostSeatAvatarSize = 84.0;
-const double _hostSeatOuterSize  = 90.0;
-const double _seatAvatarSize     = 70.0;
-const double _seatOuterSize      = 76.0;
-const double _emptySeatSize      = 68.0;
-const double _micSeatIconSize    = 26.0;
+const double _hostSeatAvatarSize = 88.0;
+const double _hostSeatOuterSize  = 94.0;
+const double _seatAvatarSize     = 76.0;
+const double _seatOuterSize      = 82.0;
+const double _emptySeatSize      = 72.0;
+const double _micSeatIconSize    = 28.0;
 const double _micSeatBadgeHorizontalPadding = 8.0;
 const double _micSeatSupportSlotHeight      = 20.0;
 
@@ -2764,10 +2764,11 @@ class _LiveRoomStage extends StatelessWidget {
               return GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.only(top: 8),
                 itemCount: seats.length,
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 4,
-                  mainAxisSpacing: compactGrid ? 12 : 16,
+                  mainAxisSpacing: compactGrid ? 8 : 10,
                   crossAxisSpacing: compactGrid ? 6 : 8,
                   childAspectRatio: compactGrid ? 0.42 : 0.44,
                 ),
@@ -3403,24 +3404,40 @@ class _LiveSeatBubble extends StatelessWidget {
     final double borderWidth = occupiedByHost ? 2.4 : 1.8;
 
     final List<BoxShadow> glowShadows = [
-      if (selectedForMove)
+      if (selectedForMove) ...[
         BoxShadow(
-          color: const Color(0xFF67E8A5).withValues(alpha: 0.55),
+          color: const Color(0xFF67E8A5).withValues(alpha: 0.60),
+          blurRadius: 28,
+          spreadRadius: 3,
+        ),
+        BoxShadow(
+          color: const Color(0xFF67E8A5).withValues(alpha: 0.25),
+          blurRadius: 48,
+          spreadRadius: 6,
+        ),
+      ] else if (occupiedByHost) ...[
+        BoxShadow(
+          color: const Color(0xFFF0C15A).withValues(alpha: 0.70),
           blurRadius: 24,
           spreadRadius: 2,
-        )
-      else if (occupiedByHost)
-        BoxShadow(
-          color: const Color(0xFFF0C15A).withValues(alpha: 0.55),
-          blurRadius: 30,
-          spreadRadius: 3,
-        )
-      else if (!seat.isEmpty)
-        BoxShadow(
-          color: const Color(0xFF8B26D9).withValues(alpha: 0.35),
-          blurRadius: 16,
-          spreadRadius: -2,
         ),
+        BoxShadow(
+          color: const Color(0xFFD99A2B).withValues(alpha: 0.40),
+          blurRadius: 48,
+          spreadRadius: 8,
+        ),
+      ] else if (!seat.isEmpty) ...[
+        BoxShadow(
+          color: const Color(0xFF8B26D9).withValues(alpha: 0.45),
+          blurRadius: 18,
+          spreadRadius: 0,
+        ),
+        BoxShadow(
+          color: const Color(0xFF8B26D9).withValues(alpha: 0.20),
+          blurRadius: 36,
+          spreadRadius: 4,
+        ),
+      ],
     ];
 
     return Column(
@@ -3464,6 +3481,23 @@ class _LiveSeatBubble extends StatelessWidget {
                     clipBehavior: Clip.none,
                     alignment: Alignment.center,
                     children: [
+                      // Glow ring — border only when no VIP frame (frame provides its
+                      // own visual ring; the border container at outerSize would appear
+                      // as a small ring inside a larger frame otherwise).
+                      IgnorePointer(
+                        child: Container(
+                          width: outerSize,
+                          height: outerSize,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: effectiveVipLevel == 0
+                                ? Border.all(
+                                    color: borderColor, width: borderWidth)
+                                : null,
+                            boxShadow: glowShadows,
+                          ),
+                        ),
+                      ),
                       GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: seat.member == null
@@ -3481,25 +3515,13 @@ class _LiveSeatBubble extends StatelessWidget {
                               : Icons.person_rounded,
                         ),
                       ),
-                      IgnorePointer(
-                        child: Container(
-                          width: outerSize,
-                          height: outerSize,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                                color: borderColor, width: borderWidth),
-                            boxShadow: glowShadows,
-                          ),
-                        ),
-                      ),
                       if (seat.isMuted)
                         Positioned(
                           bottom: 0,
                           right: 0,
                           child: Container(
-                            width: 22,
-                            height: 22,
+                            width: 20,
+                            height: 20,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: const Color(0xFFE63946),
@@ -3509,7 +3531,7 @@ class _LiveSeatBubble extends StatelessWidget {
                             child: const Icon(
                               Icons.mic_off_rounded,
                               color: Colors.white,
-                              size: 12,
+                              size: 11,
                             ),
                           ),
                         ),
@@ -3517,7 +3539,7 @@ class _LiveSeatBubble extends StatelessWidget {
                   ),
                 ),
         ),
-        SizedBox(height: occupiedByHost ? 8 : 6),
+        SizedBox(height: occupiedByHost ? 6 : 4),
         Text(
           label,
           maxLines: 1,
