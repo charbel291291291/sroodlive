@@ -1685,16 +1685,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         ),
       );
     }
+
+    final viewportHeight = MediaQuery.sizeOf(context).height;
+    final panelHeight = viewportHeight < 860 ? 680.0 : viewportHeight - 220.0;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: const [
-        _ModuleTitle(
+      children: [
+        const _ModuleTitle(
           title: 'Game Controls',
           subtitle: 'Odds, test tools, forced results, and emergency void.',
           icon: Icons.sports_esports_rounded,
         ),
-        SizedBox(height: 14),
-        HungryCatAdminPanel(),
+        const SizedBox(height: 14),
+        SizedBox(
+          height: panelHeight,
+          child: const HungryCatAdminPanel(),
+        ),
       ],
     );
   }
@@ -5194,3 +5201,4 @@ const _mutedStyle = TextStyle(
   fontSize: 13,
   fontWeight: FontWeight.w500,
 );
+
