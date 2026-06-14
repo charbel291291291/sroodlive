@@ -1,18 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../games/screens/crash_game_screen.dart';
+import '../../games/screens/gold_ladder_quiz_screen.dart';
+import '../../games/screens/hungry_cat_webview_screen.dart';
+import '../../games/screens/spin_wheel_screen.dart';
 import '../services/room_management_service.dart';
 import '../models/room_ban.dart';
 import 'room_settings_sheet.dart';
 import '../models/room.dart';
 
-/// Interactive Features + Management Tools bottom sheet (inspired by Image C).
-///
-/// Three sections:
-///   A – Interactive features (Counter, Team PK, Salute, Red Envelope, Game Center)
-///   B – Management tools (Clean Text, Settings, Music, Voice Effect, Lock Room,
-///                         Mic Mode, Background, Kick Record)
-///   C – Other tools (Sound On, Visual Effect)
+// ─────────────────────────────────────────────────────────────────────────────
+// RoomToolsSheet — premium tools bottom sheet for live rooms.
+//
+// Overflow fix: SafeArea is NOT used as a wrapper. Instead we read
+// MediaQuery.viewPadding.bottom (device navigation bar inset) and add it
+// explicitly to the scroll content bottom padding. This avoids the 1.1 px
+// overflow that happens when SafeArea pads the sheet before the Column
+// computes its height.
+// ─────────────────────────────────────────────────────────────────────────────
+
 class RoomToolsSheet extends StatefulWidget {
   const RoomToolsSheet({
     required this.room,
@@ -42,10 +49,67 @@ class RoomToolsSheet extends StatefulWidget {
 class _RoomToolsSheetState extends State<RoomToolsSheet> {
   final _mgmt = const RoomManagementService();
   bool _soundOn = true;
+  bool _lockBusy = false;
 
-  // ── Navigation helpers ─────────────────────────────────────────────────────
+  bool get _canManage => widget.isOwner || widget.isHost;
+
+  String _t(String ar, String en) => widget.isArabic ? ar : en;
+
+  // ── Permission check ──────────────────────────────────────────────────────
+
+  void _requirePermission(VoidCallback onGranted) {
+    if (_canManage) {
+      onGranted();
+    } else {
+      _snack(
+        _t('ليس لديك صلاحية لاستخدام هذه الأداة',
+            'You do not have permission to use this tool.'),
+        isError: true,
+      );
+    }
+  }
+
+  // ── Snack helper ──────────────────────────────────────────────────────────
+
+  void _snack(String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(
+        content: Text(msg, style: const TextStyle(color: Colors.white)),
+        backgroundColor:
+            isError ? const Color(0xFF2A0F1A) : const Color(0xFF1A0D2E),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: isError
+                ? const Color(0xFFE63946).withValues(alpha: 0.5)
+                : const Color(0xFF8B26D9).withValues(alpha: 0.4),
+          ),
+        ),
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        duration: const Duration(seconds: 3),
+      ));
+  }
+
+  // ── Coming Soon mini-sheet ────────────────────────────────────────────────
+
+  void _showComingSoon(String featureAr, String featureEn) {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ComingSoonSheet(
+        featureName: widget.isArabic ? featureAr : featureEn,
+        isArabic: widget.isArabic,
+      ),
+    );
+  }
+
+  // ── Navigation helpers ────────────────────────────────────────────────────
 
   void _openSettings() {
+    HapticFeedback.lightImpact();
     Navigator.of(context).pop();
     showModalBottomSheet<void>(
       context: context,
@@ -63,15 +127,18 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
   }
 
   void _openGameCenter() {
+    HapticFeedback.lightImpact();
     Navigator.of(context).pop();
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => CrashGameScreen(isArabic: widget.isArabic),
-      ),
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _GameCenterSheet(isArabic: widget.isArabic),
     );
   }
 
   void _openKickRecord() async {
+    HapticFeedback.lightImpact();
     final bans = await _mgmt.getBans(widget.room.id);
     if (!mounted) return;
     showModalBottomSheet<void>(
@@ -82,321 +149,262 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
     );
   }
 
-  void _showComingSoon(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          widget.isArabic ? '$feature - قريباً' : '$feature — coming soon',
+  void _openCounter() {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) =>
+          _CounterSheet(isArabic: widget.isArabic, canManage: _canManage),
+    );
+  }
+
+  void _confirmClearChat() {
+    HapticFeedback.mediumImpact();
+    showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A0D33),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          _t('مسح الدردشة', 'Clear Chat'),
+          style: const TextStyle(
+              color: Colors.white, fontWeight: FontWeight.w800),
         ),
-        behavior: SnackBarBehavior.floating,
+        content: Text(
+          _t('هل أنت متأكد أنك تريد مسح جميع رسائل الدردشة؟',
+              'Are you sure you want to clear all chat messages?'),
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.75)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(_t('إلغاء', 'Cancel'),
+                style: const TextStyle(color: Color(0xFF9E91B8))),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF8B26D9),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () {
+              Navigator.of(ctx).pop(true);
+              Navigator.of(context).pop(); // close tools sheet
+              widget.onClearChat();
+            },
+            child: Text(_t('مسح', 'Clear')),
+          ),
+        ],
       ),
     );
   }
+
+  Future<void> _handleToggleLock() async {
+    HapticFeedback.mediumImpact();
+    setState(() => _lockBusy = true);
+    Navigator.of(context).pop();
+    try {
+      await widget.onToggleLock();
+    } finally {
+      // sheet is already dismissed
+    }
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final isArabic = widget.isArabic;
     final textDir = isArabic ? TextDirection.rtl : TextDirection.ltr;
+    // Read nav-bar inset without SafeArea wrapper so we control padding exactly.
+    final bottomInset = MediaQuery.of(context).padding.bottom;
 
     return Directionality(
       textDirection: textDir,
-      child: SafeArea(
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF2A1547), Color(0xFF1A0D33), Color(0xFF0F0820)],
-            ),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      child: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF231440), Color(0xFF160C2F), Color(0xFF0C0619)],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Grabber
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.only(top: 12, bottom: 4),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.22),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              Flexible(
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.fromLTRB(
-                    16, 8, 16,
-                    16 + MediaQuery.of(context).viewInsets.bottom,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // ── Section A: Interactive features ──────────────────
-                      _SectionLabel(
-                        label: isArabic ? 'ميزات تفاعلية' : 'Interactive',
-                      ),
-                      const SizedBox(height: 10),
-                      _IconGrid(
-                        items: [
-                          _ToolItem(
-                            icon: Icons.add_circle_outline_rounded,
-                            label: isArabic ? 'العداد' : 'Counter',
-                            onTap: () => _showComingSoon(
-                              isArabic ? 'العداد' : 'Counter'),
-                          ),
-                          _ToolItem(
-                            icon: Icons.groups_rounded,
-                            label: isArabic ? 'بي كي' : 'Team PK',
-                            onTap: () => _showComingSoon(
-                              isArabic ? 'بي كي' : 'Team PK'),
-                          ),
-                          _ToolItem(
-                            icon: Icons.military_tech_rounded,
-                            label: isArabic ? 'تحية' : 'Salute',
-                            onTap: () => _showComingSoon(
-                              isArabic ? 'تحية' : 'Salute'),
-                          ),
-                          _ToolItem(
-                            icon: Icons.redeem_rounded,
-                            label: isArabic ? 'مظروف أحمر' : 'Red Envelope',
-                            onTap: () => _showComingSoon(
-                              isArabic ? 'مظروف أحمر' : 'Red Envelope'),
-                          ),
-                          _ToolItem(
-                            icon: Icons.sports_esports_rounded,
-                            label: isArabic ? 'مركز الألعاب' : 'Game Center',
-                            onTap: _openGameCenter,
-                            accent: const Color(0xFFF0C15A),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-
-                      // ── Section B: Management tools ──────────────────────
-                      _SectionLabel(
-                        label: isArabic ? 'أدوات الإدارة' : 'Management',
-                      ),
-                      const SizedBox(height: 10),
-                      _IconGrid(
-                        items: [
-                          _ToolItem(
-                            icon: Icons.cleaning_services_rounded,
-                            label: isArabic ? 'مسح الدردشة' : 'Clean Text',
-                            onTap: (widget.isOwner || widget.isHost)
-                                ? () {
-                                    Navigator.of(context).pop();
-                                    widget.onClearChat();
-                                  }
-                                : null,
-                          ),
-                          _ToolItem(
-                            icon: Icons.settings_rounded,
-                            label: isArabic ? 'الإعدادات' : 'Settings',
-                            onTap: (widget.isOwner || widget.isHost)
-                                ? _openSettings
-                                : null,
-                          ),
-                          _ToolItem(
-                            icon: Icons.music_note_rounded,
-                            label: isArabic ? 'الموسيقى' : 'Music',
-                            onTap: () => _showComingSoon(
-                              isArabic ? 'الموسيقى' : 'Music'),
-                          ),
-                          _ToolItem(
-                            icon: Icons.graphic_eq_rounded,
-                            label: isArabic ? 'مؤثر صوتي' : 'Voice Effect',
-                            onTap: () => _showComingSoon(
-                              isArabic ? 'مؤثر صوتي' : 'Voice Effect'),
-                          ),
-                          _ToolItem(
-                            icon: widget.isLocked
-                                ? Icons.lock_rounded
-                                : Icons.lock_open_rounded,
-                            label: widget.isLocked
-                                ? (isArabic ? 'فتح الغرفة' : 'Unlock Room')
-                                : (isArabic ? 'قفل الغرفة' : 'Lock Room'),
-                            onTap: (widget.isOwner || widget.isHost)
-                                ? () async {
-                                    Navigator.of(context).pop();
-                                    await widget.onToggleLock();
-                                  }
-                                : null,
-                            accent: widget.isLocked
-                                ? const Color(0xFFE63946)
-                                : null,
-                          ),
-                          _ToolItem(
-                            icon: Icons.mic_rounded,
-                            label: isArabic ? 'وضع الميكروفون' : 'Mic Mode',
-                            onTap: () => _showComingSoon(
-                              isArabic ? 'وضع الميكروفون' : 'Mic Mode'),
-                          ),
-                          _ToolItem(
-                            icon: Icons.wallpaper_rounded,
-                            label: isArabic ? 'الخلفية' : 'Background',
-                            onTap: () => _showComingSoon(
-                              isArabic ? 'الخلفية' : 'Background'),
-                          ),
-                          _ToolItem(
-                            icon: Icons.person_off_rounded,
-                            label: isArabic ? 'سجل الطرد' : 'Kick Record',
-                            onTap: (widget.isOwner || widget.isHost)
-                                ? _openKickRecord
-                                : null,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-
-                      // ── Section C: Other tools ───────────────────────────
-                      _SectionLabel(
-                        label: isArabic ? 'أدوات أخرى' : 'Other',
-                      ),
-                      const SizedBox(height: 10),
-                      _IconGrid(
-                        items: [
-                          _ToolItem(
-                            icon: _soundOn
-                                ? Icons.volume_up_rounded
-                                : Icons.volume_off_rounded,
-                            label: isArabic ? 'الصوت' : 'Sound On',
-                            isToggled: _soundOn,
-                            onTap: () => setState(() => _soundOn = !_soundOn),
-                            accent: _soundOn
-                                ? const Color(0xFF1A6FFF)
-                                : null,
-                          ),
-                          _ToolItem(
-                            icon: Icons.auto_awesome_rounded,
-                            label: isArabic ? 'تأثير بصري' : 'Visual Effect',
-                            onTap: () => _showComingSoon(
-                              isArabic ? 'تأثير بصري' : 'Visual Effect'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
-      ),
-    );
-  }
-}
-
-// ── Sub-widgets ──────────────────────────────────────────────────────────────
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: TextStyle(
-        color: Colors.white.withValues(alpha: 0.55),
-        fontSize: 12,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.8,
-      ),
-    );
-  }
-}
-
-class _ToolItem {
-  const _ToolItem({
-    required this.icon,
-    required this.label,
-    this.onTap,
-    this.accent,
-    this.isToggled = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-  final Color? accent;
-  final bool isToggled;
-}
-
-class _IconGrid extends StatelessWidget {
-  const _IconGrid({required this.items});
-  final List<_ToolItem> items;
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 5,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 8,
-        childAspectRatio: 0.75,
-      ),
-      itemCount: items.length,
-      itemBuilder: (_, i) => _GridCell(item: items[i]),
-    );
-  }
-}
-
-class _GridCell extends StatelessWidget {
-  const _GridCell({required this.item});
-  final _ToolItem item;
-
-  @override
-  Widget build(BuildContext context) {
-    final active = item.onTap != null;
-    final accent = item.accent ?? const Color(0xFF8B26D9);
-
-    return GestureDetector(
-      onTap: item.onTap,
-      child: Opacity(
-        opacity: active ? 1.0 : 0.38,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: (item.isToggled || item.accent != null)
-                    ? accent.withValues(alpha: 0.22)
-                    : Colors.white.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: (item.isToggled || item.accent != null)
-                      ? accent.withValues(alpha: 0.5)
-                      : Colors.white.withValues(alpha: 0.06),
-                  width: 1,
+            // Drag handle
+            _Handle(),
+            // Scrollable content — bottom padding includes nav-bar inset
+            Flexible(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(16, 4, 16, 20 + bottomInset),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Section A – Interactive
+                    _SectionLabel(_t('ميزات تفاعلية', 'Interactive')),
+                    const SizedBox(height: 10),
+                    _ToolGrid(
+                      isArabic: isArabic,
+                      items: [
+                        _ToolDef(
+                          icon: Icons.exposure_plus_1_rounded,
+                          labelAr: 'العداد',
+                          labelEn: 'Counter',
+                          onTap: _openCounter,
+                        ),
+                        _ToolDef(
+                          icon: Icons.groups_2_rounded,
+                          labelAr: 'بي كي',
+                          labelEn: 'Team PK',
+                          onTap: () => _showComingSoon('بي كي', 'Team PK'),
+                        ),
+                        _ToolDef(
+                          icon: Icons.military_tech_rounded,
+                          labelAr: 'تحية',
+                          labelEn: 'Salute',
+                          onTap: () => _showComingSoon('تحية', 'Salute'),
+                        ),
+                        _ToolDef(
+                          icon: Icons.redeem_rounded,
+                          labelAr: 'مظروف',
+                          labelEn: 'Red',
+                          onTap: () =>
+                              _showComingSoon('مظروف أحمر', 'Red Envelope'),
+                        ),
+                        _ToolDef(
+                          icon: Icons.sports_esports_rounded,
+                          labelAr: 'ألعاب',
+                          labelEn: 'Game',
+                          accent: const Color(0xFFF0C15A),
+                          onTap: _openGameCenter,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Section B – Management
+                    _SectionLabel(_t('أدوات الإدارة', 'Management')),
+                    const SizedBox(height: 10),
+                    _ToolGrid(
+                      isArabic: isArabic,
+                      items: [
+                        _ToolDef(
+                          icon: Icons.cleaning_services_rounded,
+                          labelAr: 'مسح',
+                          labelEn: 'Clean',
+                          onTap: _canManage
+                              ? _confirmClearChat
+                              : () => _requirePermission(() {}),
+                          disabled: !_canManage,
+                        ),
+                        _ToolDef(
+                          icon: Icons.settings_rounded,
+                          labelAr: 'الإعدادات',
+                          labelEn: 'Settings',
+                          onTap: _canManage
+                              ? _openSettings
+                              : () => _requirePermission(() {}),
+                          disabled: !_canManage,
+                        ),
+                        _ToolDef(
+                          icon: Icons.music_note_rounded,
+                          labelAr: 'موسيقى',
+                          labelEn: 'Music',
+                          onTap: () => _showComingSoon('الموسيقى', 'Music'),
+                        ),
+                        _ToolDef(
+                          icon: Icons.graphic_eq_rounded,
+                          labelAr: 'صوت',
+                          labelEn: 'Voice',
+                          onTap: () =>
+                              _showComingSoon('مؤثر صوتي', 'Voice Effect'),
+                        ),
+                        _ToolDef(
+                          icon: widget.isLocked
+                              ? Icons.lock_rounded
+                              : Icons.lock_open_rounded,
+                          labelAr:
+                              widget.isLocked ? 'فتح' : 'قفل',
+                          labelEn: widget.isLocked ? 'Unlock' : 'Lock',
+                          accent: widget.isLocked
+                              ? const Color(0xFFE63946)
+                              : null,
+                          isToggled: widget.isLocked,
+                          busy: _lockBusy,
+                          onTap: _canManage
+                              ? _handleToggleLock
+                              : () => _requirePermission(() {}),
+                          disabled: !_canManage,
+                        ),
+                        _ToolDef(
+                          icon: Icons.mic_rounded,
+                          labelAr: 'ميكروفون',
+                          labelEn: 'Mic Mode',
+                          onTap: _canManage
+                              ? () => _showComingSoon(
+                                  'وضع الميكروفون', 'Mic Mode')
+                              : () => _requirePermission(() {}),
+                          disabled: !_canManage,
+                        ),
+                        _ToolDef(
+                          icon: Icons.wallpaper_rounded,
+                          labelAr: 'الخلفية',
+                          labelEn: 'Background',
+                          onTap: _canManage
+                              ? () =>
+                                  _showComingSoon('الخلفية', 'Background')
+                              : () => _requirePermission(() {}),
+                          disabled: !_canManage,
+                        ),
+                        _ToolDef(
+                          icon: Icons.person_off_rounded,
+                          labelAr: 'سجل الطرد',
+                          labelEn: 'Kicks',
+                          accent: const Color(0xFFE63946),
+                          onTap: _canManage
+                              ? _openKickRecord
+                              : () => _requirePermission(() {}),
+                          disabled: !_canManage,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Section C – Other
+                    _SectionLabel(_t('أدوات أخرى', 'Other')),
+                    const SizedBox(height: 10),
+                    _ToolGrid(
+                      isArabic: isArabic,
+                      items: [
+                        _ToolDef(
+                          icon: _soundOn
+                              ? Icons.volume_up_rounded
+                              : Icons.volume_off_rounded,
+                          labelAr: _soundOn ? 'الصوت' : 'كتم',
+                          labelEn: _soundOn ? 'Sound' : 'Muted',
+                          accent: _soundOn
+                              ? const Color(0xFF1A8CB0)
+                              : null,
+                          isToggled: _soundOn,
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() => _soundOn = !_soundOn);
+                          },
+                        ),
+                        _ToolDef(
+                          icon: Icons.auto_awesome_rounded,
+                          labelAr: 'مؤثرات',
+                          labelEn: 'Visual',
+                          onTap: () => _showComingSoon(
+                              'تأثير بصري', 'Visual Effect'),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ),
-              child: Icon(
-                item.icon,
-                size: 22,
-                color: (item.isToggled || item.accent != null)
-                    ? accent
-                    : const Color(0xFFD8CFEA),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              item.label,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.8),
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                height: 1.2,
               ),
             ),
           ],
@@ -406,106 +414,741 @@ class _GridCell extends StatelessWidget {
   }
 }
 
-// ── Kick Record sub-sheet ────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Tool definition data class
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ToolDef {
+  const _ToolDef({
+    required this.icon,
+    required this.labelAr,
+    required this.labelEn,
+    this.onTap,
+    this.accent,
+    this.isToggled = false,
+    this.disabled = false,
+    this.busy = false,
+  });
+
+  final IconData icon;
+  final String labelAr;
+  final String labelEn;
+  final VoidCallback? onTap;
+  final Color? accent;
+  final bool isToggled;
+  final bool disabled;
+  final bool busy;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tool grid — uses Wrap instead of GridView to avoid aspect-ratio overflow.
+// Each tile has a fixed 56×56 icon box and a 1-line label below it.
+// Total tile height ≈ 56 + 5 + 15 = 76 px, so 5 columns at ~64 px wide each
+// never overflows the grid cell.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ToolGrid extends StatelessWidget {
+  const _ToolGrid({required this.items, required this.isArabic});
+
+  final List<_ToolDef> items;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, constraints) {
+      // 5 columns with 8 px gaps → each tile width
+      const cols = 5;
+      const gap = 8.0;
+      final tileW = (constraints.maxWidth - gap * (cols - 1)) / cols;
+
+      return Wrap(
+        spacing: gap,
+        runSpacing: 12,
+        children: items
+            .map((item) => SizedBox(
+                  width: tileW,
+                  child: _ToolTile(
+                    def: item,
+                    label: isArabic ? item.labelAr : item.labelEn,
+                  ),
+                ))
+            .toList(),
+      );
+    });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Individual tool tile — premium nav-footer style
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ToolTile extends StatefulWidget {
+  const _ToolTile({required this.def, required this.label});
+
+  final _ToolDef def;
+  final String label;
+
+  @override
+  State<_ToolTile> createState() => _ToolTileState();
+}
+
+class _ToolTileState extends State<_ToolTile>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _press;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _press = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 80),
+      reverseDuration: const Duration(milliseconds: 140),
+      lowerBound: 0,
+      upperBound: 1,
+    );
+    _scale = Tween<double>(begin: 1.0, end: 0.88).animate(
+      CurvedAnimation(parent: _press, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _press.dispose();
+    super.dispose();
+  }
+
+  void _onTapDown(_) => _press.forward();
+  void _onTapUp(_) => _press.reverse();
+  void _onTapCancel() => _press.reverse();
+
+  @override
+  Widget build(BuildContext context) {
+    final def = widget.def;
+    final active = def.onTap != null && !def.disabled;
+    final accent = def.accent ?? const Color(0xFF8B26D9);
+    final isActive = def.isToggled || def.accent != null;
+
+    return GestureDetector(
+      onTapDown: active ? _onTapDown : null,
+      onTapUp: active ? _onTapUp : null,
+      onTapCancel: active ? _onTapCancel : null,
+      onTap: def.busy ? null : def.onTap,
+      child: AnimatedBuilder(
+        animation: _scale,
+        builder: (_, child) =>
+            Transform.scale(scale: _scale.value, child: child),
+        child: Opacity(
+          opacity: def.disabled ? 0.40 : 1.0,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icon container
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: isActive
+                      ? LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            accent.withValues(alpha: 0.30),
+                            accent.withValues(alpha: 0.12),
+                          ],
+                        )
+                      : LinearGradient(
+                          colors: [
+                            Colors.white.withValues(alpha: 0.10),
+                            Colors.white.withValues(alpha: 0.05),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                  border: Border.all(
+                    color: isActive
+                        ? accent.withValues(alpha: 0.55)
+                        : Colors.white.withValues(alpha: 0.08),
+                    width: 1.2,
+                  ),
+                  boxShadow: isActive
+                      ? [
+                          BoxShadow(
+                            color: accent.withValues(alpha: 0.28),
+                            blurRadius: 12,
+                            spreadRadius: -2,
+                          ),
+                        ]
+                      : null,
+                ),
+                child: def.busy
+                    ? Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: accent,
+                          ),
+                        ),
+                      )
+                    : Icon(
+                        def.icon,
+                        size: 22,
+                        color: isActive ? accent : const Color(0xFFCBC4E0),
+                      ),
+              ),
+              const SizedBox(height: 5),
+              // Label — always 1 line, ellipsis
+              Text(
+                widget.label,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textScaler: TextScaler.noScaling,
+                style: TextStyle(
+                  color: isActive
+                      ? accent.withValues(alpha: 0.9)
+                      : Colors.white.withValues(alpha: 0.75),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  height: 1.2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper sub-widgets
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _Handle extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.only(top: 12, bottom: 8),
+        width: 36,
+        height: 4,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.20),
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.label);
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Text(
+        label.toUpperCase(),
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.40),
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Coming Soon sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ComingSoonSheet extends StatelessWidget {
+  const _ComingSoonSheet(
+      {required this.featureName, required this.isArabic});
+
+  final String featureName;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    return Container(
+      padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomInset),
+      decoration: const BoxDecoration(
+        color: Color(0xFF1A0D33),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF8B26D9).withValues(alpha: 0.15),
+              border: Border.all(
+                  color: const Color(0xFF8B26D9).withValues(alpha: 0.4)),
+            ),
+            child: const Icon(Icons.rocket_launch_rounded,
+                color: Color(0xFFC875FF), size: 26),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            featureName,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isArabic
+                ? 'هذه الميزة قيد التطوير وستكون متاحة قريباً.'
+                : 'This feature is under development and will be available soon.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.60),
+              fontSize: 13,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF8B26D9),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(isArabic ? 'حسناً' : 'Got it'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Game Center sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _GameCenterSheet extends StatelessWidget {
+  const _GameCenterSheet({required this.isArabic});
+
+  final bool isArabic;
+
+  String get _title => isArabic ? 'مركز الألعاب' : 'Game Center';
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    final games = [
+      _GameEntry(
+        icon: Icons.rocket_launch_rounded,
+        labelAr: 'صاروخ',
+        labelEn: 'Rocket Crash',
+        accent: const Color(0xFFE63946),
+        screen: CrashGameScreen(isArabic: isArabic),
+      ),
+      _GameEntry(
+        icon: Icons.casino_rounded,
+        labelAr: 'عجلة الحظ',
+        labelEn: 'Spin Wheel',
+        accent: const Color(0xFFF0C15A),
+        screen: SpinWheelScreen(isArabic: isArabic),
+      ),
+      _GameEntry(
+        icon: Icons.pets_rounded,
+        labelAr: 'القط الجائع',
+        labelEn: 'Hungry Cat',
+        accent: const Color(0xFF4ADE80),
+        screen: HungryCatWebviewScreen(isArabic: isArabic),
+      ),
+      _GameEntry(
+        icon: Icons.stairs_rounded,
+        labelAr: 'السلم الذهبي',
+        labelEn: 'Gold Ladder',
+        accent: const Color(0xFFFFD978),
+        screen: GoldLadderQuizScreen(isArabic: isArabic),
+      ),
+    ];
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomInset),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF1F1040), Color(0xFF0D0820)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.20),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Text(
+            _title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...games.map((g) => _GameRow(
+                game: g,
+                isArabic: isArabic,
+                onTap: () {
+                  Navigator.of(context).pop(); // close game sheet
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (_) => g.screen),
+                  );
+                },
+              )),
+        ],
+      ),
+    );
+  }
+}
+
+class _GameEntry {
+  const _GameEntry({
+    required this.icon,
+    required this.labelAr,
+    required this.labelEn,
+    required this.accent,
+    required this.screen,
+  });
+
+  final IconData icon;
+  final String labelAr;
+  final String labelEn;
+  final Color accent;
+  final Widget screen;
+}
+
+class _GameRow extends StatelessWidget {
+  const _GameRow(
+      {required this.game, required this.isArabic, required this.onTap});
+
+  final _GameEntry game;
+  final bool isArabic;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: game.accent.withValues(alpha: 0.08),
+              border: Border.all(
+                  color: game.accent.withValues(alpha: 0.25)),
+            ),
+            child: Row(
+              textDirection:
+                  isArabic ? TextDirection.rtl : TextDirection.ltr,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: game.accent.withValues(alpha: 0.15),
+                    border: Border.all(
+                        color: game.accent.withValues(alpha: 0.4)),
+                  ),
+                  child: Icon(game.icon, color: game.accent, size: 20),
+                ),
+                const SizedBox(width: 14),
+                Text(
+                  isArabic ? game.labelAr : game.labelEn,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const Spacer(),
+                Icon(
+                  isArabic
+                      ? Icons.chevron_left_rounded
+                      : Icons.chevron_right_rounded,
+                  color: game.accent,
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Counter sheet — local room counter, host can control
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _CounterSheet extends StatefulWidget {
+  const _CounterSheet({required this.isArabic, required this.canManage});
+
+  final bool isArabic;
+  final bool canManage;
+
+  @override
+  State<_CounterSheet> createState() => _CounterSheetState();
+}
+
+class _CounterSheetState extends State<_CounterSheet> {
+  int _count = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    final t = widget.isArabic;
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomInset),
+      decoration: const BoxDecoration(
+        color: Color(0xFF160B2A),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 36,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 20),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.20),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Text(
+            t ? 'العداد' : 'Counter',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 28),
+          // Counter display
+          Text(
+            '$_count',
+            style: const TextStyle(
+              color: Color(0xFFF0C15A),
+              fontSize: 64,
+              fontWeight: FontWeight.w900,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 28),
+          if (widget.canManage) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _CounterBtn(
+                  icon: Icons.remove_rounded,
+                  onTap: () => setState(() => _count = (_count - 1).clamp(0, 9999)),
+                  color: const Color(0xFFE63946),
+                ),
+                const SizedBox(width: 24),
+                _CounterBtn(
+                  icon: Icons.refresh_rounded,
+                  onTap: () => setState(() => _count = 0),
+                  color: Colors.white38,
+                ),
+                const SizedBox(width: 24),
+                _CounterBtn(
+                  icon: Icons.add_rounded,
+                  onTap: () => setState(() => _count = (_count + 1).clamp(0, 9999)),
+                  color: const Color(0xFF4ADE80),
+                ),
+              ],
+            ),
+          ] else
+            Text(
+              t ? 'فقط المضيف يمكنه التحكم في العداد'
+                : 'Only the host can control the counter.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.50),
+                fontSize: 13,
+              ),
+            ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+class _CounterBtn extends StatelessWidget {
+  const _CounterBtn(
+      {required this.icon, required this.onTap, required this.color});
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color.withValues(alpha: 0.15),
+          border: Border.all(color: color.withValues(alpha: 0.5)),
+        ),
+        child: Icon(icon, color: color, size: 24),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Kick Record sub-sheet
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _KickRecordSheet extends StatelessWidget {
-  const _KickRecordSheet({
-    required this.bans,
-    required this.isArabic,
-  });
+  const _KickRecordSheet({required this.bans, required this.isArabic});
 
   final List<RoomBan> bans;
   final bool isArabic;
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     final textDir = isArabic ? TextDirection.rtl : TextDirection.ltr;
     return Directionality(
       textDirection: textDir,
-      child: SafeArea(
-        child: Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.sizeOf(context).height * 0.6,
-          ),
-          decoration: const BoxDecoration(
-            color: Color(0xFF1A0D33),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
-            children: [
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.only(top: 12, bottom: 4),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.22),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.6,
+        ),
+        decoration: const BoxDecoration(
+          color: Color(0xFF1A0D33),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          children: [
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 4),
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                child: Text(
-                  isArabic ? 'سجل الطرد' : 'Kick Record',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                  ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+              child: Text(
+                isArabic ? 'سجل الطرد' : 'Kick Record',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
-              Flexible(
-                child: bans.isEmpty
-                    ? Center(
+            ),
+            Flexible(
+              child: bans.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
                         child: Text(
                           isArabic ? 'لا يوجد مطرودون' : 'No bans yet',
                           style: const TextStyle(
                               color: Color(0xFF9E91B8), fontSize: 14),
                         ),
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        itemCount: bans.length,
-                        separatorBuilder: (ctx, idx) => Divider(
-                          height: 1,
-                          color: Colors.white.withValues(alpha: 0.07),
-                        ),
-                        itemBuilder: (_, i) {
-                          final ban = bans[i];
-                          return ListTile(
-                            contentPadding:
-                                const EdgeInsets.symmetric(vertical: 4),
-                            leading: CircleAvatar(
-                              radius: 20,
-                              backgroundColor: const Color(0xFF8B26D9),
-                              backgroundImage: ban.avatarUrl != null
-                                  ? NetworkImage(ban.avatarUrl!)
-                                  : null,
-                              child: ban.avatarUrl == null
-                                  ? const Icon(Icons.person_rounded,
-                                      color: Colors.white, size: 18)
-                                  : null,
-                            ),
-                            title: Text(
-                              ban.displayName ?? ban.userId,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600),
-                            ),
-                            subtitle: ban.reason != null
-                                ? Text(
-                                    ban.reason!,
-                                    style: const TextStyle(
-                                        color: Color(0xFF9E91B8), fontSize: 12),
-                                  )
-                                : null,
-                          );
-                        },
                       ),
-              ),
-            ],
-          ),
+                    )
+                  : ListView.separated(
+                      padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + bottomInset),
+                      itemCount: bans.length,
+                      separatorBuilder: (ctx, idx) => Divider(
+                        height: 1,
+                        color: Colors.white.withValues(alpha: 0.07),
+                      ),
+                      itemBuilder: (_, i) {
+                        final ban = bans[i];
+                        return ListTile(
+                          contentPadding:
+                              const EdgeInsets.symmetric(vertical: 4),
+                          leading: CircleAvatar(
+                            radius: 20,
+                            backgroundColor: const Color(0xFF8B26D9),
+                            backgroundImage: ban.avatarUrl != null
+                                ? NetworkImage(ban.avatarUrl!)
+                                : null,
+                            child: ban.avatarUrl == null
+                                ? const Icon(Icons.person_rounded,
+                                    color: Colors.white, size: 18)
+                                : null,
+                          ),
+                          title: Text(
+                            ban.displayName ?? ban.userId,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: ban.reason != null
+                              ? Text(
+                                  ban.reason!,
+                                  style: const TextStyle(
+                                      color: Color(0xFF9E91B8), fontSize: 12),
+                                )
+                              : null,
+                        );
+                      },
+                    ),
+            ),
+          ],
         ),
       ),
     );
