@@ -139,12 +139,13 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
   // ── Init ──────────────────────────────────────────────────────────────────
 
   Future<void> _initGame() async {
+    final user = SupabaseService.requiredClient.auth.currentUser;
+    if (user == null) {
+      debugPrint('[RocketCrash] init: no authenticated user');
+      // JS will retry GAME_READY; nothing to send yet
+      return;
+    }
     try {
-      final user = SupabaseService.requiredClient.auth.currentUser;
-      if (user == null) {
-        _post('BET_REJECTED', {'code': 'not_authenticated', 'slotIndex': 0});
-        return;
-      }
       final balance = await _service.fetchBalance();
       _post('INIT_GAME', {
         'balance': balance,
@@ -153,7 +154,14 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
       });
     } catch (e) {
       debugPrint('[RocketCrash] init error: $e');
-      _post('BET_REJECTED', {'code': 'init_failed', 'slotIndex': 0});
+      // Send INIT_GAME with 0 balance so JS knows wallet is connected
+      // but has a problem — JS will display 0 and prevent betting
+      _post('INIT_GAME', {
+        'balance': 0,
+        'locale': widget.isArabic ? 'ar' : 'en',
+        'sound': true,
+        'error': 'wallet_error',
+      });
     }
   }
 

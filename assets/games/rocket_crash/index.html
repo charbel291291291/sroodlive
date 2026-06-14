@@ -198,7 +198,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#020818;font-family:
         </div>
         <div class="auto-row" id="ar0" style="display:none">
           <span class="auto-lbl">Auto @</span>
-          <input class="auto-inp" id="at0" type="number" min="1.05" max="100" step="0.05" value="2.00">
+          <input class="auto-inp" id="at0" type="number" min="1.01" max="100" step="0.01" value="2.00">
           <span class="auto-lbl">x</span>
         </div>
         <button class="abtn bet" id="btn0" onclick="slotTap(0)">BET 1</button>
@@ -223,7 +223,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#020818;font-family:
         </div>
         <div class="auto-row" id="ar1" style="display:none">
           <span class="auto-lbl">Auto @</span>
-          <input class="auto-inp" id="at1" type="number" min="1.05" max="100" step="0.05" value="2.00">
+          <input class="auto-inp" id="at1" type="number" min="1.01" max="100" step="0.01" value="2.00">
           <span class="auto-lbl">x</span>
         </div>
         <button class="abtn bet" id="btn1" onclick="slotTap(1)">BET 2</button>
@@ -237,11 +237,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:#020818;font-family:
 // ═══════════════════════════════════════════════════════════════════════════
 // CONSTANTS
 // ═══════════════════════════════════════════════════════════════════════════
-const WAIT_SECS  = 8;
-const CRASH_DELAY_MS = 4000; // pause after crash before next round
-const AMT_STEPS  = [100,200,500,1000,2000,5000,10000,20000,50000];
-const FAKE_NAMES = ['Ali','Sara','Omar','Nora','Fahad','Layla','Khalid','Maha','Yusuf','Rana'];
-const AVT_COLORS = ['#7b2fff','#ff5caa','#1a6fff','#ff8c00','#00c864','#e63946','#00b4d8'];
+const WAIT_SECS      = 8;
+const CRASH_DELAY_MS = 4000;
+const AMT_STEPS      = [100,200,500,1000,2000,5000,10000,20000,50000];
+const FAKE_NAMES     = ['Ali','Sara','Omar','Nora','Fahad','Layla','Khalid','Maha','Yusuf','Rana'];
+const AVT_COLORS     = ['#7b2fff','#ff5caa','#1a6fff','#ff8c00','#00c864','#e63946','#00b4d8'];
 
 // ═══════════════════════════════════════════════════════════════════════════
 // STATE
@@ -623,8 +623,13 @@ function slotTap(i) {
 
 function armBet(i) {
   const s = G.slots[i];
+  if (G.balance <= 0) { showErr('Wallet not ready'); return; }
   if (s.amount > G.balance) { showErr('Not enough coins'); return; }
-  s.autoT = Math.max(1.05, parseFloat(document.getElementById('at'+i).value) || 2.0);
+  // Lock in auto target now so it cannot change during flight
+  if (s.mode === 'auto') {
+    const inp = document.getElementById('at'+i);
+    s.autoT = Math.max(1.01, parseFloat(inp ? inp.value : '2.00') || 2.0);
+  }
   s.state  = 'pending';
   s.betId  = null;
   s.cashing= false;
@@ -649,8 +654,10 @@ function cancelBet(i) {
 
 function doCashout(i) {
   const s = G.slots[i];
+  // Guard: only valid during flight, armed, betId present, not already cashing
+  if (G.phase !== 'flying') return;
   if (s.state !== 'armed' || !s.betId || s.cashing) return;
-  s.cashing = true;   // guard: prevent second tap
+  s.cashing = true;
   renderSlots();
   postToFlutter('REQUEST_CASHOUT_CREDIT', { slotIndex:i, betId:s.betId, multiplier:G.mult });
 }
@@ -667,6 +674,9 @@ window.onSroodMessage = function(msg) {
       G.soundOn = payload.sound   !== false;
       updateSoundBtn();
       updateBal();
+      if (payload.error === 'wallet_error') {
+        showErr('Wallet error — balance may be unavailable');
+      }
       startWaiting();
       break;
 
@@ -786,29 +796,46 @@ function renderSlots() {
   const inFlight = G.phase === 'flying' || G.phase === 'crashed';
 
   G.slots.forEach((s,i) => {
-    const panel = document.getElementById('panel'+i);
-    const btn   = document.getElementById('btn'+i);
-    const amtEl = document.getElementById('amt'+i);
+    const panel   = document.getElementById('panel'+i);
+    const btn     = document.getElementById('btn'+i);
+    const amtEl   = document.getElementById('amt'+i);
+    const autoRow = document.getElementById('ar'+i);
+    const mManual = document.getElementById('m'+i+'-m');
+    const mAuto   = document.getElementById('m'+i+'-a');
 
     amtEl.textContent = fmtAmt(s.amount);
 
-    // base classes
+    // ── sync mode toggle classes ──────────────────────────────────────────
+    if (mManual) mManual.classList.toggle('on', s.mode === 'manual');
+    if (mAuto)   mAuto.classList.toggle('on',   s.mode === 'auto');
+    // auto-row: visible only during waiting when slot is idle and mode=auto
+    if (autoRow) {
+      autoRow.style.display = (s.mode === 'auto' && !inFlight && s.state === 'idle') ? 'flex' : 'none';
+    }
+
+    // ── panel border class ────────────────────────────────────────────────
     panel.className = 'panel';
-    if (inFlight) panel.classList.add('fly'); // collapses controls, enlarges button
+    if (inFlight) panel.classList.add('fly');
     if (s.state==='armed'||s.state==='cashing') panel.classList.add('p-armed');
     else if (s.state==='won')  panel.classList.add('p-cashed');
     else if (s.state==='lost') panel.classList.add('p-lost');
 
+    // ── action button ─────────────────────────────────────────────────────
     btn.className = 'abtn';
     btn.disabled  = false;
 
-    if (G.phase === 'waiting') {
+    if (G.phase === 'init') {
+      btn.textContent = 'Connecting…';
+      btn.classList.add('locked');
+      btn.disabled = true;
+
+    } else if (G.phase === 'waiting') {
       if (s.state==='idle')
         { btn.textContent='BET '+(i+1); btn.classList.add('bet'); }
       else if (s.state==='pending'||s.state==='cancelling')
         { btn.textContent='…'; btn.classList.add('locked'); btn.disabled=true; }
       else if (s.state==='armed')
-        { btn.textContent='CANCEL'; btn.classList.add('armed'); }
+        { btn.textContent='✕ CANCEL'; btn.classList.add('armed'); }
       else if (s.state==='won')
         { btn.textContent='WON ✓'; btn.classList.add('won'); btn.disabled=true; }
       else if (s.state==='lost')
@@ -818,15 +845,15 @@ function renderSlots() {
 
     } else if (G.phase === 'flying') {
       if (s.state==='idle')
-        { btn.textContent='—'; btn.classList.add('locked'); btn.disabled=true; }
+        { btn.textContent='Bet Next Round'; btn.classList.add('locked'); btn.disabled=true; }
       else if (s.state==='armed' && s.mode==='manual' && !s.cashing)
-        { btn.textContent='CASH OUT'; btn.classList.add('cashout'); }
+        { btn.textContent='💰 CASH OUT'; btn.classList.add('cashout'); }
       else if (s.state==='armed' && s.mode==='auto')
-        { btn.textContent='AUTO × '+s.autoT.toFixed(2); btn.classList.add('armed'); btn.disabled=true; }
+        { btn.textContent='AUTO @ '+s.autoT.toFixed(2)+'×'; btn.classList.add('armed'); btn.disabled=true; }
       else if (s.state==='cashing')
-        { btn.textContent='Cashing out…'; btn.classList.add('locked'); btn.disabled=true; }
+        { btn.textContent='Processing…'; btn.classList.add('locked'); btn.disabled=true; }
       else if (s.state==='won') {
-        const lbl = s.winAmt ? '+'+fmtAmt(s.winAmt)+' ✓' : 'WON ✓';
+        const lbl = s.winAmt ? '+'+fmtAmt(s.winAmt)+' coins ✓' : 'WON ✓';
         btn.textContent=lbl; btn.classList.add('won'); btn.disabled=true;
       }
       else if (s.state==='lost')
@@ -836,7 +863,7 @@ function renderSlots() {
 
     } else if (G.phase === 'crashed') {
       if (s.state==='won') {
-        const lbl = s.winAmt ? '+'+fmtAmt(s.winAmt)+' ✓' : 'WON ✓';
+        const lbl = s.winAmt ? '+'+fmtAmt(s.winAmt)+' coins ✓' : 'WON ✓';
         btn.textContent=lbl; btn.classList.add('won'); btn.disabled=true;
       } else if (s.state==='lost')
         { btn.textContent='LOST'; btn.classList.add('lost'); btn.disabled=true; }
@@ -872,10 +899,9 @@ function showErr(msg) {
 // CONTROLS
 // ═══════════════════════════════════════════════════════════════════════════
 function setMode(i, mode) {
+  if (G.slots[i].state !== 'idle') return; // lock while armed/pending
   G.slots[i].mode = mode;
-  document.getElementById('m'+i+'-m').classList.toggle('on', mode==='manual');
-  document.getElementById('m'+i+'-a').classList.toggle('on', mode==='auto');
-  document.getElementById('ar'+i).style.display = mode==='auto' ? 'flex' : 'none';
+  renderSlots(); // syncs toggle classes and auto-row visibility
   SFX.tap();
 }
 
@@ -979,12 +1005,22 @@ function postToFlutter(type, payload) {
   setPhase('CONNECTING…','');
   renderSlots();
   postToFlutter('GAME_READY', {});
-  // fallback for browser testing (no Flutter bridge)
-  setTimeout(()=>{
-    if (G.phase==='init') {
-      G.balance=10000; updateBal(); startWaiting();
+
+  // Retry GAME_READY up to 3×  (never fall back to a fake balance)
+  let _initAttempt = 0;
+  function _retryInit() {
+    if (G.phase !== 'init') return; // INIT_GAME already received
+    _initAttempt++;
+    if (_initAttempt <= 3) {
+      setPhase('CONNECTING…', 'Attempt ' + (_initAttempt + 1) + '/4');
+      postToFlutter('GAME_READY', {});
+      setTimeout(_retryInit, 3000);
+    } else {
+      setPhase('WALLET ERROR', 'Restart the game');
+      showErr('Could not connect to wallet');
     }
-  }, 1400);
+  }
+  setTimeout(_retryInit, 3000);
 })();
 </script>
 </body>
