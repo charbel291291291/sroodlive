@@ -5594,9 +5594,21 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
   final _ctrl = TextEditingController();
   final _focus = FocusNode();
   bool _isTyping = false;
+  bool _isFocused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(_onFocusChange);
+  }
+
+  void _onFocusChange() {
+    if (mounted) setState(() => _isFocused = _focus.hasFocus);
+  }
 
   @override
   void dispose() {
+    _focus.removeListener(_onFocusChange);
     _ctrl.dispose();
     _focus.dispose();
     super.dispose();
@@ -5605,14 +5617,12 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
   Future<void> _submit() async {
     final text = _ctrl.text.trim();
     if (text.isEmpty || widget.isSendingMessage) return;
-    // Clear immediately for snappy UX; restore on failure.
     _ctrl.clear();
     setState(() => _isTyping = false);
     _focus.requestFocus();
     try {
       await widget.onSendMessage(text);
     } catch (_) {
-      // Restore the text so the user can retry.
       if (mounted) {
         _ctrl.text = text;
         _ctrl.selection = TextSelection.collapsed(offset: text.length);
@@ -5623,91 +5633,190 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
 
   @override
   Widget build(BuildContext context) {
+    const kGold = Color(0xFFF0C15A);
+    const kPurple = Color(0xFF8B26D9);
+    const kBg = Color(0xFF08030F);
+
+    final pillBorderColor = _isFocused
+        ? kGold.withValues(alpha: 0.75)
+        : _isTyping
+            ? kGold.withValues(alpha: 0.45)
+            : kPurple.withValues(alpha: 0.32);
+
+    final pillShadows = _isFocused
+        ? [
+            BoxShadow(
+              color: kGold.withValues(alpha: 0.18),
+              blurRadius: 16,
+              spreadRadius: 1,
+            ),
+            BoxShadow(
+              color: kPurple.withValues(alpha: 0.12),
+              blurRadius: 28,
+              spreadRadius: 2,
+            ),
+          ]
+        : _isTyping
+            ? [
+                BoxShadow(
+                  color: kGold.withValues(alpha: 0.10),
+                  blurRadius: 12,
+                ),
+              ]
+            : const <BoxShadow>[];
+
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF0A0515).withValues(alpha: 0.88),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFF0A0515).withValues(alpha: 0.82),
+            const Color(0xFF060210).withValues(alpha: 0.96),
+          ],
+        ),
         border: Border(
           top: BorderSide(
-            color: const Color(0xFF8B26D9).withValues(alpha: 0.18),
+            color: _isFocused
+                ? kGold.withValues(alpha: 0.22)
+                : kPurple.withValues(alpha: 0.14),
+            width: 0.8,
           ),
         ),
       ),
       padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + widget.bottomPad),
       child: Row(
         textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Chat input pill — real keyboard input
           Expanded(
-            child: Container(
-              height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+              height: 48,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.09),
-                borderRadius: BorderRadius.circular(20),
+                color: _isFocused
+                    ? kBg.withValues(alpha: 0.95)
+                    : const Color(0xFF0E0620).withValues(alpha: 0.90),
+                borderRadius: BorderRadius.circular(30),
                 border: Border.all(
-                  color: _isTyping
-                      ? const Color(0xFF8B26D9).withValues(alpha: 0.55)
-                      : Colors.white.withValues(alpha: 0.15),
+                  color: pillBorderColor,
+                  width: _isFocused ? 1.4 : 1.0,
                 ),
+                boxShadow: pillShadows,
               ),
               child: Row(
-                textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+                textDirection:
+                    widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
                 children: [
+                  if (!_isTyping && !_isFocused) ...[
+                    Icon(
+                      Icons.chat_bubble_outline_rounded,
+                      color: kPurple.withValues(alpha: 0.45),
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   Expanded(
                     child: TextField(
                       controller: _ctrl,
                       focusNode: _focus,
-                      textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
-                      style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.2),
+                      textDirection: widget.isArabic
+                          ? TextDirection.rtl
+                          : TextDirection.ltr,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        height: 1.25,
+                      ),
                       maxLength: 300,
                       maxLines: 1,
                       textInputAction: TextInputAction.send,
-                      buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
+                      buildCounter: (context,
+                              {required currentLength,
+                              required isFocused,
+                              maxLength}) =>
+                          null,
                       decoration: InputDecoration(
                         border: InputBorder.none,
                         isDense: true,
                         contentPadding: EdgeInsets.zero,
-                        hintText: widget.isArabic ? '\u0623\u0647\u0644\u0627\u064b...' : 'Hi...',
+                        hintText: widget.isArabic
+                            ? 'أهلاً، اكتب شيئاً...'
+                            : 'Say something...',
                         hintStyle: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.40),
-                          fontSize: 13,
+                          color: Colors.white.withValues(alpha: 0.30),
+                          fontSize: 13.5,
                         ),
                       ),
-                      onChanged: (v) => setState(() => _isTyping = v.trim().isNotEmpty),
+                      onChanged: (v) =>
+                          setState(() => _isTyping = v.trim().isNotEmpty),
                       onSubmitted: (_) => _submit(),
                     ),
                   ),
-                  if (_isTyping)
-                    GestureDetector(
-                      onTap: widget.isSendingMessage ? null : _submit,
-                      child: widget.isSendingMessage
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Color(0xFFF0C15A),
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeOut,
+                    child: _isTyping
+                        ? GestureDetector(
+                            onTap: widget.isSendingMessage ? null : _submit,
+                            child: Container(
+                              width: 30,
+                              height: 30,
+                              margin: EdgeInsets.only(
+                                left: widget.isArabic ? 0 : 6,
+                                right: widget.isArabic ? 6 : 0,
                               ),
-                            )
-                          : const Icon(
-                              Icons.send_rounded,
-                              color: Color(0xFFF0C15A),
-                              size: 18,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: widget.isSendingMessage
+                                      ? [
+                                          kGold.withValues(alpha: 0.35),
+                                          kGold.withValues(alpha: 0.25),
+                                        ]
+                                      : [kGold, const Color(0xFFE0A800)],
+                                ),
+                                boxShadow: widget.isSendingMessage
+                                    ? null
+                                    : [
+                                        BoxShadow(
+                                          color: kGold.withValues(alpha: 0.38),
+                                          blurRadius: 10,
+                                        ),
+                                      ],
+                              ),
+                              child: widget.isSendingMessage
+                                  ? const Padding(
+                                      padding: EdgeInsets.all(7),
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Color(0xFF160B26),
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.send_rounded,
+                                      color: Color(0xFF160B26),
+                                      size: 15,
+                                    ),
                             ),
-                    ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
                 ],
               ),
             ),
           ),
           const SizedBox(width: 8),
-          // Gift button
           _BarIconButton(
             icon: Icons.card_giftcard_rounded,
-            color: const Color(0xFFF0C15A),
+            color: kGold,
             onTap: widget.onGiftTap,
           ),
           const SizedBox(width: 6),
-          // More button
           _BarIconButton(
             icon: Icons.more_horiz_rounded,
             color: Colors.white,
@@ -5716,10 +5825,10 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
           if (widget.isOnMic) ...[
             const SizedBox(width: 6),
             _BarIconButton(
-              icon: widget.micEnabled ? Icons.mic_rounded : Icons.mic_off_rounded,
-              color: widget.micEnabled
-                  ? const Color(0xFFF0C15A)
-                  : const Color(0xFFE63946),
+              icon: widget.micEnabled
+                  ? Icons.mic_rounded
+                  : Icons.mic_off_rounded,
+              color: widget.micEnabled ? kGold : const Color(0xFFE63946),
               highlighted: true,
               busy: widget.connectingAudio,
               onTap: widget.connectingAudio ? null : widget.onToggleMic,
@@ -5737,7 +5846,6 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
     );
   }
 }
-
 /// Compact circular icon button for the bottom action bar.
 class _BarIconButton extends StatelessWidget {
   const _BarIconButton({
