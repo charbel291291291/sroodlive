@@ -8,6 +8,7 @@ import '../../../shared/widgets/vip_badge.dart';
 import '../../../shared/widgets/vip_username.dart';
 import '../../messages/services/private_message_service.dart';
 import '../../messages/widgets/private_chat_sheet.dart';
+import '../../profile/screens/user_profile_screen.dart';
 import '../models/room_user_profile.dart';
 import '../services/room_user_profile_service.dart';
 
@@ -214,6 +215,15 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
     if (_isMe) return;
     Navigator.of(context).pop();
     widget.onSendGift(widget.userId);
+  }
+
+  void _viewFullProfile() {
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => UserProfileScreen(
+        userId: widget.userId,
+        isArabic: widget.isArabic,
+      ),
+    ));
   }
 
   void _copyId() {
@@ -428,7 +438,10 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _DragHandle(color: prestige.primaryColor),
+                  _TopBar(
+                    accentColor: prestige.primaryColor,
+                    onClose: () => Navigator.of(context).pop(),
+                  ),
                   Flexible(
                     child: SingleChildScrollView(
                       padding: EdgeInsets.fromLTRB(
@@ -483,6 +496,7 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
                                   onFollow: _toggleFollow,
                                   onReminder: _createReminder,
                                   onSendGift: _sendGift,
+                                  onViewProfile: _viewFullProfile,
                                   onMute: _doMute,
                                   onKick: _doKick,
                                   onStandUp: _doStandUp,
@@ -502,23 +516,50 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
   }
 }
 
-// ── Drag handle ───────────────────────────────────────────────────────────────
+// ── Top bar (drag handle + close button) ─────────────────────────────────────
 
-class _DragHandle extends StatelessWidget {
-  const _DragHandle({required this.color});
-  final Color color;
+class _TopBar extends StatelessWidget {
+  const _TopBar({required this.accentColor, required this.onClose});
+  final Color accentColor;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Container(
-        width: 44,
-        height: 4,
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.50),
-          borderRadius: BorderRadius.circular(999),
-        ),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+      child: Row(
+        children: [
+          const Spacer(),
+          Container(
+            width: 44,
+            height: 4,
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: GestureDetector(
+                onTap: onClose,
+                child: Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.07),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 16,
+                    color: Colors.white.withValues(alpha: 0.55),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -591,6 +632,7 @@ class _SheetBody extends StatelessWidget {
     required this.onFollow,
     required this.onReminder,
     required this.onSendGift,
+    required this.onViewProfile,
     required this.onMute,
     required this.onKick,
     required this.onStandUp,
@@ -631,6 +673,7 @@ class _SheetBody extends StatelessWidget {
   final VoidCallback onFollow;
   final VoidCallback onReminder;
   final VoidCallback onSendGift;
+  final VoidCallback onViewProfile;
   final VoidCallback onMute;
   final VoidCallback onKick;
   final VoidCallback onStandUp;
@@ -868,6 +911,12 @@ class _SheetBody extends StatelessWidget {
                 color: const Color(0xFFF0C15A),
                 highlighted: true,
                 onTap: onSendGift,
+              ),
+              _ActionBtn(
+                icon: Icons.person_rounded,
+                label: isArabic ? 'الملف' : 'Profile',
+                color: const Color(0xFF9E91B8),
+                onTap: onViewProfile,
               ),
             ],
           ),
