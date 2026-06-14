@@ -629,9 +629,16 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                 final msg = RoomMessage.fromJson(
                   enriched.map((k, v) => MapEntry(k, v)),
                 );
-                // Avoid duplicate from optimistic local insert.
+                // Avoid duplicate: skip if real ID already present.
                 if (_chatMessages.any((m) => m.id == msg.id)) return;
                 setState(() {
+                  // Remove optimistic placeholder for this sender so the
+                  // confirmed server message replaces it without duplication.
+                  _chatMessages.removeWhere(
+                    (m) =>
+                        m.id.startsWith('optimistic_') &&
+                        m.senderId == msg.senderId,
+                  );
                   _chatMessages.add(msg);
                   if (_chatMessages.length > 100) {
                     _chatMessages.removeRange(0, _chatMessages.length - 100);
@@ -2762,7 +2769,7 @@ class _LiveRoomStage extends StatelessWidget {
                   crossAxisCount: 4,
                   mainAxisSpacing: compactGrid ? 12 : 16,
                   crossAxisSpacing: compactGrid ? 6 : 8,
-                  childAspectRatio: compactGrid ? 0.50 : 0.53,
+                  childAspectRatio: compactGrid ? 0.44 : 0.46,
                 ),
                 itemBuilder: (context, index) {
                   return _LiveSeatBubble(
@@ -3532,53 +3539,65 @@ class _LiveSeatBubble extends StatelessWidget {
             ),
           ),
         ],
-        if (!seat.isEmpty && effectiveVipLevel > 0) ...[
-          const SizedBox(height: 3),
-          VipBadge(vipLevel: effectiveVipLevel, compact: true),
-        ] else
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: _micSeatBadgeHorizontalPadding,
-              vertical: 2,
-            ),
-            decoration: BoxDecoration(
-              color: selectedForMove
-                  ? const Color(0xFF67E8A5).withValues(alpha: 0.20)
-                  : occupiedByHost
-                      ? const Color(0xFFF0C15A).withValues(alpha: 0.18)
-                      : canAssignSeat
-                          ? Colors.white.withValues(alpha: 0.08)
-                          : const Color(0xFF8B26D9).withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: selectedForMove
-                    ? const Color(0xFF67E8A5).withValues(alpha: 0.8)
-                    : occupiedByHost
-                        ? const Color(0xFFF0C15A).withValues(alpha: 0.7)
-                        : canAssignSeat
-                            ? Colors.white.withValues(alpha: 0.2)
-                            : const Color(0xFF8B26D9).withValues(alpha: 0.5),
-                width: 0.8,
+        // Badge row: role pill + VIP badge side-by-side (keeps height constant).
+        const SizedBox(height: 3),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Role/state pill — always shown
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _micSeatBadgeHorizontalPadding,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: selectedForMove
+                      ? const Color(0xFF67E8A5).withValues(alpha: 0.20)
+                      : occupiedByHost
+                          ? const Color(0xFFF0C15A).withValues(alpha: 0.18)
+                          : canAssignSeat
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : const Color(0xFF8B26D9).withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: selectedForMove
+                        ? const Color(0xFF67E8A5).withValues(alpha: 0.8)
+                        : occupiedByHost
+                            ? const Color(0xFFF0C15A).withValues(alpha: 0.7)
+                            : canAssignSeat
+                                ? Colors.white.withValues(alpha: 0.2)
+                                : const Color(0xFF8B26D9).withValues(alpha: 0.5),
+                    width: 0.8,
+                  ),
+                ),
+                child: Text(
+                  badge,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: occupiedByHost ? 10 : 9,
+                    fontWeight: FontWeight.w900,
+                    color: selectedForMove
+                        ? const Color(0xFF67E8A5)
+                        : occupiedByHost
+                            ? const Color(0xFFF0C15A)
+                            : canAssignSeat
+                                ? Colors.white.withValues(alpha: 0.55)
+                                : Colors.white.withValues(alpha: 0.8),
+                  ),
+                ),
               ),
             ),
-            child: Text(
-              badge,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: occupiedByHost ? 10 : 9,
-                fontWeight: FontWeight.w900,
-                color: selectedForMove
-                    ? const Color(0xFF67E8A5)
-                    : occupiedByHost
-                        ? const Color(0xFFF0C15A)
-                        : canAssignSeat
-                            ? Colors.white.withValues(alpha: 0.55)
-                            : Colors.white.withValues(alpha: 0.8),
-              ),
-            ),
-          ),
+            // VIP badge — shown inline to avoid adding extra row height
+            if (!seat.isEmpty && effectiveVipLevel > 0) ...[
+              const SizedBox(width: 4),
+              VipBadge(vipLevel: effectiveVipLevel, compact: true),
+            ],
+          ],
+        ),
       ],
     );
   }
@@ -5304,29 +5323,44 @@ class _LiveBottomActionBar extends StatefulWidget {
 
 class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
   final _ctrl = TextEditingController();
+  final _focus = FocusNode();
   bool _isTyping = false;
 
   @override
   void dispose() {
     _ctrl.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     final text = _ctrl.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || widget.isSendingMessage) return;
+    // Clear immediately for snappy UX; restore on failure.
     _ctrl.clear();
     setState(() => _isTyping = false);
-    await widget.onSendMessage(text);
+    _focus.requestFocus();
+    try {
+      await widget.onSendMessage(text);
+    } catch (_) {
+      // Restore the text so the user can retry.
+      if (mounted) {
+        _ctrl.text = text;
+        _ctrl.selection = TextSelection.collapsed(offset: text.length);
+        setState(() => _isTyping = true);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.60),
+        color: const Color(0xFF0A0515).withValues(alpha: 0.88),
         border: Border(
-          top: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+          top: BorderSide(
+            color: const Color(0xFF8B26D9).withValues(alpha: 0.18),
+          ),
         ),
       ),
       padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + widget.bottomPad),
@@ -5353,10 +5387,12 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
                   Expanded(
                     child: TextField(
                       controller: _ctrl,
+                      focusNode: _focus,
                       textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
-                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.2),
                       maxLength: 300,
                       maxLines: 1,
+                      textInputAction: TextInputAction.send,
                       buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
                       decoration: InputDecoration(
                         border: InputBorder.none,
