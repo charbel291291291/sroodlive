@@ -9,6 +9,7 @@ import '../models/admin_models.dart';
 import '../services/admin_access_service.dart';
 import '../services/admin_service.dart';
 import '../../games/screens/hungry_cat_admin_panel.dart';
+import '../../games/screens/rocket_crash_admin_panel.dart';
 import 'owner_game_control_screen.dart';
 
 enum _AdminModule {
@@ -1700,7 +1701,39 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         const SizedBox(height: 14),
         SizedBox(
           height: panelHeight,
-          child: const HungryCatAdminPanel(),
+          child: DefaultTabController(
+            length: 2,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF141720),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF1E2435)),
+                  ),
+                  child: const TabBar(
+                    labelColor: Color(0xFFF0C15A),
+                    unselectedLabelColor: Color(0xFF64748B),
+                    indicatorColor: Color(0xFFF0C15A),
+                    tabs: [
+                      Tab(icon: Text('🐱'), text: 'Hungry Cat'),
+                      Tab(icon: Text('🚀'), text: 'Rocket Crash'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: TabBarView(
+                    children: const [
+                      HungryCatAdminPanel(),
+                      RocketCrashAdminPanel(),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ],
     );
