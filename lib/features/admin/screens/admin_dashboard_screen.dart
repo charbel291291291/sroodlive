@@ -8,6 +8,7 @@ import '../../../shared/branding/branding_assets.dart';
 import '../models/admin_models.dart';
 import '../services/admin_access_service.dart';
 import '../services/admin_service.dart';
+import '../../games/screens/hungry_cat_admin_panel.dart';
 
 enum _AdminModule {
   overview,
@@ -18,6 +19,7 @@ enum _AdminModule {
   rooms,
   banners,
   audit,
+  games,
 }
 
 // ─────────────────────────────────────────────
@@ -1030,7 +1032,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       _AdminModule.content => _buildContent(),
       _AdminModule.rooms => _buildRooms(),
       _AdminModule.banners => _buildBanners(),
-      _AdminModule.audit => _buildAudit(),
+      _AdminModule.audit  => _buildAudit(),
+      _AdminModule.games  => _buildGames(),
     };
   }
 
@@ -1641,6 +1644,33 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     } finally {
       if (mounted) setState(() => _actionInProgress = false);
     }
+  }
+
+  Widget _buildGames() {
+    final isSuperAdmin = _roles.contains('super_admin');
+    if (!isSuperAdmin) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32),
+          child: Text(
+            'Access restricted to super_admin.',
+            style: TextStyle(color: _kMuted, fontSize: 14),
+          ),
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: const [
+        _ModuleTitle(
+          title: 'Game Controls',
+          subtitle: 'Odds, test tools, forced results, and emergency void.',
+          icon: Icons.sports_esports_rounded,
+        ),
+        SizedBox(height: 14),
+        HungryCatAdminPanel(),
+      ],
+    );
   }
 
   Widget _buildAudit() {
@@ -5081,7 +5111,8 @@ IconData _moduleIcon(_AdminModule module) {
     _AdminModule.content => Icons.card_giftcard_rounded,
     _AdminModule.rooms => Icons.mic_external_on_rounded,
     _AdminModule.banners => Icons.view_carousel_rounded,
-    _AdminModule.audit => Icons.fact_check_rounded,
+    _AdminModule.audit  => Icons.fact_check_rounded,
+    _AdminModule.games  => Icons.sports_esports_rounded,
   };
 }
 
@@ -5094,7 +5125,8 @@ String _moduleLabel(_AdminModule module) {
     _AdminModule.content => 'Content',
     _AdminModule.rooms => 'Rooms',
     _AdminModule.banners => 'Banners',
-    _AdminModule.audit => 'Audit',
+    _AdminModule.audit  => 'Audit',
+    _AdminModule.games  => 'Games',
   };
 }
 
