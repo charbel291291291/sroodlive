@@ -4437,6 +4437,10 @@ class _LuxuryGiftVideoConfig {
         return const _LuxuryGiftVideoConfig(
           assetPath: 'assets/gift_effects/videos/baalbek_temple_royal.mp4',
         );
+      case 'odrob':
+        return const _LuxuryGiftVideoConfig(
+          assetPath: 'assets/gift_effects/videos/odrob_royal.mp4',
+        );
       default:
         return null;
     }
@@ -5574,3 +5578,5 @@ class _SupportPill extends StatelessWidget {
     );
   }
 }
+
+
