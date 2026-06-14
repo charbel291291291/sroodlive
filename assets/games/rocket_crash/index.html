@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Rocket Crash</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:#020818;font-family:'Segoe UI',system-ui,sans-serif;color:#fff;user-select:none}
+
+/* ── layout ── */
+#root{display:flex;flex-direction:column;height:100%;max-height:100vh}
+#top-bar{flex:0 0 auto;padding:6px 10px 4px;background:linear-gradient(180deg,#030e2a 0%,transparent 100%)}
+#game-area{flex:1 1 0;display:flex;min-height:0;position:relative;overflow:hidden}
+#bottom{flex:0 0 auto;padding:4px 6px 6px;background:linear-gradient(0deg,#020818 80%,transparent 100%)}
+
+/* ── top bar ── */
+#title-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+#back-btn{width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.1);border:none;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#game-title{font-size:18px;font-weight:900;letter-spacing:1px;background:linear-gradient(90deg,#00d4ff,#7b2fff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-shadow:none}
+#round-label{margin-left:auto;font-size:11px;color:#5ec8ff;font-weight:700;letter-spacing:.5px}
+#sound-btn{width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.08);border:none;color:#fff;font-size:15px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+
+#history-row{display:flex;gap:5px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+#history-row::-webkit-scrollbar{display:none}
+.hist-chip{flex-shrink:0;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:800;border:1px solid transparent}
+.hist-low{background:rgba(220,50,50,.2);border-color:#dc3232;color:#ff6b6b}
+.hist-mid{background:rgba(255,165,0,.15);border-color:#ffa500;color:#ffd97a}
+.hist-high{background:rgba(0,200,100,.15);border-color:#00c864;color:#5affb0}
+.hist-mega{background:rgba(130,0,255,.2);border-color:#8200ff;color:#c87aff}
+
+/* ── player feed ── */
+#feed{width:38%;max-width:145px;overflow-y:auto;padding:4px 0 4px 4px;scrollbar-width:none;display:flex;flex-direction:column;gap:4px}
+#feed::-webkit-scrollbar{display:none}
+.feed-item{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.05);border-radius:10px;padding:5px 6px;flex-shrink:0;border:1px solid rgba(255,255,255,.06)}
+.feed-avatar{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;flex-shrink:0}
+.feed-info{flex:1;min-width:0}
+.feed-bet{font-size:10px;color:#a0b8d0;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.feed-win{font-size:11px;font-weight:900;white-space:nowrap}
+.feed-win.won{color:#5affb0}
+.feed-win.lost{color:#ff5555}
+.feed-win.playing{color:#ffd97a}
+
+/* ── rocket canvas area ── */
+#canvas-wrap{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+#rc{width:100%;height:100%}
+
+/* ── big multiplier overlay ── */
+#mult-display{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;z-index:10}
+#mult-value{font-size:54px;font-weight:900;letter-spacing:-1px;line-height:1;text-shadow:0 0 30px currentColor}
+#mult-value.flying{color:#00d4ff;text-shadow:0 0 40px #00d4ff,0 0 80px #00d4ff55}
+#mult-value.crashed{color:#ff3a3a;text-shadow:0 0 40px #ff3a3a}
+#mult-value.waiting{color:#ffd97a;text-shadow:0 0 30px #ffd97a}
+#mult-label{font-size:12px;color:rgba(255,255,255,.6);font-weight:700;margin-top:2px;letter-spacing:2px}
+
+#phase-overlay{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;z-index:11}
+#phase-text{font-size:16px;font-weight:900;color:#ffd97a;letter-spacing:1px}
+#phase-sub{font-size:12px;color:rgba(255,255,255,.5);margin-top:3px}
+
+/* ── flight markers (right side) ── */
+#markers{position:absolute;right:4px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:space-evenly;pointer-events:none;z-index:5}
+.marker{font-size:9px;color:rgba(94,200,255,.4);font-weight:700;text-align:right}
+
+/* ── bottom bet panels ── */
+#panels{display:flex;gap:5px}
+.panel{flex:1;background:linear-gradient(160deg,#0a1a3a,#060f22);border:1px solid rgba(94,200,255,.2);border-radius:14px;padding:7px 6px;display:flex;flex-direction:column;gap:5px}
+.panel.armed{border-color:#ffd97a;box-shadow:0 0 12px rgba(255,217,122,.25)}
+.panel.cashed{border-color:#5affb0;box-shadow:0 0 12px rgba(90,255,176,.25)}
+.panel.lost{border-color:#ff5555;box-shadow:0 0 10px rgba(255,85,85,.2)}
+
+.mode-row{display:flex;gap:0;border:1px solid rgba(255,255,255,.12);border-radius:8px;overflow:hidden}
+.mode-btn{flex:1;padding:4px 0;font-size:11px;font-weight:800;border:none;cursor:pointer;background:transparent;color:rgba(255,255,255,.4);transition:all .2s}
+.mode-btn.active{background:rgba(94,200,255,.2);color:#00d4ff}
+
+.amount-row{display:flex;align-items:center;gap:4px}
+.amt-ctrl{width:26px;height:26px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1}
+.amt-display{flex:1;text-align:center;font-size:13px;font-weight:900;color:#ffd97a;background:rgba(255,217,122,.08);border:1px solid rgba(255,217,122,.2);border-radius:8px;padding:4px 2px}
+
+.chips-row{display:flex;gap:3px;flex-wrap:wrap}
+.chip{flex:1;min-width:0;padding:3px 0;border-radius:6px;font-size:10px;font-weight:800;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:rgba(255,255,255,.8);cursor:pointer;text-align:center;white-space:nowrap}
+.chip:active{background:rgba(94,200,255,.2)}
+
+.auto-row{display:flex;align-items:center;gap:4px}
+.auto-label{font-size:10px;color:rgba(255,255,255,.5);font-weight:700;white-space:nowrap}
+.auto-target{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:7px;padding:3px 6px;color:#fff;font-size:12px;font-weight:800;text-align:center;width:100%}
+
+.action-btn{width:100%;padding:9px 4px;border-radius:10px;font-size:13px;font-weight:900;border:none;cursor:pointer;letter-spacing:.5px;transition:all .2s;margin-top:2px}
+.action-btn.bet{background:linear-gradient(135deg,#1a6fff,#0044cc);color:#fff;box-shadow:0 4px 14px rgba(0,100,255,.4)}
+.action-btn.bet:active{transform:scale(.97)}
+.action-btn.armed{background:linear-gradient(135deg,#cc8800,#ffaa00);color:#000}
+.action-btn.cashout{background:linear-gradient(135deg,#00c864,#00ff7f);color:#000;box-shadow:0 4px 14px rgba(0,200,100,.4);animation:pulse-green .7s infinite alternate}
+.action-btn.won{background:linear-gradient(135deg,#00843d,#00c864);color:#fff}
+.action-btn.lost{background:rgba(180,0,0,.3);color:#ff8888;cursor:default}
+.action-btn.locked{background:rgba(255,255,255,.06);color:rgba(255,255,255,.3);cursor:default}
+
+@keyframes pulse-green{from{box-shadow:0 4px 14px rgba(0,200,100,.4)}to{box-shadow:0 4px 22px rgba(0,255,120,.7)}}
+
+/* ── canvas stars / rocket ── */
+#rc{display:block}
+
+/* ── balance ── */
+#balance-bar{display:flex;align-items:center;gap:5px;padding:2px 0 5px}
+#bal-icon{font-size:15px}
+#bal-val{font-size:14px;font-weight:900;color:#ffd97a}
+#bal-label{font-size:10px;color:rgba(255,255,255,.4);font-weight:700;margin-left:1px}
+</style>
+</head>
+<body>
+<div id="root">
+  <!-- TOP -->
+  <div id="top-bar">
+    <div id="title-row">
+      <button id="back-btn" onclick="closeGame()">&#8592;</button>
+      <span id="game-title">ROCKET CRASH</span>
+      <span id="round-label">Round #0</span>
+      <button id="sound-btn" onclick="toggleSound()">🔊</button>
+    </div>
+    <div id="history-row"></div>
+  </div>
+
+  <!-- GAME AREA -->
+  <div id="game-area">
+    <div id="feed"></div>
+    <div id="canvas-wrap">
+      <canvas id="rc"></canvas>
+      <div id="mult-display">
+        <div id="mult-value" class="waiting">1.00x</div>
+        <div id="mult-label">MULTIPLIER</div>
+      </div>
+      <div id="phase-overlay">
+        <div id="phase-text"></div>
+        <div id="phase-sub"></div>
+      </div>
+      <div id="markers">
+        <span class="marker">20x</span>
+        <span class="marker">10x</span>
+        <span class="marker">5x</span>
+        <span class="marker">3x</span>
+        <span class="marker">2x</span>
+        <span class="marker">1x</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM -->
+  <div id="bottom">
+    <div id="balance-bar">
+      <span id="bal-icon">⚡</span>
+      <span id="bal-val">0</span>
+      <span id="bal-label">coins</span>
+    </div>
+    <div id="panels">
+      <!-- SLOT 0 -->
+      <div class="panel" id="panel0">
+        <div class="mode-row">
+          <button class="mode-btn active" id="mode0-manual" onclick="setMode(0,'manual')">Manual</button>
+          <button class="mode-btn" id="mode0-auto" onclick="setMode(0,'auto')">Auto</button>
+        </div>
+        <div class="amount-row">
+          <button class="amt-ctrl" onclick="adjustAmt(0,-1)">−</button>
+          <div class="amt-display" id="amt0">100</div>
+          <button class="amt-ctrl" onclick="adjustAmt(0,1)">+</button>
+        </div>
+        <div class="chips-row">
+          <button class="chip" onclick="setAmt(0,100)">100</button>
+          <button class="chip" onclick="setAmt(0,500)">500</button>
+          <button class="chip" onclick="setAmt(0,1000)">1K</button>
+          <button class="chip" onclick="setAmt(0,2000)">2K</button>
+          <button class="chip" onclick="setAmt(0,5000)">5K</button>
+        </div>
+        <div class="auto-row" id="auto-row0" style="display:none">
+          <span class="auto-label">Auto @</span>
+          <input class="auto-target" id="autoT0" type="number" min="1.05" max="100" step="0.1" value="2.00">x
+        </div>
+        <button class="action-btn bet" id="btn0" onclick="slotAction(0)">BET</button>
+      </div>
+      <!-- SLOT 1 -->
+      <div class="panel" id="panel1">
+        <div class="mode-row">
+          <button class="mode-btn active" id="mode1-manual" onclick="setMode(1,'manual')">Manual</button>
+          <button class="mode-btn" id="mode1-auto" onclick="setMode(1,'auto')">Auto</button>
+        </div>
+        <div class="amount-row">
+          <button class="amt-ctrl" onclick="adjustAmt(1,-1)">−</button>
+          <div class="amt-display" id="amt1">500</div>
+          <button class="amt-ctrl" onclick="adjustAmt(1,1)">+</button>
+        </div>
+        <div class="chips-row">
+          <button class="chip" onclick="setAmt(1,100)">100</button>
+          <button class="chip" onclick="setAmt(1,500)">500</button>
+          <button class="chip" onclick="setAmt(1,1000)">1K</button>
+          <button class="chip" onclick="setAmt(1,2000)">2K</button>
+          <button class="chip" onclick="setAmt(1,5000)">5K</button>
+        </div>
+        <div class="auto-row" id="auto-row1" style="display:none">
+          <span class="auto-label">Auto @</span>
+          <input class="auto-target" id="autoT1" type="number" min="1.05" max="100" step="0.1" value="2.00">x
+        </div>
+        <button class="action-btn bet" id="btn1" onclick="slotAction(1)">BET</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════════
+const G = {
+  phase: 'init',   // init | waiting | flying | crashed
+  round: 0,
+  mult: 1.00,
+  crashAt: 2.0,
+  startTs: 0,
+  waitEnd: 0,
+  balance: 0,
+  locale: 'en',
+  soundOn: true,
+  history: [],
+  flightTimer: null,
+  waitTimer: null,
+  slots: [
+    {mode:'manual', amount:100, state:'idle', betId:null, autoT:2.0},
+    {mode:'manual', amount:500, state:'idle', betId:null, autoT:2.0},
+  ],
+  feedItems: [],
+};
+const WAIT_SECS = 7;
+const CHIPS = [100,500,1000,2000,5000];
+const AMT_STEPS = [100,200,500,1000,2000,5000,10000,20000,50000];
+const FAKE_NAMES = ['Ali','Sara','Omar','Nora','Fahad','Layla','Khalid','Maha','Yusuf','Rana','Turki','Hana'];
+const AVATAR_COLORS = ['#7b2fff','#ff5caa','#1a6fff','#ff8c00','#00c864','#e63946','#00b4d8','#8338ec'];
+
+// ═══════════════════════════════════════════════════════════════════════
+// AUDIO
+// ═══════════════════════════════════════════════════════════════════════
+let _actx = null;
+let _audioUnlocked = false;
+
+function getACtx() {
+  if (!_actx) _actx = new (window.AudioContext || window.webkitAudioContext)();
+  return _actx;
+}
+
+function unlockAudio() {
+  if (_audioUnlocked) return;
+  try {
+    const c = getACtx();
+    if (c.state === 'suspended') c.resume();
+    const b = c.createBuffer(1,1,22050);
+    const s = c.createBufferSource();
+    s.buffer = b; s.connect(c.destination); s.start(0);
+    _audioUnlocked = true;
+  } catch(e){}
+}
+
+document.addEventListener('click', unlockAudio, {once:false});
+document.addEventListener('touchstart', unlockAudio, {once:false});
+
+const SFX = {
+  _play(fn) {
+    if (!G.soundOn) return;
+    try { fn(getACtx()); } catch(e){}
+  },
+  tap() { this._play(c => { const o=c.createOscillator(),g=c.createGain(); o.type='sine'; o.frequency.value=880; g.gain.setValueAtTime(.18,c.currentTime); g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.08); o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime+.08); }); },
+  arm() { this._play(c => { const o=c.createOscillator(),g=c.createGain(); o.type='triangle'; o.frequency.setValueAtTime(440,c.currentTime); o.frequency.linearRampToValueAtTime(880,c.currentTime+.12); g.gain.setValueAtTime(.22,c.currentTime); g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.15); o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime+.15); }); },
+  cancel() { this._play(c => { const o=c.createOscillator(),g=c.createGain(); o.type='sawtooth'; o.frequency.setValueAtTime(400,c.currentTime); o.frequency.linearRampToValueAtTime(200,c.currentTime+.18); g.gain.setValueAtTime(.15,c.currentTime); g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.2); o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime+.2); }); },
+  launch() { this._play(c => { const buf=c.createBuffer(1,c.sampleRate*.4,c.sampleRate); const d=buf.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,0.7)*.6; const s=c.createBufferSource(),g=c.createGain(); s.buffer=buf; g.gain.setValueAtTime(.5,c.currentTime); g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.4); s.connect(g); g.connect(c.destination); s.start(); }); },
+  tick(mult) { this._play(c => { const f=Math.min(1800, 300+mult*80); const o=c.createOscillator(),g=c.createGain(); o.type='sine'; o.frequency.value=f; g.gain.setValueAtTime(.06,c.currentTime); g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.05); o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime+.05); }); },
+  cashout() { this._play(c => { [0,.08,.16].forEach((dt,i) => { const o=c.createOscillator(),g=c.createGain(); o.type='sine'; o.frequency.value=[523,659,784][i]; g.gain.setValueAtTime(.25,c.currentTime+dt); g.gain.exponentialRampToValueAtTime(.001,c.currentTime+dt+.22); o.connect(g); g.connect(c.destination); o.start(c.currentTime+dt); o.stop(c.currentTime+dt+.22); }); }); },
+  crash() { this._play(c => { const buf=c.createBuffer(1,c.sampleRate*.6,c.sampleRate); const d=buf.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,1.5)*.8; const s=c.createBufferSource(),g=c.createGain(); s.buffer=buf; g.gain.setValueAtTime(.8,c.currentTime); g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.6); s.connect(g); g.connect(c.destination); s.start(); }); },
+  newRound() { this._play(c => { const o=c.createOscillator(),g=c.createGain(); o.type='triangle'; o.frequency.value=330; g.gain.setValueAtTime(.1,c.currentTime); g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.25); o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime+.25); }); },
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+// CANVAS / ROCKET ANIMATION
+// ═══════════════════════════════════════════════════════════════════════
+const cvs = document.getElementById('rc');
+const ctx2 = cvs.getContext('2d');
+let _stars = [];
+let _raf = null;
+let _rocketY = 0; // 0=bottom, 1=top
+let _flameT = 0;
+let _shakeT = 0;
+let _explodeT = 0;
+
+function initStars(n) {
+  _stars = [];
+  for (let i=0;i<n;i++) _stars.push({x:Math.random(),y:Math.random(),r:Math.random()*1.4+.3,sp:Math.random()*.3+.1});
+}
+
+function resizeCanvas() {
+  const w = cvs.parentElement.clientWidth;
+  const h = cvs.parentElement.clientHeight;
+  cvs.width = w;
+  cvs.height = h;
+  initStars(60);
+}
+
+function drawFrame(ts) {
+  _raf = requestAnimationFrame(drawFrame);
+  const W = cvs.width, H = cvs.height;
+  if (!W || !H) return;
+
+  ctx2.clearRect(0,0,W,H);
+
+  // starfield
+  ctx2.save();
+  _stars.forEach(s => {
+    const tw = G.phase==='flying' ? ts/8000 : 0;
+    const x = ((s.x + tw*s.sp) % 1) * W;
+    const y = s.y * H;
+    const alpha = G.phase==='flying' ? .9 : .5;
+    ctx2.beginPath();
+    ctx2.arc(x,y,s.r,0,Math.PI*2);
+    ctx2.fillStyle = `rgba(255,255,255,${alpha * s.r/2})`;
+    ctx2.fill();
+  });
+  ctx2.restore();
+
+  // crash explosion
+  if (G.phase==='crashed' && _explodeT > 0) {
+    const age = (ts - _explodeT) / 1000;
+    if (age < 1.2) {
+      const rx = W * .72;
+      const ry = H * (1 - _rocketY) * .85 + H*.05;
+      const rings = [.18,.35,.55];
+      rings.forEach((rr,i) => {
+        const r2 = (age - i*.1) * 90;
+        if (r2 <= 0) return;
+        const a = Math.max(0, .7 - age*.6);
+        ctx2.beginPath();
+        ctx2.arc(rx,ry,r2,0,Math.PI*2);
+        ctx2.strokeStyle = `rgba(255,${100-i*30},0,${a})`;
+        ctx2.lineWidth = 4-i;
+        ctx2.stroke();
+      });
+    }
+  }
+
+  // rocket
+  if (G.phase === 'flying' || G.phase === 'waiting') {
+    const progress = G.phase==='flying'
+      ? Math.min(1, (G.mult - 1) / Math.max(1, G.crashAt - 1) * .85)
+      : 0;
+    _rocketY = progress;
+
+    const rx = W * .72;
+    const ry = H * .88 - progress * (H * .76);
+
+    // shake during launch
+    const sx = _shakeT > 0 ? (Math.random()-.5)*4 : 0;
+    const sy = _shakeT > 0 ? (Math.random()-.5)*4 : 0;
+    if (_shakeT > 0 && ts - _shakeT > 400) _shakeT = 0;
+
+    const rx2 = rx + sx, ry2 = ry + sy;
+
+    // flame
+    _flameT = (_flameT + .18) % (Math.PI*2);
+    const fh = 24 + Math.sin(_flameT)*6;
+    const fw = 8 + Math.sin(_flameT*1.3)*2;
+    const flameGrad = ctx2.createLinearGradient(rx2, ry2+14, rx2, ry2+14+fh);
+    flameGrad.addColorStop(0,'rgba(255,200,0,.9)');
+    flameGrad.addColorStop(.5,'rgba(255,80,0,.7)');
+    flameGrad.addColorStop(1,'rgba(255,40,0,0)');
+    ctx2.save();
+    ctx2.beginPath();
+    ctx2.ellipse(rx2, ry2+14+fh/2, fw, fh/2, 0, 0, Math.PI*2);
+    ctx2.fillStyle = flameGrad;
+    ctx2.fill();
+    ctx2.restore();
+
+    // rocket body
+    ctx2.save();
+    ctx2.translate(rx2, ry2);
+    // body
+    const bGrad = ctx2.createLinearGradient(-14,0,14,0);
+    bGrad.addColorStop(0,'#1a4aff');
+    bGrad.addColorStop(.5,'#5ec8ff');
+    bGrad.addColorStop(1,'#1a4aff');
+    ctx2.beginPath();
+    ctx2.moveTo(0,-22);
+    ctx2.bezierCurveTo(10,-16,12,0,10,14);
+    ctx2.lineTo(-10,14);
+    ctx2.bezierCurveTo(-12,0,-10,-16,0,-22);
+    ctx2.fillStyle = bGrad;
+    ctx2.fill();
+    ctx2.strokeStyle = 'rgba(94,200,255,.5)';
+    ctx2.lineWidth = 1;
+    ctx2.stroke();
+    // window
+    ctx2.beginPath();
+    ctx2.arc(0,-4,5,0,Math.PI*2);
+    ctx2.fillStyle = '#a0e8ff';
+    ctx2.fill();
+    ctx2.strokeStyle = '#fff';
+    ctx2.lineWidth = 1;
+    ctx2.stroke();
+    // fins
+    [[-10,14],[ 10,14]].forEach(([fx,fy],i) => {
+      ctx2.beginPath();
+      ctx2.moveTo(fx,fy);
+      ctx2.lineTo(fx+(i?18:-18),fy+10);
+      ctx2.lineTo(fx+(i?8:-8),fy);
+      ctx2.fillStyle = '#0a3aff';
+      ctx2.fill();
+    });
+    ctx2.restore();
+
+    // glow trail
+    if (G.phase==='flying') {
+      const trailGrad = ctx2.createLinearGradient(rx2,ry2+14,rx2,ry2+50);
+      trailGrad.addColorStop(0,'rgba(0,200,255,.15)');
+      trailGrad.addColorStop(1,'rgba(0,100,255,0)');
+      ctx2.beginPath();
+      ctx2.ellipse(rx2,ry2+32,6,24,0,0,Math.PI*2);
+      ctx2.fillStyle = trailGrad;
+      ctx2.fill();
+    }
+  }
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+requestAnimationFrame(ts => { _raf=requestAnimationFrame(drawFrame); });
+
+// ═══════════════════════════════════════════════════════════════════════
+// CRASH GENERATOR
+// ═══════════════════════════════════════════════════════════════════════
+function generateCrash() {
+  const r = Math.random();
+  if (r < 0.04) return 1.00;
+  if (r < 0.08) return 1.0 + Math.random() * 0.04;
+  return Math.max(1.01, Math.min(200, 0.97 / (1 - r)));
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ROUND LOOP
+// ═══════════════════════════════════════════════════════════════════════
+function startWaiting() {
+  G.phase = 'waiting';
+  G.round++;
+  G.mult = 1.00;
+  G.crashAt = generateCrash();
+  _rocketY = 0;
+  _explodeT = 0;
+  document.getElementById('round-label').textContent = 'Round #' + G.round;
+  setMultDisplay(1.00, 'waiting');
+  setPhaseText('WAITING FOR BETS', WAIT_SECS + 's');
+  SFX.newRound();
+
+  // reset slots to idle (only if not mid-process)
+  [0,1].forEach(i => {
+    const s = G.slots[i];
+    if (s.state === 'won' || s.state === 'lost' || s.state === 'idle') {
+      s.state = 'idle';
+      s.betId = null;
+    }
+  });
+  renderSlots();
+
+  let secsLeft = WAIT_SECS;
+  G.waitTimer = setInterval(() => {
+    secsLeft--;
+    setPhaseText('WAITING FOR BETS', secsLeft + 's');
+    if (secsLeft <= 0) {
+      clearInterval(G.waitTimer);
+      startFlight();
+    }
+  }, 1000);
+}
+
+function startFlight() {
+  G.phase = 'flying';
+  G.mult = 1.00;
+  G.startTs = performance.now();
+  setPhaseText('', '');
+  SFX.launch();
+  _shakeT = performance.now();
+
+  // cancel any armed slots (they become lost if no bet was submitted)
+  [0,1].forEach(i => {
+    if (G.slots[i].state === 'pending') {
+      // still waiting for server ack — reject locally
+      G.slots[i].state = 'idle';
+    }
+  });
+
+  let lastTickMult = 1.00;
+  G.flightTimer = setInterval(() => {
+    const elapsed = (performance.now() - G.startTs) / 1000;
+    // multiplier growth: 1 + (e^(0.06*t) - 1)
+    G.mult = Math.max(1.00, Math.round((Math.pow(Math.E, 0.06 * elapsed)) * 100) / 100);
+    setMultDisplay(G.mult, 'flying');
+
+    // tick SFX every 0.5x
+    if (G.mult - lastTickMult >= 0.5) {
+      SFX.tick(G.mult);
+      lastTickMult = G.mult;
+    }
+
+    // check auto cashout
+    [0,1].forEach(i => {
+      const s = G.slots[i];
+      if (s.state === 'armed' && s.mode === 'auto' && s.betId && G.mult >= s.autoT) {
+        doCashout(i);
+      }
+    });
+
+    if (G.mult >= G.crashAt) {
+      clearInterval(G.flightTimer);
+      doCrash();
+    }
+  }, 80);
+}
+
+function doCrash() {
+  G.phase = 'crashed';
+  G.mult = G.crashAt;
+  _explodeT = performance.now();
+  SFX.crash();
+  setMultDisplay(G.crashAt, 'crashed');
+  setPhaseText('CRASHED @ ' + G.crashAt.toFixed(2) + 'x', '');
+
+  // lose all armed bets
+  [0,1].forEach(i => {
+    const s = G.slots[i];
+    if (s.state === 'armed') {
+      s.state = 'lost';
+      addFeedLost(i, s.amount);
+    }
+  });
+  renderSlots();
+
+  // record history
+  addHistory(G.crashAt);
+
+  // next round after 4 seconds
+  setTimeout(startWaiting, 4000);
+}
+
+function addHistory(val) {
+  G.history.unshift(val);
+  if (G.history.length > 12) G.history.pop();
+  renderHistory();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// SLOT ACTIONS
+// ═══════════════════════════════════════════════════════════════════════
+function slotAction(i) {
+  unlockAudio();
+  const s = G.slots[i];
+  if (G.phase === 'waiting') {
+    if (s.state === 'idle') armBet(i);
+    else if (s.state === 'armed') cancelBet(i);
+  } else if (G.phase === 'flying') {
+    if (s.state === 'armed' && s.mode === 'manual') doCashout(i);
+  }
+}
+
+function armBet(i) {
+  const s = G.slots[i];
+  if (s.amount > G.balance) { flashError(i, 'Insufficient coins'); return; }
+  const autoT = parseFloat(document.getElementById('autoT'+i).value) || 2.0;
+  s.autoT = Math.max(1.05, autoT);
+  s.state = 'pending';
+  s.betId = null;
+  renderSlots();
+  SFX.arm();
+  postToFlutter('REQUEST_BET_DEBIT', {slotIndex: i, amount: s.amount});
+}
+
+function cancelBet(i) {
+  const s = G.slots[i];
+  if (s.state !== 'armed' && s.state !== 'pending') return;
+  if (s.betId) {
+    // already debited — request refund via cashout at 1x? No: for cancel we just refund locally
+    // Tell Flutter to refund
+    postToFlutter('REQUEST_CASHOUT_CREDIT', {slotIndex: i, betId: s.betId, multiplier: 1.0, cancel: true});
+    s.state = 'cancelling';
+  } else {
+    // never debited yet — just reset
+    s.state = 'idle';
+    s.betId = null;
+  }
+  SFX.cancel();
+  renderSlots();
+}
+
+function doCashout(i) {
+  const s = G.slots[i];
+  if (s.state !== 'armed' || !s.betId) return;
+  s.state = 'cashing';
+  renderSlots();
+  postToFlutter('REQUEST_CASHOUT_CREDIT', {slotIndex: i, betId: s.betId, multiplier: G.mult});
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// FLUTTER → WEB  handlers
+// ═══════════════════════════════════════════════════════════════════════
+window.onSroodMessage = function(msg) {
+  const {type, payload} = msg;
+  switch(type) {
+    case 'INIT_GAME':
+      G.balance = payload.balance || 0;
+      G.locale = payload.locale || 'en';
+      G.soundOn = payload.sound !== false;
+      updateSoundBtn();
+      updateBalDisplay();
+      startWaiting();
+      break;
+    case 'WALLET_UPDATED':
+      G.balance = payload.balance || 0;
+      updateBalDisplay();
+      break;
+    case 'BET_ACCEPTED': {
+      const i = payload.slotIndex;
+      G.slots[i].state = 'armed';
+      G.slots[i].betId = payload.betId || ('local-'+i+'-'+Date.now());
+      if (payload.newBalance != null) G.balance = payload.newBalance;
+      updateBalDisplay();
+      renderSlots();
+      addFeedBet(i, G.slots[i].amount);
+      break;
+    }
+    case 'BET_REJECTED': {
+      const i = payload.slotIndex;
+      G.slots[i].state = 'idle';
+      G.slots[i].betId = null;
+      flashError(i, payload.code === 'insufficient_coins' ? 'Not enough coins' : 'Bet rejected');
+      renderSlots();
+      break;
+    }
+    case 'CASHOUT_ACCEPTED': {
+      const i = payload.slotIndex;
+      const wasCancelling = G.slots[i].state === 'cancelling';
+      G.slots[i].state = 'won';
+      G.slots[i].betId = null;
+      if (payload.newBalance != null) G.balance = payload.newBalance;
+      updateBalDisplay();
+      if (!wasCancelling) {
+        SFX.cashout();
+        addFeedWon(i, G.slots[i].amount, payload.multiplier || G.mult);
+      } else {
+        // cancel refund — go back to idle
+        G.slots[i].state = 'idle';
+      }
+      renderSlots();
+      break;
+    }
+    case 'CASHOUT_REJECTED': {
+      const i = payload.slotIndex;
+      // revert to armed if still flying, else lost
+      G.slots[i].state = G.phase==='flying' ? 'armed' : 'lost';
+      G.slots[i].betId = G.phase==='flying' ? G.slots[i].betId : null;
+      renderSlots();
+      break;
+    }
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+// CONTROLS
+// ═══════════════════════════════════════════════════════════════════════
+function setMode(i, mode) {
+  G.slots[i].mode = mode;
+  document.getElementById('mode'+i+'-manual').classList.toggle('active', mode==='manual');
+  document.getElementById('mode'+i+'-auto').classList.toggle('active', mode==='auto');
+  document.getElementById('auto-row'+i).style.display = mode==='auto' ? 'flex' : 'none';
+}
+
+function adjustAmt(i, dir) {
+  const s = G.slots[i];
+  const cur = AMT_STEPS.indexOf(s.amount);
+  let ni = cur < 0
+    ? (dir > 0 ? 1 : 0)
+    : Math.min(AMT_STEPS.length-1, Math.max(0, cur+dir));
+  s.amount = AMT_STEPS[ni];
+  document.getElementById('amt'+i).textContent = fmtAmt(s.amount);
+}
+
+function setAmt(i, v) {
+  G.slots[i].amount = v;
+  document.getElementById('amt'+i).textContent = fmtAmt(v);
+  SFX.tap();
+}
+
+function fmtAmt(v) { return v >= 1000 ? (v/1000).toFixed(v%1000===0?0:1)+'K' : v.toString(); }
+
+function toggleSound() {
+  G.soundOn = !G.soundOn;
+  try { localStorage.setItem('rc_sound', G.soundOn?'1':'0'); } catch(e){}
+  updateSoundBtn();
+  postToFlutter('SET_SOUND_SETTING', {enabled: G.soundOn});
+}
+
+function updateSoundBtn() {
+  document.getElementById('sound-btn').textContent = G.soundOn ? '🔊' : '🔇';
+}
+
+function closeGame() {
+  postToFlutter('GAME_CLOSED', {});
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════════════════
+function renderSlots() {
+  [0,1].forEach(i => {
+    const s = G.slots[i];
+    const panel = document.getElementById('panel'+i);
+    const btn = document.getElementById('btn'+i);
+    const amtEl = document.getElementById('amt'+i);
+
+    // panel class
+    panel.className = 'panel';
+    if (s.state === 'armed') panel.classList.add('armed');
+    else if (s.state === 'won') panel.classList.add('cashed');
+    else if (s.state === 'lost') panel.classList.add('lost');
+
+    // amount display
+    amtEl.textContent = fmtAmt(s.amount);
+
+    // button
+    btn.className = 'action-btn';
+    if (G.phase === 'waiting') {
+      if (s.state === 'idle') { btn.textContent='BET'; btn.classList.add('bet'); btn.disabled=false; }
+      else if (s.state === 'pending') { btn.textContent='...'; btn.classList.add('locked'); btn.disabled=true; }
+      else if (s.state === 'armed') { btn.textContent='CANCEL'; btn.classList.add('armed'); btn.disabled=false; }
+      else if (s.state === 'won') { btn.textContent='WON ✓'; btn.classList.add('won'); btn.disabled=true; }
+      else if (s.state === 'lost') { btn.textContent='LOST'; btn.classList.add('lost'); btn.disabled=true; }
+      else { btn.textContent='BET'; btn.classList.add('locked'); btn.disabled=true; }
+    } else if (G.phase === 'flying') {
+      if (s.state === 'idle') { btn.textContent='BET'; btn.classList.add('locked'); btn.disabled=true; }
+      else if (s.state === 'armed' && s.mode==='manual') { btn.textContent='CASH OUT'; btn.classList.add('cashout'); btn.disabled=false; }
+      else if (s.state === 'armed' && s.mode==='auto') { btn.textContent='AUTO @'+s.autoT.toFixed(2)+'x'; btn.classList.add('armed'); btn.disabled=false; }
+      else if (s.state === 'cashing') { btn.textContent='...'; btn.classList.add('locked'); btn.disabled=true; }
+      else if (s.state === 'won') { btn.textContent='WON ✓'; btn.classList.add('won'); btn.disabled=true; }
+      else if (s.state === 'lost') { btn.textContent='LOST'; btn.classList.add('lost'); btn.disabled=true; }
+      else { btn.textContent='BET'; btn.classList.add('locked'); btn.disabled=true; }
+    } else if (G.phase === 'crashed') {
+      if (s.state === 'won') { btn.textContent='WON ✓'; btn.classList.add('won'); btn.disabled=true; }
+      else if (s.state === 'lost') { btn.textContent='LOST'; btn.classList.add('lost'); btn.disabled=true; }
+      else { btn.textContent='WAIT...'; btn.classList.add('locked'); btn.disabled=true; }
+    } else {
+      btn.textContent='BET'; btn.classList.add('locked'); btn.disabled=true;
+    }
+  });
+}
+
+function setMultDisplay(val, cls) {
+  const el = document.getElementById('mult-value');
+  el.textContent = val.toFixed(2) + 'x';
+  el.className = 'mult-value ' + cls;
+  // also update phase text during flight
+  if (cls === 'flying') setPhaseText('', '');
+}
+
+function setPhaseText(main, sub) {
+  document.getElementById('phase-text').textContent = main;
+  document.getElementById('phase-sub').textContent = sub;
+}
+
+function updateBalDisplay() {
+  document.getElementById('bal-val').textContent = G.balance.toLocaleString();
+}
+
+function renderHistory() {
+  const row = document.getElementById('history-row');
+  row.innerHTML = '';
+  G.history.forEach(v => {
+    const chip = document.createElement('span');
+    chip.className = 'hist-chip ' + (v < 1.5 ? 'hist-low' : v < 3 ? 'hist-mid' : v < 10 ? 'hist-high' : 'hist-mega');
+    chip.textContent = v.toFixed(2) + 'x';
+    row.appendChild(chip);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// FAKE FEED
+// ═══════════════════════════════════════════════════════════════════════
+function randomFeedName() { return FAKE_NAMES[Math.floor(Math.random()*FAKE_NAMES.length)]; }
+function randomFeedColor() { return AVATAR_COLORS[Math.floor(Math.random()*AVATAR_COLORS.length)]; }
+function randomFeedAmount() { const a=[100,200,500,1000,2000,5000]; return a[Math.floor(Math.random()*a.length)]; }
+
+function addFeedItem(name, color, betAmt, winMult, state) {
+  G.feedItems.unshift({name, color, betAmt, winMult, state});
+  if (G.feedItems.length > 10) G.feedItems.pop();
+  renderFeed();
+}
+
+function addFeedBet(slotIdx, amt) {
+  const n = 'You (S'+(slotIdx+1)+')';
+  addFeedItem(n, '#1a6fff', amt, null, 'playing');
+}
+function addFeedWon(slotIdx, amt, mult) {
+  const n = 'You (S'+(slotIdx+1)+')';
+  addFeedItem(n, '#00c864', amt, mult, 'won');
+}
+function addFeedLost(slotIdx, amt) {
+  const n = 'You (S'+(slotIdx+1)+')';
+  addFeedItem(n, '#e63946', amt, null, 'lost');
+}
+
+function renderFeed() {
+  const feed = document.getElementById('feed');
+  feed.innerHTML = '';
+  G.feedItems.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'feed-item';
+    const ini = item.name[0].toUpperCase();
+    div.innerHTML = `
+      <div class="feed-avatar" style="background:${item.color}">${ini}</div>
+      <div class="feed-info">
+        <div class="feed-bet">${item.name}: ${item.betAmt >= 1000 ? (item.betAmt/1000).toFixed(1)+'K' : item.betAmt}</div>
+        <div class="feed-win ${item.state}">
+          ${item.state==='won' ? '×'+item.winMult.toFixed(2)+' ✓' : item.state==='lost' ? 'LOST' : '...'}
+        </div>
+      </div>`;
+    feed.appendChild(div);
+  });
+}
+
+// Inject fake players periodically during waiting phase
+function injectFakePlayers() {
+  if (G.phase !== 'waiting') return;
+  const count = Math.floor(Math.random()*3)+1;
+  for (let i=0;i<count;i++) {
+    const name = randomFeedName();
+    const color = randomFeedColor();
+    const amt = randomFeedAmount();
+    addFeedItem(name, color, amt, null, 'playing');
+  }
+}
+
+setInterval(() => {
+  if (G.phase === 'waiting') injectFakePlayers();
+  else if (G.phase === 'flying') {
+    // random cashouts
+    if (Math.random() < .25 && G.feedItems.length > 0) {
+      const idx = Math.floor(Math.random()*G.feedItems.length);
+      if (G.feedItems[idx].state === 'playing') {
+        G.feedItems[idx].state = 'won';
+        G.feedItems[idx].winMult = G.mult;
+        renderFeed();
+      }
+    }
+  }
+}, 1800);
+
+// ═══════════════════════════════════════════════════════════════════════
+// BRIDGE
+// ═══════════════════════════════════════════════════════════════════════
+function postToFlutter(type, payload) {
+  try {
+    if (window.SroodBridge) {
+      window.SroodBridge.postMessage(JSON.stringify({type, payload}));
+    }
+  } catch(e) {}
+}
+
+function flashError(i, msg) {
+  const btn = document.getElementById('btn'+i);
+  const orig = btn.textContent;
+  btn.textContent = msg;
+  btn.style.background = '#550000';
+  setTimeout(() => {
+    btn.textContent = orig;
+    btn.style.background = '';
+    renderSlots();
+  }, 1800);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════════════════
+(function boot() {
+  // restore sound pref
+  try { const s=localStorage.getItem('rc_sound'); if(s!==null) G.soundOn=s==='1'; } catch(e){}
+  updateSoundBtn();
+  updateBalDisplay();
+  setMultDisplay(1.00, 'waiting');
+  setPhaseText('CONNECTING...', '');
+  renderSlots();
+  // notify Flutter we are ready
+  postToFlutter('GAME_READY', {});
+  // if no Flutter bridge (browser test), auto-start with test balance
+  setTimeout(() => {
+    if (G.phase === 'init') {
+      G.balance = 5000;
+      updateBalDisplay();
+      startWaiting();
+    }
+  }, 1200);
+})();
+</script>
+</body>
+</html>

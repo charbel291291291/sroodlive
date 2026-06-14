@@ -2,6 +2,7 @@
 
 import 'gold_ladder_quiz_screen.dart';
 import 'hungry_cat_webview_screen.dart';
+import 'rocket_crash_webview_screen.dart';
 import 'spin_wheel_screen.dart';
 
 class CrashGameScreen extends StatelessWidget {
@@ -90,6 +91,21 @@ class CrashGameScreen extends StatelessWidget {
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) => HungryCatWebviewScreen(isArabic: isArabic),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  _GameCard(
+                    icon: '🚀',
+                    title: isArabic ? 'صاروخ الانهيار' : 'Rocket Crash',
+                    subtitle: isArabic
+                        ? 'راهن واكسب قبل أن يسقط الصاروخ!'
+                        : 'Bet and cash out before the rocket crashes!',
+                    colors: const [Color(0xFF1A6FFF), Color(0xFF030e2a)],
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            RocketCrashWebviewScreen(isArabic: isArabic),
                       ),
                     ),
                   ),

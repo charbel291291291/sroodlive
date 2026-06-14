@@ -77,6 +77,7 @@ flutter:
     - assets/avatar_frames/custom/
     - assets/games/hungry_cat/
     - assets/games/gold_ladder_quiz/
+    - assets/games/rocket_crash/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
