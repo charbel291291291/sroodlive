@@ -2769,7 +2769,7 @@ class _LiveRoomStage extends StatelessWidget {
                   crossAxisCount: 4,
                   mainAxisSpacing: compactGrid ? 12 : 16,
                   crossAxisSpacing: compactGrid ? 6 : 8,
-                  childAspectRatio: compactGrid ? 0.44 : 0.46,
+                  childAspectRatio: compactGrid ? 0.42 : 0.44,
                 ),
                 itemBuilder: (context, index) {
                   return _LiveSeatBubble(
@@ -3457,60 +3457,64 @@ class _LiveSeatBubble extends StatelessWidget {
                     size: _micSeatIconSize,
                   ),
                 )
-              : Stack(
-                  clipBehavior: Clip.none,
-                  alignment: Alignment.center,
-                  children: [
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: seat.member == null
-                          ? null
-                          : () => onProfileTap(seat.member!.userId),
-                      child: AvatarWithFrame(
-                        imageUrl: seat.member?.avatarUrl,
-                        radius: avatarRadius,
-                        frameKey: seat.member?.selectedAvatarFrameKey,
-                        vipLevel: effectiveVipLevel,
-                        showVipBadge: false,
-                        compact: !occupiedByHost,
-                        fallbackIcon: seat.isMuted
-                            ? Icons.mic_off_rounded
-                            : Icons.person_rounded,
-                      ),
-                    ),
-                    IgnorePointer(
-                      child: Container(
-                        width: outerSize,
-                        height: outerSize,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                              color: borderColor, width: borderWidth),
-                          boxShadow: glowShadows,
+              : SizedBox(
+                  width: outerSize,
+                  height: outerSize,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.center,
+                    children: [
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: seat.member == null
+                            ? null
+                            : () => onProfileTap(seat.member!.userId),
+                        child: AvatarWithFrame(
+                          imageUrl: seat.member?.avatarUrl,
+                          radius: avatarRadius,
+                          frameKey: seat.member?.selectedAvatarFrameKey,
+                          vipLevel: effectiveVipLevel,
+                          showVipBadge: false,
+                          compact: !occupiedByHost,
+                          fallbackIcon: seat.isMuted
+                              ? Icons.mic_off_rounded
+                              : Icons.person_rounded,
                         ),
                       ),
-                    ),
-                    if (seat.isMuted)
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
+                      IgnorePointer(
                         child: Container(
-                          width: 22,
-                          height: 22,
+                          width: outerSize,
+                          height: outerSize,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: const Color(0xFFE63946),
-                            border:
-                                Border.all(color: Colors.black, width: 1.5),
-                          ),
-                          child: const Icon(
-                            Icons.mic_off_rounded,
-                            color: Colors.white,
-                            size: 12,
+                            border: Border.all(
+                                color: borderColor, width: borderWidth),
+                            boxShadow: glowShadows,
                           ),
                         ),
                       ),
-                  ],
+                      if (seat.isMuted)
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            width: 22,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFFE63946),
+                              border:
+                                  Border.all(color: Colors.black, width: 1.5),
+                            ),
+                            child: const Icon(
+                              Icons.mic_off_rounded,
+                              color: Colors.white,
+                              size: 12,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
         ),
         SizedBox(height: occupiedByHost ? 8 : 6),
