@@ -1,22 +1,31 @@
--- ────────────────────────────────────────────────────────────────────────────
--- Enable Supabase Realtime for room gifts & members
---
---   The app drives live gift animations and seat/member updates through
---   `onPostgresChanges`, but these tables were never added to the
---   `supabase_realtime` publication. As a result the realtime stream never
---   fired on other devices: a gift was charged and recorded, yet only the
---   sender saw the animation — receivers got nothing.
---
---   This adds both tables to the publication and sets REPLICA IDENTITY FULL so
---   UPDATE/DELETE payloads carry the room_id needed by the client-side filters
---   (e.g. mute/seat changes and leave events on room_members).
--- ────────────────────────────────────────────────────────────────────────────
+-- Enable Supabase Realtime for room gifts & members safely.
+-- This migration is idempotent, so it will not fail if tables are already in the publication.
 
--- gift_transactions: insert events power the gift overlay for every member.
-alter publication supabase_realtime add table public.gift_transactions;
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'gift_transactions'
+  ) then
+    alter publication supabase_realtime add table public.gift_transactions;
+  end if;
+end $$;
 
--- room_members: seat / mute / join / leave updates for the live seat UI.
-alter publication supabase_realtime add table public.room_members;
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'room_members'
+  ) then
+    alter publication supabase_realtime add table public.room_members;
+  end if;
+end $$;
 
 alter table public.gift_transactions replica identity full;
 alter table public.room_members replica identity full;
