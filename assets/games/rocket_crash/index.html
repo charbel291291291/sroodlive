@@ -118,6 +118,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:#020818;font-family:
 .abtn.lost   {background:rgba(160,0,0,.3);color:#ff9090}
 .abtn.locked {background:rgba(255,255,255,.05);color:rgba(255,255,255,.28)}
 .abtn:disabled{cursor:default}
+
+/* During flight/crash: collapse betting controls, enlarge action button */
+.panel.fly .mode-row,
+.panel.fly .amt-row,
+.panel.fly .chips,
+.panel.fly .auto-row{display:none!important}
+.panel.fly .abtn{padding:18px 4px;font-size:16px;border-radius:14px;margin-top:0}
 @keyframes pg{from{box-shadow:0 4px 12px rgba(0,200,100,.3)}to{box-shadow:0 4px 24px rgba(0,255,120,.65)}}
 </style>
 </head>
@@ -776,44 +783,66 @@ function renderHistory() {
 }
 
 function renderSlots() {
+  const inFlight = G.phase === 'flying' || G.phase === 'crashed';
+
   G.slots.forEach((s,i) => {
     const panel = document.getElementById('panel'+i);
     const btn   = document.getElementById('btn'+i);
     const amtEl = document.getElementById('amt'+i);
 
     amtEl.textContent = fmtAmt(s.amount);
+
+    // base classes
     panel.className = 'panel';
+    if (inFlight) panel.classList.add('fly'); // collapses controls, enlarges button
     if (s.state==='armed'||s.state==='cashing') panel.classList.add('p-armed');
-    else if (s.state==='won')     panel.classList.add('p-cashed');
-    else if (s.state==='lost')    panel.classList.add('p-lost');
+    else if (s.state==='won')  panel.classList.add('p-cashed');
+    else if (s.state==='lost') panel.classList.add('p-lost');
 
     btn.className = 'abtn';
     btn.disabled  = false;
 
     if (G.phase === 'waiting') {
-      if (s.state==='idle')       { btn.textContent='BET '+(i+1);  btn.classList.add('bet'); }
-      else if (s.state==='pending'||s.state==='cancelling') { btn.textContent='…'; btn.classList.add('locked'); btn.disabled=true; }
-      else if (s.state==='armed') { btn.textContent='CANCEL';  btn.classList.add('armed'); }
-      else if (s.state==='won')   { btn.textContent='WON ✓';   btn.classList.add('won');  btn.disabled=true; }
-      else if (s.state==='lost')  { btn.textContent='LOST';    btn.classList.add('lost'); btn.disabled=true; }
-      else { btn.textContent='BET '+(i+1); btn.classList.add('locked'); btn.disabled=true; }
+      if (s.state==='idle')
+        { btn.textContent='BET '+(i+1); btn.classList.add('bet'); }
+      else if (s.state==='pending'||s.state==='cancelling')
+        { btn.textContent='…'; btn.classList.add('locked'); btn.disabled=true; }
+      else if (s.state==='armed')
+        { btn.textContent='CANCEL'; btn.classList.add('armed'); }
+      else if (s.state==='won')
+        { btn.textContent='WON ✓'; btn.classList.add('won'); btn.disabled=true; }
+      else if (s.state==='lost')
+        { btn.textContent='LOST'; btn.classList.add('lost'); btn.disabled=true; }
+      else
+        { btn.textContent='BET '+(i+1); btn.classList.add('locked'); btn.disabled=true; }
+
     } else if (G.phase === 'flying') {
-      if (s.state==='idle')       { btn.textContent='BET '+(i+1); btn.classList.add('locked'); btn.disabled=true; }
-      else if (s.state==='armed' && s.mode==='manual' && !s.cashing) { btn.textContent='CASH OUT'; btn.classList.add('cashout'); }
-      else if (s.state==='armed' && s.mode==='auto')  { btn.textContent='AUTO '+s.autoT.toFixed(2)+'x'; btn.classList.add('armed'); btn.disabled=true; }
-      else if (s.state==='cashing')  { btn.textContent='…';       btn.classList.add('locked'); btn.disabled=true; }
-      else if (s.state==='won')   {
+      if (s.state==='idle')
+        { btn.textContent='—'; btn.classList.add('locked'); btn.disabled=true; }
+      else if (s.state==='armed' && s.mode==='manual' && !s.cashing)
+        { btn.textContent='CASH OUT'; btn.classList.add('cashout'); }
+      else if (s.state==='armed' && s.mode==='auto')
+        { btn.textContent='AUTO × '+s.autoT.toFixed(2); btn.classList.add('armed'); btn.disabled=true; }
+      else if (s.state==='cashing')
+        { btn.textContent='Cashing out…'; btn.classList.add('locked'); btn.disabled=true; }
+      else if (s.state==='won') {
         const lbl = s.winAmt ? '+'+fmtAmt(s.winAmt)+' ✓' : 'WON ✓';
         btn.textContent=lbl; btn.classList.add('won'); btn.disabled=true;
       }
-      else if (s.state==='lost')  { btn.textContent='LOST';    btn.classList.add('lost');  btn.disabled=true; }
-      else { btn.textContent='…';  btn.classList.add('locked'); btn.disabled=true; }
+      else if (s.state==='lost')
+        { btn.textContent='LOST'; btn.classList.add('lost'); btn.disabled=true; }
+      else
+        { btn.textContent='…'; btn.classList.add('locked'); btn.disabled=true; }
+
     } else if (G.phase === 'crashed') {
       if (s.state==='won') {
         const lbl = s.winAmt ? '+'+fmtAmt(s.winAmt)+' ✓' : 'WON ✓';
         btn.textContent=lbl; btn.classList.add('won'); btn.disabled=true;
-      } else if (s.state==='lost') { btn.textContent='LOST';  btn.classList.add('lost');  btn.disabled=true; }
-      else { btn.textContent='WAIT…'; btn.classList.add('locked'); btn.disabled=true; }
+      } else if (s.state==='lost')
+        { btn.textContent='LOST'; btn.classList.add('lost'); btn.disabled=true; }
+      else
+        { btn.textContent='Next round…'; btn.classList.add('locked'); btn.disabled=true; }
+
     } else {
       btn.textContent='BET '+(i+1); btn.classList.add('locked'); btn.disabled=true;
     }
