@@ -33,6 +33,11 @@ const double _emptySeatSize      = 72.0;
 const double _micSeatIconSize    = 28.0;
 const double _micSeatBadgeHorizontalPadding = 8.0;
 const double _micSeatSupportSlotHeight      = 20.0;
+// Fixed height for the avatar zone inside every grid cell.
+// Must be >= _hostSeatOuterSize (94) so the host avatar is never clipped.
+// All seat states (empty/normal/host/VIP) use the same zone height so the
+// grid cell measured height never changes when a seat transitions state.
+const double _kAvatarAreaHeight = 98.0;
 
 
 class RoomDetailsScreen extends StatefulWidget {
@@ -3440,18 +3445,23 @@ class _LiveSeatBubble extends StatelessWidget {
       ],
     ];
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        GestureDetector(
-          onTap: canAssignSeat
-              ? () => onEmptySeatTap(seat.number)
-              : canManageSeat
-                  ? () => onOccupiedSeatTap(seat.member!, seat.number)
-                  : null,
-          onLongPress: canManageSeat
-              ? () => onOccupiedSeatLongPress(seat.member!, seat.number)
+    // ── Fixed-height avatar zone ──────────────────────────────────────────────
+    // All states (empty / occupied / host / VIP) use the same _kAvatarAreaHeight
+    // so the grid cell measured height never changes on seat transition.
+    // Stack keeps Clip.none so VIP frames render visually larger without
+    // contributing to layout height.
+    final Widget avatarZone = GestureDetector(
+      onTap: canAssignSeat
+          ? () => onEmptySeatTap(seat.number)
+          : canManageSeat
+              ? () => onOccupiedSeatTap(seat.member!, seat.number)
               : null,
+      onLongPress: canManageSeat
+          ? () => onOccupiedSeatLongPress(seat.member!, seat.number)
+          : null,
+      child: SizedBox(
+        height: _kAvatarAreaHeight,
+        child: Center(
           child: seat.isEmpty
               ? Container(
                   width: outerSize,
@@ -3481,9 +3491,9 @@ class _LiveSeatBubble extends StatelessWidget {
                     clipBehavior: Clip.none,
                     alignment: Alignment.center,
                     children: [
-                      // Glow ring — border only when no VIP frame (frame provides its
-                      // own visual ring; the border container at outerSize would appear
-                      // as a small ring inside a larger frame otherwise).
+                      // Glow layer rendered behind the avatar.
+                      // When a VIP frame is present the frame provides its own ring,
+                      // so we suppress the explicit border to avoid a small inner circle.
                       IgnorePointer(
                         child: Container(
                           width: outerSize,
@@ -3525,8 +3535,8 @@ class _LiveSeatBubble extends StatelessWidget {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: const Color(0xFFE63946),
-                              border:
-                                  Border.all(color: Colors.black, width: 1.5),
+                              border: Border.all(
+                                  color: Colors.black, width: 1.5),
                             ),
                             child: const Icon(
                               Icons.mic_off_rounded,
@@ -3539,90 +3549,103 @@ class _LiveSeatBubble extends StatelessWidget {
                   ),
                 ),
         ),
-        SizedBox(height: occupiedByHost ? 6 : 4),
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: occupiedByHost ? 12 : 11,
-            fontWeight: FontWeight.w800,
-            color: seat.isEmpty
-                ? Colors.white.withValues(alpha: 0.45)
-                : effectiveVipLevel > 0
-                    ? VipVisualStyle.nameColor(effectiveVipLevel, context)
-                    : Colors.white,
-            shadows: const [Shadow(blurRadius: 4, color: Colors.black54)],
-          ),
-        ),
-        if (seat.supportAmount > 0) ...[
-          const SizedBox(height: 3),
-          SizedBox(
-            height: _micSeatSupportSlotHeight,
-            child: Center(
-              child: _SupportPill(amount: seat.supportAmount, compact: true),
+      ),
+    );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // ── Zone 1: avatar — always _kAvatarAreaHeight ────────────────────
+        avatarZone,
+
+        // ── Zone 2: name — always 16 px ───────────────────────────────────
+        const SizedBox(height: 4),
+        SizedBox(
+          height: 16,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: seat.isEmpty
+                    ? Colors.white.withValues(alpha: 0.45)
+                    : effectiveVipLevel > 0
+                        ? VipVisualStyle.nameColor(effectiveVipLevel, context)
+                        : Colors.white,
+                shadows: const [Shadow(blurRadius: 4, color: Colors.black54)],
+              ),
             ),
           ),
-        ],
-        // Badge row: role pill + VIP badge side-by-side (keeps height constant).
-        const SizedBox(height: 3),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Role/state pill — always shown
-            Flexible(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: _micSeatBadgeHorizontalPadding,
-                  vertical: 2,
-                ),
-                decoration: BoxDecoration(
+        ),
+
+        // ── Zone 3: support pill — always _micSeatSupportSlotHeight ───────
+        // Space is always reserved; content shown only when needed.
+        SizedBox(
+          height: _micSeatSupportSlotHeight,
+          child: seat.supportAmount > 0
+              ? Center(
+                  child: _SupportPill(
+                      amount: seat.supportAmount, compact: true),
+                )
+              : null,
+        ),
+
+        // ── Zone 4: role badge — always 22 px ────────────────────────────
+        // VIP badge removed from here; the VIP frame already provides the
+        // visual cue and the badge was causing a "floating circle" artefact.
+        SizedBox(
+          height: 22,
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: _micSeatBadgeHorizontalPadding,
+                vertical: 2,
+              ),
+              decoration: BoxDecoration(
+                color: selectedForMove
+                    ? const Color(0xFF67E8A5).withValues(alpha: 0.20)
+                    : occupiedByHost
+                        ? const Color(0xFFF0C15A).withValues(alpha: 0.18)
+                        : canAssignSeat
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : const Color(0xFF8B26D9).withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
                   color: selectedForMove
-                      ? const Color(0xFF67E8A5).withValues(alpha: 0.20)
+                      ? const Color(0xFF67E8A5).withValues(alpha: 0.8)
                       : occupiedByHost
-                          ? const Color(0xFFF0C15A).withValues(alpha: 0.18)
+                          ? const Color(0xFFF0C15A).withValues(alpha: 0.7)
                           : canAssignSeat
-                              ? Colors.white.withValues(alpha: 0.08)
-                              : const Color(0xFF8B26D9).withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: selectedForMove
-                        ? const Color(0xFF67E8A5).withValues(alpha: 0.8)
-                        : occupiedByHost
-                            ? const Color(0xFFF0C15A).withValues(alpha: 0.7)
-                            : canAssignSeat
-                                ? Colors.white.withValues(alpha: 0.2)
-                                : const Color(0xFF8B26D9).withValues(alpha: 0.5),
-                    width: 0.8,
-                  ),
+                              ? Colors.white.withValues(alpha: 0.2)
+                              : const Color(0xFF8B26D9).withValues(alpha: 0.5),
+                  width: 0.8,
                 ),
-                child: Text(
-                  badge,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: occupiedByHost ? 10 : 9,
-                    fontWeight: FontWeight.w900,
-                    color: selectedForMove
-                        ? const Color(0xFF67E8A5)
-                        : occupiedByHost
-                            ? const Color(0xFFF0C15A)
-                            : canAssignSeat
-                                ? Colors.white.withValues(alpha: 0.55)
-                                : Colors.white.withValues(alpha: 0.8),
-                  ),
+              ),
+              child: Text(
+                badge,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w900,
+                  color: selectedForMove
+                      ? const Color(0xFF67E8A5)
+                      : occupiedByHost
+                          ? const Color(0xFFF0C15A)
+                          : canAssignSeat
+                              ? Colors.white.withValues(alpha: 0.55)
+                              : Colors.white.withValues(alpha: 0.8),
                 ),
               ),
             ),
-            // VIP badge — shown inline to avoid adding extra row height
-            if (!seat.isEmpty && effectiveVipLevel > 0) ...[
-              const SizedBox(width: 4),
-              VipBadge(vipLevel: effectiveVipLevel, compact: true),
-            ],
-          ],
+          ),
         ),
       ],
     );
