@@ -16,6 +16,7 @@ import '../models/room.dart';
 import '../models/room_gift.dart';
 import '../models/room_member.dart';
 import '../services/gifts_service.dart';
+import '../../wallet/services/wallet_service.dart';
 import '../services/livekit_room_service.dart';
 import '../services/rooms_service.dart';
 import '../services/room_management_service.dart';
@@ -4947,21 +4948,31 @@ class _GiftSheetState extends State<_GiftSheet> {
   RoomGift? _selectedGift;
   String _selectedCategoryKey = 'hot';
   int _quantity = 1;
+  int _userCoinsBalance = 0;
 
   @override
   void initState() {
     super.initState();
 
     final initialReceiverUserId = widget.initialReceiverUserId;
-    if (initialReceiverUserId == null) {
-      return;
+    if (initialReceiverUserId != null) {
+      for (final receiver in widget.receivers) {
+        if (receiver.userId == initialReceiverUserId) {
+          _selectedReceiver = receiver;
+          break;
+        }
+      }
     }
 
-    for (final receiver in widget.receivers) {
-      if (receiver.userId == initialReceiverUserId) {
-        _selectedReceiver = receiver;
-        break;
-      }
+    _loadBalance();
+  }
+
+  Future<void> _loadBalance() async {
+    try {
+      final wallet = await const WalletService().fetchWallet();
+      if (mounted) setState(() => _userCoinsBalance = wallet.coinsBalance);
+    } catch (_) {
+      // Balance display is best-effort; gift sending is validated server-side.
     }
   }
 
@@ -5097,6 +5108,7 @@ class _GiftSheetState extends State<_GiftSheet> {
                 isArabic: widget.isArabic,
                 quantity: _quantity,
                 selectedGift: _selectedGift,
+                userCoinsBalance: _userCoinsBalance,
                 onQuantityTap: () {
                   setState(() {
                     _quantity = _quantity == 1 ? 10 : 1;
@@ -5543,6 +5555,7 @@ class _GiftSendBar extends StatelessWidget {
     required this.isArabic,
     required this.quantity,
     required this.selectedGift,
+    required this.userCoinsBalance,
     required this.onQuantityTap,
     required this.onSend,
   });
@@ -5550,8 +5563,15 @@ class _GiftSendBar extends StatelessWidget {
   final bool isArabic;
   final int quantity;
   final RoomGift? selectedGift;
+  final int userCoinsBalance;
   final VoidCallback onQuantityTap;
   final VoidCallback onSend;
+
+  String _formatCoins(int c) {
+    if (c >= 1000000) return '${(c / 1000000).toStringAsFixed(1)}M';
+    if (c >= 1000)    return '${(c / 1000).toStringAsFixed(1)}K';
+    return c.toString();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -5577,7 +5597,9 @@ class _GiftSendBar extends StatelessWidget {
           ),
           const SizedBox(width: 5),
           Text(
-            selectedGift == null ? '139' : total.toString(),
+            selectedGift == null
+                ? _formatCoins(userCoinsBalance)
+                : total.toString(),
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
           ),
           const SizedBox(width: 5),
