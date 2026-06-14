@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/vip/vip_prestige.dart';
 import '../../features/rooms/utils/vip_room_features.dart';
 
 class VipBadge extends StatelessWidget {
@@ -16,13 +17,20 @@ class VipBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (vipLevel <= 0) {
-      return const SizedBox.shrink();
-    }
+    if (vipLevel <= 0) return const SizedBox.shrink();
 
+    final prestige = VipVisualResolver.resolve(vipLevel);
     final label = isHostVisibleMarker
         ? '${VipFeatures.vipLabel(vipLevel)} Protected'
         : VipFeatures.vipLabel(vipLevel);
+
+    final badgeIcon = vipLevel >= 9
+        ? Icons.local_fire_department_rounded
+        : vipLevel >= 7
+            ? Icons.workspace_premium_rounded
+            : vipLevel >= 5
+                ? Icons.diamond_rounded
+                : Icons.auto_awesome_rounded;
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -30,20 +38,25 @@ class VipBadge extends StatelessWidget {
         vertical: compact ? 2 : 4,
       ),
       decoration: BoxDecoration(
-        gradient: LinearGradient(colors: VipVisualStyle.gradient(vipLevel)),
+        gradient: LinearGradient(colors: prestige.badgeGradient),
         borderRadius: BorderRadius.circular(999),
-        boxShadow: VipVisualStyle.glow(vipLevel, compact: true),
+        boxShadow: compact
+            ? null
+            : [
+                BoxShadow(
+                  color: prestige.glowColor
+                      .withValues(alpha: prestige.glowIntensity * 0.55),
+                  blurRadius: 10,
+                  spreadRadius: 0,
+                ),
+              ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            vipLevel >= 5
-                ? Icons.workspace_premium_rounded
-                : vipLevel >= 4
-                ? Icons.diamond_rounded
-                : Icons.auto_awesome_rounded,
-            color: const Color(0xFF160B26),
+            badgeIcon,
+            color: prestige.badgeTextColor,
             size: compact ? 9 : 12,
           ),
           SizedBox(width: compact ? 3 : 4),
@@ -52,7 +65,7 @@ class VipBadge extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: const Color(0xFF160B26),
+              color: prestige.badgeTextColor,
               fontWeight: FontWeight.w900,
               fontSize: compact ? 8 : 10,
             ),

@@ -11,6 +11,7 @@ import '../services/admin_service.dart';
 import '../../games/screens/hungry_cat_admin_panel.dart';
 import '../../games/screens/rocket_crash_admin_panel.dart';
 import 'owner_game_control_screen.dart';
+import 'vip_visual_preview_screen.dart';
 
 enum _AdminModule {
   overview,
@@ -22,6 +23,7 @@ enum _AdminModule {
   banners,
   audit,
   games,
+  vip,
 }
 
 // ─────────────────────────────────────────────
@@ -1061,6 +1063,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       _AdminModule.banners => _buildBanners(),
       _AdminModule.audit  => _buildAudit(),
       _AdminModule.games  => _buildGames(),
+      _AdminModule.vip    => _buildVipPreview(),
     };
   }
 
@@ -1733,6 +1736,29 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
               ],
             ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVipPreview() {
+    final viewportHeight = MediaQuery.sizeOf(context).height;
+    final panelHeight = viewportHeight < 860 ? 680.0 : viewportHeight - 220.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _ModuleTitle(
+          title: 'VIP Visual System',
+          subtitle: 'Preview VIP 0–9 chat frames, mic waves, and entry banners.',
+          icon: Icons.workspace_premium_rounded,
+        ),
+        const SizedBox(height: 14),
+        SizedBox(
+          height: panelHeight,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: const VipVisualPreviewScreen(),
           ),
         ),
       ],
@@ -5185,6 +5211,7 @@ IconData _moduleIcon(_AdminModule module) {
     _AdminModule.banners => Icons.view_carousel_rounded,
     _AdminModule.audit  => Icons.fact_check_rounded,
     _AdminModule.games  => Icons.sports_esports_rounded,
+    _AdminModule.vip    => Icons.workspace_premium_rounded,
   };
 }
 
@@ -5199,6 +5226,7 @@ String _moduleLabel(_AdminModule module) {
     _AdminModule.banners => 'Banners',
     _AdminModule.audit  => 'Audit',
     _AdminModule.games  => 'Games',
+    _AdminModule.vip    => 'VIP',
   };
 }
 

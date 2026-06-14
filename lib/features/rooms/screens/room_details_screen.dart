@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../../core/supabase/supabase_service.dart';
+import '../../../core/vip/vip_prestige.dart';
 import '../../../shared/widgets/avatar_with_frame.dart';
 import '../../../shared/widgets/vip_badge.dart';
 import '../../../shared/widgets/vip_username.dart';
@@ -3508,6 +3509,15 @@ class _LiveSeatBubble extends StatelessWidget {
                           ),
                         ),
                       ),
+                      // VIP mic wave ring — expands outward via Clip.none Stack.
+                      IgnorePointer(
+                        child: VipMicWaveRing(
+                          vipLevel: effectiveVipLevel,
+                          isActive: !seat.isMuted,
+                          isHost: occupiedByHost,
+                          outerSize: outerSize,
+                        ),
+                      ),
                       GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: seat.member == null
@@ -3795,217 +3805,7 @@ class _LiveChatPanel extends StatelessWidget {
   }
 }
 
-// ── VIP chat frame design system ─────────────────────────────────────────────
-
-@immutable
-class _VipChatStyle {
-  const _VipChatStyle({
-    required this.bubbleBg,
-    required this.borderColor,
-    required this.borderWidth,
-    required this.glowColor,
-    required this.glowBlur,
-    required this.glowAlpha,
-    required this.avatarRingColor,
-    required this.avatarRingWidth,
-    required this.badgeBg,
-    required this.badgeFg,
-    required this.cornerRadius,
-    this.secondaryRingColor,
-    this.gradientColors,
-    this.animated = false,
-  });
-
-  final Color bubbleBg;
-  final Color borderColor;
-  final double borderWidth;
-  final Color glowColor;
-  final double glowBlur;
-  final double glowAlpha;
-  final Color avatarRingColor;
-  final double avatarRingWidth;
-  final Color badgeBg;
-  final Color badgeFg;
-  final double cornerRadius;
-  final Color? secondaryRingColor;
-  final List<Color>? gradientColors;
-  final bool animated;
-}
-
-class _VipChatTheme {
-  const _VipChatTheme._();
-
-  static _VipChatStyle resolve(int rawLevel) => switch (rawLevel.clamp(0, 9)) {
-        0 => _s0,
-        1 => _s1,
-        2 => _s2,
-        3 => _s3,
-        4 => _s4,
-        5 => _s5,
-        6 => _s6,
-        7 => _s7,
-        8 => _s8,
-        _ => _s9,
-      };
-
-  static const _s0 = _VipChatStyle(
-    bubbleBg: Color(0xFF101014),
-    borderColor: Color(0x1AFFFFFF),
-    borderWidth: 0.8,
-    glowColor: Color(0x00000000),
-    glowBlur: 0,
-    glowAlpha: 0,
-    avatarRingColor: Color(0x22FFFFFF),
-    avatarRingWidth: 0,
-    badgeBg: Color(0x22FFFFFF),
-    badgeFg: Color(0xB3FFFFFF),
-    cornerRadius: 14,
-  );
-
-  static const _s1 = _VipChatStyle(
-    bubbleBg: Color(0xFF120D04),
-    borderColor: Color(0xFFB87C36),
-    borderWidth: 1.0,
-    glowColor: Color(0xFFB87C36),
-    glowBlur: 10,
-    glowAlpha: 0.22,
-    avatarRingColor: Color(0xFFB87C36),
-    avatarRingWidth: 1.2,
-    badgeBg: Color(0x33B87C36),
-    badgeFg: Color(0xFFE8AE60),
-    cornerRadius: 14,
-  );
-
-  static const _s2 = _VipChatStyle(
-    bubbleBg: Color(0xFF140808),
-    borderColor: Color(0xFFCE6E66),
-    borderWidth: 1.2,
-    glowColor: Color(0xFFCE6E66),
-    glowBlur: 12,
-    glowAlpha: 0.26,
-    avatarRingColor: Color(0xFFCE6E66),
-    avatarRingWidth: 1.3,
-    badgeBg: Color(0x33CE6E66),
-    badgeFg: Color(0xFFFFB0A6),
-    cornerRadius: 14,
-    gradientColors: [Color(0xFF1C0C0A), Color(0xFF140808)],
-  );
-
-  static const _s3 = _VipChatStyle(
-    bubbleBg: Color(0xFF130F00),
-    borderColor: Color(0xFFCCA020),
-    borderWidth: 1.4,
-    glowColor: Color(0xFFCCA020),
-    glowBlur: 14,
-    glowAlpha: 0.30,
-    avatarRingColor: Color(0xFFCCA020),
-    avatarRingWidth: 1.4,
-    badgeBg: Color(0x3DCCA020),
-    badgeFg: Color(0xFFFFD978),
-    cornerRadius: 15,
-    gradientColors: [Color(0xFF1A1200), Color(0xFF130F00)],
-  );
-
-  static const _s4 = _VipChatStyle(
-    bubbleBg: Color(0xFF0C0516),
-    borderColor: Color(0xFF9A6ED0),
-    borderWidth: 1.5,
-    glowColor: Color(0xFF9A6ED0),
-    glowBlur: 16,
-    glowAlpha: 0.32,
-    avatarRingColor: Color(0xFF9A6ED0),
-    avatarRingWidth: 1.5,
-    badgeBg: Color(0x449A6ED0),
-    badgeFg: Color(0xFFE4B5FF),
-    cornerRadius: 15,
-    secondaryRingColor: Color(0x55CCA020),
-    gradientColors: [Color(0xFF130A22), Color(0xFF0C0516)],
-  );
-
-  static const _s5 = _VipChatStyle(
-    bubbleBg: Color(0xFF130A00),
-    borderColor: Color(0xFFE0A800),
-    borderWidth: 1.6,
-    glowColor: Color(0xFFE0A800),
-    glowBlur: 18,
-    glowAlpha: 0.38,
-    avatarRingColor: Color(0xFFE0A800),
-    avatarRingWidth: 1.8,
-    badgeBg: Color(0x44E0A800),
-    badgeFg: Color(0xFFFFD15C),
-    cornerRadius: 15,
-    gradientColors: [Color(0xFF1E1200), Color(0xFF130A00)],
-  );
-
-  static const _s6 = _VipChatStyle(
-    bubbleBg: Color(0xFF120008),
-    borderColor: Color(0xFFBB1A38),
-    borderWidth: 1.8,
-    glowColor: Color(0xFFBB1A38),
-    glowBlur: 20,
-    glowAlpha: 0.38,
-    avatarRingColor: Color(0xFFBB1A38),
-    avatarRingWidth: 1.8,
-    badgeBg: Color(0x44BB1A38),
-    badgeFg: Color(0xFFFF8FAF),
-    cornerRadius: 16,
-    secondaryRingColor: Color(0x55E0A800),
-    gradientColors: [Color(0xFF1C0010), Color(0xFF120008)],
-  );
-
-  static const _s7 = _VipChatStyle(
-    bubbleBg: Color(0xFF02061C),
-    borderColor: Color(0xFF1A5CE8),
-    borderWidth: 1.8,
-    glowColor: Color(0xFF1A5CE8),
-    glowBlur: 22,
-    glowAlpha: 0.42,
-    avatarRingColor: Color(0xFF1A5CE8),
-    avatarRingWidth: 2.0,
-    badgeBg: Color(0x441A5CE8),
-    badgeFg: Color(0xFF80CCFF),
-    cornerRadius: 16,
-    secondaryRingColor: Color(0x66E0A800),
-    gradientColors: [Color(0xFF060C28), Color(0xFF02061C)],
-    animated: true,
-  );
-
-  static const _s8 = _VipChatStyle(
-    bubbleBg: Color(0xFF07001A),
-    borderColor: Color(0xFF8822D8),
-    borderWidth: 2.0,
-    glowColor: Color(0xFF8822D8),
-    glowBlur: 26,
-    glowAlpha: 0.46,
-    avatarRingColor: Color(0xFF8822D8),
-    avatarRingWidth: 2.0,
-    badgeBg: Color(0x448822D8),
-    badgeFg: Color(0xFFD9A8FF),
-    cornerRadius: 16,
-    secondaryRingColor: Color(0x77FFD978),
-    gradientColors: [Color(0xFF0E0028), Color(0xFF07001A)],
-    animated: true,
-  );
-
-  static const _s9 = _VipChatStyle(
-    bubbleBg: Color(0xFF0A0008),
-    borderColor: Color(0xFFD00060),
-    borderWidth: 2.2,
-    glowColor: Color(0xFFD00060),
-    glowBlur: 30,
-    glowAlpha: 0.52,
-    avatarRingColor: Color(0xFFFFD978),
-    avatarRingWidth: 2.2,
-    badgeBg: Color(0x55D00060),
-    badgeFg: Color(0xFFFF88CC),
-    cornerRadius: 16,
-    secondaryRingColor: Color(0x88FFD978),
-    gradientColors: [Color(0xFF180014), Color(0xFF0A0008)],
-    animated: true,
-  );
-}
-
-// ── Live room chat bubble ─────────────────────────────────────────────────────
+// ── Live room chat bubble — uses VipVisualResolver from vip_prestige.dart ────
 
 class _ChatBubbleRow extends StatefulWidget {
   const _ChatBubbleRow({required this.message, required this.isArabic});
@@ -4076,10 +3876,8 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
     }
 
     final vipLevel = msg.senderVipLevel.clamp(0, 9);
-    final style = _VipChatTheme.resolve(vipLevel);
-    final nameColor = vipLevel > 0
-        ? VipVisualStyle.nameColor(vipLevel, context)
-        : const Color(0xFF9BE8FF);
+    final prestige = VipVisualResolver.resolve(vipLevel);
+    final nameColor = vipLevel > 0 ? prestige.nameColor : const Color(0xFF9BE8FF);
     final isHost = msg.senderRole == 'host';
 
     return Padding(
@@ -4088,13 +3886,13 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
         crossAxisAlignment: CrossAxisAlignment.start,
         textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
         children: [
-          _buildAvatar(style, msg, vipLevel),
+          _buildAvatar(prestige, msg, vipLevel),
           const SizedBox(width: 7),
           Flexible(
             child: AnimatedBuilder(
               animation: _pulse,
               builder: (ctx, _) => _buildBubble(
-                ctx, style, msg, nameColor, isHost, isArabic, vipLevel,
+                ctx, prestige, msg, nameColor, isHost, isArabic, vipLevel,
               ),
             ),
           ),
@@ -4103,8 +3901,8 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
     );
   }
 
-  Widget _buildAvatar(_VipChatStyle style, RoomMessage msg, int vipLevel) {
-    final hasRing = style.avatarRingWidth > 0;
+  Widget _buildAvatar(VipPrestige prestige, RoomMessage msg, int vipLevel) {
+    final hasRing = prestige.avatarRingWidth > 0;
     final avatar = _RoomAvatar(
       avatarUrl: msg.senderAvatarUrl,
       frameKey: null,
@@ -4128,13 +3926,13 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: style.avatarRingColor,
-                  width: style.avatarRingWidth,
+                  color: prestige.avatarRingColor,
+                  width: prestige.avatarRingWidth,
                 ),
                 boxShadow: vipLevel >= 4
                     ? [
                         BoxShadow(
-                          color: style.avatarRingColor.withValues(alpha: 0.40),
+                          color: prestige.avatarRingColor.withValues(alpha: 0.40),
                           blurRadius: 8,
                         ),
                       ]
@@ -4150,7 +3948,7 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
 
   Widget _buildBubble(
     BuildContext context,
-    _VipChatStyle style,
+    VipPrestige prestige,
     RoomMessage msg,
     Color nameColor,
     bool isHost,
@@ -4159,53 +3957,35 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
   ) {
     final glowFactor = _pulse.value;
     final isRtl = isArabic;
-    final crossAxis =
-        isRtl ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    final crossAxis = isRtl ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    final cr = prestige.cardCornerRadius;
+    final tailR = vipLevel >= 3 ? cr : 4.0;
 
-    final tailR = vipLevel >= 3 ? style.cornerRadius : 4.0;
     final radius = BorderRadius.only(
-      topLeft: Radius.circular(isRtl ? tailR : style.cornerRadius),
-      topRight: Radius.circular(isRtl ? style.cornerRadius : tailR),
-      bottomLeft: Radius.circular(style.cornerRadius),
-      bottomRight: Radius.circular(style.cornerRadius),
+      topLeft: Radius.circular(isRtl ? tailR : cr),
+      topRight: Radius.circular(isRtl ? cr : tailR),
+      bottomLeft: Radius.circular(cr),
+      bottomRight: Radius.circular(cr),
     );
 
-    final shadows = <BoxShadow>[
-      if (style.glowAlpha > 0)
-        BoxShadow(
-          color: style.glowColor.withValues(alpha: style.glowAlpha * glowFactor),
-          blurRadius: style.glowBlur,
-          spreadRadius: 0,
-        ),
-      if (style.secondaryRingColor != null)
-        BoxShadow(
-          color: style.secondaryRingColor!,
-          blurRadius: 0,
-          spreadRadius: 1.2,
-        ),
-      if (vipLevel == 9)
-        BoxShadow(
-          color: const Color(0xFFFFD978).withValues(alpha: 0.22 * glowFactor),
-          blurRadius: 20,
-          spreadRadius: -2,
-        ),
-    ];
+    final shadows = prestige.buildGlowShadows(pulseFactor: glowFactor);
 
-    final deco = style.gradientColors != null
+    final isGradient = prestige.bubbleGradient[0] != prestige.bubbleGradient[1];
+    final deco = isGradient
         ? BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: style.gradientColors!,
+              colors: prestige.bubbleGradient,
             ),
             borderRadius: radius,
-            border: Border.all(color: style.borderColor, width: style.borderWidth),
+            border: Border.all(color: prestige.borderColor, width: prestige.borderWidth),
             boxShadow: shadows,
           )
         : BoxDecoration(
-            color: style.bubbleBg,
+            color: prestige.surfaceTint,
             borderRadius: radius,
-            border: Border.all(color: style.borderColor, width: style.borderWidth),
+            border: Border.all(color: prestige.borderColor, width: prestige.borderWidth),
             boxShadow: shadows,
           );
 
@@ -4227,7 +4007,7 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
                   style: TextStyle(
                     color: nameColor,
                     fontSize: 11,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: prestige.nameFontWeight,
                   ),
                 ),
               ),
@@ -4244,11 +4024,9 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
                 const SizedBox(width: 3),
                 _buildBadge(
                   'VIP $vipLevel',
-                  nameColor,
-                  style.badgeBg,
-                  borderColor: style.borderWidth > 1.2
-                      ? style.borderColor.withValues(alpha: 0.50)
-                      : null,
+                  prestige.badgeTextColor,
+                  prestige.badgeGradient.first.withValues(alpha: 0.22),
+                  borderColor: prestige.borderColor.withValues(alpha: 0.50),
                 ),
               ],
             ],
@@ -4401,37 +4179,99 @@ class _GiftRoomBanner extends StatelessWidget {
   }
 }
 
-class _VipEntryRoomBanner extends StatelessWidget {
+class _VipEntryRoomBanner extends StatefulWidget {
   const _VipEntryRoomBanner({required this.member, required this.isArabic});
 
   final RoomMember member;
   final bool isArabic;
 
   @override
-  Widget build(BuildContext context) {
-    final level = member.effectiveVipLevel;
-    final text = isArabic
-        ? '${member.fallbackName(isArabic)} \u062f\u062e\u0644 \u0627\u0644\u063a\u0631\u0641\u0629 \u0643\u0640 VIP $level'
-        : '${member.fallbackName(isArabic)} entered as VIP $level';
+  State<_VipEntryRoomBanner> createState() => _VipEntryRoomBannerState();
+}
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: LinearGradient(colors: VipVisualStyle.gradient(level)),
-        boxShadow: VipVisualStyle.glow(level),
-      ),
+class _VipEntryRoomBannerState extends State<_VipEntryRoomBanner>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _aura;
+
+  @override
+  void initState() {
+    super.initState();
+    final prestige = VipVisualResolver.resolve(widget.member.effectiveVipLevel);
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    );
+    _aura = Tween<double>(begin: 0.65, end: 1.0)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+    if (prestige.isElite) _ctrl.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final level = widget.member.effectiveVipLevel;
+    final prestige = VipVisualResolver.resolve(level);
+    final isArabic = widget.isArabic;
+
+    final text = isArabic
+        ? '${widget.member.fallbackName(isArabic)} \u062f\u062e\u0644 \u0627\u0644\u063a\u0631\u0641\u0629 \u0643\u0640 VIP $level'
+        : '${widget.member.fallbackName(isArabic)} entered as VIP $level';
+
+    // Tier-based border radius: more rounded for higher VIP
+    final br = BorderRadius.circular(
+      prestige.isElite ? 22 : prestige.entryTier.index >= VipEntryTier.glow.index ? 20 : 16,
+    );
+
+    return AnimatedBuilder(
+      animation: _aura,
+      builder: (ctx, child) {
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: prestige.isElite ? 12 : 10,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: br,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: prestige.gradientColors,
+            ),
+            boxShadow: prestige.buildGlowShadows(pulseFactor: _aura.value),
+            border: prestige.isElite
+                ? Border.all(
+                    color: prestige.borderColor.withValues(alpha: 0.60),
+                    width: 1.4,
+                  )
+                : null,
+          ),
+          child: child,
+        );
+      },
       child: Row(
         textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
         children: [
-          _RoomAvatar(
-            avatarUrl: member.avatarUrl,
-            frameKey: member.selectedAvatarFrameKey,
-            vipLevel: level,
-            size: 38,
-            selected: false,
-            fallbackIcon: Icons.person_rounded,
+          // Avatar with VIP halo ring
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: prestige.buildGlowShadows(pulseFactor: 0.8),
+            ),
+            child: _RoomAvatar(
+              avatarUrl: widget.member.avatarUrl,
+              frameKey: widget.member.selectedAvatarFrameKey,
+              vipLevel: level,
+              size: prestige.isElite ? 42 : 38,
+              selected: false,
+              fallbackIcon: Icons.person_rounded,
+            ),
           ),
           const SizedBox(width: 10),
           VipBadge(vipLevel: level, compact: true),
@@ -4442,13 +4282,21 @@ class _VipEntryRoomBanner extends StatelessWidget {
               textAlign: isArabic ? TextAlign.right : TextAlign.left,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Color(0xFF160B26),
-                fontSize: 12,
+              style: TextStyle(
+                color: prestige.entryTextColor,
+                fontSize: prestige.isElite ? 13 : 12,
                 fontWeight: FontWeight.w900,
               ),
             ),
           ),
+          if (prestige.isLegendary) ...[
+            const SizedBox(width: 6),
+            Icon(
+              Icons.local_fire_department_rounded,
+              color: prestige.entryTextColor.withValues(alpha: 0.85),
+              size: 18,
+            ),
+          ],
         ],
       ),
     );
