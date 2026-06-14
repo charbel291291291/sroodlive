@@ -10,16 +10,33 @@ import '../services/crash_game_service.dart';
 
 /// Rocket Crash — local WebView game with Flutter wallet bridge.
 ///
-/// The round loop (waiting → flying → crashed) runs entirely in JavaScript.
-/// Flutter handles only wallet debit/credit via Supabase RPCs.
+/// JS drives the entire round loop (waiting → flying → crashed).
+/// Flutter handles ONLY atomic wallet operations via Supabase RPCs.
 ///
-/// Bridge Web → Flutter:
-///   GAME_READY, REQUEST_BET_DEBIT, REQUEST_CASHOUT_CREDIT,
-///   SET_SOUND_SETTING, GAME_CLOSED
+/// Security: all coin deduction and credit happen inside Supabase RPC
+/// functions with SQL-side validation.  The frontend never updates wallet
+/// balances directly.
 ///
-/// Bridge Flutter → Web:
-///   INIT_GAME, WALLET_UPDATED, BET_ACCEPTED, BET_REJECTED,
-///   CASHOUT_ACCEPTED, CASHOUT_REJECTED
+/// ── Bridge Web → Flutter ──────────────────────────────────────────────
+///   GAME_READY              page loaded; request init
+///   REQUEST_BET_DEBIT       arm a slot: deduct coins, create bet record
+///   REQUEST_BET_REFUND      cancel a slot: refund full amount
+///   REQUEST_CASHOUT_CREDIT  cash out: credit bet × multiplier
+///   REQUEST_BET_LOST        rocket crashed before cashout: mark bet lost
+///   REQUEST_WALLET_REFRESH  refresh balance from DB
+///   SET_SOUND_SETTING       persist sound pref (JS handles localStorage)
+///   GAME_CLOSED             pop the screen
+///
+/// ── Bridge Flutter → Web ──────────────────────────────────────────────
+///   INIT_GAME               balance, locale, sound
+///   WALLET_UPDATED          new balance after any operation
+///   BET_ACCEPTED            bet_id, amount, newBalance
+///   BET_REJECTED            code
+///   REFUND_ACCEPTED         refunded_amount, newBalance
+///   REFUND_REJECTED         code
+///   CASHOUT_ACCEPTED        winAmount, multiplier, newBalance
+///   CASHOUT_REJECTED        code
+///   SOUND_SETTING_UPDATED   enabled bool (echo back to JS if needed)
 class RocketCrashWebviewScreen extends StatefulWidget {
   const RocketCrashWebviewScreen({required this.isArabic, super.key});
   final bool isArabic;
@@ -36,6 +53,9 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
   bool _pageLoaded = false;
   bool _pageError = false;
   String? _pageErrorMsg;
+
+  // Guards against duplicate cashout/refund calls for the same betId.
+  final Set<String> _settledBetIds = {};
 
   @override
   void initState() {
@@ -81,7 +101,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
     super.dispose();
   }
 
-  // ── Web → Flutter ────────────────────────────────────────────────────
+  // ── Web → Flutter ─────────────────────────────────────────────────────────
 
   Future<void> _onWebMessage(String raw) async {
     Map<String, dynamic> msg;
@@ -94,45 +114,50 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
     final type = msg['type'] as String? ?? '';
     final payload = (msg['payload'] as Map<String, dynamic>?) ?? {};
 
+    debugPrint('[RocketCrash] ← $type');
+
     switch (type) {
       case 'GAME_READY':
         await _initGame();
       case 'REQUEST_BET_DEBIT':
         await _handleBetDebit(payload);
+      case 'REQUEST_BET_REFUND':
+        await _handleBetRefund(payload);
       case 'REQUEST_CASHOUT_CREDIT':
-        await _handleCashoutCredit(payload);
+        await _handleCashout(payload);
+      case 'REQUEST_BET_LOST':
+        _handleBetLost(payload); // fire-and-forget; UI is already updated
+      case 'REQUEST_WALLET_REFRESH':
+        await _refreshBalance();
       case 'SET_SOUND_SETTING':
-        // No-op: sound pref lives in localStorage on the JS side.
-        break;
+        break; // sound pref stored in JS localStorage; no Flutter action needed
       case 'GAME_CLOSED':
         if (mounted) Navigator.of(context).maybePop();
     }
   }
 
-  // ── Init ─────────────────────────────────────────────────────────────
+  // ── Init ──────────────────────────────────────────────────────────────────
 
   Future<void> _initGame() async {
     try {
-      final client = SupabaseService.requiredClient;
-      final user = client.auth.currentUser;
+      final user = SupabaseService.requiredClient.auth.currentUser;
       if (user == null) {
         _post('BET_REJECTED', {'code': 'not_authenticated', 'slotIndex': 0});
         return;
       }
-
       final balance = await _service.fetchBalance();
-
       _post('INIT_GAME', {
         'balance': balance,
         'locale': widget.isArabic ? 'ar' : 'en',
         'sound': true,
       });
     } catch (e) {
+      debugPrint('[RocketCrash] init error: $e');
       _post('BET_REJECTED', {'code': 'init_failed', 'slotIndex': 0});
     }
   }
 
-  // ── Wallet handlers ───────────────────────────────────────────────────
+  // ── Wallet handlers ───────────────────────────────────────────────────────
 
   Future<void> _handleBetDebit(Map<String, dynamic> payload) async {
     final slotIndex = _parseInt(payload['slotIndex']);
@@ -144,23 +169,19 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
     }
 
     try {
-      // Use the existing startRound RPC which debits the bet atomically.
-      // We pass a single bet for this slot. The betId returned is used for cashout.
-      final result = await _service.startRound([
-        {'amount': amount, 'mode': 'manual', 'auto_cashout_multiplier': null},
-      ]);
-
+      final result = await _service.armBet(amount, slotIndex: slotIndex);
       if (!mounted) return;
 
-      final betId = result['bet_id']?.toString() ?? result['bets']?[0]?['id']?.toString();
-      final newBalance = _parseInt(result['new_balance'] ?? result['balance']);
+      final betId = result['bet_id']?.toString();
+      final newBalance = _parseInt(result['new_balance']);
 
-      if (betId == null) {
+      if (betId == null || betId.isEmpty) {
         _post('BET_REJECTED', {'slotIndex': slotIndex, 'code': 'no_bet_id'});
         return;
       }
 
       HapticFeedback.lightImpact();
+      debugPrint('[RocketCrash] bet armed slot=$slotIndex betId=$betId');
       _post('BET_ACCEPTED', {
         'slotIndex': slotIndex,
         'betId': betId,
@@ -169,57 +190,117 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      _post('BET_REJECTED', {
-        'slotIndex': slotIndex,
-        'code': _mapError('$e'),
-      });
+      debugPrint('[RocketCrash] armBet error: $e');
+      _post('BET_REJECTED', {'slotIndex': slotIndex, 'code': _mapError('$e')});
     }
   }
 
-  Future<void> _handleCashoutCredit(Map<String, dynamic> payload) async {
+  Future<void> _handleBetRefund(Map<String, dynamic> payload) async {
     final slotIndex = _parseInt(payload['slotIndex']);
     final betId = payload['betId']?.toString();
-    final multiplier = _parseDouble(payload['multiplier']);
-    final isCancel = payload['cancel'] == true;
 
-    if (betId == null) {
-      _post('CASHOUT_REJECTED', {'slotIndex': slotIndex, 'code': 'no_bet_id'});
+    if (betId == null || betId.isEmpty) {
+      _post('REFUND_REJECTED', {'slotIndex': slotIndex, 'code': 'no_bet_id'});
+      return;
+    }
+    if (_settledBetIds.contains(betId)) {
+      _post('REFUND_REJECTED',
+          {'slotIndex': slotIndex, 'code': 'already_settled'});
       return;
     }
 
     try {
-      // For cancel: cashout at 1.0x = full refund.
-      // For win: cashout at current multiplier.
-      final effectiveMultiplier = isCancel ? 1.0 : multiplier;
-      final result = await _service.cashOut(betId);
-
+      final result = await _service.refundBet(betId);
       if (!mounted) return;
+      _settledBetIds.add(betId);
 
-      final winAmount = _parseInt(result['win_amount'] ?? result['payout']);
-      final newBalance = _parseInt(result['new_balance'] ?? result['balance']);
+      final newBalance = _parseInt(result['new_balance']);
+      final refundedAmount = _parseInt(result['refunded_amount']);
 
-      if (!isCancel) HapticFeedback.mediumImpact();
-
-      _post('CASHOUT_ACCEPTED', {
+      debugPrint('[RocketCrash] refund ok slot=$slotIndex amt=$refundedAmount');
+      _post('REFUND_ACCEPTED', {
         'slotIndex': slotIndex,
         'betId': betId,
-        'winAmount': winAmount,
-        'multiplier': effectiveMultiplier,
+        'refundedAmount': refundedAmount,
         'newBalance': newBalance,
       });
     } catch (e) {
       if (!mounted) return;
-      _post('CASHOUT_REJECTED', {
-        'slotIndex': slotIndex,
-        'code': _mapError('$e'),
-      });
+      debugPrint('[RocketCrash] refund error: $e');
+      _post('REFUND_REJECTED',
+          {'slotIndex': slotIndex, 'code': _mapError('$e')});
     }
   }
 
-  // ── Flutter → Web ────────────────────────────────────────────────────
+  Future<void> _handleCashout(Map<String, dynamic> payload) async {
+    final slotIndex = _parseInt(payload['slotIndex']);
+    final betId = payload['betId']?.toString();
+    final multiplier = _parseDouble(payload['multiplier']);
+
+    if (betId == null || betId.isEmpty) {
+      _post('CASHOUT_REJECTED',
+          {'slotIndex': slotIndex, 'code': 'no_bet_id'});
+      return;
+    }
+    // Idempotency guard: reject if we already settled this bet.
+    if (_settledBetIds.contains(betId)) {
+      _post('CASHOUT_REJECTED',
+          {'slotIndex': slotIndex, 'code': 'already_settled'});
+      return;
+    }
+
+    try {
+      final result = await _service.cashoutLocal(betId, multiplier);
+      if (!mounted) return;
+      _settledBetIds.add(betId);
+
+      final winAmount = _parseInt(result['win_amount']);
+      final newBalance = _parseInt(result['new_balance']);
+      final actualMult = _parseDouble(result['multiplier'] ?? multiplier);
+
+      HapticFeedback.mediumImpact();
+      debugPrint(
+          '[RocketCrash] cashout ok slot=$slotIndex ×$actualMult win=$winAmount');
+      _post('CASHOUT_ACCEPTED', {
+        'slotIndex': slotIndex,
+        'betId': betId,
+        'winAmount': winAmount,
+        'multiplier': actualMult,
+        'newBalance': newBalance,
+      });
+    } catch (e) {
+      if (!mounted) return;
+      debugPrint('[RocketCrash] cashout error: $e');
+      _post('CASHOUT_REJECTED',
+          {'slotIndex': slotIndex, 'code': _mapError('$e')});
+    }
+  }
+
+  void _handleBetLost(Map<String, dynamic> payload) {
+    final betId = payload['betId']?.toString();
+    final crashMult = _parseDouble(payload['crashMultiplier'] ?? 1.0);
+    if (betId == null || betId.isEmpty) return;
+    if (_settledBetIds.contains(betId)) return;
+    _settledBetIds.add(betId);
+    // Fire-and-forget: mark the DB record but don't block the UI.
+    _service.markBetLost(betId, crashMult).catchError((e) {
+      debugPrint('[RocketCrash] markBetLost error: $e');
+    });
+  }
+
+  Future<void> _refreshBalance() async {
+    try {
+      final balance = await _service.fetchBalance();
+      if (!mounted) return;
+      _post('WALLET_UPDATED', {'balance': balance});
+    } catch (_) {}
+  }
+
+  // ── Flutter → Web ─────────────────────────────────────────────────────────
 
   void _post(String type, Map<String, dynamic> payload) {
     if (!mounted) return;
+    debugPrint('[RocketCrash] → $type');
     final message = jsonEncode({'type': type, 'payload': payload});
     final encoded = jsonEncode(message);
     _controller.runJavaScript(
@@ -227,7 +308,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
     );
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────
+  // ── Helpers ───────────────────────────────────────────────────────────────
 
   int _parseInt(dynamic v) {
     if (v is int) return v;
@@ -244,19 +325,23 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
   }
 
   String _mapError(String e) {
-    if (e.contains('insufficient')) return 'insufficient_coins';
+    if (e.contains('insufficient_coins')) return 'insufficient_coins';
     if (e.contains('not_authenticated')) return 'not_authenticated';
-    if (e.contains('game_disabled')) return 'game_disabled';
+    if (e.contains('already_settled')) return 'already_settled';
+    if (e.contains('bet_not_found')) return 'bet_not_found';
+    if (e.contains('not_refundable')) return 'not_refundable';
     return 'network_error';
   }
 
-  // ── UI ────────────────────────────────────────────────────────────────
+  // ── UI ────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: true,
-      onPopInvokedWithResult: (didPop, result) {},
+      onPopInvokedWithResult: (didPop, result) {
+        // Reset system nav bar color when leaving.
+      },
       child: Scaffold(
         backgroundColor: const Color(0xFF020818),
         body: SafeArea(
@@ -281,11 +366,11 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('🚀', style: TextStyle(fontSize: 56)),
-            const SizedBox(height: 16),
+            const Text('🚀', style: TextStyle(fontSize: 60)),
+            const SizedBox(height: 18),
             const SizedBox(
-              width: 40,
-              height: 40,
+              width: 38,
+              height: 38,
               child: CircularProgressIndicator(
                 color: Color(0xFF00D4FF),
                 strokeWidth: 3,
@@ -316,7 +401,8 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
           decoration: BoxDecoration(
             color: const Color(0xFF0A1A3A),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFF1A4AFF).withValues(alpha: 0.4)),
+            border: Border.all(
+                color: const Color(0xFF1A4AFF).withValues(alpha: 0.4)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -361,9 +447,8 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
                       _pageError = false;
                       _pageErrorMsg = null;
                     });
-                    _controller.loadFlutterAsset(
-                      'assets/games/rocket_crash/index.html',
-                    );
+                    _controller
+                        .loadFlutterAsset('assets/games/rocket_crash/index.html');
                   },
                   child: Text(widget.isArabic ? 'إعادة المحاولة' : 'Retry'),
                 ),
