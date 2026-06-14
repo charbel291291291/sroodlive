@@ -1772,6 +1772,16 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   }
 
   Future<void> _openUserProfileSheet(String userId) async {
+    // Resolve the target member so the sheet has room context
+    final target = _members.where((m) => m.userId == userId).firstOrNull;
+    final isOnMic = target != null &&
+        (target.role == 'speaker' || target.role == 'host') &&
+        target.seatNumber != null;
+    final isTargetOwner = userId == widget.room.ownerId;
+
+    // Can the viewer moderate this user?
+    final canModerate = _iAmRoomOwner || _iAmHost;
+
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -1785,6 +1795,53 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
           onSendGift: (targetUserId) {
             Future.microtask(() => _openGiftSheet(targetUserId: targetUserId));
           },
+          // Room context
+          roomId: widget.room.id,
+          isViewerOwner: _iAmRoomOwner,
+          isViewerHost: _iAmHost,
+          targetRoomRole: target?.role,
+          targetMicSeat: target?.seatNumber,
+          targetIsMuted: target?.isMuted ?? false,
+          // Moderation callbacks — only provided when caller can act
+          onToggleMute: (canModerate && !isTargetOwner && target != null)
+              ? (muted) async {
+                  await const RoomManagementService().ownerMuteMember(
+                    widget.room.id,
+                    userId,
+                    isMuted: muted,
+                  );
+                  // Refresh member list so room UI reflects change
+                  await _loadMembers(showLoading: false);
+                }
+              : null,
+          onStandUp: (canModerate && !isTargetOwner && isOnMic)
+              ? () async {
+                  await _changeMemberRole(
+                    member: target,
+                    role: 'listener',
+                  );
+                }
+              : null,
+          onKick: (canModerate && !isTargetOwner && target != null)
+              ? () async {
+                  await _removeMemberFromRoom(target);
+                }
+              : null,
+          onBan: (_iAmRoomOwner && !isTargetOwner && target != null)
+              ? () async {
+                  await const RoomManagementService().banUser(
+                    widget.room.id,
+                    userId,
+                  );
+                  await _removeMemberFromRoom(target);
+                }
+              : null,
+          onSetAdmin: (_iAmRoomOwner && !isTargetOwner && target != null)
+              ? () async {
+                  await const RoomManagementService()
+                      .addModerator(widget.room.id, userId);
+                }
+              : null,
         );
       },
     );
@@ -3796,6 +3853,9 @@ class _LiveChatPanel extends StatelessWidget {
               (msg) => _ChatBubbleRow(
                 message: msg,
                 isArabic: isArabic,
+                onProfileTap: msg.isSystem
+                    ? null
+                    : () => onProfileTap(msg.senderId),
               ),
             ),
           ],
@@ -3808,10 +3868,15 @@ class _LiveChatPanel extends StatelessWidget {
 // ── Live room chat bubble — uses VipVisualResolver from vip_prestige.dart ────
 
 class _ChatBubbleRow extends StatefulWidget {
-  const _ChatBubbleRow({required this.message, required this.isArabic});
+  const _ChatBubbleRow({
+    required this.message,
+    required this.isArabic,
+    this.onProfileTap,
+  });
 
   final RoomMessage message;
   final bool isArabic;
+  final VoidCallback? onProfileTap;
 
   @override
   State<_ChatBubbleRow> createState() => _ChatBubbleRowState();
@@ -3886,7 +3951,10 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
         crossAxisAlignment: CrossAxisAlignment.start,
         textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
         children: [
-          _buildAvatar(prestige, msg, vipLevel),
+          GestureDetector(
+            onTap: widget.onProfileTap,
+            child: _buildAvatar(prestige, msg, vipLevel),
+          ),
           const SizedBox(width: 7),
           Flexible(
             child: AnimatedBuilder(
