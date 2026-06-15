@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../games/screens/crash_game_screen.dart';
@@ -33,6 +34,8 @@ class RoomToolsSheet extends StatefulWidget {
     required this.onToggleLock,
     required this.onClearChat,
     required this.onSalute,
+    this.onMaxSeatsChanged,
+    this.onBackgroundChanged,
     super.key,
   });
 
@@ -45,6 +48,8 @@ class RoomToolsSheet extends StatefulWidget {
   final Future<void> Function() onToggleLock;
   final VoidCallback onClearChat;
   final VoidCallback onSalute;
+  final void Function(int newSeats)? onMaxSeatsChanged;
+  final void Function(String? backgroundUrl)? onBackgroundChanged;
 
   @override
   State<RoomToolsSheet> createState() => _RoomToolsSheetState();
@@ -282,7 +287,9 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
       backgroundColor: Colors.transparent,
       builder: (_) => _MicModeSheet(
         isArabic: widget.isArabic,
-        prefKey: _kMicModeKey,
+        roomId: widget.room.id,
+        currentSeats: widget.room.maxSeats,
+        onSeatsChanged: widget.onMaxSeatsChanged,
       ),
     );
   }
@@ -293,7 +300,12 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _BackgroundSheet(isArabic: widget.isArabic),
+      builder: (_) => _BackgroundSheet(
+        isArabic: widget.isArabic,
+        roomId: widget.room.id,
+        currentBackgroundUrl: widget.room.backgroundUrl,
+        onBackgroundChanged: widget.onBackgroundChanged,
+      ),
     );
   }
 
@@ -933,43 +945,67 @@ class _PkTeamBox extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Mic Mode Sheet
+// Mic Mode Sheet — picks 6 / 9 / 12 mic seats and updates rooms.max_seats
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _MicModeSheet extends StatefulWidget {
-  const _MicModeSheet({required this.isArabic, required this.prefKey});
+  const _MicModeSheet({
+    required this.isArabic,
+    required this.roomId,
+    required this.currentSeats,
+    this.onSeatsChanged,
+  });
   final bool isArabic;
-  final String prefKey;
+  final String roomId;
+  final int currentSeats;
+  final void Function(int)? onSeatsChanged;
 
   @override
   State<_MicModeSheet> createState() => _MicModeSheetState();
 }
 
 class _MicModeSheetState extends State<_MicModeSheet> {
-  int _selected = 0;
-
-  static const _modes = [
-    (ar: 'حر', en: 'Free', icon: Icons.mic_rounded, descAr: 'أي شخص يمكنه صعود المنبر', descEn: 'Anyone can take a mic seat'),
-    (ar: 'قائمة انتظار', en: 'Queue', icon: Icons.queue_rounded, descAr: 'يجب الموافقة على طلبات المنبر', descEn: 'Mic requests need approval'),
-    (ar: 'المضيف فقط', en: 'Host Only', icon: Icons.admin_panel_settings_rounded, descAr: 'يتحكم المضيف بالمنابر', descEn: 'Host controls all mic seats'),
-    (ar: 'مغلق', en: 'Locked', icon: Icons.lock_rounded, descAr: 'لا يمكن لأحد صعود المنبر', descEn: 'No one can take a mic seat'),
+  static const _options = [
+    (seats: 6,  ar: '٦ مقاعد',  en: '6 Seats',  descAr: 'مناسب للغرف الصغيرة',       descEn: 'Best for small rooms'),
+    (seats: 9,  ar: '٩ مقاعد',  en: '9 Seats',  descAr: 'توازن مثالي',                descEn: 'Balanced experience'),
+    (seats: 12, ar: '١٢ مقعد', en: '12 Seats', descAr: 'للغرف الكبيرة والحفلات',    descEn: 'Large rooms & events'),
   ];
+
+  late int _selected;
+  bool _saving = false;
+  final _mgmt = const RoomManagementService();
 
   @override
   void initState() {
     super.initState();
-    SharedPreferences.getInstance().then((prefs) {
-      if (mounted) setState(() => _selected = prefs.getInt(widget.prefKey) ?? 0);
-    });
-  }
-
-  Future<void> _pick(int index) async {
-    setState(() => _selected = index);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(widget.prefKey, index);
+    _selected = widget.currentSeats;
   }
 
   String _t(String ar, String en) => widget.isArabic ? ar : en;
+
+  Future<void> _pick(int seats) async {
+    if (_saving || seats == _selected) return;
+    setState(() {
+      _selected = seats;
+      _saving = true;
+    });
+    try {
+      await _mgmt.updateRoom(widget.roomId, maxSeats: seats);
+      widget.onSeatsChanged?.call(seats);
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _selected = widget.currentSeats;
+          _saving = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(_t('فشل تحديث المقاعد', 'Failed to update seats')),
+          backgroundColor: const Color(0xFF2A0F1A),
+        ));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -990,23 +1026,28 @@ class _MicModeSheetState extends State<_MicModeSheet> {
           _Handle(),
           const SizedBox(height: 8),
           Text(
-            _t('وضع الميكروفون', 'Mic Mode'),
+            _t('عدد مقاعد الميكروفون', 'Mic Seats'),
             style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w800),
+                color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _t('يؤثر على جميع المشاركين في الغرفة',
+                'Affects all participants in the room'),
+            style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.45), fontSize: 12),
           ),
           const SizedBox(height: 16),
-          ...List.generate(_modes.length, (i) {
-            final mode = _modes[i];
-            final isSelected = _selected == i;
+          ...List.generate(_options.length, (i) {
+            final opt = _options[i];
+            final isSelected = _selected == opt.seats;
             return GestureDetector(
-              onTap: () => _pick(i),
+              onTap: _saving ? null : () => _pick(opt.seats),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   color: isSelected
@@ -1021,18 +1062,35 @@ class _MicModeSheetState extends State<_MicModeSheet> {
                 ),
                 child: Row(
                   children: [
-                    Icon(mode.icon,
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
                         color: isSelected
-                            ? const Color(0xFFC875FF)
-                            : Colors.white.withValues(alpha: 0.5),
-                        size: 22),
+                            ? const Color(0xFF8B26D9).withValues(alpha: 0.25)
+                            : Colors.white.withValues(alpha: 0.08),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '${opt.seats}',
+                          style: TextStyle(
+                            color: isSelected
+                                ? const Color(0xFFC875FF)
+                                : Colors.white.withValues(alpha: 0.6),
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _t(mode.ar, mode.en),
+                            _t(opt.ar, opt.en),
                             style: TextStyle(
                               color: isSelected
                                   ? Colors.white
@@ -1043,7 +1101,7 @@ class _MicModeSheetState extends State<_MicModeSheet> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            _t(mode.descAr, mode.descEn),
+                            _t(opt.descAr, opt.descEn),
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.45),
                               fontSize: 12,
@@ -1052,7 +1110,16 @@ class _MicModeSheetState extends State<_MicModeSheet> {
                         ],
                       ),
                     ),
-                    if (isSelected)
+                    if (_saving && isSelected)
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFFC875FF),
+                        ),
+                      )
+                    else if (isSelected)
                       const Icon(Icons.check_circle_rounded,
                           color: Color(0xFFC875FF), size: 20),
                   ],
@@ -1067,47 +1134,104 @@ class _MicModeSheetState extends State<_MicModeSheet> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Background Sheet
+// Background Sheet — gradient presets (local) + custom image upload (global)
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _BackgroundSheet extends StatefulWidget {
-  const _BackgroundSheet({required this.isArabic});
+  const _BackgroundSheet({
+    required this.isArabic,
+    required this.roomId,
+    this.currentBackgroundUrl,
+    this.onBackgroundChanged,
+  });
   final bool isArabic;
+  final String roomId;
+  final String? currentBackgroundUrl;
+  final void Function(String?)? onBackgroundChanged;
 
   @override
   State<_BackgroundSheet> createState() => _BackgroundSheetState();
 }
 
 class _BackgroundSheetState extends State<_BackgroundSheet> {
-  int _selected = 0;
   static const _kBgKey = 'room_pref_background';
 
   static const _themes = [
     (ar: 'ليلي كلاسيكي', en: 'Classic Night', colors: [Color(0xFF231440), Color(0xFF160C2F), Color(0xFF0C0619)]),
-    (ar: 'شفق أرجواني', en: 'Purple Dusk', colors: [Color(0xFF2D1B69), Color(0xFF11998e), Color(0xFF1A0D33)]),
-    (ar: 'نار ذهبية', en: 'Golden Flame', colors: [Color(0xFF3D1C02), Color(0xFF7B3F00), Color(0xFF1A0900)]),
-    (ar: 'سماء زرقاء', en: 'Deep Ocean', colors: [Color(0xFF0A1628), Color(0xFF1A3A5C), Color(0xFF0D1F35)]),
+    (ar: 'شفق أرجواني', en: 'Purple Dusk',   colors: [Color(0xFF2D1B69), Color(0xFF11998e), Color(0xFF1A0D33)]),
+    (ar: 'نار ذهبية',   en: 'Golden Flame',  colors: [Color(0xFF3D1C02), Color(0xFF7B3F00), Color(0xFF1A0900)]),
+    (ar: 'سماء زرقاء', en: 'Deep Ocean',     colors: [Color(0xFF0A1628), Color(0xFF1A3A5C), Color(0xFF0D1F35)]),
   ];
+
+  int _selectedTheme = 0;
+  bool _uploading = false;
+  final _mgmt = const RoomManagementService();
 
   @override
   void initState() {
     super.initState();
     SharedPreferences.getInstance().then((prefs) {
-      if (mounted) setState(() => _selected = prefs.getInt(_kBgKey) ?? 0);
+      if (mounted) setState(() => _selectedTheme = prefs.getInt(_kBgKey) ?? 0);
     });
-  }
-
-  Future<void> _pick(int index) async {
-    setState(() => _selected = index);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_kBgKey, index);
   }
 
   String _t(String ar, String en) => widget.isArabic ? ar : en;
 
+  Future<void> _pickTheme(int index) async {
+    setState(() => _selectedTheme = index);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_kBgKey, index);
+    // Clear any uploaded background from the room so gradient shows for all
+    await _mgmt.updateRoom(widget.roomId, clearBackground: true);
+    widget.onBackgroundChanged?.call(null);
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _uploadImage() async {
+    final picker = ImagePicker();
+    final file = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 1920,
+    );
+    if (file == null) return;
+    if (!mounted) return;
+
+    setState(() => _uploading = true);
+    try {
+      final bytes = await file.readAsBytes();
+      final mime = file.mimeType ?? 'image/jpeg';
+      final url = await _mgmt.uploadRoomBackground(widget.roomId, bytes, mime);
+      await _mgmt.updateRoom(widget.roomId, backgroundUrl: url);
+      widget.onBackgroundChanged?.call(url);
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) {
+        setState(() => _uploading = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              _t('فشل رفع الصورة', 'Failed to upload image')),
+          backgroundColor: const Color(0xFF2A0F1A),
+        ));
+      }
+    }
+  }
+
+  Future<void> _removeBackground() async {
+    setState(() => _uploading = true);
+    try {
+      await _mgmt.updateRoom(widget.roomId, clearBackground: true);
+      widget.onBackgroundChanged?.call(null);
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final hasCustomBg = widget.currentBackgroundUrl != null;
     return Container(
       padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomInset),
       decoration: const BoxDecoration(
@@ -1126,20 +1250,30 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
           Text(
             _t('خلفية الغرفة', 'Room Background'),
             style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w800),
+                color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
-            _t('يُحفظ اختيارك محلياً على هذا الجهاز فقط.',
-                'Your selection is saved locally on this device only.'),
+            _t('الخلفية المخصصة تظهر لجميع المشاركين',
+                'Custom image is visible to all participants'),
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.45),
-              fontSize: 12,
-            ),
+                color: Colors.white.withValues(alpha: 0.45), fontSize: 12),
           ),
           const SizedBox(height: 20),
+          // ── Gradient presets ──
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(
+              _t('ألوان', 'COLORS').toUpperCase(),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.40),
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -1152,9 +1286,9 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
             itemCount: _themes.length,
             itemBuilder: (_, i) {
               final theme = _themes[i];
-              final isSelected = _selected == i;
+              final isSelected = !hasCustomBg && _selectedTheme == i;
               return GestureDetector(
-                onTap: () => _pick(i),
+                onTap: _uploading ? null : () => _pickTheme(i),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   decoration: BoxDecoration(
@@ -1202,7 +1336,104 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
               );
             },
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 20),
+          // ── Custom image upload ──
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(
+              _t('صورة مخصصة', 'CUSTOM IMAGE').toUpperCase(),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.40),
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (hasCustomBg) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Stack(
+                children: [
+                  Image.network(
+                    widget.currentBackgroundUrl!,
+                    height: 100,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      height: 100,
+                      color: Colors.white.withValues(alpha: 0.05),
+                      child: const Icon(Icons.broken_image_rounded,
+                          color: Colors.white38),
+                    ),
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: GestureDetector(
+                      onTap: _uploading ? null : _removeBackground,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.6),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.close_rounded,
+                            color: Colors.white, size: 16),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        _t('صورة مخصصة نشطة', 'Custom image active'),
+                        style: const TextStyle(
+                            color: Color(0xFFF0C15A),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFFC875FF),
+                side: BorderSide(
+                    color: const Color(0xFF8B26D9).withValues(alpha: 0.5)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              onPressed: _uploading ? null : _uploadImage,
+              icon: _uploading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Color(0xFFC875FF)),
+                    )
+                  : const Icon(Icons.add_photo_alternate_rounded, size: 20),
+              label: Text(_uploading
+                  ? _t('جاري الرفع...', 'Uploading...')
+                  : _t('رفع صورة مخصصة', 'Upload Custom Image')),
+            ),
+          ),
+          const SizedBox(height: 4),
         ],
       ),
     );

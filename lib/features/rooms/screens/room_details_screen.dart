@@ -169,7 +169,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     };
   }
 
-  bool get _speakerSeatsFull => _activeSpeakerCount >= widget.room.maxSeats;
+  late int _currentMaxSeats;
+  String? _roomBackgroundUrl;
+
+  bool get _speakerSeatsFull => _activeSpeakerCount >= _currentMaxSeats;
 
   bool get _iAmHost {
     final currentUserId = _currentUserId;
@@ -191,6 +194,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   void initState() {
     super.initState();
     _roomLocked = widget.room.isLocked;
+    _currentMaxSeats = widget.room.maxSeats <= 0 ? 12 : widget.room.maxSeats;
+    _roomBackgroundUrl = widget.room.backgroundUrl;
     // _loadMembers() ends by calling _syncMicConnectionWithSeat(), which now
     // connects to the room audio for listening even when the user is not on a
     // mic seat — so every participant hears the room.
@@ -737,7 +742,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => RoomToolsSheet(
-        room: widget.room,
+        room: _currentRoom,
         isArabic: widget.isArabic,
         isOwner: _iAmRoomOwner,
         isHost: _iAmHost,
@@ -746,9 +751,31 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         onToggleLock: _toggleRoomLock,
         onClearChat: _clearChat,
         onSalute: _sendSalute,
+        onMaxSeatsChanged: (seats) {
+          setState(() => _currentMaxSeats = seats);
+        },
+        onBackgroundChanged: (url) {
+          setState(() => _roomBackgroundUrl = url);
+        },
       ),
     );
   }
+
+  Room get _currentRoom => Room(
+        id: widget.room.id,
+        ownerId: widget.room.ownerId,
+        name: widget.room.name,
+        description: widget.room.description,
+        language: widget.room.language,
+        livekitRoomName: widget.room.livekitRoomName,
+        maxSeats: _currentMaxSeats,
+        isPrivate: widget.room.isPrivate,
+        isLocked: _roomLocked,
+        isClosed: widget.room.isClosed,
+        createdAt: widget.room.createdAt,
+        coverUrl: widget.room.coverUrl,
+        backgroundUrl: _roomBackgroundUrl,
+      );
 
   Future<void> _toggleRoomLock() async {
     if (!_iAmHost || _lockBusy) {
@@ -1261,7 +1288,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   }
 
   List<int> _emptySeatNumbers({String? exceptUserId}) {
-    final maxSeats = widget.room.maxSeats <= 0 ? 12 : widget.room.maxSeats;
+    final maxSeats = _currentMaxSeats;
     final occupied = <int>{};
 
     for (final member in _members) {
@@ -2177,7 +2204,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       body: Stack(
         children: [
           // \u2500\u2500 1. Full-screen immersive background \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-          _FullRoomBackground(room: widget.room),
+          _FullRoomBackground(room: widget.room, backgroundUrl: _roomBackgroundUrl),
 
           // \u2500\u2500 2. Scrollable content + pinned bottom bar \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
           SafeArea(
@@ -2194,7 +2221,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                         14, 0, 14, 100 + bottomPad),
                     children: [
                       _CompactRoomHeader(
-                        room: widget.room,
+                        room: _currentRoom,
                         activeSpeakerCount: _activeSpeakerCount,
                         isLocked: _roomLocked,
                         isHost: _iAmHost,
@@ -2233,7 +2260,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                       const SizedBox(height: 14),
                       _LiveRoomStage(
                         members: _members,
-                        maxSeats: widget.room.maxSeats,
+                        maxSeats: _currentMaxSeats,
                         isArabic: widget.isArabic,
                         activeSpeakerCount: _activeSpeakerCount,
                         isHost: _iAmHost,
@@ -2521,20 +2548,22 @@ class _CompactRoomHeader extends StatelessWidget {
 /// Shows cover image (if set) with a dark readability overlay,
 /// or a premium decorative gradient when no cover exists.
 class _FullRoomBackground extends StatelessWidget {
-  const _FullRoomBackground({required this.room});
+  const _FullRoomBackground({required this.room, this.backgroundUrl});
   final Room room;
+  final String? backgroundUrl;
 
   @override
   Widget build(BuildContext context) {
-    final coverUrl = room.coverUrl;
+    // Custom uploaded background takes priority over room cover
+    final imageUrl = backgroundUrl ?? room.coverUrl;
     return SizedBox.expand(
       child: Stack(
         fit: StackFit.expand,
         children: [
           // Base image or gradient
-          if (coverUrl != null)
+          if (imageUrl != null)
             Image.network(
-              coverUrl,
+              imageUrl,
               fit: BoxFit.cover,
               errorBuilder: (ctx, err, stack) =>
                   const _RoomGradientBg(),
@@ -2549,7 +2578,7 @@ class _FullRoomBackground extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.black.withValues(alpha: coverUrl != null ? 0.55 : 0.0),
+                  Colors.black.withValues(alpha: imageUrl != null ? 0.55 : 0.0),
                   Colors.black.withValues(alpha: 0.60),
                   Colors.black.withValues(alpha: 0.85),
                 ],
