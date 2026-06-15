@@ -2762,18 +2762,34 @@ class _LiveRoomStage extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 16, 14, 20),
+      padding: const EdgeInsets.fromLTRB(14, 22, 14, 20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(28),
-        color: Colors.black.withValues(alpha: 0.30),
+        // Luxury glass-panel overlay: dark enough to read mic labels over any
+        // custom background, but still lets the background bleed through.
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF0C051E).withValues(alpha: 0.74),
+            const Color(0xFF160C30).withValues(alpha: 0.68),
+            const Color(0xFF0A0418).withValues(alpha: 0.62),
+          ],
+        ),
         border: Border.all(
-          color: const Color(0xFF8B26D9).withValues(alpha: 0.30),
+          color: const Color(0xFF8B26D9).withValues(alpha: 0.48),
+          width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF8B26D9).withValues(alpha: 0.10),
-            blurRadius: 32,
+            color: const Color(0xFF8B26D9).withValues(alpha: 0.20),
+            blurRadius: 44,
             spreadRadius: -4,
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.38),
+            blurRadius: 24,
+            spreadRadius: -2,
           ),
         ],
       ),
@@ -2869,36 +2885,16 @@ class _LiveRoomStage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          // Seat grid
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final compactGrid = constraints.maxWidth < 340;
-              return GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                padding: const EdgeInsets.only(top: 8),
-                itemCount: seats.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 4,
-                  mainAxisSpacing: compactGrid ? 8 : 10,
-                  crossAxisSpacing: compactGrid ? 6 : 8,
-                  childAspectRatio: compactGrid ? 0.42 : 0.44,
-                ),
-                itemBuilder: (context, index) {
-                  return _LiveSeatBubble(
-                    seat: seats[index],
-                    isArabic: isArabic,
-                    isHost: isHost,
-                    onEmptySeatTap: onEmptySeatTap,
-                    onOccupiedSeatTap: onOccupiedSeatTap,
-                    onOccupiedSeatLongPress: onOccupiedSeatLongPress,
-                    onProfileTap: onProfileTap,
-                    selectedForMove:
-                        seats[index].member?.userId == selectedMoveUserId,
-                  );
-                },
-              );
-            },
+          // Seat grid — centers partial last rows (e.g. Mic 9 in 9-seat mode)
+          _SeatGrid(
+            seats: seats,
+            isArabic: isArabic,
+            isHost: isHost,
+            onEmptySeatTap: onEmptySeatTap,
+            onOccupiedSeatTap: onOccupiedSeatTap,
+            onOccupiedSeatLongPress: onOccupiedSeatLongPress,
+            onProfileTap: onProfileTap,
+            selectedMoveUserId: selectedMoveUserId,
           ),
         ],
       ),
@@ -2944,6 +2940,101 @@ class _LiveRoomStage extends StatelessWidget {
     }
 
     return seats;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Custom seat grid — 4 columns, partial last rows are centered.
+// Full rows use spaceBetween so tile edges align with container edges.
+// Partial rows (e.g. 9th seat) use center so lone seats don't hug the left.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SeatGrid extends StatelessWidget {
+  const _SeatGrid({
+    required this.seats,
+    required this.isArabic,
+    required this.isHost,
+    required this.onEmptySeatTap,
+    required this.onOccupiedSeatTap,
+    required this.onOccupiedSeatLongPress,
+    required this.onProfileTap,
+    required this.selectedMoveUserId,
+  });
+
+  final List<_StageSeat> seats;
+  final bool isArabic;
+  final bool isHost;
+  final ValueChanged<int> onEmptySeatTap;
+  final void Function(RoomMember, int) onOccupiedSeatTap;
+  final void Function(RoomMember, int) onOccupiedSeatLongPress;
+  final ValueChanged<String> onProfileTap;
+  final String? selectedMoveUserId;
+
+  static const _cols = 4;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, constraints) {
+      final compact = constraints.maxWidth < 340;
+      final colGap = compact ? 6.0 : 8.0;
+      final rowGap = compact ? 8.0 : 10.0;
+      final aspectRatio = compact ? 0.42 : 0.44;
+      // tileWidth matches the old GridView: exactly fills the row.
+      final tileWidth =
+          (constraints.maxWidth - colGap * (_cols - 1)) / _cols;
+      final tileHeight = tileWidth / aspectRatio;
+
+      // Split seat list into rows of _cols.
+      final rows = <List<_StageSeat>>[];
+      for (var i = 0; i < seats.length; i += _cols) {
+        final end = (i + _cols).clamp(0, seats.length);
+        rows.add(seats.sublist(i, end));
+      }
+
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var r = 0; r < rows.length; r++) ...[
+            if (r > 0) SizedBox(height: rowGap),
+            _buildRow(rows[r], tileWidth, tileHeight, colGap),
+          ],
+        ],
+      );
+    });
+  }
+
+  Widget _buildRow(
+    List<_StageSeat> row,
+    double tileWidth,
+    double tileHeight,
+    double gap,
+  ) {
+    final isFull = row.length == _cols;
+    // Full rows: spaceBetween keeps outer tiles flush with edges.
+    // Partial rows: center so the lone/few tiles aren't left-aligned.
+    return Row(
+      mainAxisAlignment:
+          isFull ? MainAxisAlignment.spaceBetween : MainAxisAlignment.center,
+      children: [
+        for (var c = 0; c < row.length; c++) ...[
+          if (c > 0) SizedBox(width: gap),
+          SizedBox(
+            width: tileWidth,
+            height: tileHeight,
+            child: _LiveSeatBubble(
+              seat: row[c],
+              isArabic: isArabic,
+              isHost: isHost,
+              onEmptySeatTap: onEmptySeatTap,
+              onOccupiedSeatTap: onOccupiedSeatTap,
+              onOccupiedSeatLongPress: onOccupiedSeatLongPress,
+              onProfileTap: onProfileTap,
+              selectedForMove: row[c].member?.userId == selectedMoveUserId,
+            ),
+          ),
+        ],
+      ],
+    );
   }
 }
 
@@ -3510,7 +3601,7 @@ class _LiveSeatBubble extends StatelessWidget {
         : occupiedByHost
             ? const Color(0xFFF0C15A)
             : seat.isEmpty
-                ? Colors.white.withValues(alpha: 0.18)
+                ? Colors.white.withValues(alpha: 0.26)
                 : const Color(0xFF8B26D9).withValues(alpha: 0.55);
 
     final double borderWidth = occupiedByHost ? 2.4 : 1.8;
@@ -3529,25 +3620,30 @@ class _LiveSeatBubble extends StatelessWidget {
         ),
       ] else if (occupiedByHost) ...[
         BoxShadow(
-          color: const Color(0xFFF0C15A).withValues(alpha: 0.55),
-          blurRadius: 16,
+          color: const Color(0xFFF0C15A).withValues(alpha: 0.70),
+          blurRadius: 18,
           spreadRadius: 1,
         ),
         BoxShadow(
-          color: const Color(0xFFD99A2B).withValues(alpha: 0.25),
-          blurRadius: 28,
-          spreadRadius: 2,
+          color: const Color(0xFFD99A2B).withValues(alpha: 0.35),
+          blurRadius: 34,
+          spreadRadius: 4,
+        ),
+        BoxShadow(
+          color: const Color(0xFFF0C15A).withValues(alpha: 0.15),
+          blurRadius: 52,
+          spreadRadius: 6,
         ),
       ] else if (!seat.isEmpty) ...[
         BoxShadow(
-          color: const Color(0xFF8B26D9).withValues(alpha: 0.35),
-          blurRadius: 12,
+          color: const Color(0xFF8B26D9).withValues(alpha: 0.45),
+          blurRadius: 14,
           spreadRadius: 0,
         ),
         BoxShadow(
-          color: const Color(0xFF8B26D9).withValues(alpha: 0.15),
-          blurRadius: 22,
-          spreadRadius: 2,
+          color: const Color(0xFF8B26D9).withValues(alpha: 0.20),
+          blurRadius: 26,
+          spreadRadius: 3,
         ),
       ],
     ];
@@ -3576,7 +3672,7 @@ class _LiveSeatBubble extends StatelessWidget {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.07),
+                    color: Colors.white.withValues(alpha: 0.11),
                     border: Border.all(color: borderColor, width: borderWidth),
                     boxShadow: [
                       BoxShadow(
@@ -3598,9 +3694,28 @@ class _LiveSeatBubble extends StatelessWidget {
                     clipBehavior: Clip.none,
                     alignment: Alignment.center,
                     children: [
-                      // Glow layer rendered behind the avatar.
-                      // When a VIP frame is present the frame provides its own ring,
-                      // so we suppress the explicit border to avoid a small inner circle.
+                      // 0. Dark glass backing — keeps avatar readable over custom
+                      //    backgrounds and adds depth to the mic-seat circle.
+                      IgnorePointer(
+                        child: Container(
+                          width: outerSize,
+                          height: outerSize,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(
+                              colors: [
+                                Colors.black.withValues(alpha: 0.42),
+                                Colors.black.withValues(alpha: 0.22),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // 1. Mic-seat ring + outer glow — anchors the avatar to
+                      //    the seat slot visually (same role as the empty-seat
+                      //    circle). VIP frame suppresses the explicit border
+                      //    because the frame already provides its own ring.
                       IgnorePointer(
                         child: Container(
                           width: outerSize,
@@ -3615,7 +3730,8 @@ class _LiveSeatBubble extends StatelessWidget {
                           ),
                         ),
                       ),
-                      // VIP mic wave ring — expands outward via Clip.none Stack.
+
+                      // 2. VIP mic wave ring — expands outward via Clip.none.
                       IgnorePointer(
                         child: VipMicWaveRing(
                           vipLevel: effectiveVipLevel,
@@ -3624,6 +3740,8 @@ class _LiveSeatBubble extends StatelessWidget {
                           outerSize: outerSize,
                         ),
                       ),
+
+                      // 3. Avatar + frame (centered inside the seat ring).
                       GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: seat.member == null
@@ -3641,26 +3759,44 @@ class _LiveSeatBubble extends StatelessWidget {
                               : Icons.person_rounded,
                         ),
                       ),
-                      if (seat.isMuted)
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: Container(
-                            width: 20,
-                            height: 20,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: const Color(0xFFE63946),
-                              border: Border.all(
-                                  color: Colors.black, width: 1.5),
+
+                      // 4. Mic status badge — always visible, attached to
+                      //    avatar lower-right edge. Red = muted, green = live.
+                      Positioned(
+                        bottom: 2,
+                        right: 2,
+                        child: Container(
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: seat.isMuted
+                                ? const Color(0xFFE63946)
+                                : const Color(0xFF22C55E),
+                            border: Border.all(
+                              color: Colors.black.withValues(alpha: 0.85),
+                              width: 1.5,
                             ),
-                            child: const Icon(
-                              Icons.mic_off_rounded,
-                              color: Colors.white,
-                              size: 11,
-                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: (seat.isMuted
+                                        ? const Color(0xFFE63946)
+                                        : const Color(0xFF22C55E))
+                                    .withValues(alpha: 0.55),
+                                blurRadius: 7,
+                                spreadRadius: 0,
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            seat.isMuted
+                                ? Icons.mic_off_rounded
+                                : Icons.mic_rounded,
+                            color: Colors.white,
+                            size: 11,
                           ),
                         ),
+                      ),
                     ],
                   ),
                 ),
@@ -3676,7 +3812,7 @@ class _LiveSeatBubble extends StatelessWidget {
         avatarZone,
 
         // ── Zone 2: name — always 16 px ───────────────────────────────────
-        const SizedBox(height: 2),
+        const SizedBox(height: 3),
         SizedBox(
           height: 16,
           child: Align(
@@ -3694,7 +3830,15 @@ class _LiveSeatBubble extends StatelessWidget {
                     : effectiveVipLevel > 0
                         ? VipVisualStyle.nameColor(effectiveVipLevel, context)
                         : Colors.white,
-                shadows: const [Shadow(blurRadius: 4, color: Colors.black54)],
+                shadows: [
+                  const Shadow(
+                      blurRadius: 6,
+                      color: Colors.black87,
+                      offset: Offset(0, 1)),
+                  Shadow(
+                      blurRadius: 12,
+                      color: Colors.black.withValues(alpha: 0.55)),
+                ],
               ),
             ),
           ),
@@ -3758,6 +3902,9 @@ class _LiveSeatBubble extends StatelessWidget {
                           : canAssignSeat
                               ? Colors.white.withValues(alpha: 0.55)
                               : Colors.white.withValues(alpha: 0.8),
+                  shadows: const [
+                    Shadow(blurRadius: 5, color: Colors.black),
+                  ],
                 ),
               ),
             ),
