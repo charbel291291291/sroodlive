@@ -64,7 +64,6 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
 
   static const _kSoundKey = 'room_pref_sound';
   static const _kVisualKey = 'room_pref_visual';
-  static const _kMicModeKey = 'room_pref_mic_mode';
 
   bool get _canManage => widget.isOwner || widget.isHost;
 
