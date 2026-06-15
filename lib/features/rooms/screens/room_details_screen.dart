@@ -27,6 +27,7 @@ import '../utils/vip_room_features.dart';
 import '../../vip/services/vip_privilege_service.dart';
 import '../widgets/pk_stage_overlay.dart';
 import '../widgets/room_tools_sheet.dart';
+import '../../games/screens/srood_loto_screen.dart';
 import 'room_owner_management_screen.dart';
 
 // Seat sizes — host > occupied > empty, never the reverse.
@@ -175,6 +176,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   late int _currentMaxSeats;
   String? _roomBackgroundUrl;
 
+  int _walletCoins = 0;
+
   // Team PK
   final _pkService = const TeamPkService();
   PkSession? _activePk;
@@ -212,6 +215,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     _loadRoomGifts();
     _loadModeratorCount();
     _loadAnnouncement();
+    _loadWalletBalance();
     _startHeartbeat();
     _startMembersRefresh();
     _startGiftFeedCleanupTimer();
@@ -640,6 +644,13 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       final ann = await const RoomManagementService()
           .getActiveAnnouncement(widget.room.id);
       if (mounted) setState(() => _activeAnnouncementText = ann?.message);
+    } catch (_) {}
+  }
+
+  Future<void> _loadWalletBalance() async {
+    try {
+      final wallet = await const WalletService().fetchWallet();
+      if (mounted) setState(() => _walletCoins = wallet.coinsBalance);
     } catch (_) {}
   }
 
@@ -2274,6 +2285,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                       _CompactRoomHeader(
                         room: _currentRoom,
                         activeSpeakerCount: _activeSpeakerCount,
+                        memberCount: _members.length,
+                        walletCoins: _walletCoins,
                         isLocked: _roomLocked,
                         isHost: _iAmHost,
                         isArabic: widget.isArabic,
@@ -2359,6 +2372,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                     onToggleMic: _toggleMic,
                     onLeaveRoom: _leaveRoom,
                     onGiftTap: _openGiftSheet,
+                    onGamesTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            SroodLotoScreen(isArabic: widget.isArabic),
+                      ),
+                    ),
                     onMoreTap: _openToolsSheet,
                     onSendMessage: _sendChatMessage,
                     bottomPad: bottomPad,
@@ -2378,6 +2397,22 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
               playback: _activeLuxuryGiftVideo!,
               onDone: _clearLuxuryGiftVideo,
             ),
+
+          // ── 5. Srood Loto floating button ──────────────────────────────────
+          Positioned(
+            right: widget.isArabic ? null : 12,
+            left: widget.isArabic ? 12 : null,
+            top: MediaQuery.of(context).padding.top + 72,
+            child: _LotoFloatingButton(
+              isArabic: widget.isArabic,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) =>
+                      SroodLotoScreen(isArabic: widget.isArabic),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -2388,6 +2423,8 @@ class _CompactRoomHeader extends StatelessWidget {
   const _CompactRoomHeader({
     required this.room,
     required this.activeSpeakerCount,
+    required this.memberCount,
+    required this.walletCoins,
     required this.isLocked,
     required this.isHost,
     required this.isArabic,
@@ -2396,6 +2433,8 @@ class _CompactRoomHeader extends StatelessWidget {
 
   final Room room;
   final int activeSpeakerCount;
+  final int memberCount;
+  final int walletCoins;
   final bool isLocked;
   final bool isHost;
   final bool isArabic;
@@ -2527,24 +2566,33 @@ class _CompactRoomHeader extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          // Online members count
+                          _MiniRoomStatusPill(
+                            icon: Icons.people_alt_rounded,
+                            label: memberCount.toString(),
+                            color: const Color(0xFF4ADE80),
+                          ),
+                          const SizedBox(height: 4),
+                          // Seats
                           _MiniRoomStatusPill(
                             icon: Icons.event_seat_rounded,
                             label: '$activeSpeakerCount/${room.maxSeats}',
                           ),
                           const SizedBox(height: 4),
+                          // Wallet coins
                           _MiniRoomStatusPill(
-                            icon: isLocked
-                                ? Icons.lock_rounded
-                                : Icons.lock_open_rounded,
-                            label: isArabic
-                                ? (isLocked ? '\u0645\u0642\u0641\u0644\u0629' : '\u0645\u0641\u062a\u0648\u062d\u0629')
-                                : (isLocked ? 'Locked' : 'Open'),
+                            icon: Icons.monetization_on_rounded,
+                            label: walletCoins > 999
+                                ? '${(walletCoins / 1000).toStringAsFixed(1)}k'
+                                : walletCoins.toString(),
+                            color: const Color(0xFFF0C15A),
                           ),
                           if (isHost) ...[
                             const SizedBox(height: 4),
                             _MiniRoomStatusPill(
                               icon: Icons.admin_panel_settings_rounded,
                               label: isArabic ? '\u0645\u0636\u064a\u0641' : 'Host',
+                              color: const Color(0xFFF0C15A),
                             ),
                           ],
                         ],
@@ -2629,21 +2677,40 @@ class _FullRoomBackground extends StatelessWidget {
           else
             const _RoomGradientBg(),
 
-          // Cinematic dark overlay — stronger at top (AppBar area) and bottom
+          // Layered cinematic overlay — header dark, center reveals background,
+          // bottom darker for chat/controls readability.
           DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.black.withValues(alpha: imageUrl != null ? 0.55 : 0.0),
-                  Colors.black.withValues(alpha: 0.60),
-                  Colors.black.withValues(alpha: 0.85),
+                  Colors.black.withValues(alpha: imageUrl != null ? 0.62 : 0.0),
+                  Colors.black.withValues(alpha: imageUrl != null ? 0.18 : 0.0),
+                  Colors.black.withValues(alpha: imageUrl != null ? 0.28 : 0.0),
+                  Colors.black.withValues(alpha: 0.78),
                 ],
-                stops: const [0.0, 0.45, 1.0],
+                stops: const [0.0, 0.28, 0.55, 1.0],
               ),
             ),
           ),
+          // Subtle purple vignette sides
+          if (imageUrl != null)
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    const Color(0xFF1A0633).withValues(alpha: 0.35),
+                    Colors.transparent,
+                    Colors.transparent,
+                    const Color(0xFF1A0633).withValues(alpha: 0.35),
+                  ],
+                  stops: const [0.0, 0.25, 0.75, 1.0],
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -2750,10 +2817,15 @@ class _RoomDefaultBg extends StatelessWidget {
 }
 
 class _MiniRoomStatusPill extends StatelessWidget {
-  const _MiniRoomStatusPill({required this.icon, required this.label});
+  const _MiniRoomStatusPill({
+    required this.icon,
+    required this.label,
+    this.color = const Color(0xFFF0C15A),
+  });
 
   final IconData icon;
   final String label;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -2766,13 +2838,81 @@ class _MiniRoomStatusPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: const Color(0xFFF0C15A)),
+          Icon(icon, size: 12, color: color),
           const SizedBox(width: 4),
           Text(
             label,
-            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Srood Loto floating button ────────────────────────────────────────────────
+
+class _LotoFloatingButton extends StatelessWidget {
+  const _LotoFloatingButton({
+    required this.isArabic,
+    required this.onTap,
+  });
+
+  final bool isArabic;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF4B0082), Color(0xFF8B26D9)],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFFF0C15A).withValues(alpha: 0.6),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF8B26D9).withValues(alpha: 0.50),
+              blurRadius: 20,
+              spreadRadius: 1,
+            ),
+            BoxShadow(
+              color: const Color(0xFFF0C15A).withValues(alpha: 0.18),
+              blurRadius: 30,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              '🎰',
+              style: TextStyle(fontSize: 20),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              isArabic ? 'لوتو' : 'Loto',
+              style: const TextStyle(
+                color: Color(0xFFF0C15A),
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2830,34 +2970,20 @@ class _LiveRoomStage extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 22, 14, 20),
+      padding: const EdgeInsets.fromLTRB(14, 16, 14, 18),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        // Luxury glass-panel overlay: dark enough to read mic labels over any
-        // custom background, but still lets the background bleed through.
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF0C051E).withValues(alpha: 0.74),
-            const Color(0xFF160C30).withValues(alpha: 0.68),
-            const Color(0xFF0A0418).withValues(alpha: 0.62),
-          ],
-        ),
+        borderRadius: BorderRadius.circular(24),
+        // Light glass overlay — enough to read labels, background bleeds through.
+        color: Colors.black.withValues(alpha: 0.28),
         border: Border.all(
-          color: const Color(0xFF8B26D9).withValues(alpha: 0.48),
-          width: 1.2,
+          color: const Color(0xFF8B26D9).withValues(alpha: 0.30),
+          width: 0.8,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF8B26D9).withValues(alpha: 0.20),
-            blurRadius: 44,
-            spreadRadius: -4,
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.38),
-            blurRadius: 24,
-            spreadRadius: -2,
+            color: const Color(0xFF8B26D9).withValues(alpha: 0.12),
+            blurRadius: 32,
+            spreadRadius: -6,
           ),
         ],
       ),
@@ -3769,19 +3895,37 @@ class _LiveSeatBubble extends StatelessWidget {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.11),
-                    border: Border.all(color: borderColor, width: borderWidth),
+                    // Glass circle — background shows through the empty seat.
+                    color: Colors.white.withValues(alpha: 0.07),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.20),
+                      width: 1.4,
+                    ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF4ADE80).withValues(alpha: 0.14),
-                        blurRadius: 14,
+                        color: const Color(0xFF8B26D9).withValues(alpha: 0.18),
+                        blurRadius: 18,
                       ),
                     ],
                   ),
-                  child: Icon(
-                    Icons.add_rounded,
-                    color: Colors.white.withValues(alpha: 0.55),
-                    size: _micSeatIconSize,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.mic_none_rounded,
+                        color: Colors.white.withValues(alpha: 0.48),
+                        size: _micSeatIconSize,
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        '${seat.number}',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.32),
+                          fontSize: 8,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
                   ),
                 )
               : SizedBox(
@@ -5958,6 +6102,7 @@ class _LiveBottomActionBar extends StatefulWidget {
     required this.onToggleMic,
     required this.onLeaveRoom,
     required this.onGiftTap,
+    required this.onGamesTap,
     required this.onMoreTap,
     required this.onSendMessage,
     this.bottomPad = 0,
@@ -5972,6 +6117,7 @@ class _LiveBottomActionBar extends StatefulWidget {
   final VoidCallback onToggleMic;
   final VoidCallback onLeaveRoom;
   final VoidCallback onGiftTap;
+  final VoidCallback onGamesTap;
   final VoidCallback onMoreTap;
   final Future<void> Function(String) onSendMessage;
   final double bottomPad;
@@ -6025,7 +6171,6 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
   Widget build(BuildContext context) {
     const kGold = Color(0xFFF0C15A);
     const kPurple = Color(0xFF8B26D9);
-    const kBg = Color(0xFF08030F);
 
     final pillBorderColor = _isFocused
         ? kGold.withValues(alpha: 0.75)
@@ -6057,19 +6202,20 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
 
     return Container(
       decoration: BoxDecoration(
+        // Glass float — translucent dark so background bleeds through slightly.
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            const Color(0xFF0A0515).withValues(alpha: 0.82),
-            const Color(0xFF060210).withValues(alpha: 0.96),
+            Colors.black.withValues(alpha: 0.55),
+            Colors.black.withValues(alpha: 0.82),
           ],
         ),
         border: Border(
           top: BorderSide(
             color: _isFocused
-                ? kGold.withValues(alpha: 0.22)
-                : kPurple.withValues(alpha: 0.14),
+                ? kGold.withValues(alpha: 0.30)
+                : kPurple.withValues(alpha: 0.20),
             width: 0.8,
           ),
         ),
@@ -6087,8 +6233,8 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
               padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
                 color: _isFocused
-                    ? kBg.withValues(alpha: 0.95)
-                    : const Color(0xFF0E0620).withValues(alpha: 0.90),
+                    ? Colors.black.withValues(alpha: 0.75)
+                    : Colors.white.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(30),
                 border: Border.all(
                   color: pillBorderColor,
@@ -6205,6 +6351,12 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
             icon: Icons.card_giftcard_rounded,
             color: kGold,
             onTap: widget.onGiftTap,
+          ),
+          const SizedBox(width: 6),
+          _BarIconButton(
+            icon: Icons.casino_rounded,
+            color: const Color(0xFFB06EFF),
+            onTap: widget.onGamesTap,
           ),
           const SizedBox(width: 6),
           _BarIconButton(
