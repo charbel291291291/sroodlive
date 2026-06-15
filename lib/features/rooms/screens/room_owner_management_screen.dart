@@ -111,7 +111,9 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
 
   Future<void> _loadMembers() async {
     try {
-      final list = await _roomSvc.getActiveRoomMembers(_roomId);
+      // Use getAllRoomMembers (no 45-second freshness filter) so the management
+      // screen shows everyone still in the room, even if heartbeats are stale.
+      final list = await _roomSvc.getAllRoomMembers(_roomId);
       _members = list
           .map(
             (m) => {
@@ -121,6 +123,7 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
               'role': m.role,
               'is_muted': m.isMuted,
               'seat_number': m.seatNumber,
+              'public_user_id': m.displayCode,
             },
           )
           .toList();
@@ -821,17 +824,59 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
 
   // ── Tab: Members ─────────────────────────────────────────────────────────
 
+  Color _roleColor(String role) {
+    return switch (role) {
+      'host'     => const Color(0xFFF0C15A),
+      'speaker'  => const Color(0xFF8B26D9),
+      'mod'      => const Color(0xFF4ADE80),
+      _          => const Color(0xFF9E8AB8),
+    };
+  }
+
+  String _roleText(String role) {
+    return switch (role) {
+      'host'    => _t('المضيف', 'Host'),
+      'speaker' => _t('متحدث', 'Speaker'),
+      'mod'     => _t('مشرف', 'Mod'),
+      _         => _t('مستمع', 'Listener'),
+    };
+  }
+
   Widget _buildMembersTab() {
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id ?? '';
+
     if (_members.isEmpty) {
       return Center(
-        child: Text(
-          _t('لا يوجد أعضاء نشطون', 'No active members'),
-          style: const TextStyle(color: Color(0xFF9E8AB8)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64, height: 64,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF1A0D33),
+              ),
+              child: const Icon(Icons.people_outline_rounded,
+                  color: Color(0xFF6E3AA8), size: 32),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              _t('لا يوجد أعضاء حالياً', 'No members yet'),
+              style: const TextStyle(
+                color: Color(0xFF9E8AB8),
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _t('اسحب للأسفل للتحديث', 'Pull down to refresh'),
+              style: const TextStyle(color: Color(0xFF5A4A72), fontSize: 12),
+            ),
+          ],
         ),
       );
     }
-
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id ?? '';
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -840,75 +885,170 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
       },
       color: const Color(0xFF8B26D9),
       child: ListView.builder(
-        padding: const EdgeInsets.all(12),
-        itemCount: _members.length,
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+        itemCount: _members.length + 1,
         itemBuilder: (_, i) {
-          final m = _members[i];
-          final uid = m['user_id'] as String;
-          if (uid == currentUserId) return const SizedBox.shrink();
+          if (i == 0) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                children: [
+                  Text(
+                    _t('الأعضاء (${_members.length})', 'Members (${_members.length})'),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    _t('جميع الأعضاء', 'All members'),
+                    style: const TextStyle(
+                      color: Color(0xFF6E3AA8),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
 
+          final m = _members[i - 1];
+          final uid = m['user_id'] as String;
           final name = m['display_name'] as String? ?? 'Unknown';
           final role = m['role'] as String? ?? 'listener';
           final isMuted = (m['is_muted'] as bool?) ?? false;
+          final seat = m['seat_number'] as int?;
+          final publicId = m['public_user_id'] as String? ?? '';
+          final isMe = uid == currentUserId;
 
-          return _GlassCard(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: [
-                _Avatar(url: m['avatar_url'] as String?),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _GlassCard(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  // Avatar
+                  Stack(
+                    clipBehavior: Clip.none,
                     children: [
-                      Text(
-                        name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
+                      _Avatar(url: m['avatar_url'] as String?),
+                      if (seat != null)
+                        Positioned(
+                          right: -4, bottom: -4,
+                          child: Container(
+                            width: 18, height: 18,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFF8B26D9),
+                              border: Border.all(
+                                color: const Color(0xFF120827), width: 1.5),
+                            ),
+                            child: Center(
+                              child: Text(
+                                seat.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                      Text(
-                        role,
-                        style: const TextStyle(
-                          color: Color(0xFF9E8AB8),
-                          fontSize: 11,
-                        ),
-                      ),
                     ],
                   ),
-                ),
-                _ActionIcon(
-                  icon: isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
-                  color: isMuted ? Colors.red[400]! : const Color(0xFF6E3AA8),
-                  tooltip: isMuted
-                      ? _t('إلغاء كتم الصوت', 'Unmute')
-                      : _t('كتم الصوت', 'Mute'),
-                  onTap: () => _muteMember(uid, !isMuted),
-                ),
-                const SizedBox(width: 4),
-                _ActionIcon(
-                  icon: Icons.shield_rounded,
-                  color: const Color(0xFF8B26D9),
-                  tooltip: _t('تعيين مشرف', 'Make Mod'),
-                  onTap: () => _promoteModerator(uid, name),
-                ),
-                const SizedBox(width: 4),
-                _ActionIcon(
-                  icon: Icons.logout_rounded,
-                  color: Colors.orange,
-                  tooltip: _t('طرد', 'Kick'),
-                  onTap: () => _kickMember(uid),
-                ),
-                const SizedBox(width: 4),
-                _ActionIcon(
-                  icon: Icons.block_rounded,
-                  color: Colors.red,
-                  tooltip: _t('حظر', 'Ban'),
-                  onTap: () => _banMember(uid, name),
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  // Info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                name + (isMe ? ' ★' : ''),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: isMe
+                                      ? const Color(0xFFF0C15A)
+                                      : Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: _roleColor(role).withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                _roleText(role),
+                                style: TextStyle(
+                                  color: _roleColor(role),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (publicId.isNotEmpty)
+                          Text(
+                            publicId,
+                            style: const TextStyle(
+                              color: Color(0xFF6E3AA8),
+                              fontSize: 10,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  // Actions (not shown for self or host)
+                  if (!isMe && role != 'host') ...[
+                    _ActionIcon(
+                      icon: isMuted
+                          ? Icons.mic_off_rounded
+                          : Icons.mic_rounded,
+                      color: isMuted
+                          ? Colors.red[400]!
+                          : const Color(0xFF6E3AA8),
+                      tooltip: isMuted
+                          ? _t('إلغاء كتم', 'Unmute')
+                          : _t('كتم', 'Mute'),
+                      onTap: () => _muteMember(uid, !isMuted),
+                    ),
+                    const SizedBox(width: 4),
+                    _ActionIcon(
+                      icon: Icons.shield_rounded,
+                      color: const Color(0xFF8B26D9),
+                      tooltip: _t('مشرف', 'Mod'),
+                      onTap: () => _promoteModerator(uid, name),
+                    ),
+                    const SizedBox(width: 4),
+                    _ActionIcon(
+                      icon: Icons.logout_rounded,
+                      color: Colors.orange,
+                      tooltip: _t('طرد', 'Kick'),
+                      onTap: () => _kickMember(uid),
+                    ),
+                    const SizedBox(width: 4),
+                    _ActionIcon(
+                      icon: Icons.block_rounded,
+                      color: Colors.red,
+                      tooltip: _t('حظر', 'Ban'),
+                      onTap: () => _banMember(uid, name),
+                    ),
+                  ],
+                ],
+              ),
             ),
           );
         },

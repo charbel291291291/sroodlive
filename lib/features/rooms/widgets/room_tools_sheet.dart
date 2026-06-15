@@ -1516,8 +1516,8 @@ class _GameCenterSheet extends StatelessWidget {
       ),
       _GameEntry(
         icon: Icons.grain_rounded,
-        labelAr: 'سرود لوتو',
-        labelEn: 'Srood Loto',
+        labelAr: 'سحب سرود',
+        labelEn: 'Srood Draw',
         accent: const Color(0xFFF0C15A),
         screen: SroodLotoScreen(isArabic: isArabic),
       ),

@@ -2943,7 +2943,7 @@ class _LotoFloatingButton extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              isArabic ? 'لوتو' : 'Loto',
+              isArabic ? 'سحب' : 'Draw',
               style: const TextStyle(
                 color: Color(0xFFF0C15A),
                 fontSize: 9,
@@ -3222,15 +3222,15 @@ class _SeatGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
-      final compact = constraints.maxWidth < 340;
-      final colGap = compact ? 6.0 : 8.0;
-      final rowGap = compact ? 10.0 : 14.0;
-      final aspectRatio = compact ? 0.42 : 0.44;
-      final tileWidth =
-          (constraints.maxWidth - colGap * (cols - 1)) / cols;
+      // Use a single stable aspect ratio and fixed gaps so tile positions
+      // never shift regardless of content state, screen size, or animations.
+      const colGap = 8.0;
+      const rowGap = 12.0;
+      // Aspect ratio: slightly taller than wide so name + price fit.
+      const aspectRatio = 0.43;
+      final tileWidth = (constraints.maxWidth - colGap * (cols - 1)) / cols;
       final tileHeight = tileWidth / aspectRatio;
 
-      // Split seat list into explicit rows of [cols] seats.
       final rows = <List<_StageSeat>>[];
       for (var i = 0; i < seats.length; i += cols) {
         final end = (i + cols).clamp(0, seats.length);
@@ -3241,7 +3241,7 @@ class _SeatGrid extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           for (var r = 0; r < rows.length; r++) ...[
-            if (r > 0) SizedBox(height: rowGap),
+            if (r > 0) const SizedBox(height: rowGap),
             _buildRow(rows[r], tileWidth, tileHeight, colGap),
           ],
         ],
@@ -3255,8 +3255,6 @@ class _SeatGrid extends StatelessWidget {
     double tileHeight,
     double gap,
   ) {
-    // All rows in these layouts are full (6→2×3, 9→3×3, 12→3×4),
-    // so spaceBetween keeps tiles flush. Center is the safe fallback.
     final isFull = row.length == cols;
     return Row(
       mainAxisAlignment:
@@ -3264,21 +3262,26 @@ class _SeatGrid extends StatelessWidget {
       children: [
         for (var c = 0; c < row.length; c++) ...[
           if (c > 0) SizedBox(width: gap),
-          SizedBox(
-            width: tileWidth,
-            height: tileHeight,
-            child: _LiveSeatBubble(
-              seat: row[c],
-              isArabic: isArabic,
-              isHost: isHost,
-              isSpeaking: speakingUserIds.contains(row[c].member?.userId ?? ''),
-              onEmptySeatTap: onEmptySeatTap,
-              onOccupiedSeatTap: onOccupiedSeatTap,
-              onOccupiedSeatLongPress: onOccupiedSeatLongPress,
-              onProfileTap: onProfileTap,
-              selectedForMove: row[c].member?.userId == selectedMoveUserId,
-              pkTeamColor: pkSeatTeamColor(
-                  row[c].member?.userId ?? '', activePk),
+          // RepaintBoundary isolates each seat's animation from its neighbours,
+          // preventing speaking-wave or smiley-accent repaints from propagating
+          // and causing perceived layout instability.
+          RepaintBoundary(
+            child: SizedBox(
+              width: tileWidth,
+              height: tileHeight,
+              child: _LiveSeatBubble(
+                seat: row[c],
+                isArabic: isArabic,
+                isHost: isHost,
+                isSpeaking: speakingUserIds.contains(row[c].member?.userId ?? ''),
+                onEmptySeatTap: onEmptySeatTap,
+                onOccupiedSeatTap: onOccupiedSeatTap,
+                onOccupiedSeatLongPress: onOccupiedSeatLongPress,
+                onProfileTap: onProfileTap,
+                selectedForMove: row[c].member?.userId == selectedMoveUserId,
+                pkTeamColor: pkSeatTeamColor(
+                    row[c].member?.userId ?? '', activePk),
+              ),
             ),
           ),
         ],
@@ -5666,14 +5669,17 @@ class _GiftSheetState extends State<_GiftSheet> {
     final gifts = visibleGifts.isEmpty ? widget.gifts : visibleGifts;
 
     return SafeArea(
+      top: false,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxHeight: maxHeight),
         child: Container(
           padding: EdgeInsets.fromLTRB(
-            14,
             12,
-            14,
-            12 + MediaQuery.of(context).viewInsets.bottom,
+            12,
+            12,
+            MediaQuery.of(context).viewInsets.bottom > 0
+                ? MediaQuery.of(context).viewInsets.bottom
+                : 8,
           ),
           decoration: const BoxDecoration(
             color: Color(0xFF06030A),
@@ -5709,23 +5715,27 @@ class _GiftSheetState extends State<_GiftSheet> {
               ),
               const SizedBox(height: 10),
               Expanded(
-                child: GridView.builder(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  itemCount: gifts.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 4,
-                    mainAxisSpacing: 14,
-                    crossAxisSpacing: 8,
-                    childAspectRatio: 0.70,
-                  ),
-                  itemBuilder: (context, index) {
-                    final gift = gifts[index];
-
-                    return _GiftCard(
-                      gift: gift,
-                      isArabic: widget.isArabic,
-                      selected: _selectedGift?.name == gift.name,
-                      onTap: () => _chooseGift(gift),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final cols = constraints.maxWidth < 320 ? 3 : 4;
+                    return GridView.builder(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      itemCount: gifts.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: cols,
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 6,
+                        childAspectRatio: 0.78,
+                      ),
+                      itemBuilder: (context, index) {
+                        final gift = gifts[index];
+                        return _GiftCard(
+                          gift: gift,
+                          isArabic: widget.isArabic,
+                          selected: _selectedGift?.name == gift.name,
+                          onTap: () => _chooseGift(gift),
+                        );
+                      },
                     );
                   },
                 ),
@@ -5798,20 +5808,21 @@ class _GiftReceiverRail extends StatelessWidget {
     if (receivers.isEmpty) {
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: const Color(0xFF12091D),
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: const Color(0xFF4A3470)),
         ),
         child: Text(
-          isArabic
-              ? '\u0644\u0627 \u064a\u0648\u062c\u062f \u0645\u0633\u062a\u0644\u0645\u0648\u0646 \u0622\u062e\u0631\u0648\u0646.'
-              : 'No other active users.',
+          isArabic ? '\u0644\u0627 \u064a\u0648\u062c\u062f \u0645\u0633\u062a\u0644\u0645\u0648\u0646 \u0622\u062e\u0631\u0648\u0646.' : 'No other active users.',
           textAlign: isArabic ? TextAlign.right : TextAlign.left,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             color: Color(0xFFD8CFEA),
             fontWeight: FontWeight.w800,
+            fontSize: 13,
           ),
         ),
       );
@@ -6065,12 +6076,37 @@ class _GiftArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final localPath = gift.localAssetPath;
+
+    Widget imageWidget;
+    if (localPath != null) {
+      imageWidget = Image.asset(
+        localPath,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) => Icon(
+          gift.materialIcon,
+          color: const Color(0xFFF0C15A),
+          size: size * 0.56,
+        ),
+      );
+    } else {
+      imageWidget = Image.network(
+        gift.imageUrl,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) => Icon(
+          gift.materialIcon,
+          color: const Color(0xFFF0C15A),
+          size: size * 0.56,
+        ),
+      );
+    }
+
     return Container(
       width: size,
       height: size,
       padding: EdgeInsets.all(size * 0.10),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(14),
         gradient: const RadialGradient(
           colors: [Color(0xFF2B0B3E), Color(0xFF12091D), Color(0xFF06030A)],
         ),
@@ -6081,17 +6117,7 @@ class _GiftArtwork extends StatelessWidget {
           ),
         ],
       ),
-      child: Image.network(
-        gift.imageUrl,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) {
-          return Icon(
-            gift.materialIcon,
-            color: const Color(0xFFF0C15A),
-            size: size * 0.56,
-          );
-        },
-      ),
+      child: imageWidget,
     );
   }
 }
@@ -6109,35 +6135,49 @@ class _GiftCard extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
+  String _fmtPrice(int p) {
+    if (p >= 1000000) return '${(p / 1000000).toStringAsFixed(1)}M';
+    if (p >= 1000) return '${(p / 1000).toStringAsFixed(p % 1000 == 0 ? 0 : 1)}K';
+    return p.toString();
+  }
+
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(14),
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(9),
+        padding: const EdgeInsets.fromLTRB(5, 7, 5, 6),
         decoration: BoxDecoration(
           color: selected ? const Color(0xFF42105C) : Colors.transparent,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: selected ? const Color(0xFFD10DFF) : Colors.transparent,
-            width: 2,
+            width: 1.5,
           ),
           boxShadow: selected
               ? [
                   BoxShadow(
                     color: const Color(0xFFD10DFF).withValues(alpha: 0.28),
-                    blurRadius: 18,
+                    blurRadius: 14,
                   ),
                 ]
               : [],
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Expanded(
-              child: Center(child: _GiftArtwork(gift: gift, size: 54)),
+              child: Center(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final sz = (constraints.maxWidth * 0.82).clamp(32.0, 56.0);
+                    return _GiftArtwork(gift: gift, size: sz);
+                  },
+                ),
+              ),
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 4),
             Text(
               isArabic ? gift.arabicName : gift.name,
               textAlign: TextAlign.center,
@@ -6145,26 +6185,31 @@ class _GiftCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Colors.white,
-                fontWeight: FontWeight.w900,
-                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 3),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 const Icon(
                   Icons.monetization_on_rounded,
                   color: Color(0xFFF0C15A),
-                  size: 13,
+                  size: 11,
                 ),
-                const SizedBox(width: 3),
-                Text(
-                  gift.priceCoins.toString(),
-                  style: const TextStyle(
-                    color: Color(0xFFD8CFEA),
-                    fontWeight: FontWeight.w800,
-                    fontSize: 11,
+                const SizedBox(width: 2),
+                Flexible(
+                  child: Text(
+                    _fmtPrice(gift.priceCoins),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFFD8CFEA),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 10,
+                    ),
                   ),
                 ),
               ],
@@ -6202,91 +6247,114 @@ class _GiftSendBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final total = (selectedGift?.priceCoins ?? 0) * quantity;
+    final displayValue = selectedGift == null
+        ? _formatCoins(userCoinsBalance)
+        : _formatCoins(total);
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(4, 10, 4, 2),
-      decoration: BoxDecoration(
-        color: const Color(0xFF06030A).withValues(alpha: 0.96),
-        border: Border(
-          top: BorderSide(
-            color: const Color(0xFF4A3470).withValues(alpha: 0.45),
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(6, 10, 6, 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFF06030A).withValues(alpha: 0.96),
+          border: Border(
+            top: BorderSide(
+              color: const Color(0xFF4A3470).withValues(alpha: 0.45),
+            ),
           ),
         ),
-      ),
-      child: Row(
-        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-        children: [
-          const Icon(
-            Icons.monetization_on_rounded,
-            color: Color(0xFFF0C15A),
-            size: 22,
-          ),
-          const SizedBox(width: 5),
-          Text(
-            selectedGift == null
-                ? _formatCoins(userCoinsBalance)
-                : total.toString(),
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(width: 5),
-          const Icon(
-            Icons.chevron_right_rounded,
-            color: Color(0xFF8C819E),
-            size: 20,
-          ),
-          const Spacer(),
-          InkWell(
-            borderRadius: BorderRadius.circular(999),
-            onTap: onQuantityTap,
-            child: Container(
-              width: 92,
-              height: 46,
-              decoration: BoxDecoration(
-                color: const Color(0xFF1D1A20),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    quantity.toString(),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    color: Color(0xFF8C819E),
-                  ),
-                ],
+        child: Row(
+          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+          children: [
+            // \u2500\u2500 coin balance \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+            const Icon(
+              Icons.monetization_on_rounded,
+              color: Color(0xFFF0C15A),
+              size: 20,
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              flex: 3,
+              child: Text(
+                displayValue,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 10),
-          SizedBox(
-            height: 48,
-            width: 132,
-            child: FilledButton(
-              onPressed: onSend,
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFB000FF),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
+            const SizedBox(width: 3),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Color(0xFF8C819E),
+              size: 18,
+            ),
+            const Spacer(),
+            // \u2500\u2500 quantity toggle \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+            GestureDetector(
+              onTap: onQuantityTap,
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 64, maxWidth: 84),
+                height: 44,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1D1A20),
                   borderRadius: BorderRadius.circular(999),
                 ),
-              ),
-              child: Text(
-                isArabic ? '\u0625\u0631\u0633\u0627\u0644' : 'Send',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 16,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      quantity.toString(),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: Color(0xFF8C819E),
+                      size: 18,
+                    ),
+                  ],
                 ),
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            // \u2500\u2500 send button \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+            Flexible(
+              flex: 4,
+              child: SizedBox(
+                height: 44,
+                child: FilledButton(
+                  onPressed: onSend,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFB000FF),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                  child: Text(
+                    isArabic ? '\u0625\u0631\u0633\u0627\u0644' : 'Send',
+                    maxLines: 1,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

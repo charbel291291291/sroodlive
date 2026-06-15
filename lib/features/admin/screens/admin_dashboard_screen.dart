@@ -1725,7 +1725,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     tabs: [
                       Tab(icon: Text('🐱'), text: 'Hungry Cat'),
                       Tab(icon: Text('🚀'), text: 'Rocket Crash'),
-                      Tab(icon: Text('🎰'), text: 'Srood Loto'),
+                      Tab(icon: Text('🎰'), text: 'Srood Draw'),
                     ],
                   ),
                 ),

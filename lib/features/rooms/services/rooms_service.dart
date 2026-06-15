@@ -70,6 +70,36 @@ class RoomsService {
     return counts;
   }
 
+  /// Returns all current members (not left) without the 45-second freshness
+  /// window. Used in the owner management screen where members may not be
+  /// actively sending heartbeats.
+  Future<List<RoomMember>> getAllRoomMembers(String roomId) async {
+    final client = SupabaseService.requiredClient;
+    try {
+      final data = await client
+          .from('room_members')
+          .select(
+            '*, profiles(display_name, username, public_user_id, avatar_url, selected_avatar_frame_key, vip_level, vip_started_at, vip_expires_at)',
+          )
+          .eq('room_id', roomId)
+          .filter('left_at', 'is', null)
+          .order('joined_at', ascending: true);
+      return (data as List<dynamic>)
+          .map((item) => RoomMember.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      final data = await client
+          .from('room_members')
+          .select()
+          .eq('room_id', roomId)
+          .filter('left_at', 'is', null)
+          .order('joined_at', ascending: true);
+      return (data as List<dynamic>)
+          .map((item) => RoomMember.fromJson(item as Map<String, dynamic>))
+          .toList();
+    }
+  }
+
   Future<List<RoomMember>> getActiveRoomMembers(String roomId) async {
     final client = SupabaseService.requiredClient;
 
@@ -118,7 +148,11 @@ class RoomsService {
     }
   }
 
-  Future<Room> createRoom({
+  /// Returns the caller's existing open room (if any), or creates a new one.
+  /// Uses the backend RPC which enforces the one-active-room-per-owner rule
+  /// via a partial unique index.  Pass [existingRoomFound] to learn whether
+  /// the returned room already existed (so the caller can show a toast).
+  Future<({Room room, bool alreadyExisted})> getOrCreateRoom({
     required String name,
     String? description,
     String language = 'ar',
@@ -126,28 +160,46 @@ class RoomsService {
   }) async {
     final client = SupabaseService.requiredClient;
     final user = client.auth.currentUser;
+    if (user == null) throw StateError('No logged-in user found.');
 
-    if (user == null) {
-      throw StateError('No logged-in user found.');
+    // First check whether the user already has an open room.
+    final existing = await client
+        .from('rooms')
+        .select()
+        .eq('owner_id', user.id)
+        .eq('is_closed', false)
+        .maybeSingle();
+
+    if (existing != null) {
+      return (room: Room.fromJson(existing), alreadyExisted: true);
     }
 
-    final roomName =
-        'srood_${DateTime.now().millisecondsSinceEpoch}_${user.id.substring(0, 8)}';
+    final data = await client.rpc('get_or_create_my_room', params: {
+      'p_name':        name,
+      'p_description': description,
+      'p_language':    language,
+      'p_max_seats':   maxSeats,
+    });
 
-    final data = await client
-        .from('rooms')
-        .insert({
-          'owner_id': user.id,
-          'name': name,
-          'description': description,
-          'language': language,
-          'max_seats': maxSeats,
-          'livekit_room_name': roomName,
-        })
-        .select()
-        .single();
+    final list = (data as List<dynamic>);
+    if (list.isEmpty) throw StateError('get_or_create_my_room returned empty.');
+    return (room: Room.fromJson(list.first as Map<String, dynamic>), alreadyExisted: false);
+  }
 
-    return Room.fromJson(data);
+  /// Legacy direct-insert path kept for internal use; prefer [getOrCreateRoom].
+  Future<Room> createRoom({
+    required String name,
+    String? description,
+    String language = 'ar',
+    int maxSeats = 12,
+  }) async {
+    final result = await getOrCreateRoom(
+      name: name,
+      description: description,
+      language: language,
+      maxSeats: maxSeats,
+    );
+    return result.room;
   }
 
   Future<String> getMyRoleForRoom(String roomId) async {
@@ -397,18 +449,30 @@ class RoomsService {
 
   Future<void> leaveRoom(String roomId) async {
     final client = SupabaseService.requiredClient;
-    final user = client.auth.currentUser;
+    if (client.auth.currentUser == null) throw StateError('No logged-in user.');
 
-    if (user == null) {
-      throw StateError('No logged-in user found.');
+    try {
+      // RPC soft-removes the member and closes the room if the owner left
+      // and no other members remain.
+      await client.rpc('leave_room_and_maybe_close', params: {
+        'p_room_id': roomId,
+      });
+    } catch (_) {
+      // Fallback to direct update if the RPC isn't deployed yet.
+      final now = DateTime.now().toUtc().toIso8601String();
+      await client
+          .from('room_members')
+          .update({'is_muted': true, 'left_at': now, 'last_seen_at': now})
+          .eq('room_id', roomId)
+          .eq('user_id', client.auth.currentUser!.id);
     }
+  }
 
-    final now = DateTime.now().toUtc().toIso8601String();
-
-    await client
-        .from('room_members')
-        .update({'is_muted': true, 'left_at': now, 'last_seen_at': now})
-        .eq('room_id', roomId)
-        .eq('user_id', user.id);
+  /// Closes any active rooms with zero remaining members.
+  /// Call this on room-list load and after leaving a room.
+  Future<void> closeEmptyRooms() async {
+    try {
+      await SupabaseService.requiredClient.rpc('close_empty_rooms');
+    } catch (_) {}
   }
 }

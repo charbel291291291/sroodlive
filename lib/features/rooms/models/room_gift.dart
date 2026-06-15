@@ -24,11 +24,22 @@ class RoomGift {
       id: json['id'].toString(),
       code: json['code']?.toString() ?? '',
       name: json['name']?.toString() ?? 'Gift',
-      arabicName: json['arabic_name']?.toString() ?? '\u0647\u062f\u064a\u0629',
+      arabicName: json['arabic_name']?.toString() ?? 'هدية',
       priceCoins: (json['price_coins'] as num?)?.toInt() ?? 0,
       icon: json['icon']?.toString() ?? '',
       sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
     );
+  }
+
+  // Returns a local asset path for gifts that have bespoke PNG icons,
+  // or null for gifts that use the network Twemoji image.
+  String? get localAssetPath {
+    return switch (code.toLowerCase()) {
+      'baalbek_temple' => 'assets/gifts/baalbek.png',
+      'golden_lion'    => 'assets/gifts/lion.png',
+      'odrob'          => 'assets/gifts/odrob.png',
+      _                => null,
+    };
   }
 
   String get artwork {
@@ -41,11 +52,11 @@ class RoomGift {
     }
 
     return switch (code.toLowerCase()) {
-      'rose' => '\uD83C\uDF39',
-      'star' => '\u2B50',
-      'crown' => '\uD83D\uDC51',
-      'rocket' => '\uD83D\uDE80',
-      _ => '\uD83C\uDF81',
+      'rose'   => '🌹',
+      'star'   => '⭐',
+      'crown'  => '👑',
+      'rocket' => '🚀',
+      _        => '🎁',
     };
   }
 
@@ -69,7 +80,7 @@ class RoomGift {
       'diamond' =>
         'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f48e.png',
       'tiger' =>
-        'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f405.png',
+        'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f981.png',
       'treasure' =>
         'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f3c6.png',
       'lucky_bag' =>
@@ -89,20 +100,24 @@ class RoomGift {
 
   String get categoryKey {
     return switch (code.toLowerCase()) {
-      'treasure' || 'football' || 'country' => 'event',
-      'lucky_bag' || 'slingshot' => 'lucky',
-      'tiger' || 'dragon' || 'castle' => 'vip',
-      _ => 'hot',
+      'treasure' || 'football' || 'country'           => 'event',
+      'lucky_bag' || 'slingshot'                      => 'lucky',
+      'tiger' || 'dragon' || 'castle' ||
+      'golden_lion' || 'baalbek_temple' || 'odrob'    => 'vip',
+      _                                               => 'hot',
     };
   }
 
   IconData get materialIcon {
     return switch (code.toLowerCase()) {
-      'rose' => Icons.local_florist_rounded,
-      'star' => Icons.star_rounded,
-      'crown' => Icons.workspace_premium_rounded,
-      'rocket' => Icons.rocket_launch_rounded,
-      _ => Icons.card_giftcard_rounded,
+      'rose'           => Icons.local_florist_rounded,
+      'star'           => Icons.star_rounded,
+      'crown'          => Icons.workspace_premium_rounded,
+      'rocket'         => Icons.rocket_launch_rounded,
+      'golden_lion'    => Icons.emoji_nature_rounded,
+      'baalbek_temple' => Icons.account_balance_rounded,
+      'odrob'          => Icons.bolt_rounded,
+      _                => Icons.card_giftcard_rounded,
     };
   }
 }

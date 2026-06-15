@@ -45,82 +45,76 @@ class _RoomsScreenState extends State<RoomsScreen> {
     });
 
     try {
+      // Close stale empty rooms before fetching the list.
+      unawaited(_roomsService.closeEmptyRooms());
+
       final rooms = await _roomsService.getRooms();
       final activeCounts = await _roomsService.getActiveMemberCounts();
 
       if (!mounted) return;
-
       setState(() {
         _rooms = rooms;
         _activeCounts = activeCounts;
       });
     } catch (error) {
       if (!mounted) return;
-
-      setState(() {
-        _error = error.toString();
-      });
+      setState(() => _error = error.toString());
     } finally {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-        });
-      }
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _createRoom() async {
+    // Prevent double-tap
+    if (_creating) return;
+
     final nameController = TextEditingController();
     final descriptionController = TextEditingController();
 
     final result = await showDialog<bool>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(widget.isArabic ? 'إنشاء غرفة' : 'Create room'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                textDirection: widget.isArabic
-                    ? TextDirection.rtl
-                    : TextDirection.ltr,
-                decoration: InputDecoration(
-                  labelText: widget.isArabic ? 'اسم الغرفة' : 'Room name',
-                ),
+      builder: (context) => AlertDialog(
+        title: Text(widget.isArabic ? 'إنشاء غرفة' : 'Create room'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              textDirection:
+                  widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+              decoration: InputDecoration(
+                labelText: widget.isArabic ? 'اسم الغرفة' : 'Room name',
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: descriptionController,
-                textDirection: widget.isArabic
-                    ? TextDirection.rtl
-                    : TextDirection.ltr,
-                decoration: InputDecoration(
-                  labelText: widget.isArabic ? 'وصف قصير' : 'Short description',
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(widget.isArabic ? 'إلغاء' : 'Cancel'),
             ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text(widget.isArabic ? 'إنشاء' : 'Create'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: descriptionController,
+              textDirection:
+                  widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+              decoration: InputDecoration(
+                labelText:
+                    widget.isArabic ? 'وصف قصير' : 'Short description',
+              ),
             ),
           ],
-        );
-      },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(widget.isArabic ? 'إلغاء' : 'Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(widget.isArabic ? 'إنشاء' : 'Create'),
+          ),
+        ],
+      ),
     );
 
     if (result != true) return;
 
     final name = nameController.text.trim();
     final description = descriptionController.text.trim();
-
     if (name.isEmpty) return;
 
     setState(() {
@@ -129,26 +123,42 @@ class _RoomsScreenState extends State<RoomsScreen> {
     });
 
     try {
-      await _roomsService.createRoom(
+      final (:room, :alreadyExisted) = await _roomsService.getOrCreateRoom(
         name: name,
         description: description.isEmpty ? null : description,
         language: widget.isArabic ? 'ar' : 'en',
         maxSeats: 12,
       );
 
+      if (!mounted) return;
+
+      if (alreadyExisted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              widget.isArabic
+                  ? 'لديك غرفة مفتوحة بالفعل'
+                  : 'You already have an active room',
+            ),
+          ),
+        );
+      }
+
+      // Navigate into the room (new or existing).
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              RoomDetailsScreen(room: room, isArabic: widget.isArabic),
+        ),
+      );
+
       await _loadRooms();
     } catch (error) {
       if (!mounted) return;
-
-      setState(() {
-        _error = error.toString();
-      });
+      setState(() => _error = error.toString());
     } finally {
-      if (mounted) {
-        setState(() {
-          _creating = false;
-        });
-      }
+      if (mounted) setState(() => _creating = false);
     }
   }
 

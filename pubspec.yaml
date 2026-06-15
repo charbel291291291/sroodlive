@@ -75,6 +75,7 @@ flutter:
   assets:
     - assets/images/vip_frames/
     - assets/gift_effects/videos/
+    - assets/gifts/
     - assets/branding/
     - assets/avatar_frames/
     - assets/avatar_frames/custom/

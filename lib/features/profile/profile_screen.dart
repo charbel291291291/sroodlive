@@ -1854,7 +1854,7 @@ class _FeatureGrid extends StatelessWidget {
       ),
       _FeatureTileData(
         icon: Icons.confirmation_number_rounded,
-        label: isArabic ? 'سرود لوتو' : 'Srood Loto',
+        label: isArabic ? 'سحب سرود' : 'Srood Draw',
         onTap: onLoto,
         gradientColors: const [Color(0xFFE4B5FF), Color(0xFF7D2BFF)],
       ),

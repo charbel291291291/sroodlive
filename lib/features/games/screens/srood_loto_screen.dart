@@ -336,11 +336,19 @@ class _SroodLotoScreenState extends State<SroodLotoScreen>
   SliverAppBar _buildAppBar(LotoCurrentDraw data, LotoSettings settings) {
     return SliverAppBar(
       backgroundColor: _kBg,
-      expandedHeight: 130,
+      expandedHeight: 140,
       pinned: true,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _kTxt, size: 20),
-        onPressed: () => Navigator.of(context).pop(),
+      leading: Container(
+        margin: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: const Color(0xFF1A0640),
+        ),
+        child: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: _kTxt, size: 18),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
@@ -353,67 +361,106 @@ class _SroodLotoScreenState extends State<SroodLotoScreen>
           ),
           child: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  // Icon with pulse glow
                   AnimatedBuilder(
                     animation: _glowAnim,
                     builder: (_, _) => Container(
-                      width: 52,
-                      height: 52,
+                      width: 56,
+                      height: 56,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: const RadialGradient(colors: [Color(0xFF5A0FA0), _kPurple]),
+                        gradient: const RadialGradient(
+                          colors: [Color(0xFF5A0FA0), _kPurple],
+                        ),
                         boxShadow: [
                           BoxShadow(
-                            color: _kPurple.withValues(alpha: _glowAnim.value * 0.6),
-                            blurRadius: 20,
-                            spreadRadius: 4,
+                            color: _kPurple.withValues(
+                                alpha: _glowAnim.value * 0.65),
+                            blurRadius: 22,
+                            spreadRadius: 5,
                           ),
                         ],
                       ),
-                      child: const Icon(Icons.grain_rounded, color: _kGold, size: 28),
+                      child: const Icon(Icons.emoji_events_rounded,
+                          color: _kGold, size: 28),
                     ),
                   ),
                   const SizedBox(width: 14),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Srood Loto',
-                        style: TextStyle(
-                          color: _kGold,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.5,
+                  // Title block
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _t('سحب سرود', 'Srood Draw'),
+                          style: const TextStyle(
+                            color: _kGold,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
+                          ),
                         ),
-                      ),
-                      Text(
-                        _t('سحب كل ساعة', 'Hourly Draw'),
-                        style: const TextStyle(color: _kMuted, fontSize: 12),
-                      ),
-                    ],
+                        const SizedBox(height: 3),
+                        Text(
+                          _t('سحب الجوائز · كل ساعة', 'Lucky Reward Draw · Hourly'),
+                          style: const TextStyle(
+                              color: _kMuted, fontSize: 11),
+                        ),
+                      ],
+                    ),
                   ),
-                  const Spacer(),
+                  // Balance pill + refresh
                   Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.toll_rounded, color: _kGold, size: 14),
-                          const SizedBox(width: 4),
-                          Text(
-                            _formatCoins(data.userBalance),
-                            style: const TextStyle(
-                                color: _kGold, fontWeight: FontWeight.w700, fontSize: 14),
-                          ),
-                        ],
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1A0640),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: _kGold.withValues(alpha: 0.35)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.toll_rounded,
+                                color: _kGold, size: 13),
+                            const SizedBox(width: 4),
+                            Text(
+                              _formatCoins(data.userBalance),
+                              style: const TextStyle(
+                                color: _kGold,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      Text(
-                        _t('رصيدك', 'Balance'),
-                        style: const TextStyle(color: _kMuted, fontSize: 10),
+                      const SizedBox(height: 4),
+                      GestureDetector(
+                        onTap: () => _load(silent: false),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.refresh_rounded,
+                                color: _kMuted, size: 13),
+                            const SizedBox(width: 3),
+                            Text(
+                              _t('تحديث', 'Refresh'),
+                              style: const TextStyle(
+                                  color: _kMuted, fontSize: 10),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -422,18 +469,13 @@ class _SroodLotoScreenState extends State<SroodLotoScreen>
             ),
           ),
         ),
-        title: const Text(
-          'Srood Loto',
-          style: TextStyle(color: _kGold, fontWeight: FontWeight.w900, fontSize: 18),
+        title: Text(
+          _t('سحب سرود', 'Srood Draw'),
+          style: const TextStyle(
+              color: _kGold, fontWeight: FontWeight.w900, fontSize: 17),
         ),
         collapseMode: CollapseMode.parallax,
       ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.refresh_rounded, color: _kMuted),
-          onPressed: () => _load(silent: false),
-        ),
-      ],
     );
   }
 
@@ -1037,9 +1079,9 @@ class _SroodLotoScreenState extends State<SroodLotoScreen>
               child: const Icon(Icons.grain_rounded, color: _kMuted, size: 40),
             ),
             const SizedBox(height: 20),
-            const Text(
-              'Srood Loto',
-              style: TextStyle(
+            Text(
+              _t('سحب سرود', 'Srood Draw'),
+              style: const TextStyle(
                   color: _kGold, fontSize: 22, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 8),
