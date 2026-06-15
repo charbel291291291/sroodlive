@@ -21,8 +21,11 @@ import '../services/livekit_room_service.dart';
 import '../services/rooms_service.dart';
 import '../services/room_management_service.dart';
 import '../services/room_messages_service.dart';
+import '../models/pk_session.dart';
+import '../services/team_pk_service.dart';
 import '../utils/vip_room_features.dart';
 import '../../vip/services/vip_privilege_service.dart';
+import '../widgets/pk_stage_overlay.dart';
 import '../widgets/room_tools_sheet.dart';
 import 'room_owner_management_screen.dart';
 
@@ -172,6 +175,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   late int _currentMaxSeats;
   String? _roomBackgroundUrl;
 
+  // Team PK
+  final _pkService = const TeamPkService();
+  PkSession? _activePk;
+  bool _showPkResult = false;
+  StreamSubscription<PkSession?>? _pkSub;
+
   bool get _speakerSeatsFull => _activeSpeakerCount >= _currentMaxSeats;
 
   bool get _iAmHost {
@@ -210,6 +219,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     _subscribeToGiftTransactions();
     _loadMessages();
     _subscribeToMessages();
+    _subscribeToPk();
   }
 
   @override
@@ -243,8 +253,43 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       );
     }
 
+    _pkSub?.cancel();
     _liveKitRoomService.disconnect();
     super.dispose();
+  }
+
+  void _subscribeToPk() {
+    _pkSub = _pkService.watchPk(widget.room.id).listen((session) {
+      if (!mounted) return;
+      setState(() {
+        final wasActive = _activePk?.isActive ?? false;
+        _activePk = session;
+        // When PK transitions from active to finished, show result banner.
+        if (wasActive && session != null && session.isFinished) {
+          _showPkResult = true;
+        }
+        // When PK is cancelled or null, clear result.
+        if (session == null || session.status == 'cancelled') {
+          _showPkResult = false;
+        }
+      });
+    });
+  }
+
+  Future<void> _handlePkAutoFinish() async {
+    final pk = _activePk;
+    if (pk == null || !pk.isActive) return;
+    try {
+      await _pkService.finishPk(pk.id);
+    } catch (_) {}
+  }
+
+  Future<void> _handlePkCancelRequested() async {
+    final pk = _activePk;
+    if (pk == null) return;
+    try {
+      await _pkService.cancelPk(pk.id);
+    } catch (_) {}
   }
 
   void _startHeartbeat() {
@@ -757,6 +802,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         onBackgroundChanged: (url) {
           setState(() => _roomBackgroundUrl = url);
         },
+        micMembers: _members
+            .where((m) => m.role == 'host' || m.role == 'speaker')
+            .toList(),
+        activePkSessionId: _activePk?.isActive == true ? _activePk?.id : null,
+        onPkStarted: () => setState(() {}),
+        onPkCancelRequested: _handlePkCancelRequested,
       ),
     );
   }
@@ -2272,6 +2323,13 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                         onParticipantsTap: _showParticipantsSheet,
                         supportByUserId: _giftSupportByUserId,
                         selectedMoveUserId: _selectedMicMoveMember?.userId,
+                        activePk: _activePk?.isActive == true ? _activePk : null,
+                        showPkResult: _showPkResult,
+                        pkResult: _showPkResult && _activePk?.isFinished == true
+                            ? _activePk
+                            : null,
+                        onPkFinish: _handlePkAutoFinish,
+                        onPkResultClose: () => setState(() => _showPkResult = false),
                       ),
                       const SizedBox(height: 14),
                       _LiveChatPanel(
@@ -2735,6 +2793,11 @@ class _LiveRoomStage extends StatelessWidget {
     required this.onParticipantsTap,
     required this.supportByUserId,
     required this.selectedMoveUserId,
+    this.activePk,
+    this.showPkResult = false,
+    this.pkResult,
+    this.onPkFinish,
+    this.onPkResultClose,
   });
 
   final List<RoomMember> members;
@@ -2751,6 +2814,11 @@ class _LiveRoomStage extends StatelessWidget {
   final VoidCallback onParticipantsTap;
   final Map<String, int> supportByUserId;
   final String? selectedMoveUserId;
+  final PkSession? activePk;
+  final bool showPkResult;
+  final PkSession? pkResult;
+  final VoidCallback? onPkFinish;
+  final VoidCallback? onPkResultClose;
 
   @override
   Widget build(BuildContext context) {
@@ -2796,6 +2864,15 @@ class _LiveRoomStage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: crossAxisAlignment,
         children: [
+          // \u2500\u2500 Header: PK banner OR normal Voice Stage row \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+          if (activePk != null)
+            PkBanner(
+              session: activePk!,
+              isArabic: isArabic,
+              isHost: isHost,
+              onFinish: onPkFinish ?? () {},
+            )
+          else
           // Stage header row
           Row(
             textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
@@ -2884,8 +2961,17 @@ class _LiveRoomStage extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          // Seat grid — 3 cols for 6/9-seat mode, 4 cols for 12-seat mode.
+          const SizedBox(height: 14),
+          // ── PK result banner ──────────────────────────────────────────────
+          if (showPkResult && pkResult != null) ...[
+            PkResultBanner(
+              session: pkResult!,
+              isArabic: isArabic,
+              onClose: onPkResultClose ?? () {},
+            ),
+            const SizedBox(height: 14),
+          ],
+          // ── Seat grid ─────────────────────────────────────────────────────
           _SeatGrid(
             seats: seats,
             cols: _colsForSeatCount(seats.length),
@@ -2896,6 +2982,7 @@ class _LiveRoomStage extends StatelessWidget {
             onOccupiedSeatLongPress: onOccupiedSeatLongPress,
             onProfileTap: onProfileTap,
             selectedMoveUserId: selectedMoveUserId,
+            activePk: activePk,
           ),
         ],
       ),
@@ -2964,6 +3051,7 @@ class _SeatGrid extends StatelessWidget {
     required this.onOccupiedSeatLongPress,
     required this.onProfileTap,
     required this.selectedMoveUserId,
+    this.activePk,
   });
 
   final List<_StageSeat> seats;
@@ -2975,6 +3063,7 @@ class _SeatGrid extends StatelessWidget {
   final void Function(RoomMember, int) onOccupiedSeatLongPress;
   final ValueChanged<String> onProfileTap;
   final String? selectedMoveUserId;
+  final PkSession? activePk;
 
   @override
   Widget build(BuildContext context) {
@@ -3033,6 +3122,8 @@ class _SeatGrid extends StatelessWidget {
               onOccupiedSeatLongPress: onOccupiedSeatLongPress,
               onProfileTap: onProfileTap,
               selectedForMove: row[c].member?.userId == selectedMoveUserId,
+              pkTeamColor: pkSeatTeamColor(
+                  row[c].member?.userId ?? '', activePk),
             ),
           ),
         ],
@@ -3560,6 +3651,7 @@ class _LiveSeatBubble extends StatelessWidget {
     required this.onOccupiedSeatLongPress,
     required this.onProfileTap,
     required this.selectedForMove,
+    this.pkTeamColor,
   });
 
   final _StageSeat seat;
@@ -3571,6 +3663,8 @@ class _LiveSeatBubble extends StatelessWidget {
   onOccupiedSeatLongPress;
   final ValueChanged<String> onProfileTap;
   final bool selectedForMove;
+  // Non-null when a PK is active and this seat belongs to a team.
+  final Color? pkTeamColor;
 
   @override
   Widget build(BuildContext context) {
@@ -3697,6 +3791,14 @@ class _LiveSeatBubble extends StatelessWidget {
                     clipBehavior: Clip.none,
                     alignment: Alignment.center,
                     children: [
+                      // PK team pulse ring (shown behind avatar during active PK).
+                      if (pkTeamColor != null)
+                        IgnorePointer(
+                          child: PkPulseRing(
+                            color: pkTeamColor!,
+                            radius: outerSize / 2 + 4,
+                          ),
+                        ),
                       // 0. Dark glass backing — keeps avatar readable over custom
                       //    backgrounds and adds depth to the mic-seat circle.
                       IgnorePointer(

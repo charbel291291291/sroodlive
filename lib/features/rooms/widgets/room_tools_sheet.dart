@@ -10,6 +10,8 @@ import '../../games/screens/spin_wheel_screen.dart';
 import '../../games/screens/srood_loto_screen.dart';
 import '../services/room_management_service.dart';
 import '../models/room_ban.dart';
+import '../models/room_member.dart';
+import 'pk_start_sheet.dart';
 import 'room_settings_sheet.dart';
 import '../models/room.dart';
 
@@ -36,6 +38,10 @@ class RoomToolsSheet extends StatefulWidget {
     required this.onSalute,
     this.onMaxSeatsChanged,
     this.onBackgroundChanged,
+    this.micMembers = const [],
+    this.activePkSessionId,
+    this.onPkStarted,
+    this.onPkCancelRequested,
     super.key,
   });
 
@@ -50,6 +56,11 @@ class RoomToolsSheet extends StatefulWidget {
   final VoidCallback onSalute;
   final void Function(int newSeats)? onMaxSeatsChanged;
   final void Function(String? backgroundUrl)? onBackgroundChanged;
+  // PK integration
+  final List<RoomMember> micMembers;
+  final String? activePkSessionId;
+  final VoidCallback? onPkStarted;
+  final VoidCallback? onPkCancelRequested;
 
   @override
   State<RoomToolsSheet> createState() => _RoomToolsSheetState();
@@ -267,15 +278,56 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
 
   void _openTeamPk() {
     HapticFeedback.lightImpact();
-    showModalBottomSheet<void>(
+
+    // If a PK is already active and user is host, offer to cancel.
+    if (widget.activePkSessionId != null && _canManage) {
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _PkActiveOptionsSheet(
+          isArabic: widget.isArabic,
+          onCancel: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).pop();
+            widget.onPkCancelRequested?.call();
+          },
+        ),
+      );
+      return;
+    }
+
+    if (!_canManage) return;
+
+    final micMembers = widget.micMembers;
+    if (micMembers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(widget.isArabic
+              ? 'لا يوجد أحد على المايك'
+              : 'No one is on mic'),
+          backgroundColor: const Color(0xFF231440),
+        ),
+      );
+      return;
+    }
+
+    showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _TeamPkSheet(
+      builder: (_) => PkStartSheet(
+        roomId: widget.room.id,
+        micMembers: micMembers,
         isArabic: widget.isArabic,
-        canManage: _canManage,
       ),
-    );
+    ).then((started) {
+      if (!mounted) return;
+      if (started == true) {
+        Navigator.of(context).pop(); // close tools sheet
+        widget.onPkStarted?.call();
+      }
+    });
   }
 
   void _openMicMode() {
@@ -779,35 +831,28 @@ class _SectionLabel extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Team PK Sheet
+// Shown when a PK is already active and host opens the tool again.
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _TeamPkSheet extends StatefulWidget {
-  const _TeamPkSheet({required this.isArabic, required this.canManage});
+class _PkActiveOptionsSheet extends StatelessWidget {
+  const _PkActiveOptionsSheet({
+    required this.isArabic,
+    required this.onCancel,
+  });
   final bool isArabic;
-  final bool canManage;
-
-  @override
-  State<_TeamPkSheet> createState() => _TeamPkSheetState();
-}
-
-class _TeamPkSheetState extends State<_TeamPkSheet> {
-  int _teamA = 0;
-  int _teamB = 0;
-  bool _running = false;
-
-  String _t(String ar, String en) => widget.isArabic ? ar : en;
+  final VoidCallback onCancel;
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).padding.bottom;
+    final bottom = MediaQuery.of(context).padding.bottom;
+    final t = isArabic;
     return Container(
-      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomInset),
+      padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + bottom),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
+          colors: [Color(0xFF231440), Color(0xFF160C2F)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF231440), Color(0xFF160C2F)],
         ),
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -815,130 +860,50 @@ class _TeamPkSheetState extends State<_TeamPkSheet> {
         mainAxisSize: MainAxisSize.min,
         children: [
           _Handle(),
-          const SizedBox(height: 8),
+          const SizedBox(height: 14),
           Text(
-            _t('منافسة الفرق', 'Team PK'),
+            t ? 'منافسة نشطة' : 'PK is Live',
             style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w800),
+              color: Colors.white,
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
           ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _PkTeamBox(
-                label: _t('الفريق أ', 'Team A'),
-                score: _teamA,
-                color: const Color(0xFF8B26D9),
-                canManage: widget.canManage && _running,
-                onAdd: () => setState(() => _teamA++),
-                onRemove: () => setState(() {
-                  if (_teamA > 0) _teamA--;
-                }),
-              ),
-              Text(
-                'VS',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.4),
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              _PkTeamBox(
-                label: _t('الفريق ب', 'Team B'),
-                score: _teamB,
-                color: const Color(0xFFF0C15A),
-                canManage: widget.canManage && _running,
-                onAdd: () => setState(() => _teamB++),
-                onRemove: () => setState(() {
-                  if (_teamB > 0) _teamB--;
-                }),
-              ),
-            ],
+          const SizedBox(height: 6),
+          Text(
+            t ? 'المنافسة جارية الآن' : 'A battle is currently in progress.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.5),
+              fontSize: 12,
+            ),
           ),
           const SizedBox(height: 24),
-          if (widget.canManage)
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _running
-                          ? const Color(0xFFE63946)
-                          : const Color(0xFF8B26D9),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        if (_running) {
-                          _running = false;
-                          _teamA = 0;
-                          _teamB = 0;
-                        } else {
-                          _running = true;
-                        }
-                      });
-                    },
-                    child: Text(_running
-                        ? _t('إيقاف وإعادة تعيين', 'Stop & Reset')
-                        : _t('بدء المنافسة', 'Start PK')),
-                  ),
-                ),
-              ],
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFE63946),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              onPressed: onCancel,
+              child: Text(
+                t ? 'إلغاء المنافسة' : 'Cancel PK',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
             ),
+          ),
+          const SizedBox(height: 10),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              t ? 'رجوع' : 'Go Back',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+            ),
+          ),
         ],
       ),
-    );
-  }
-}
-
-class _PkTeamBox extends StatelessWidget {
-  const _PkTeamBox({
-    required this.label,
-    required this.score,
-    required this.color,
-    required this.canManage,
-    required this.onAdd,
-    required this.onRemove,
-  });
-
-  final String label;
-  final int score;
-  final Color color;
-  final bool canManage;
-  final VoidCallback onAdd;
-  final VoidCallback onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(label,
-            style: TextStyle(
-                color: color, fontWeight: FontWeight.w700, fontSize: 14)),
-        const SizedBox(height: 8),
-        Text(
-          '$score',
-          style: TextStyle(
-              color: Colors.white, fontSize: 48, fontWeight: FontWeight.w900),
-        ),
-        if (canManage)
-          Row(
-            children: [
-              IconButton(
-                onPressed: onRemove,
-                icon: Icon(Icons.remove_circle_outline_rounded, color: color),
-              ),
-              IconButton(
-                onPressed: onAdd,
-                icon: Icon(Icons.add_circle_outline_rounded, color: color),
-              ),
-            ],
-          ),
-      ],
     );
   }
 }
