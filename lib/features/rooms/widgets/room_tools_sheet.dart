@@ -42,6 +42,7 @@ class RoomToolsSheet extends StatefulWidget {
     this.activePkSessionId,
     this.onPkStarted,
     this.onPkCancelRequested,
+    this.onMusicTap,
     super.key,
   });
 
@@ -61,6 +62,8 @@ class RoomToolsSheet extends StatefulWidget {
   final String? activePkSessionId;
   final VoidCallback? onPkStarted;
   final VoidCallback? onPkCancelRequested;
+  // Music
+  final VoidCallback? onMusicTap;
 
   @override
   State<RoomToolsSheet> createState() => _RoomToolsSheetState();
@@ -206,14 +209,10 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
     );
   }
 
-  void _openCounter() {
+  void _openMusic() {
     HapticFeedback.lightImpact();
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) =>
-          _CounterSheet(isArabic: widget.isArabic, canManage: _canManage),
-    );
+    Navigator.of(context).pop();
+    widget.onMusicTap?.call();
   }
 
   void _confirmClearChat() {
@@ -410,12 +409,6 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                       isArabic: isArabic,
                       items: [
                         _ToolDef(
-                          icon: Icons.exposure_plus_1_rounded,
-                          labelAr: 'العداد',
-                          labelEn: 'Counter',
-                          onTap: _openCounter,
-                        ),
-                        _ToolDef(
                           icon: Icons.groups_2_rounded,
                           labelAr: 'بي كي',
                           labelEn: 'Team PK',
@@ -476,7 +469,8 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                           icon: Icons.music_note_rounded,
                           labelAr: 'موسيقى',
                           labelEn: 'Music',
-                          onTap: () => _showComingSoon('الموسيقى', 'Music'),
+                          accent: const Color(0xFFC875FF),
+                          onTap: _openMusic,
                         ),
                         _ToolDef(
                           icon: Icons.graphic_eq_rounded,
@@ -1656,135 +1650,6 @@ class _GameRow extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Counter sheet — local room counter, host can control
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _CounterSheet extends StatefulWidget {
-  const _CounterSheet({required this.isArabic, required this.canManage});
-
-  final bool isArabic;
-  final bool canManage;
-
-  @override
-  State<_CounterSheet> createState() => _CounterSheetState();
-}
-
-class _CounterSheetState extends State<_CounterSheet> {
-  int _count = 0;
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).padding.bottom;
-    final t = widget.isArabic;
-
-    return Container(
-      padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomInset),
-      decoration: const BoxDecoration(
-        color: Color(0xFF160B2A),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 36,
-            height: 4,
-            margin: const EdgeInsets.only(bottom: 20),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.20),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          Text(
-            t ? 'العداد' : 'Counter',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 28),
-          // Counter display
-          Text(
-            '$_count',
-            style: const TextStyle(
-              color: Color(0xFFF0C15A),
-              fontSize: 64,
-              fontWeight: FontWeight.w900,
-              height: 1,
-            ),
-          ),
-          const SizedBox(height: 28),
-          if (widget.canManage) ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _CounterBtn(
-                  icon: Icons.remove_rounded,
-                  onTap: () => setState(() => _count = (_count - 1).clamp(0, 9999)),
-                  color: const Color(0xFFE63946),
-                ),
-                const SizedBox(width: 24),
-                _CounterBtn(
-                  icon: Icons.refresh_rounded,
-                  onTap: () => setState(() => _count = 0),
-                  color: Colors.white38,
-                ),
-                const SizedBox(width: 24),
-                _CounterBtn(
-                  icon: Icons.add_rounded,
-                  onTap: () => setState(() => _count = (_count + 1).clamp(0, 9999)),
-                  color: const Color(0xFF4ADE80),
-                ),
-              ],
-            ),
-          ] else
-            Text(
-              t ? 'فقط المضيف يمكنه التحكم في العداد'
-                : 'Only the host can control the counter.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.50),
-                fontSize: 13,
-              ),
-            ),
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
-  }
-}
-
-class _CounterBtn extends StatelessWidget {
-  const _CounterBtn(
-      {required this.icon, required this.onTap, required this.color});
-
-  final IconData icon;
-  final VoidCallback onTap;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        onTap();
-      },
-      child: Container(
-        width: 56,
-        height: 56,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: color.withValues(alpha: 0.15),
-          border: Border.all(color: color.withValues(alpha: 0.5)),
-        ),
-        child: Icon(icon, color: color, size: 24),
       ),
     );
   }

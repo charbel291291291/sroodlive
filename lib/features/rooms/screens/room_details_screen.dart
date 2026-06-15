@@ -27,6 +27,9 @@ import '../utils/vip_room_features.dart';
 import '../../vip/services/vip_privilege_service.dart';
 import '../widgets/pk_stage_overlay.dart';
 import '../widgets/room_tools_sheet.dart';
+import '../widgets/music_panel.dart';
+import '../widgets/room_mini_player.dart';
+import '../services/room_music_service.dart';
 import '../../games/screens/srood_loto_screen.dart';
 import 'room_owner_management_screen.dart';
 
@@ -64,6 +67,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   final RoomsService _roomsService = const RoomsService();
   final GiftsService _giftsService = const GiftsService();
   final LiveKitRoomService _liveKitRoomService = LiveKitRoomService();
+
+  late final RoomMusicService _musicService;
 
   bool _leaving = false;
   bool _connectingAudio = false;
@@ -205,6 +210,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   @override
   void initState() {
     super.initState();
+    _musicService = RoomMusicService();
     _roomLocked = widget.room.isLocked;
     _currentMaxSeats = widget.room.maxSeats <= 0 ? 12 : widget.room.maxSeats;
     _roomBackgroundUrl = widget.room.backgroundUrl;
@@ -228,6 +234,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
 
   @override
   void dispose() {
+    _musicService.dispose();
     _heartbeatTimer?.cancel();
     _membersRefreshTimer?.cancel();
     _giftBannerTimer?.cancel();
@@ -792,6 +799,19 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     });
   }
 
+  void _openMusicPanel() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => MusicPanel(
+        musicService: _musicService,
+        isArabic: widget.isArabic,
+        canManage: _iAmRoomOwner || _iAmHost,
+      ),
+    );
+  }
+
   void _openToolsSheet() {
     showModalBottomSheet<void>(
       context: context,
@@ -819,6 +839,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         activePkSessionId: _activePk?.isActive == true ? _activePk?.id : null,
         onPkStarted: () => setState(() {}),
         onPkCancelRequested: _handlePkCancelRequested,
+        onMusicTap: _openMusicPanel,
       ),
     );
   }
@@ -2372,12 +2393,6 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                     onToggleMic: _toggleMic,
                     onLeaveRoom: _leaveRoom,
                     onGiftTap: _openGiftSheet,
-                    onGamesTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            SroodLotoScreen(isArabic: widget.isArabic),
-                      ),
-                    ),
                     onMoreTap: _openToolsSheet,
                     onSendMessage: _sendChatMessage,
                     bottomPad: bottomPad,
@@ -2398,11 +2413,28 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
               onDone: _clearLuxuryGiftVideo,
             ),
 
-          // ── 5. Srood Loto floating button ──────────────────────────────────
+          // ── 5. Music mini-player ───────────────────────────────────────────
           Positioned(
-            right: widget.isArabic ? null : 12,
-            left: widget.isArabic ? 12 : null,
-            top: MediaQuery.of(context).padding.top + 72,
+            bottom: 108 + bottomPad,
+            left: 0,
+            right: 0,
+            child: ListenableBuilder(
+              listenable: _musicService,
+              builder: (_, _) => _musicService.isActive
+                  ? RoomMiniPlayer(
+                      musicService: _musicService,
+                      isArabic: widget.isArabic,
+                      onTap: _openMusicPanel,
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ),
+
+          // ── 6. Srood Loto side shortcut (lower-right / lower-left for RTL) ──
+          Positioned(
+            right: widget.isArabic ? null : 0,
+            left: widget.isArabic ? 0 : null,
+            bottom: 190 + bottomPad,
             child: _LotoFloatingButton(
               isArabic: widget.isArabic,
               onTap: () => Navigator.of(context).push(
@@ -2867,48 +2899,57 @@ class _LotoFloatingButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Side-tab pill: attached flush to the screen edge with a rounded inward corner.
+    final radius = isArabic
+        ? const BorderRadius.only(
+            topRight: Radius.circular(14),
+            bottomRight: Radius.circular(14),
+          )
+        : const BorderRadius.only(
+            topLeft: Radius.circular(14),
+            bottomLeft: Radius.circular(14),
+          );
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        width: 46,
+        padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF4B0082), Color(0xFF8B26D9)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF3A0D6E), Color(0xFF1E0842)],
           ),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: radius,
           border: Border.all(
-            color: const Color(0xFFF0C15A).withValues(alpha: 0.6),
-            width: 1.2,
+            color: const Color(0xFFF0C15A).withValues(alpha: 0.50),
+            width: 1.0,
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF8B26D9).withValues(alpha: 0.50),
-              blurRadius: 20,
-              spreadRadius: 1,
-            ),
-            BoxShadow(
-              color: const Color(0xFFF0C15A).withValues(alpha: 0.18),
-              blurRadius: 30,
+              color: const Color(0xFF8B26D9).withValues(alpha: 0.40),
+              blurRadius: 14,
+              spreadRadius: -2,
             ),
           ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              '🎰',
-              style: TextStyle(fontSize: 20),
+            const Icon(
+              Icons.emoji_events_rounded,
+              color: Color(0xFFF0C15A),
+              size: 18,
             ),
-            const SizedBox(height: 3),
+            const SizedBox(height: 4),
             Text(
               isArabic ? 'لوتو' : 'Loto',
               style: const TextStyle(
                 color: Color(0xFFF0C15A),
-                fontSize: 10,
+                fontSize: 9,
                 fontWeight: FontWeight.w900,
-                letterSpacing: 0.5,
+                letterSpacing: 0.3,
               ),
             ),
           ],
@@ -6102,7 +6143,6 @@ class _LiveBottomActionBar extends StatefulWidget {
     required this.onToggleMic,
     required this.onLeaveRoom,
     required this.onGiftTap,
-    required this.onGamesTap,
     required this.onMoreTap,
     required this.onSendMessage,
     this.bottomPad = 0,
@@ -6117,7 +6157,6 @@ class _LiveBottomActionBar extends StatefulWidget {
   final VoidCallback onToggleMic;
   final VoidCallback onLeaveRoom;
   final VoidCallback onGiftTap;
-  final VoidCallback onGamesTap;
   final VoidCallback onMoreTap;
   final Future<void> Function(String) onSendMessage;
   final double bottomPad;
@@ -6351,12 +6390,6 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
             icon: Icons.card_giftcard_rounded,
             color: kGold,
             onTap: widget.onGiftTap,
-          ),
-          const SizedBox(width: 6),
-          _BarIconButton(
-            icon: Icons.casino_rounded,
-            color: const Color(0xFFB06EFF),
-            onTap: widget.onGamesTap,
           ),
           const SizedBox(width: 6),
           _BarIconButton(
