@@ -701,7 +701,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     if (_actionInProgress) return;
     final levelText = await _askForText(
       title: 'Grant VIP',
-      label: 'VIP level 0-10',
+      label: 'VIP level 0-9',
     );
     if (levelText == null) return;
     final daysText = await _askForText(title: 'Grant VIP', label: 'Days');

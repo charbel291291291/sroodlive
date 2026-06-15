@@ -187,8 +187,8 @@ class OwnerGameControlService {
       'owner_update_hungry_cat_food_odds',
       params: {
         'p_food_id': foodId,
-        if (weight != null) 'p_weight': weight,
-        if (isActive != null) 'p_is_active': isActive,
+        'p_weight': ?weight,
+        'p_is_active': ?isActive,
       },
     );
   }
@@ -261,15 +261,14 @@ class OwnerGameControlService {
       'owner_set_game_config',
       params: {
         'p_game_key': gameKey,
-        if (isEnabled != null) 'p_is_enabled': isEnabled,
-        if (testMode != null) 'p_test_mode': testMode,
-        if (riskMode != null) 'p_risk_mode': riskMode,
-        if (eventMode != null) 'p_event_mode': eventMode,
-        if (eventMultiplierBoost != null)
-          'p_event_multiplier_boost': eventMultiplierBoost,
-        if (maxBet != null) 'p_max_bet': maxBet,
-        if (maxPayout != null) 'p_max_payout': maxPayout,
-        if (dailyPayoutCap != null) 'p_daily_payout_cap': dailyPayoutCap,
+        'p_is_enabled': ?isEnabled,
+        'p_test_mode': ?testMode,
+        'p_risk_mode': ?riskMode,
+        'p_event_mode': ?eventMode,
+        'p_event_multiplier_boost': ?eventMultiplierBoost,
+        'p_max_bet': ?maxBet,
+        'p_max_payout': ?maxPayout,
+        'p_daily_payout_cap': ?dailyPayoutCap,
       },
     );
   }
@@ -283,7 +282,7 @@ class OwnerGameControlService {
     final data = await SupabaseService.requiredClient.rpc(
       'owner_get_audit_log',
       params: {
-        if (gameType != null) 'p_game_type': gameType,
+        'p_game_type': ?gameType,
         'p_limit': limit,
       },
     );

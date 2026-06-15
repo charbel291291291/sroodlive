@@ -358,7 +358,7 @@ class _SroodLotoScreenState extends State<SroodLotoScreen>
                 children: [
                   AnimatedBuilder(
                     animation: _glowAnim,
-                    builder: (_, __) => Container(
+                    builder: (_, _) => Container(
                       width: 52,
                       height: 52,
                       decoration: BoxDecoration(
@@ -471,7 +471,7 @@ class _SroodLotoScreenState extends State<SroodLotoScreen>
 
     return AnimatedBuilder(
       animation: _glowAnim,
-      builder: (_, __) => Container(
+      builder: (_, _) => Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
@@ -846,7 +846,7 @@ class _SroodLotoScreenState extends State<SroodLotoScreen>
           width: double.infinity,
           child: AnimatedBuilder(
             animation: _glowAnim,
-            builder: (_, __) => FilledButton(
+            builder: (_, _) => FilledButton(
               onPressed: (canBuy && !_buying) ? _buyTicket : null,
               style: FilledButton.styleFrom(
                 backgroundColor: canBuy ? _kPurple : _kBorder,
@@ -924,7 +924,7 @@ class _SroodLotoScreenState extends State<SroodLotoScreen>
         [];
     return AnimatedBuilder(
       animation: _celebCtrl,
-      builder: (_, __) => Opacity(
+      builder: (_, _) => Opacity(
         opacity: (1 - _celebCtrl.value).clamp(0.0, 1.0),
         child: Container(
           padding: const EdgeInsets.all(14),

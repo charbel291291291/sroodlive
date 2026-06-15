@@ -39,7 +39,7 @@ class _SroodLotoAdminPanelState extends State<SroodLotoAdminPanel> {
   int  _match4              = 100000;
   int  _match5              = 1000000;
   int  _match6              = 10000000;
-  int  _drawIntervalMinutes = 60;
+  final int  _drawIntervalMinutes = 60;
   bool _progressiveJackpot  = false;
   double _jackpotPct        = 20.0;
 
@@ -299,7 +299,7 @@ class _SroodLotoAdminPanelState extends State<SroodLotoAdminPanel> {
               onChanged: (v) {
                 setState(() => _isEnabled = v);
               },
-              activeColor: _kGold,
+              activeThumbColor: _kGold,
             ),
           ],
         ),
@@ -392,7 +392,7 @@ class _SroodLotoAdminPanelState extends State<SroodLotoAdminPanel> {
                 Switch(
                   value: _progressiveJackpot,
                   onChanged: (v) => setState(() => _progressiveJackpot = v),
-                  activeColor: _kGold,
+                  activeThumbColor: _kGold,
                 ),
               ],
             ),

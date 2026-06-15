@@ -1360,7 +1360,7 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
                     height: 100,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+                    errorBuilder: (_, _, _) => Container(
                       height: 100,
                       color: Colors.white.withValues(alpha: 0.05),
                       child: const Icon(Icons.broken_image_rounded,

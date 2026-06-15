@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../shared/widgets/vip_framed_avatar.dart';
 
 /// Single source of truth for the *visual* package that goes with each VIP
-/// level (1-10). This is **display only** - it never grants, changes, or
+/// level (1-9). This is **display only** - it never grants, changes, or
 /// validates VIP. VIP ownership stays 100% server / admin controlled.
 ///
 /// Levels escalate in richness: 1 is a clean silver look, 8-10 are elite, and
@@ -22,7 +22,7 @@ class VipVisuals {
     required this.fontWeight,
   });
 
-  /// Effective VIP level (1-10).
+  /// Effective VIP level (1-9).
   final int level;
 
   /// Short label, e.g. "VIP 5".
@@ -73,7 +73,7 @@ class VipVisuals {
 VipVisuals? getVipVisualStyle(int? vipLevel) {
   final raw = vipLevel ?? 0;
   if (raw <= 0) return null;
-  // Level > 9 treated as VIP9 (VIP10 removed from app).
+  // Level > 9 treated as VIP9 (VIP9 removed from app).
   final level = raw.clamp(1, 9);
 
   final spec = switch (level) {
@@ -209,3 +209,4 @@ class _Spec {
   final double opacity;
   final FontWeight weight;
 }
+

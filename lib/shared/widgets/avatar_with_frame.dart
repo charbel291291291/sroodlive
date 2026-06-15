@@ -156,7 +156,7 @@ class AvatarWithFrame extends StatelessWidget {
     if (value == null || value.isEmpty) {
       // No custom frame selected - auto-assign the matching VIP PNG frame
       // when the user has an active VIP level.
-      final level = (vipLevel ?? 0).clamp(0, 10);
+      final level = (vipLevel ?? 0).clamp(0, 9);
       if (level > 0) return 'vip_$level';
       return null;
     }
@@ -169,7 +169,7 @@ class AvatarWithFrame extends StatelessWidget {
   }
 
   double _frameScale(String? frameKey, {required bool compact}) {
-    // VIP PNG frames (vip_1 ... vip_10): the frame box is ~1.35× the avatar so the
+    // VIP PNG frames (vip_1 ... vip_9): the frame box is ~1.35× the avatar so the
     // photo fills the wreath opening nicely (avatar ≈ 74% of the frame width)
     // while the crown / wings / VIP label stay fully visible around it.
     if (frameKey != null && frameKey.startsWith('vip_')) {
@@ -191,7 +191,7 @@ class AvatarWithFrame extends StatelessWidget {
     // Static custom/luxury frames
     final staticPath = avatarFrameAssetPaths[frameKey];
     if (staticPath != null) return staticPath;
-    // Dynamic VIP PNG frames: key pattern 'vip_1' ... 'vip_10'
+    // Dynamic VIP PNG frames: key pattern 'vip_1' ... 'vip_9'
     if (frameKey.startsWith('vip_')) {
       final level = int.tryParse(frameKey.substring(4));
       if (level != null) return vipFrameAssetPath(level);
@@ -724,3 +724,4 @@ class _FrameStyle {
     };
   }
 }
+

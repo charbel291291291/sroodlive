@@ -70,7 +70,7 @@ class RoomGiftProfile {
       return 0;
     }
 
-    return vipLevel.clamp(0, 10).toInt();
+    return vipLevel.clamp(0, 9).toInt();
   }
 }
 

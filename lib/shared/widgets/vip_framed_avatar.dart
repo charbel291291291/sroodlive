@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 // Original file names preserved exactly as provided.
 // ---------------------------------------------------------------------------
 
-/// Returns the asset path for the PNG frame that matches [level] (1-10).
+/// Returns the asset path for the PNG frame that matches [level] (1-9).
 /// Returns `null` for level 0 or any out-of-range value.
 /// Returns the asset path for the VIP PNG frame matching [level] (1–9).
-/// Returns `null` for level 0 or out-of-range. VIP10 is not supported.
+/// Returns `null` for level 0 or out-of-range. VIP9 is not supported.
 String? vipFrameAssetPath(int level) => switch (level.clamp(0, 9)) {
   1 => 'assets/images/vip_frames/11.png',
   2 => 'assets/images/vip_frames/2.png',
@@ -36,7 +36,7 @@ String? vipFrameAssetPath(int level) => switch (level.clamp(0, 9)) {
 /// ----------
 /// [size]             - outer bounding box (frame fills this completely).
 /// [imageUrl]         - network URL for the profile photo; null shows [fallback].
-/// [vipLevel]         - 1-10 renders the matching PNG; null or 0 = avatar only.
+/// [vipLevel]         - 1-9 renders the matching PNG; null or 0 = avatar only.
 /// [innerAvatarScale] - fraction of [size] occupied by the clipped photo
 ///                      (default 0.74, i.e. avatar = 74 % of frame dimension).
 /// [fallback]         - widget shown when no URL or the image fails to load.
@@ -137,3 +137,4 @@ class _VipAvatarFallback extends StatelessWidget {
     );
   }
 }
+
