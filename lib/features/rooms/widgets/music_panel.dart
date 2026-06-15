@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -40,7 +41,7 @@ class _MusicPanelState extends State<MusicPanel>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 3, vsync: this);
+    _tabs = TabController(length: 4, vsync: this);
     _searchCtrl.addListener(() {
       setState(() => _query = _searchCtrl.text.toLowerCase().trim());
     });
@@ -51,6 +52,30 @@ class _MusicPanelState extends State<MusicPanel>
     _tabs.dispose();
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _importLocalSongs() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['mp3', 'wav', 'm4a', 'aac'],
+      allowMultiple: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+    for (final file in result.files) {
+      final path = file.path;
+      if (path == null) continue;
+      final id = 'local_${path.hashCode}';
+      final name = file.name.replaceAll(RegExp(r'\.[^.]+$'), '');
+      _svc.addLocalSong(RoomSong(
+        id: id,
+        title: name,
+        artist: _t('من الهاتف', 'Local file'),
+        url: '',
+        localPath: path,
+        sourceType: RoomSongSourceType.localFile,
+      ));
+    }
+    if (mounted) setState(() {});
   }
 
   List<RoomSong> get _filteredCatalog {
@@ -274,6 +299,7 @@ class _MusicPanelState extends State<MusicPanel>
                     Tab(text: _t('المكتبة', 'Library')),
                     Tab(text: _t('قائمة التشغيل', 'Playlist')),
                     Tab(text: _t('المفضلة', 'Favorites')),
+                    Tab(text: _t('محلي', 'Local')),
                   ],
                 ),
               ),
@@ -348,6 +374,19 @@ class _MusicPanelState extends State<MusicPanel>
                           _requirePermission(() => _svc.addToPlaylist(song)),
                       onFavorite: (song) => _svc.toggleFavorite(song),
                       onRemove: null,
+                    ),
+                    _LocalSongsTab(
+                      svc: _svc,
+                      isArabic: _isArabic,
+                      canManage: widget.canManage,
+                      onImport: () {
+                        if (!widget.canManage) {
+                          _requirePermission(() {});
+                          return;
+                        }
+                        _importLocalSongs();
+                      },
+                      onRequirePermission: _requirePermission,
                     ),
                   ],
                 ),
@@ -835,6 +874,129 @@ class _SongList extends StatelessWidget {
             onAddToPlaylist != null ? () => onAddToPlaylist!(songs[i]) : null,
         onRemove: onRemove != null ? () => onRemove!(songs[i]) : null,
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Local songs tab — file picker + imported file list
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _LocalSongsTab extends StatelessWidget {
+  const _LocalSongsTab({
+    required this.svc,
+    required this.isArabic,
+    required this.canManage,
+    required this.onImport,
+    required this.onRequirePermission,
+  });
+
+  final RoomMusicService svc;
+  final bool isArabic;
+  final bool canManage;
+  final VoidCallback onImport;
+  final void Function(VoidCallback) onRequirePermission;
+
+  static const _kPurple = Color(0xFF8B26D9);
+
+  String _t(String ar, String en) => isArabic ? ar : en;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Import button
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: GestureDetector(
+            onTap: onImport,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              decoration: BoxDecoration(
+                color: _kPurple.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14),
+                border:
+                    Border.all(color: _kPurple.withValues(alpha: 0.45)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.folder_open_rounded,
+                      color: Color(0xFFC875FF), size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    _t('استيراد من الجهاز', 'Import from device'),
+                    style: const TextStyle(
+                      color: Color(0xFFC875FF),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // File list
+        Flexible(
+          child: svc.localSongs.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.audio_file_rounded,
+                            color: Colors.white.withValues(alpha: 0.22),
+                            size: 52),
+                        const SizedBox(height: 12),
+                        Text(
+                          _t('لم تتم إضافة أي موسيقى من الجهاز بعد',
+                              'No local music imported yet'),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.4),
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _t(
+                            'اضغط على "استيراد من الجهاز" لإضافة ملفات MP3 أو WAV',
+                            'Tap "Import from device" to add MP3 or WAV files',
+                          ),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.25),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : _SongList(
+                  songs: svc.localSongs,
+                  svc: svc,
+                  isArabic: isArabic,
+                  canManage: canManage,
+                  emptyAr: 'لا توجد ملفات محلية',
+                  emptyEn: 'No local files',
+                  showAddToPlaylist: true,
+                  onPlay: (song) => onRequirePermission(() {
+                    HapticFeedback.selectionClick();
+                    svc.addToPlaylist(song);
+                    svc.playSong(
+                        svc.playlist.indexWhere((s) => s.id == song.id));
+                  }),
+                  onAddToPlaylist: (song) =>
+                      onRequirePermission(() => svc.addToPlaylist(song)),
+                  onFavorite: (song) => svc.toggleFavorite(song),
+                  onRemove: (song) => svc.removeLocalSong(song.id),
+                ),
+        ),
+      ],
     );
   }
 }

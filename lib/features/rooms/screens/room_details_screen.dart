@@ -100,7 +100,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   RoomMember? _latestVipEntryMember;
   _ActiveLuxuryGiftVideo? _activeLuxuryGiftVideo;
   Timer? _luxuryGiftVideoTimer;
-  bool _loadingGifts = false;
+  // _loadingGifts removed — gift loading state is not displayed in the overlay
   bool _isSendingGift = false;
   RoomMember? _selectedMicMoveMember;
   int _giftEventSeed = 0;
@@ -463,12 +463,6 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   }) async {
     final previousLatestId = _roomGifts.isNotEmpty ? _roomGifts.first.id : null;
 
-    if (showLoading) {
-      setState(() {
-        _loadingGifts = true;
-      });
-    }
-
     try {
       final gifts = _activeRoomGifts(
         await _giftsService.getRoomGiftTransactions(widget.room.id),
@@ -493,12 +487,6 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(error.toString())));
-    } finally {
-      if (mounted && showLoading) {
-        setState(() {
-          _loadingGifts = false;
-        });
-      }
     }
   }
 
@@ -2305,9 +2293,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                   color: const Color(0xFF8B26D9),
                   backgroundColor: const Color(0xFF1A0D33),
                   child: ListView(
-                    // Extra bottom padding for the pinned bar
+                    // Extra bottom padding clears pinned bar + floating chat overlay
                     padding: EdgeInsets.fromLTRB(
-                        14, 0, 14, 100 + bottomPad),
+                        14, 0, 14, 80 + bottomPad),
                     children: [
                       _CompactRoomHeader(
                         room: _currentRoom,
@@ -2372,16 +2360,20 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                         onPkFinish: _handlePkAutoFinish,
                         onPkResultClose: () => setState(() => _showPkResult = false),
                       ),
-                      const SizedBox(height: 14),
-                      _LiveChatPanel(
-                        roomName: widget.room.name,
-                        isArabic: widget.isArabic,
-                        gifts: _roomGifts,
-                        loadingGifts: _loadingGifts,
-                        onProfileTap: _openUserProfileSheet,
-                        chatMessages: _chatMessages,
-                      ),
                     ],
+                  ),
+                ),
+
+                // \u2500\u2500 Floating chat + gift activity overlay \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 70 + bottomPad,
+                  child: _FloatingChatOverlay(
+                    chatMessages: _chatMessages,
+                    gifts: _roomGifts,
+                    isArabic: widget.isArabic,
+                    onProfileTap: _openUserProfileSheet,
                   ),
                 ),
 
@@ -3018,25 +3010,8 @@ class _LiveRoomStage extends StatelessWidget {
         ? CrossAxisAlignment.end
         : CrossAxisAlignment.start;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 16, 14, 18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        // Light glass overlay — enough to read labels, background bleeds through.
-        color: Colors.black.withValues(alpha: 0.28),
-        border: Border.all(
-          color: const Color(0xFF8B26D9).withValues(alpha: 0.30),
-          width: 0.8,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF8B26D9).withValues(alpha: 0.12),
-            blurRadius: 32,
-            spreadRadius: -6,
-          ),
-        ],
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 8, 2, 12),
       child: Column(
         crossAxisAlignment: crossAxisAlignment,
         children: [
@@ -4059,36 +4034,34 @@ class _LiveSeatBubble extends StatelessWidget {
                           vipLevel: effectiveVipLevel,
                           showVipBadge: false,
                           compact: !occupiedByHost,
-                          fallbackIcon: seat.isMuted
-                              ? Icons.mic_off_rounded
-                              : Icons.person_rounded,
+                          fallbackIcon: Icons.person_rounded,
                         ),
                       ),
 
-                      // 4. Mic status badge — always visible, attached to
-                      //    avatar lower-right edge. Red = muted, green = live.
+                      // 4. Mic status badge — bottom-right of avatar ring.
+                      //    Red = muted, green = live. 22 px for clear tap area.
                       Positioned(
-                        bottom: 2,
-                        right: 2,
+                        bottom: 1,
+                        right: 1,
                         child: Container(
-                          width: 20,
-                          height: 20,
+                          width: 22,
+                          height: 22,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: seat.isMuted
                                 ? const Color(0xFFE63946)
                                 : const Color(0xFF22C55E),
                             border: Border.all(
-                              color: Colors.black.withValues(alpha: 0.85),
-                              width: 1.5,
+                              color: Colors.black.withValues(alpha: 0.90),
+                              width: 1.8,
                             ),
                             boxShadow: [
                               BoxShadow(
                                 color: (seat.isMuted
                                         ? const Color(0xFFE63946)
                                         : const Color(0xFF22C55E))
-                                    .withValues(alpha: 0.55),
-                                blurRadius: 7,
+                                    .withValues(alpha: 0.60),
+                                blurRadius: 8,
                                 spreadRadius: 0,
                               ),
                             ],
@@ -4098,7 +4071,21 @@ class _LiveSeatBubble extends StatelessWidget {
                                 ? Icons.mic_off_rounded
                                 : Icons.mic_rounded,
                             color: Colors.white,
-                            size: 11,
+                            size: 12,
+                          ),
+                        ),
+                      ),
+
+                      // 5. Smiley accent — premium floating decoration at
+                      //    top-right of the avatar. Varies by seat type.
+                      Positioned(
+                        top: occupiedByHost ? -10.0 : -7.0,
+                        right: -5.0,
+                        child: IgnorePointer(
+                          child: _SeatSmileyAccent(
+                            isHost: occupiedByHost,
+                            vipLevel: effectiveVipLevel,
+                            seatNumber: seat.number,
                           ),
                         ),
                       ),
@@ -4220,6 +4207,164 @@ class _LiveSeatBubble extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Seat smiley accent — cute floating decoration at the top-right of a seat.
+// Each seat gets a different emoji and animation phase so they don't all bob
+// in sync. Wrapped in IgnorePointer at the call site.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SeatSmileyAccent extends StatefulWidget {
+  const _SeatSmileyAccent({
+    required this.isHost,
+    required this.vipLevel,
+    required this.seatNumber,
+  });
+
+  final bool isHost;
+  final int vipLevel;
+  final int seatNumber;
+
+  @override
+  State<_SeatSmileyAccent> createState() => _SeatSmileyAccentState();
+}
+
+class _SeatSmileyAccentState extends State<_SeatSmileyAccent>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _float;
+
+  @override
+  void initState() {
+    super.initState();
+    // Phase duration by seat number so seats bob at different rates.
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 1700 + (widget.seatNumber % 4) * 250),
+    )..repeat(reverse: true);
+    _float = Tween<double>(begin: -2.5, end: 2.5)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final String emoji;
+    final Color glow;
+    final double size;
+
+    if (widget.isHost) {
+      emoji = '✨'; // ✨
+      glow = const Color(0xFFF0C15A);
+      size = 22;
+    } else if (widget.vipLevel >= 7) {
+      emoji = '💫'; // 💫
+      glow = const Color(0xFFCE93D8);
+      size = 20;
+    } else if (widget.vipLevel >= 4) {
+      emoji = '🌟'; // 🌟
+      glow = const Color(0xFF9C27B0);
+      size = 19;
+    } else if (widget.vipLevel >= 1) {
+      emoji = '🌸'; // 🌸
+      glow = const Color(0xFFFF80AB);
+      size = 18;
+    } else {
+      emoji = '😊'; // 😊
+      glow = const Color(0xFF8B26D9);
+      size = 18;
+    }
+
+    return AnimatedBuilder(
+      animation: _float,
+      builder: (_, _) => Transform.translate(
+        offset: Offset(0, _float.value),
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.black.withValues(alpha: 0.30),
+            boxShadow: [
+              BoxShadow(
+                color: glow.withValues(alpha: 0.50),
+                blurRadius: 10,
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: Center(
+            child: Text(
+              emoji,
+              style: TextStyle(fontSize: size * 0.55, height: 1.0),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Floating chat overlay — translucent bubbles floating above the bottom bar.
+// Shows the most recent chat messages and gift activity.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _FloatingChatOverlay extends StatelessWidget {
+  const _FloatingChatOverlay({
+    required this.chatMessages,
+    required this.gifts,
+    required this.isArabic,
+    required this.onProfileTap,
+  });
+
+  final List<RoomMessage> chatMessages;
+  final List<RoomGiftTransaction> gifts;
+  final bool isArabic;
+  final ValueChanged<String> onProfileTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final recentMsgs = chatMessages.length > 5
+        ? chatMessages.sublist(chatMessages.length - 5)
+        : chatMessages;
+    final recentGifts = gifts.take(2).toList();
+
+    if (recentMsgs.isEmpty && recentGifts.isEmpty) return const SizedBox.shrink();
+
+    return Directionality(
+      textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: isArabic
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
+          children: [
+            ...recentGifts.map((g) => _GiftFeedRow(
+                  gift: g,
+                  isArabic: isArabic,
+                  onProfileTap: onProfileTap,
+                )),
+            ...recentMsgs.map((m) => _ChatBubbleRow(
+                  message: m,
+                  isArabic: isArabic,
+                  onProfileTap:
+                      m.isSystem ? null : () => onProfileTap(m.senderId),
+                )),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ignore: unused_element
 class _LiveChatPanel extends StatelessWidget {
   const _LiveChatPanel({
     required this.roomName,

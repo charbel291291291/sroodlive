@@ -1,3 +1,5 @@
+enum RoomSongSourceType { remote, localFile }
+
 class RoomSong {
   const RoomSong({
     required this.id,
@@ -7,6 +9,8 @@ class RoomSong {
     this.durationSeconds,
     this.coverUrl,
     this.addedBy,
+    this.sourceType = RoomSongSourceType.remote,
+    this.localPath,
   });
 
   final String id;
@@ -16,6 +20,8 @@ class RoomSong {
   final int? durationSeconds;
   final String? coverUrl;
   final String? addedBy;
+  final RoomSongSourceType sourceType;
+  final String? localPath;
 
   String get formattedDuration {
     if (durationSeconds == null) return '--:--';
@@ -24,7 +30,12 @@ class RoomSong {
     return '$m:${s.toString().padLeft(2, '0')}';
   }
 
-  RoomSong copyWith({String? addedBy}) => RoomSong(
+  RoomSong copyWith({
+    String? addedBy,
+    RoomSongSourceType? sourceType,
+    String? localPath,
+  }) =>
+      RoomSong(
         id: id,
         title: title,
         artist: artist,
@@ -32,6 +43,8 @@ class RoomSong {
         durationSeconds: durationSeconds,
         coverUrl: coverUrl,
         addedBy: addedBy ?? this.addedBy,
+        sourceType: sourceType ?? this.sourceType,
+        localPath: localPath ?? this.localPath,
       );
 }
 

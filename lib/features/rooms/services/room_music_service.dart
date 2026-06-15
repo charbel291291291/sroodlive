@@ -22,6 +22,7 @@ class RoomMusicService extends ChangeNotifier {
 
   List<RoomSong> _playlist = [];
   final List<RoomSong> _favorites = [];
+  final List<RoomSong> _localSongs = [];
   int _currentIndex = -1;
   Duration _position = Duration.zero;
   Duration? _duration;
@@ -36,6 +37,7 @@ class RoomMusicService extends ChangeNotifier {
 
   List<RoomSong> get playlist => List.unmodifiable(_playlist);
   List<RoomSong> get favorites => List.unmodifiable(_favorites);
+  List<RoomSong> get localSongs => List.unmodifiable(_localSongs);
   int get currentIndex => _currentIndex;
   RoomSong? get currentSong =>
       _currentIndex >= 0 && _currentIndex < _playlist.length
@@ -83,7 +85,14 @@ class RoomMusicService extends ChangeNotifier {
     notifyListeners();
     try {
       await _player.stop();
-      await _player.setUrl(_playlist[index].url);
+      final song = _playlist[index];
+      if (song.sourceType == RoomSongSourceType.localFile &&
+          song.localPath != null) {
+        await _player
+            .setAudioSource(AudioSource.uri(Uri.file(song.localPath!)));
+      } else {
+        await _player.setUrl(song.url);
+      }
       await _player.play();
     } catch (e) {
       _error = e.toString();
@@ -167,6 +176,22 @@ class RoomMusicService extends ChangeNotifier {
       _currentIndex--;
     }
     _playlist.removeAt(idx);
+    notifyListeners();
+  }
+
+  void addLocalSong(RoomSong song) {
+    if (_localSongs.any((s) => s.id == song.id)) return;
+    _localSongs.add(song);
+    notifyListeners();
+  }
+
+  void removeLocalSong(String songId) {
+    _localSongs.removeWhere((s) => s.id == songId);
+    notifyListeners();
+  }
+
+  void clearLocalSongs() {
+    _localSongs.clear();
     notifyListeners();
   }
 
