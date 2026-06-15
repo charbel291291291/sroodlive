@@ -11,6 +11,7 @@ import '../services/admin_service.dart';
 import '../../games/screens/hungry_cat_admin_panel.dart';
 import '../../games/screens/rocket_crash_admin_panel.dart';
 import '../../games/screens/srood_loto_admin_panel.dart';
+import '../../charisma/screens/charisma_admin_panel.dart';
 import 'owner_game_control_screen.dart';
 import 'vip_visual_preview_screen.dart';
 
@@ -25,6 +26,7 @@ enum _AdminModule {
   audit,
   games,
   vip,
+  charisma,
 }
 
 // ─────────────────────────────────────────────
@@ -65,6 +67,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final TextEditingController _adminEmailController = TextEditingController();
   final TextEditingController _adminPasswordController =
       TextEditingController();
+
+  AdminRole _adminRole = AdminRole.empty;
 
   _AdminModule _module = _AdminModule.overview;
   bool _isLoading = true;
@@ -121,12 +125,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
-  bool get _isSuper => _roles.contains('super_admin');
-  bool get _canFinance => _isSuper || _roles.contains('finance_admin');
-  bool get _canBd => _isSuper || _roles.contains('bd_admin');
-  bool get _canContent => _isSuper || _roles.contains('content_admin');
-  bool get _canRooms =>
-      _isSuper || _roles.contains('room_admin') || _roles.contains('moderator');
+  // ── Role helpers ──────────────────────────────────────────────────────────
+  bool get _canFinance     => _adminRole.hasPermission(kPermWalletCredit);
+  bool get _canBd          => _adminRole.hasPermission(kPermAgenciesView);
+  bool get _canContent     => _adminRole.hasPermission(kPermGiftsManage);
+  bool get _canRooms       => _adminRole.hasPermission(kPermRoomsClose);
+  bool get _canUnban       => _adminRole.canUnban;
+  bool get _canManageStaff => _adminRole.isOSuperAdmin;
 
   @override
   void initState() {
@@ -189,13 +194,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     });
 
     try {
-      final roles = await _accessService.fetchCurrentUserRoles();
-      final canAccess = AdminAccessService.isAdminRole(roles);
+      final adminRole = await _accessService.fetchCurrentAdminRole();
+      final roles     = adminRole.isAnyAdmin ? [adminRole.role] : <String>[];
+      final canAccess = adminRole.isAnyAdmin;
 
       if (!canAccess) {
         if (!mounted) return;
         setState(() {
-          _roles = roles;
+          _adminRole = adminRole;
+          _roles     = roles;
           _canAccess = false;
           _isLoading = false;
         });
@@ -225,9 +232,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
       if (!mounted) return;
       setState(() {
-        _roles = roles;
+        _adminRole = adminRole;
+        _roles     = roles;
         _canAccess = true;
-        _overview = overview;
+        _overview  = overview;
         _pending = pending;
         _pendingWithdrawals = pendingWithdrawals;
         _walletTransactions = walletTransactions;
@@ -619,8 +627,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ledger: ledger,
           recharges: recharges,
           gifts: gifts,
-          canSupport: _isSuper || _roles.contains('support_admin'),
-          canModerate: _isSuper || _canRooms,
+          canSupport:   _adminRole.hasPermission(kPermUsersEdit),
+          canModerate:  _adminRole.hasPermission(kPermUsersTempBan),
+          canUnban:     _canUnban,
           onEditProfile: () {
             Navigator.of(context).pop();
             _editUserProfile(detail);
@@ -676,6 +685,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     String type,
     bool isActive,
   ) async {
+    // Unban (removing account_ban) is exclusive to O-Super Admin
+    if (type == 'account_ban' && !isActive) {
+      if (!_canUnban) {
+        _showSnack(widget.isArabic
+            ? 'فقط O-Super Admin يمكنه فك الحظر'
+            : 'Only O-Super Admin can unban users');
+        return;
+      }
+    }
+
     final reason = isActive
         ? await _askForText(title: 'Restriction reason', label: 'Reason')
         : null;
@@ -693,7 +712,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       _showSnack(isActive ? 'Restriction added' : 'Restriction removed');
     } catch (error) {
       if (!mounted) return;
-      _showSnack('Restriction failed: $error');
+      final msg = error.toString();
+      if (msg.contains('only_o_super_admin_can_unban')) {
+        _showSnack(widget.isArabic
+            ? 'فقط O-Super Admin يمكنه فك الحظر'
+            : 'Only O-Super Admin can unban users');
+      } else {
+        _showSnack('Restriction failed: $error');
+      }
     }
   }
 
@@ -1065,6 +1091,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       _AdminModule.audit  => _buildAudit(),
       _AdminModule.games  => _buildGames(),
       _AdminModule.vip    => _buildVipPreview(),
+      _AdminModule.charisma => _buildCharisma(),
     };
   }
 
@@ -1108,16 +1135,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _roles
-                      .map((role) => _RoleChip(label: role))
-                      .toList(),
+                _RoleChip(
+                  label: _adminRole.isAnyAdmin
+                      ? _adminRole.displayLabel
+                      : 'No role',
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Super Admin controls roles and all modules. Finance, BD, Content, Room, Support, and Viewer roles are scoped.',
+                  _adminRole.isOSuperAdmin
+                      ? 'Owner — full access including unban and staff management.'
+                      : _adminRole.isPSuperAdmin
+                          ? 'Partner — high-level access. Cannot unban users or manage admin roles.'
+                          : _adminRole.isSuperAdmin
+                              ? 'Operational admin — manages users, rooms, reports, agencies, and challenges.'
+                              : _adminRole.isAdmin
+                                  ? 'Basic moderator — view reports, close rooms, temp-ban users.'
+                                  : 'No admin access.',
                   style: _mutedStyle,
                 ),
               ],
@@ -1241,14 +1274,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       children: [
         _ModuleTitle(
           title: 'Users & Roles',
-          subtitle: 'Search users and manage admin access.',
+          subtitle: 'Search users, view details, and manage admin staff.',
           icon: Icons.manage_accounts_rounded,
-          locked: !_isSuper,
+          locked: !_adminRole.hasPermission(kPermUsersView),
         ),
         const SizedBox(height: 14),
         _AdminSectionCard(
           title: 'User Search',
-          action: _isSuper ? const _RoleChip(label: 'super only') : null,
           child: Column(
             children: [
               _SearchRow(
@@ -1269,10 +1301,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       .map(
                         (user) => _UserTile(
                           user: user,
-                          canManageRoles: _isSuper,
+                          canManageRoles: _canManageStaff,
                           onOpen: () => _openUserDetail(user),
-                          onAssign: () => _assignRole(user),
-                          onRemoveRole: (role) => _removeRole(user, role),
+                          onAssign: _canManageStaff ? () => _assignRole(user) : null,
+                          onRemoveRole: _canManageStaff
+                              ? (role) => _removeRole(user, role)
+                              : null,
                         ),
                       )
                       .toList(),
@@ -1678,13 +1712,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildGames() {
-    final isSuperAdmin = _roles.contains('super_admin');
-    if (!isSuperAdmin) {
+    if (!_adminRole.hasPermission(kPermDrawManage)) {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(32),
           child: Text(
-            'Access restricted to super_admin.',
+            'Game controls require P-Super Admin or higher.',
             style: TextStyle(color: _kMuted, fontSize: 14),
           ),
         ),
@@ -1764,6 +1797,29 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(14),
             child: const VipVisualPreviewScreen(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCharisma() {
+    final viewportHeight = MediaQuery.sizeOf(context).height;
+    final panelHeight = viewportHeight < 860 ? 680.0 : viewportHeight - 220.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _ModuleTitle(
+          title: 'Charisma Challenge',
+          subtitle: 'Create, manage and crown winners for charisma challenges.',
+          icon: Icons.emoji_events_rounded,
+        ),
+        const SizedBox(height: 14),
+        SizedBox(
+          height: panelHeight,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: CharismaAdminPanel(isArabic: widget.isArabic),
           ),
         ),
       ],
@@ -2030,6 +2086,7 @@ class _UserDetailSheet extends StatelessWidget {
     required this.gifts,
     required this.canSupport,
     required this.canModerate,
+    required this.canUnban,
     required this.onEditProfile,
     required this.onGrantVip,
     required this.onGoldenId,
@@ -2042,6 +2099,7 @@ class _UserDetailSheet extends StatelessWidget {
   final List<AdminUserGiftRow> gifts;
   final bool canSupport;
   final bool canModerate;
+  final bool canUnban;
   final VoidCallback onEditProfile;
   final VoidCallback onGrantVip;
   final VoidCallback onGoldenId;
@@ -2116,18 +2174,28 @@ class _UserDetailSheet extends StatelessWidget {
                 child: Column(
                   children: detail.activeRestrictions
                       .map(
-                        (item) => _AdminListTile(
-                          icon: Icons.block_rounded,
-                          title: item.type,
-                          subtitle: item.reason ?? _dateLabel(item.createdAt),
-                          trailing: canModerate
-                              ? TextButton(
-                                  onPressed: () =>
-                                      onRestriction(item.type, false),
-                                  child: const Text('Remove'),
-                                )
-                              : const _RoleChip(label: 'active'),
-                        ),
+                        (item) {
+                          final isAccountBan = item.type == 'account_ban';
+                          final canRemove    = isAccountBan ? canUnban : canModerate;
+                          return _AdminListTile(
+                            icon: isAccountBan
+                                ? Icons.gavel_rounded
+                                : Icons.block_rounded,
+                            title: item.type,
+                            subtitle: item.reason ?? _dateLabel(item.createdAt),
+                            trailing: canRemove
+                                ? TextButton(
+                                    onPressed: () =>
+                                        onRestriction(item.type, false),
+                                    child: Text(
+                                      isAccountBan ? 'Unban' : 'Remove',
+                                    ),
+                                  )
+                                : _RoleChip(
+                                    label: isAccountBan ? '🔒 banned' : 'active',
+                                  ),
+                          );
+                        },
                       )
                       .toList(),
                 ),
@@ -4453,15 +4521,15 @@ class _UserTile extends StatelessWidget {
     required this.user,
     required this.canManageRoles,
     required this.onOpen,
-    required this.onAssign,
-    required this.onRemoveRole,
+    this.onAssign,
+    this.onRemoveRole,
   });
 
   final AdminUserSummary user;
   final bool canManageRoles;
   final VoidCallback onOpen;
-  final VoidCallback onAssign;
-  final ValueChanged<String> onRemoveRole;
+  final VoidCallback? onAssign;
+  final ValueChanged<String>? onRemoveRole;
 
   @override
   Widget build(BuildContext context) {
@@ -4485,7 +4553,7 @@ class _UserTile extends StatelessWidget {
             ...user.roles.map(
               (role) => InputChip(
                 label: Text(AdminRoleSpec.byRole(role).label),
-                onDeleted: canManageRoles ? () => onRemoveRole(role) : null,
+                onDeleted: canManageRoles ? () => onRemoveRole?.call(role) : null,
               ),
             ),
             if (canManageRoles)
@@ -5215,8 +5283,9 @@ IconData _moduleIcon(_AdminModule module) {
     _AdminModule.rooms => Icons.mic_external_on_rounded,
     _AdminModule.banners => Icons.view_carousel_rounded,
     _AdminModule.audit  => Icons.fact_check_rounded,
-    _AdminModule.games  => Icons.sports_esports_rounded,
-    _AdminModule.vip    => Icons.workspace_premium_rounded,
+    _AdminModule.games    => Icons.sports_esports_rounded,
+    _AdminModule.vip      => Icons.workspace_premium_rounded,
+    _AdminModule.charisma => Icons.emoji_events_rounded,
   };
 }
 
@@ -5230,8 +5299,9 @@ String _moduleLabel(_AdminModule module) {
     _AdminModule.rooms => 'Rooms',
     _AdminModule.banners => 'Banners',
     _AdminModule.audit  => 'Audit',
-    _AdminModule.games  => 'Games',
-    _AdminModule.vip    => 'VIP',
+    _AdminModule.games    => 'Games',
+    _AdminModule.vip      => 'VIP',
+    _AdminModule.charisma => 'Charisma',
   };
 }
 

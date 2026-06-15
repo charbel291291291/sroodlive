@@ -8,6 +8,8 @@ import '../../games/screens/gold_ladder_quiz_screen.dart';
 import '../../games/screens/hungry_cat_webview_screen.dart';
 import '../../games/screens/spin_wheel_screen.dart';
 import '../../games/screens/srood_loto_screen.dart';
+import '../../games/screens/srood_treasure_screen.dart';
+import '../../charisma/screens/charisma_challenge_screen.dart';
 import '../services/room_management_service.dart';
 import '../models/room_ban.dart';
 import '../models/room_member.dart';
@@ -1520,6 +1522,20 @@ class _GameCenterSheet extends StatelessWidget {
         labelEn: 'Srood Draw',
         accent: const Color(0xFFF0C15A),
         screen: SroodLotoScreen(isArabic: isArabic),
+      ),
+      _GameEntry(
+        icon: Icons.inventory_2_rounded,
+        labelAr: 'كنز سرود',
+        labelEn: 'Srood Treasure',
+        accent: const Color(0xFFF0C15A),
+        screen: SroodTreasureScreen(isArabic: isArabic),
+      ),
+      _GameEntry(
+        icon: Icons.emoji_events_rounded,
+        labelAr: 'تحدي الكاريزما',
+        labelEn: 'Charisma Challenge',
+        accent: const Color(0xFFFFD700),
+        screen: CharismaChallengeScreen(isArabic: isArabic),
       ),
     ];
 

@@ -7,26 +7,19 @@ import '../../core/utils/vip_visuals.dart';
 import '../../shared/widgets/avatar_with_frame.dart';
 import '../../shared/widgets/vip_badge.dart';
 import '../../shared/widgets/vip_username.dart';
-import '../profile_hub/screens/badge_screen.dart';
 import '../profile_hub/screens/customer_service_screen.dart';
-import '../profile_hub/screens/feedback_screen.dart';
-import '../profile_hub/screens/my_agency_screen.dart';
-import '../profile_hub/screens/my_income_screen.dart';
-import '../profile_hub/screens/my_level_screen.dart';
 import '../profile_hub/screens/settings_screen.dart';
 import '../gamification/screens/backpack_screen.dart';
 import '../gamification/screens/checkin_screen.dart';
 import '../gamification/screens/store_screen.dart';
-import '../gamification/screens/tasks_screen.dart';
 import '../gamification/screens/vip_center_screen.dart';
 import '../wallet/models/wallet.dart';
 import '../wallet/screens/wallet_screen.dart';
-import '../wallet/screens/withdrawal_screen.dart';
 import '../wallet/services/wallet_service.dart';
 import '../rooms/utils/vip_room_features.dart';
+import '../rooms/services/rooms_service.dart';
+import '../rooms/screens/room_details_screen.dart';
 import '../games/screens/srood_loto_screen.dart';
-import '../games/screens/crash_game_screen.dart';
-import '../social/screens/leaderboard_screen.dart';
 import 'models/avatar_frame.dart';
 import 'screens/follow_list_screen.dart';
 import 'services/follow_service.dart';
@@ -108,6 +101,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool isLoading = true;
   bool isSaving = false;
   bool isUploadingAvatar = false;
+  bool _roomLoading = false;
   String? errorMessage;
   String? successMessage;
   Map<String, dynamic>? profile;
@@ -283,18 +277,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (mounted) await _loadProfile();
   }
 
-  Future<void> _openWithdrawal() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => WithdrawalScreen(isArabic: widget.isArabic),
-      ),
-    );
-    if (mounted) await _loadProfile();
-  }
-
   Future<void> _openProfileHub(Widget screen) async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
     if (mounted) await _loadProfile();
+  }
+
+  Future<void> _openMyRoom() async {
+    if (_roomLoading) return;
+    setState(() => _roomLoading = true);
+    try {
+      final roomName = displayNameController.text.trim().isNotEmpty
+          ? '${displayNameController.text.trim()}\'s Room'
+          : 'My Room';
+      final result = await RoomsService().getOrCreateRoom(name: roomName);
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => RoomDetailsScreen(
+            room: result.room,
+            isArabic: widget.isArabic,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.isArabic ? 'فشل فتح الغرفة: $e' : 'Failed to open room: $e',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _roomLoading = false);
+    }
   }
 
   Future<void> _openStore() async {
@@ -302,12 +319,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       MaterialPageRoute(builder: (_) => StoreScreen(isArabic: widget.isArabic)),
     );
     if (mounted) await _loadProfile();
-  }
-
-  Future<void> _openTasks() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => TasksScreen(isArabic: widget.isArabic)),
-    );
   }
 
   Future<void> _openCheckin() async {
@@ -347,14 +358,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => SroodLotoScreen(isArabic: widget.isArabic),
-      ),
-    );
-  }
-
-  Future<void> _openGameCenter() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => CrashGameScreen(isArabic: widget.isArabic),
       ),
     );
   }
@@ -849,7 +852,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               color: const Color(0xFF8B26D9),
               backgroundColor: const Color(0xFF1A0D33),
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 142),
+                padding: EdgeInsets.fromLTRB(
+                16, 12, 16,
+                MediaQuery.of(context).padding.bottom + 32 + 80,
+              ),
                 child: Column(
                   children: [
                     // 1. Premium Profile Header
@@ -911,7 +917,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       isArabic: isArabic,
                       isLoading: isLoading,
                       onCoinsTap: _openWalletScreen,
-                      onDiamondsTap: _openWithdrawal,
+                      onDiamondsTap: _openWalletScreen,
                     ),
                     const SizedBox(height: 14),
 
@@ -923,19 +929,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 14),
 
-                    // 5. Feature Grid (8 items)
-                    _FeatureGrid(
+                    // 5. Quick Actions Grid (6 items)
+                    _QuickActionsGrid(
                       isArabic: isArabic,
                       onVipCenter: _openVipCenter,
-                      onLevel: () => _openProfileHub(
-                        MyLevelScreen(isArabic: isArabic),
-                      ),
-                      onRelationship: _showSoon,
                       onStore: _openStore,
                       onBackpack: _openBackpack,
-                      onGameCenter: _openGameCenter,
                       onLoto: _openLoto,
-                      onMyRoom: _showSoon,
+                      onMyRoom: _openMyRoom,
+                      roomLoading: _roomLoading,
+                      onSettings: () => _openProfileHub(
+                        SettingsScreen(isArabic: isArabic),
+                      ),
                     ),
 
                     // Notices
@@ -957,50 +962,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                     const SizedBox(height: 14),
 
-                    // 6. Profile Hub Section
-                    _ProfileHubSection(
+                    // 6. Daily Check-in Card
+                    _DailyCheckinCard(
                       isArabic: isArabic,
-                      onLevel: () => _openProfileHub(
-                        MyLevelScreen(isArabic: isArabic),
-                      ),
-                      onAgency: () => _openProfileHub(
-                        MyAgencyScreen(isArabic: isArabic),
-                      ),
-                      onIncome: () => _openProfileHub(
-                        MyIncomeScreen(isArabic: isArabic),
-                      ),
-                      onBadge: () =>
-                          _openProfileHub(BadgeScreen(isArabic: isArabic)),
-                      onLeaderboard: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) =>
-                              LeaderboardScreen(isArabic: isArabic),
-                        ),
-                      ),
-                      onFeedback: () => _openProfileHub(
-                        FeedbackScreen(isArabic: isArabic),
-                      ),
+                      onTap: _openCheckin,
                     ),
                     const SizedBox(height: 14),
 
-                    // 7. Account & Support Section
+                    // 7. Love / Relationship Card
+                    const _LoveRelationshipCard(),
+                    const SizedBox(height: 14),
+
+                    // 8. Account & Support
                     _AccountSection(
                       isArabic: isArabic,
-                      onMyRoom: _showSoon,
                       onWallet: _openWalletScreen,
                       onCustomerService: () => _openProfileHub(
                         CustomerServiceScreen(isArabic: isArabic),
                       ),
-                      onSettings: () => _openProfileHub(
-                        SettingsScreen(isArabic: isArabic),
-                      ),
                       onPrivacy: _showSoon,
-                      onTasks: _openTasks,
-                      onCheckIn: _openCheckin,
                     ),
                     const SizedBox(height: 14),
 
-                    // 8. Logout
+                    // 9. Logout
                     _LogoutButton(
                       isArabic: isArabic,
                       onTap: _confirmLogout,
@@ -1065,7 +1049,7 @@ class _PremiumProfileHero extends StatelessWidget {
     final flag = _countryFlag(country);
     final subtitle = bio.isNotEmpty
         ? bio
-        : (isArabic ? 'أهلاً بك في SrOOd Live.' : 'Welcome to SrOOd Live.');
+        : (isArabic ? 'أهلاً بك في سرود لايف.' : 'Welcome to Srood Live.');
 
     return Container(
       width: double.infinity,
@@ -1177,7 +1161,7 @@ class _PremiumProfileHero extends StatelessWidget {
                           ),
                           const SizedBox(width: 5),
                           Text(
-                            isArabic ? 'ملف SrOOd' : 'SrOOd Profile',
+                            isArabic ? 'ملف سرود' : 'Srood Profile',
                             style: const TextStyle(
                               color: Color(0xFFD8CFEA),
                               fontSize: 11,
@@ -1710,10 +1694,10 @@ class _VipUpgradeBanner extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
-          gradient: LinearGradient(
-            colors: active
-                ? VipVisualStyle.gradient(vipLevel)
-                : const [Color(0xFF32194A), Color(0xFF7D2BFF)],
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF3B105A), Color(0xFF7D2BFF), Color(0xFF4A1478)],
           ),
           border: Border.all(color: const Color(0xFFF0C15A)),
           boxShadow: [
@@ -1786,31 +1770,29 @@ class _VipUpgradeBanner extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Feature Grid — 8 shortcut tiles in 2 rows
+// Quick Actions Grid — 6 items in 3×2 layout
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _FeatureGrid extends StatelessWidget {
-  const _FeatureGrid({
+class _QuickActionsGrid extends StatelessWidget {
+  const _QuickActionsGrid({
     required this.isArabic,
     required this.onVipCenter,
-    required this.onLevel,
-    required this.onRelationship,
     required this.onStore,
     required this.onBackpack,
-    required this.onGameCenter,
     required this.onLoto,
     required this.onMyRoom,
+    required this.onSettings,
+    required this.roomLoading,
   });
 
   final bool isArabic;
   final VoidCallback onVipCenter;
-  final VoidCallback onLevel;
-  final VoidCallback onRelationship;
   final VoidCallback onStore;
   final VoidCallback onBackpack;
-  final VoidCallback onGameCenter;
   final VoidCallback onLoto;
   final VoidCallback onMyRoom;
+  final VoidCallback onSettings;
+  final bool roomLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -1820,19 +1802,6 @@ class _FeatureGrid extends StatelessWidget {
         label: isArabic ? 'مركز VIP' : 'VIP Center',
         onTap: onVipCenter,
         gradientColors: const [Color(0xFFF0C15A), Color(0xFFD99A2B)],
-      ),
-      _FeatureTileData(
-        icon: Icons.trending_up_rounded,
-        label: isArabic ? 'المستوى' : 'Level',
-        onTap: onLevel,
-        gradientColors: const [Color(0xFF9BE8FF), Color(0xFF4CC9F0)],
-      ),
-      _FeatureTileData(
-        icon: Icons.favorite_rounded,
-        label: isArabic ? 'العلاقة' : 'Relationship',
-        onTap: onRelationship,
-        gradientColors: const [Color(0xFFFF88A0), Color(0xFFFF3D6B)],
-        isSoon: true,
       ),
       _FeatureTileData(
         icon: Icons.storefront_rounded,
@@ -1847,23 +1816,22 @@ class _FeatureGrid extends StatelessWidget {
         gradientColors: const [Color(0xFFFFD978), Color(0xFFFF9500)],
       ),
       _FeatureTileData(
-        icon: Icons.rocket_launch_rounded,
-        label: isArabic ? 'مركز الألعاب' : 'Game Center',
-        onTap: onGameCenter,
-        gradientColors: const [Color(0xFFFF9A6C), Color(0xFFFF3D00)],
-      ),
-      _FeatureTileData(
         icon: Icons.confirmation_number_rounded,
         label: isArabic ? 'سحب سرود' : 'Srood Draw',
         onTap: onLoto,
         gradientColors: const [Color(0xFFE4B5FF), Color(0xFF7D2BFF)],
       ),
       _FeatureTileData(
-        icon: Icons.home_rounded,
+        icon: roomLoading ? Icons.hourglass_top_rounded : Icons.home_rounded,
         label: isArabic ? 'غرفتي' : 'My Room',
         onTap: onMyRoom,
-        gradientColors: const [Color(0xFF6CF7D4), Color(0xFF00BFA6)],
-        isSoon: true,
+        gradientColors: const [Color(0xFF8B26D9), Color(0xFF4A1478)],
+      ),
+      _FeatureTileData(
+        icon: Icons.settings_rounded,
+        label: isArabic ? 'الإعدادات' : 'Settings',
+        onTap: onSettings,
+        gradientColors: const [Color(0xFFBCAED6), Color(0xFF6B5E8E)],
       ),
     ];
 
@@ -1882,12 +1850,12 @@ class _FeatureGrid extends StatelessWidget {
         ],
       ),
       child: GridView.count(
-        crossAxisCount: 4,
+        crossAxisCount: 3,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         mainAxisSpacing: 8,
         crossAxisSpacing: 4,
-        childAspectRatio: 0.82,
+        childAspectRatio: 0.88,
         children: items
             .map((data) => _ProfileFeatureTile(data: data, isArabic: isArabic))
             .toList(),
@@ -1902,14 +1870,12 @@ class _FeatureTileData {
     required this.label,
     required this.onTap,
     required this.gradientColors,
-    this.isSoon = false,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
   final List<Color> gradientColors;
-  final bool isSoon;
 }
 
 class _ProfileFeatureTile extends StatelessWidget {
@@ -1958,31 +1924,6 @@ class _ProfileFeatureTile extends StatelessWidget {
                     size: 24,
                   ),
                 ),
-                if (data.isSoon)
-                  Positioned(
-                    top: -4,
-                    right: isArabic ? null : -4,
-                    left: isArabic ? -4 : null,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF0C15A),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        isArabic ? 'قريباً' : 'Soon',
-                        style: const TextStyle(
-                          color: Color(0xFF160B26),
-                          fontSize: 7,
-                          fontWeight: FontWeight.w900,
-                          height: 1.2,
-                        ),
-                      ),
-                    ),
-                  ),
               ],
             ),
             const SizedBox(height: 7),
@@ -2005,107 +1946,21 @@ class _ProfileFeatureTile extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Profile Hub Section (My Level, Agency, Income, etc.)
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _ProfileHubSection extends StatelessWidget {
-  const _ProfileHubSection({
-    required this.isArabic,
-    required this.onLevel,
-    required this.onAgency,
-    required this.onIncome,
-    required this.onBadge,
-    required this.onLeaderboard,
-    required this.onFeedback,
-  });
-
-  final bool isArabic;
-  final VoidCallback onLevel;
-  final VoidCallback onAgency;
-  final VoidCallback onIncome;
-  final VoidCallback onBadge;
-  final VoidCallback onLeaderboard;
-  final VoidCallback onFeedback;
-
-  @override
-  Widget build(BuildContext context) {
-    return _SectionCard(
-      isArabic: isArabic,
-      title: isArabic ? 'ملفي الشخصي' : 'My Profile',
-      icon: Icons.person_outline_rounded,
-      children: [
-        ProfileListRow(
-          icon: Icons.trending_up_rounded,
-          iconColor: const Color(0xFF9BE8FF),
-          title: isArabic ? 'مستواي' : 'My Level',
-          isArabic: isArabic,
-          onTap: onLevel,
-        ),
-        ProfileListRow(
-          icon: Icons.groups_rounded,
-          iconColor: const Color(0xFF9BE88F),
-          title: isArabic ? 'وكالتي' : 'My Agency',
-          isArabic: isArabic,
-          onTap: onAgency,
-        ),
-        ProfileListRow(
-          icon: Icons.account_balance_wallet_rounded,
-          iconColor: const Color(0xFFFFD978),
-          title: isArabic ? 'دخلي' : 'My Income',
-          isArabic: isArabic,
-          onTap: onIncome,
-        ),
-        ProfileListRow(
-          icon: Icons.verified_rounded,
-          iconColor: const Color(0xFFF0C15A),
-          title: isArabic ? 'الشارات' : 'Badges',
-          isArabic: isArabic,
-          onTap: onBadge,
-        ),
-        ProfileListRow(
-          icon: Icons.emoji_events_rounded,
-          iconColor: const Color(0xFFFFD978),
-          title: isArabic ? 'المتصدرون' : 'Leaderboard',
-          isArabic: isArabic,
-          onTap: onLeaderboard,
-        ),
-        ProfileListRow(
-          icon: Icons.feedback_rounded,
-          iconColor: const Color(0xFFE4B5FF),
-          title: isArabic ? 'ملاحظات' : 'Feedback',
-          isArabic: isArabic,
-          onTap: onFeedback,
-          showDivider: false,
-        ),
-      ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Account & Support Section
+// Account & Support Section — Wallet, Customer Service, Privacy
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _AccountSection extends StatelessWidget {
   const _AccountSection({
     required this.isArabic,
-    required this.onMyRoom,
     required this.onWallet,
     required this.onCustomerService,
-    required this.onSettings,
     required this.onPrivacy,
-    required this.onTasks,
-    required this.onCheckIn,
   });
 
   final bool isArabic;
-  final VoidCallback onMyRoom;
   final VoidCallback onWallet;
   final VoidCallback onCustomerService;
-  final VoidCallback onSettings;
   final VoidCallback onPrivacy;
-  final VoidCallback onTasks;
-  final VoidCallback onCheckIn;
 
   @override
   Widget build(BuildContext context) {
@@ -2115,34 +1970,12 @@ class _AccountSection extends StatelessWidget {
       icon: Icons.settings_outlined,
       children: [
         ProfileListRow(
-          icon: Icons.home_rounded,
-          iconColor: const Color(0xFF6CF7D4),
-          title: isArabic ? 'غرفتي' : 'My Room',
-          subtitle: isArabic ? 'قريباً' : 'Coming soon',
-          isArabic: isArabic,
-          onTap: onMyRoom,
-        ),
-        ProfileListRow(
           icon: Icons.account_balance_wallet_rounded,
           iconColor: const Color(0xFF2ECC71),
           title: isArabic ? 'المحفظة' : 'Wallet',
           subtitle: isArabic ? 'الشحن والمعاملات' : 'Recharge & transactions',
           isArabic: isArabic,
           onTap: onWallet,
-        ),
-        ProfileListRow(
-          icon: Icons.task_alt_rounded,
-          iconColor: const Color(0xFF9BE8FF),
-          title: isArabic ? 'المهام' : 'Tasks',
-          isArabic: isArabic,
-          onTap: onTasks,
-        ),
-        ProfileListRow(
-          icon: Icons.event_available_rounded,
-          iconColor: const Color(0xFFFF88A0),
-          title: isArabic ? 'الحضور اليومي' : 'Daily Check-in',
-          isArabic: isArabic,
-          onTap: onCheckIn,
         ),
         ProfileListRow(
           icon: Icons.support_agent_rounded,
@@ -2155,13 +1988,6 @@ class _AccountSection extends StatelessWidget {
           onTap: onCustomerService,
         ),
         ProfileListRow(
-          icon: Icons.settings_rounded,
-          iconColor: const Color(0xFFBCAED6),
-          title: isArabic ? 'الإعدادات' : 'Settings',
-          isArabic: isArabic,
-          onTap: onSettings,
-        ),
-        ProfileListRow(
           icon: Icons.privacy_tip_rounded,
           iconColor: const Color(0xFF9BE8FF),
           title: isArabic ? 'الخصوصية' : 'Privacy',
@@ -2171,6 +1997,230 @@ class _AccountSection extends StatelessWidget {
           showDivider: false,
         ),
       ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Daily Check-in Card
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _DailyCheckinCard extends StatelessWidget {
+  const _DailyCheckinCard({
+    required this.isArabic,
+    required this.onTap,
+  });
+
+  final bool isArabic;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(24),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF1A0C2E), Color(0xFF2D1247)],
+          ),
+          border: Border.all(
+            color: const Color(0xFFF0C15A).withValues(alpha: 0.38),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF8B26D9).withValues(alpha: 0.14),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFF88A0), Color(0xFFFF3D6B)],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFFF3D6B).withValues(alpha: 0.35),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.event_available_rounded,
+                color: Colors.white,
+                size: 26,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: isArabic
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isArabic ? 'الحضور اليومي' : 'Daily Check-in',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    isArabic
+                        ? 'سجّل حضورك واحصل على مكافآت يومية'
+                        : 'Check in daily and earn rewards',
+                    style: const TextStyle(
+                      color: Color(0xFFBCAED6),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0C15A),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                isArabic ? 'تحقق' : 'Check in',
+                style: const TextStyle(
+                  color: Color(0xFF160B26),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Love / Relationship Card (coming soon placeholder)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _LoveRelationshipCard extends StatelessWidget {
+  const _LoveRelationshipCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final isArabic = Directionality.of(context) == TextDirection.rtl;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1A0C2E), Color(0xFF2A0828)],
+        ),
+        border: Border.all(
+          color: const Color(0xFFFF88A0).withValues(alpha: 0.38),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFF3D6B).withValues(alpha: 0.10),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFF88A0), Color(0xFFFF3D6B)],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFFF3D6B).withValues(alpha: 0.35),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.favorite_rounded,
+              color: Colors.white,
+              size: 26,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: isArabic
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isArabic ? 'العلاقات' : 'Relationships',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  isArabic
+                      ? 'ابحث عن روحك التوأم في سرود لايف'
+                      : 'Find your soulmate on Srood Live',
+                  style: const TextStyle(
+                    color: Color(0xFFBCAED6),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: const Color(0xFF3A1428),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: const Color(0xFFFF88A0).withValues(alpha: 0.45),
+              ),
+            ),
+            child: Text(
+              isArabic ? 'قريباً' : 'Soon',
+              style: const TextStyle(
+                color: Color(0xFFFF88A0),
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

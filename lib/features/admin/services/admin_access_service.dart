@@ -1,117 +1,251 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../core/supabase/supabase_service.dart';
+
+// ── Role constants ────────────────────────────────────────────────────────────
+
+const kRoleOSuperAdmin = 'o_super_admin';
+const kRolePSuperAdmin = 'p_super_admin';
+const kRoleSuperAdmin  = 'super_admin';
+const kRoleAdmin       = 'admin';
+
+// Display names shown in UI
+const kRoleLabels = <String, String>{
+  kRoleOSuperAdmin: 'O-Super Admin',
+  kRolePSuperAdmin: 'P-Super Admin',
+  kRoleSuperAdmin:  'Super Admin',
+  kRoleAdmin:       'Admin',
+};
+
+// ── Permission key constants ──────────────────────────────────────────────────
+
+const kPermUsersView         = 'users.view';
+const kPermUsersEdit         = 'users.edit';
+const kPermUsersTempBan      = 'users.temp_ban';
+const kPermUsersPermanentBan = 'users.permanent_ban';
+const kPermUsersUnban        = 'users.unban';
+const kPermUsersDelete       = 'users.delete';
+const kPermWalletViewBalance = 'wallet.view_balance';
+const kPermWalletViewLogs    = 'wallet.view_logs';
+const kPermWalletCredit      = 'wallet.credit';
+const kPermWalletDebit       = 'wallet.debit';
+const kPermWalletPrices      = 'wallet.prices';
+const kPermRoomsView         = 'rooms.view';
+const kPermRoomsClose        = 'rooms.close';
+const kPermRoomsDelete       = 'rooms.delete';
+const kPermRoomsPin          = 'rooms.pin';
+const kPermReportsView       = 'reports.view';
+const kPermReportsManage     = 'reports.manage';
+const kPermContentRemove     = 'content.remove';
+const kPermAgenciesView      = 'agencies.view';
+const kPermAgenciesCreate    = 'agencies.create';
+const kPermAgenciesDelete    = 'agencies.delete';
+const kPermHostsManage       = 'hosts.manage';
+const kPermGiftsManage       = 'gifts.manage';
+const kPermGiftsPrices       = 'gifts.prices';
+const kPermVipManage         = 'vip.manage';
+const kPermVipGrant          = 'vip.grant';
+const kPermFramesManage      = 'frames.manage';
+const kPermFramesGrant       = 'frames.grant';
+const kPermCharismaOfficial  = 'charisma.official_manage';
+const kPermCharismaAgency    = 'charisma.agency_manage';
+const kPermCharismaCrown     = 'charisma.crown_winner';
+const kPermDrawManage        = 'draw.manage';
+const kPermDrawForceSettle   = 'draw.force_settle';
+const kPermTreasureManage    = 'treasure.manage';
+const kPermTreasurePrize     = 'treasure.prize_settings';
+const kPermGamesLogs         = 'games.logs';
+const kPermFinanceReport     = 'financial_reports.view';
+const kPermFinanceExport     = 'financial_reports.export';
+const kPermAnalytics         = 'analytics.view';
+const kPermBanners           = 'banners.manage';
+const kPermNotifSend         = 'notifications.send';
+const kPermNotifBroadcast    = 'notifications.broadcast';
+const kPermSettings          = 'settings.manage';
+const kPermAdminsView        = 'admins.view';
+const kPermAdminsCreate      = 'admins.create';
+const kPermAdminsRemove      = 'admins.remove';
+const kPermAdminsChangeRoles = 'admins.change_roles';
+const kPermAuditLogs         = 'audit_logs.view';
+
+// ── Service ───────────────────────────────────────────────────────────────────
+
+class AdminRole {
+  const AdminRole({
+    required this.role,
+    required this.isActive,
+    required this.canUnban,
+  });
+
+  final String role;
+  final bool isActive;
+  final bool canUnban;
+
+  bool get isOSuperAdmin => role == kRoleOSuperAdmin;
+  bool get isPSuperAdmin => role == kRolePSuperAdmin;
+  bool get isSuperAdmin  => role == kRoleSuperAdmin;
+  bool get isAdmin       => role == kRoleAdmin;
+  bool get isAnyAdmin    => isActive && role.isNotEmpty;
+
+  String get displayLabel => kRoleLabels[role] ?? role;
+
+  // Tier-based helpers (higher tiers include lower)
+  bool get isAtLeastPSuperAdmin =>
+      isOSuperAdmin || isPSuperAdmin;
+
+  bool get isAtLeastSuperAdmin =>
+      isOSuperAdmin || isPSuperAdmin || isSuperAdmin;
+
+  // Default permission checks (mirrors Postgres has_admin_permission logic)
+  bool hasPermission(String key) {
+    switch (role) {
+      case kRoleOSuperAdmin:
+        return true;
+      case kRolePSuperAdmin:
+        return !{
+          kPermUsersUnban,
+          kPermUsersDelete,
+          kPermWalletDebit,
+          kPermWalletPrices,
+          kPermGiftsPrices,
+          kPermSettings,
+          kPermAdminsCreate,
+          kPermAdminsRemove,
+          kPermAdminsChangeRoles,
+          kPermDrawForceSettle,
+          'draw.void_refund',
+          kPermTreasurePrize,
+        }.contains(key);
+      case kRoleSuperAdmin:
+        return {
+          kPermUsersView,
+          kPermUsersEdit,
+          kPermUsersTempBan,
+          kPermUsersPermanentBan,
+          kPermRoomsView,
+          kPermRoomsClose,
+          kPermReportsView,
+          kPermReportsManage,
+          kPermContentRemove,
+          kPermAgenciesView,
+          kPermHostsManage,
+          kPermCharismaAgency,
+          kPermCharismaCrown,
+          kPermGamesLogs,
+          kPermAnalytics,
+          kPermBanners,
+          kPermNotifSend,
+          kPermAuditLogs,
+        }.contains(key);
+      case kRoleAdmin:
+        return {
+          kPermUsersView,
+          kPermUsersTempBan,
+          kPermRoomsView,
+          kPermRoomsClose,
+          kPermReportsView,
+          kPermReportsManage,
+          kPermContentRemove,
+        }.contains(key);
+      default:
+        return false;
+    }
+  }
+
+  static const empty = AdminRole(
+    role: '',
+    isActive: false,
+    canUnban: false,
+  );
+
+  factory AdminRole.fromJson(Map<String, dynamic> j) => AdminRole(
+    role:     (j['role'] as String?) ?? '',
+    isActive: (j['is_active'] as bool?) ?? false,
+    canUnban: (j['can_unban'] as bool?) ?? false,
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 class AdminAccessService {
   const AdminAccessService();
 
-  /// Roles allowed to open the admin dashboard.
-  static const Set<String> adminRoles = {
-    'super_admin',
-    'admin',
-    'finance_admin',
-    'bd_admin',
-    'content_admin',
-    'room_admin',
-    'support_admin',
-    'support',
-    'moderator',
-    'viewer',
+  static const Set<String> validRoles = {
+    kRoleOSuperAdmin,
+    kRolePSuperAdmin,
+    kRoleSuperAdmin,
+    kRoleAdmin,
   };
 
-  static String normalizeRole(String role) => role.trim().toLowerCase();
-
-  static List<String> normalizeRoles(Iterable<String> roles) {
-    return roles
-        .map(normalizeRole)
-        .where((role) => role.isNotEmpty)
-        .toSet()
-        .toList();
-  }
-
-  static bool isAdminRole(Iterable<String> roles) {
-    final normalized = normalizeRoles(roles);
-    return normalized.any(adminRoles.contains);
-  }
-
-  Future<List<String>> fetchCurrentUserRoles() async {
+  /// Fetch the current user's admin role info from Supabase.
+  Future<AdminRole> fetchCurrentAdminRole() async {
     final client = SupabaseService.requiredClient;
-    final user = client.auth.currentUser;
+    final user   = client.auth.currentUser;
 
     if (user == null) {
-      if (kDebugMode) {
-        debugPrint('[AdminAccess] No authenticated user found.');
-      }
-      return const [];
+      if (kDebugMode) debugPrint('[AdminAccess] No authenticated user.');
+      return AdminRole.empty;
     }
 
     try {
-      final data = await client
-          .from('app_user_roles')
-          .select('role')
-          .eq('user_id', user.id);
-
-      final roles = normalizeRoles(
-        (data as List<dynamic>).map(
-          (item) => (item as Map<String, dynamic>)['role']?.toString() ?? '',
-        ),
-      );
+      final raw = await client.rpc('admin_get_my_role');
+      final j   = raw is Map<String, dynamic> ? raw : <String, dynamic>{};
+      final role = AdminRole.fromJson(j);
 
       if (kDebugMode) {
-        debugPrint('[AdminAccess] User email: ${user.email}');
-        debugPrint('[AdminAccess] User id: ${user.id}');
-        debugPrint('[AdminAccess] Roles: $roles');
-        debugPrint('[AdminAccess] Can access admin: ${isAdminRole(roles)}');
+        debugPrint('[AdminAccess] uid=${user.id} role=${role.role} canUnban=${role.canUnban}');
       }
 
-      return roles;
-    } catch (error, stackTrace) {
+      return role;
+    } catch (e, st) {
       if (kDebugMode) {
-        debugPrint('[AdminAccess] Failed to fetch roles: $error');
-        debugPrintStack(stackTrace: stackTrace);
+        debugPrint('[AdminAccess] fetchCurrentAdminRole failed: $e');
+        debugPrintStack(stackTrace: st);
       }
-      return const [];
+      return AdminRole.empty;
     }
   }
 
-  Future<bool> canAccessAdmin() async {
-    final roles = await fetchCurrentUserRoles();
-    return isAdminRole(roles);
+  /// Legacy shim: returns list with single role string for places that still
+  /// call fetchCurrentUserRoles(). Remove callers gradually.
+  Future<List<String>> fetchCurrentUserRoles() async {
+    final role = await fetchCurrentAdminRole();
+    return role.isAnyAdmin ? [role.role] : const [];
   }
 
-  Future<bool> canApproveRecharge() async {
-    final roles = await fetchCurrentUserRoles();
-    return roles.contains('super_admin') || roles.contains('finance_admin');
-  }
+  static bool isAdminRole(Iterable<String> roles) =>
+      roles.any(validRoles.contains);
+
+  Future<bool> canAccessAdmin() async =>
+      (await fetchCurrentAdminRole()).isAnyAdmin;
+
+  Future<bool> canUnbanUsers() async =>
+      (await fetchCurrentAdminRole()).canUnban;
+
+  Future<bool> isOSuperAdmin() async =>
+      (await fetchCurrentAdminRole()).isOSuperAdmin;
+
+  Future<bool> isPSuperAdmin() async =>
+      (await fetchCurrentAdminRole()).isPSuperAdmin;
+
+  Future<bool> isSuperAdmin() async =>
+      (await fetchCurrentAdminRole()).isSuperAdmin;
+
+  Future<bool> isAdmin() async =>
+      (await fetchCurrentAdminRole()).isAdmin;
+
+  // Legacy shim — used by admin_dashboard_screen
+  Future<bool> canApproveRecharge() async =>
+      (await fetchCurrentAdminRole()).hasPermission(kPermWalletCredit);
 
   Future<bool> canAdjustWallet() => canApproveRecharge();
 
-  Future<bool> canManageBd() async {
-    final roles = await fetchCurrentUserRoles();
-    return roles.contains('super_admin') || roles.contains('bd_admin');
-  }
+  Future<bool> canManageBd() async =>
+      (await fetchCurrentAdminRole()).hasPermission(kPermAgenciesView);
 
-  Future<bool> canManageContent() async {
-    final roles = await fetchCurrentUserRoles();
-    return roles.contains('super_admin') || roles.contains('content_admin');
-  }
+  Future<bool> canManageContent() async =>
+      (await fetchCurrentAdminRole()).hasPermission(kPermGiftsManage);
 
-  Future<bool> canManageRooms() async {
-    final roles = await fetchCurrentUserRoles();
-    return roles.contains('super_admin') ||
-        roles.contains('room_admin') ||
-        roles.contains('moderator');
-  }
-
-  Future<bool> isSuperAdmin() async {
-    return (await fetchCurrentUserRoles()).contains('super_admin');
-  }
-
-  Future<bool> isFinanceAdmin() async {
-    return (await fetchCurrentUserRoles()).contains('finance_admin');
-  }
-
-  Future<bool> isAdmin() async {
-    return (await fetchCurrentUserRoles()).contains('admin');
-  }
+  Future<bool> canManageRooms() async =>
+      (await fetchCurrentAdminRole()).hasPermission(kPermRoomsClose);
 }

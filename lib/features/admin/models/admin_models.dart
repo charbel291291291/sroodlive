@@ -44,66 +44,25 @@ class AdminRoleSpec {
   final String description;
   final int priority;
 
+  // Only roles that can be assigned (not o_super_admin — that is the owner)
   static const all = [
+    AdminRoleSpec(
+      role: 'p_super_admin',
+      label: 'P-Super Admin',
+      description: 'Partner role. High-level access. Cannot unban, change roles, or delete audit logs.',
+      priority: 3,
+    ),
     AdminRoleSpec(
       role: 'super_admin',
       label: 'Super Admin',
-      description: 'Full access to roles, finance, BD, content, rooms, audit.',
-      priority: 100,
-    ),
-    AdminRoleSpec(
-      role: 'finance_admin',
-      label: 'Finance Admin',
-      description: 'Recharge approvals, wallet adjustments, finance reports.',
-      priority: 90,
-    ),
-    AdminRoleSpec(
-      role: 'bd_admin',
-      label: 'BD Admin',
-      description: 'Agencies, agents, recharge network operations.',
-      priority: 80,
-    ),
-    AdminRoleSpec(
-      role: 'content_admin',
-      label: 'Content Admin',
-      description: 'Gift catalog and visual economy controls.',
-      priority: 70,
-    ),
-    AdminRoleSpec(
-      role: 'room_admin',
-      label: 'Room Admin',
-      description: 'Room operations and live room monitoring.',
-      priority: 60,
-    ),
-    AdminRoleSpec(
-      role: 'support_admin',
-      label: 'Support Admin',
-      description: 'User lookup, support workflows, read-mostly operations.',
-      priority: 50,
+      description: 'Operational admin. Manages users, rooms, reports, agencies, and challenges.',
+      priority: 2,
     ),
     AdminRoleSpec(
       role: 'admin',
       label: 'Admin',
-      description: 'General dashboard access, read-only business overview.',
-      priority: 40,
-    ),
-    AdminRoleSpec(
-      role: 'support',
-      label: 'Support',
-      description: 'Basic user support view.',
-      priority: 30,
-    ),
-    AdminRoleSpec(
-      role: 'moderator',
-      label: 'Moderator',
-      description: 'Room moderation view.',
-      priority: 20,
-    ),
-    AdminRoleSpec(
-      role: 'viewer',
-      label: 'Viewer',
-      description: 'Read-only admin dashboard access.',
-      priority: 10,
+      description: 'Basic moderator. Can review reports, close rooms, and temp-ban users.',
+      priority: 1,
     ),
   ];
 

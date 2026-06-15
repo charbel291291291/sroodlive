@@ -34,19 +34,18 @@ import '../../games/screens/srood_loto_screen.dart';
 import 'room_owner_management_screen.dart';
 
 // Seat sizes — host > occupied > empty, never the reverse.
-const double _hostSeatAvatarSize = 82.0;  // visual: 82*1.35=110.7px frame
-const double _hostSeatOuterSize  = 86.0;  // layout anchor (host)
-const double _seatAvatarSize     = 72.0;  // visual: 72*1.35=97.2px frame (VIP)
-const double _seatOuterSize      = 76.0;  // layout anchor (normal)
-const double _emptySeatSize      = 80.0;  // slightly larger than normal ring
-const double _micSeatIconSize    = 26.0;
-const double _micSeatBadgeHorizontalPadding = 8.0;
-const double _micSeatSupportSlotHeight      = 20.0;
+// Reduced ~17% from previous values to open more background space.
+const double _hostSeatAvatarSize = 68.0;  // visual frame is 68*1.35=91.8px
+const double _hostSeatOuterSize  = 72.0;  // layout anchor (host)
+const double _seatAvatarSize     = 58.0;  // visual frame is 58*1.35=78.3px (VIP)
+const double _seatOuterSize      = 62.0;  // layout anchor (normal)
+const double _emptySeatSize      = 64.0;  // empty ring, slightly smaller
+const double _micSeatIconSize    = 20.0;
+const double _micSeatBadgeHorizontalPadding = 6.0;
+const double _micSeatSupportSlotHeight      = 16.0;
 // Fixed height for the avatar zone inside every grid cell.
-// Must be >= _hostSeatOuterSize (86) so the host avatar is never clipped.
-// All seat states (empty/normal/host/VIP) use the same zone height so the
-// grid cell measured height never changes when a seat transitions state.
-const double _kAvatarAreaHeight = 92.0;
+// Must be >= _hostSeatOuterSize (72) so the host avatar is never clipped.
+const double _kAvatarAreaHeight = 78.0;
 
 
 class RoomDetailsScreen extends StatefulWidget {
@@ -2430,10 +2429,11 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
           ),
 
           // ── 6. Srood Loto side shortcut (lower-right / lower-left for RTL) ──
+          // Positioned above the chat overlay so it never blocks messages.
           Positioned(
             right: widget.isArabic ? null : 0,
             left: widget.isArabic ? 0 : null,
-            bottom: 190 + bottomPad,
+            bottom: 280 + bottomPad,
             child: _LotoFloatingButton(
               isArabic: widget.isArabic,
               onTap: () => Navigator.of(context).push(
@@ -2524,25 +2524,25 @@ class _CompactRoomHeader extends StatelessWidget {
                 // Content row
                 Padding(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 12),
+                      horizontal: 12, vertical: 8),
                   child: Row(
                     children: [
                       // Room icon / avatar
                       Container(
-                        width: 44,
-                        height: 44,
+                        width: 36,
+                        height: 36,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF0C15A).withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(14),
+                          color: const Color(0xFFF0C15A).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: const Color(0xFFF0C15A)
-                                .withValues(alpha: 0.35),
+                                .withValues(alpha: 0.30),
                           ),
                         ),
                         child: const Icon(
                           Icons.mic_rounded,
                           color: Color(0xFFF0C15A),
-                          size: 22,
+                          size: 18,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -2558,7 +2558,7 @@ class _CompactRoomHeader extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 16,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w900,
                                 color: Colors.white,
                                 shadows: hasCover
@@ -2912,8 +2912,8 @@ class _LotoFloatingButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 46,
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        width: 38,
+        padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             begin: Alignment.topCenter,
@@ -2939,16 +2939,16 @@ class _LotoFloatingButton extends StatelessWidget {
             const Icon(
               Icons.emoji_events_rounded,
               color: Color(0xFFF0C15A),
-              size: 18,
+              size: 16,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 3),
             Text(
               isArabic ? 'سحب' : 'Draw',
               style: const TextStyle(
                 color: Color(0xFFF0C15A),
-                fontSize: 9,
+                fontSize: 8,
                 fontWeight: FontWeight.w900,
-                letterSpacing: 0.3,
+                letterSpacing: 0.2,
               ),
             ),
           ],
@@ -3845,13 +3845,14 @@ class _LiveSeatBubble extends StatelessWidget {
     final label = seat.isEmpty
         ? (isArabic ? '\u0645\u0627\u064a\u0643 ${seat.number}' : 'Mic ${seat.number}')
         : seat.name;
+    // Only show badge for important states; suppress "Tap" to reduce noise.
     final badge = selectedForMove
         ? (isArabic ? '\u0646\u0642\u0644' : 'Move')
         : seat.isEmpty
-            ? (isArabic ? '\u0627\u0636\u063a\u0637' : 'Tap')
+            ? ''   // No badge on empty seats \u2014 seat number in circle is enough
             : occupiedByHost
                 ? (isArabic ? '\u0645\u0636\u064a\u0641' : 'Host')
-                : (isArabic ? '\u0645\u062a\u062d\u062f\u062b' : 'Speaker');
+                : '';
 
     final Color borderColor = selectedForMove
         ? const Color(0xFF67E8A5)
@@ -4106,10 +4107,10 @@ class _LiveSeatBubble extends StatelessWidget {
         // ── Zone 1: avatar — always _kAvatarAreaHeight ────────────────────
         avatarZone,
 
-        // ── Zone 2: name — always 16 px ───────────────────────────────────
-        const SizedBox(height: 3),
+        // ── Zone 2: name — always 14 px ───────────────────────────────────
+        const SizedBox(height: 2),
         SizedBox(
-          height: 16,
+          height: 14,
           child: Align(
             alignment: Alignment.topCenter,
             child: Text(
@@ -4118,21 +4119,21 @@ class _LiveSeatBubble extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
                 color: seat.isEmpty
-                    ? Colors.white.withValues(alpha: 0.45)
+                    ? Colors.white.withValues(alpha: 0.38)
                     : effectiveVipLevel > 0
                         ? VipVisualStyle.nameColor(effectiveVipLevel, context)
-                        : Colors.white,
+                        : Colors.white.withValues(alpha: 0.88),
                 shadows: [
                   const Shadow(
-                      blurRadius: 6,
+                      blurRadius: 5,
                       color: Colors.black87,
                       offset: Offset(0, 1)),
                   Shadow(
-                      blurRadius: 12,
-                      color: Colors.black.withValues(alpha: 0.55)),
+                      blurRadius: 10,
+                      color: Colors.black.withValues(alpha: 0.50)),
                 ],
               ),
             ),
@@ -4151,59 +4152,53 @@ class _LiveSeatBubble extends StatelessWidget {
               : null,
         ),
 
-        // ── Zone 4: role badge — always 22 px ────────────────────────────
-        // VIP badge removed from here; the VIP frame already provides the
-        // visual cue and the badge was causing a "floating circle" artefact.
+        // ── Zone 4: role badge — 18 px, hidden when badge is empty ──────
         SizedBox(
-          height: 22,
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: _micSeatBadgeHorizontalPadding,
-                vertical: 2,
-              ),
-              decoration: BoxDecoration(
-                color: selectedForMove
-                    ? const Color(0xFF67E8A5).withValues(alpha: 0.20)
-                    : occupiedByHost
-                        ? const Color(0xFFF0C15A).withValues(alpha: 0.18)
-                        : canAssignSeat
-                            ? Colors.white.withValues(alpha: 0.08)
-                            : const Color(0xFF8B26D9).withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: selectedForMove
-                      ? const Color(0xFF67E8A5).withValues(alpha: 0.8)
-                      : occupiedByHost
-                          ? const Color(0xFFF0C15A).withValues(alpha: 0.7)
-                          : canAssignSeat
-                              ? Colors.white.withValues(alpha: 0.2)
-                              : const Color(0xFF8B26D9).withValues(alpha: 0.5),
-                  width: 0.8,
+          height: 18,
+          child: badge.isEmpty
+              ? null
+              : Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: _micSeatBadgeHorizontalPadding,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: selectedForMove
+                          ? const Color(0xFF67E8A5).withValues(alpha: 0.20)
+                          : occupiedByHost
+                              ? const Color(0xFFF0C15A).withValues(alpha: 0.18)
+                              : const Color(0xFF8B26D9).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: selectedForMove
+                            ? const Color(0xFF67E8A5).withValues(alpha: 0.8)
+                            : occupiedByHost
+                                ? const Color(0xFFF0C15A).withValues(alpha: 0.7)
+                                : const Color(0xFF8B26D9).withValues(alpha: 0.4),
+                        width: 0.7,
+                      ),
+                    ),
+                    child: Text(
+                      badge,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 8,
+                        fontWeight: FontWeight.w900,
+                        color: selectedForMove
+                            ? const Color(0xFF67E8A5)
+                            : occupiedByHost
+                                ? const Color(0xFFF0C15A)
+                                : Colors.white.withValues(alpha: 0.75),
+                        shadows: const [
+                          Shadow(blurRadius: 4, color: Colors.black),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-              child: Text(
-                badge,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w900,
-                  color: selectedForMove
-                      ? const Color(0xFF67E8A5)
-                      : occupiedByHost
-                          ? const Color(0xFFF0C15A)
-                          : canAssignSeat
-                              ? Colors.white.withValues(alpha: 0.55)
-                              : Colors.white.withValues(alpha: 0.8),
-                  shadows: const [
-                    Shadow(blurRadius: 5, color: Colors.black),
-                  ],
-                ),
-              ),
-            ),
-          ),
         ),
       ],
     );
@@ -4332,35 +4327,49 @@ class _FloatingChatOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final recentMsgs = chatMessages.length > 5
-        ? chatMessages.sublist(chatMessages.length - 5)
+    // Max 3 messages; show most recent at bottom.
+    final recentMsgs = chatMessages.length > 3
+        ? chatMessages.sublist(chatMessages.length - 3)
         : chatMessages;
-    final recentGifts = gifts.take(2).toList();
+    final recentGifts = gifts.take(1).toList();
 
     if (recentMsgs.isEmpty && recentGifts.isEmpty) return const SizedBox.shrink();
 
-    return Directionality(
-      textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: isArabic
-              ? CrossAxisAlignment.end
-              : CrossAxisAlignment.start,
-          children: [
-            ...recentGifts.map((g) => _GiftFeedRow(
-                  gift: g,
-                  isArabic: isArabic,
-                  onProfileTap: onProfileTap,
-                )),
-            ...recentMsgs.map((m) => _ChatBubbleRow(
-                  message: m,
-                  isArabic: isArabic,
-                  onProfileTap:
-                      m.isSystem ? null : () => onProfileTap(m.senderId),
-                )),
-          ],
+    return IgnorePointer(
+      // Chat bubbles don't block taps on stage below — only avatar/name are tappable
+      // via the child gesture detectors inside each bubble.
+      ignoring: false,
+      child: Directionality(
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: isArabic
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
+            children: [
+              ...recentGifts.map((g) => _GiftFeedRow(
+                    gift: g,
+                    isArabic: isArabic,
+                    onProfileTap: onProfileTap,
+                  )),
+              // Fade older messages: index 0 = oldest = more transparent
+              for (var i = 0; i < recentMsgs.length; i++)
+                Opacity(
+                  opacity: recentMsgs.length == 1
+                      ? 1.0
+                      : 0.45 + (i / (recentMsgs.length - 1)) * 0.55,
+                  child: _ChatBubbleRow(
+                    message: recentMsgs[i],
+                    isArabic: isArabic,
+                    onProfileTap: recentMsgs[i].isSystem
+                        ? null
+                        : () => onProfileTap(recentMsgs[i].senderId),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -4595,7 +4604,7 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
     final isHost = msg.senderRole == 'host';
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
@@ -4604,7 +4613,7 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
             onTap: widget.onProfileTap,
             child: _buildAvatar(prestige, msg, vipLevel),
           ),
-          const SizedBox(width: 7),
+          const SizedBox(width: 6),
           Flexible(
             child: AnimatedBuilder(
               animation: _pulse,
@@ -4620,26 +4629,27 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
 
   Widget _buildAvatar(VipPrestige prestige, RoomMessage msg, int vipLevel) {
     final hasRing = prestige.avatarRingWidth > 0;
+    // Compact avatar: 26px for a lighter-feeling chat overlay.
     final avatar = _RoomAvatar(
       avatarUrl: msg.senderAvatarUrl,
       frameKey: null,
       vipLevel: hasRing ? 0 : vipLevel,
-      size: 28,
+      size: 26,
       selected: false,
       fallbackIcon: Icons.person_rounded,
     );
     if (!hasRing) return avatar;
 
     return SizedBox(
-      width: 32,
-      height: 32,
+      width: 28,
+      height: 28,
       child: Stack(
         alignment: Alignment.center,
         children: [
           IgnorePointer(
             child: Container(
-              width: 32,
-              height: 32,
+              width: 28,
+              height: 28,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
@@ -4650,7 +4660,7 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
                     ? [
                         BoxShadow(
                           color: prestige.avatarRingColor.withValues(alpha: 0.40),
-                          blurRadius: 8,
+                          blurRadius: 6,
                         ),
                       ]
                     : null,
@@ -4707,7 +4717,7 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
           );
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: deco,
       child: Column(
         crossAxisAlignment: crossAxis,
@@ -4748,13 +4758,13 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
               ],
             ],
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 2),
           Text(
             msg.message,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 13,
-              height: 1.3,
+              fontSize: 12,
+              height: 1.25,
             ),
           ),
         ],
