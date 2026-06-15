@@ -2885,9 +2885,10 @@ class _LiveRoomStage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          // Seat grid — centers partial last rows (e.g. Mic 9 in 9-seat mode)
+          // Seat grid — 3 cols for 6/9-seat mode, 4 cols for 12-seat mode.
           _SeatGrid(
             seats: seats,
+            cols: _colsForSeatCount(seats.length),
             isArabic: isArabic,
             isHost: isHost,
             onEmptySeatTap: onEmptySeatTap,
@@ -2941,10 +2942,13 @@ class _LiveRoomStage extends StatelessWidget {
 
     return seats;
   }
+
+  // 6 seats → 3 cols (2×3), 9 seats → 3 cols (3×3), 12 seats → 4 cols (3×4).
+  static int _colsForSeatCount(int count) => count <= 9 ? 3 : 4;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Custom seat grid — 4 columns, partial last rows are centered.
+// Custom seat grid — cols determined by seat count so every mode is balanced.
 // Full rows use spaceBetween so tile edges align with container edges.
 // Partial rows (e.g. 9th seat) use center so lone seats don't hug the left.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2952,6 +2956,7 @@ class _LiveRoomStage extends StatelessWidget {
 class _SeatGrid extends StatelessWidget {
   const _SeatGrid({
     required this.seats,
+    required this.cols,
     required this.isArabic,
     required this.isHost,
     required this.onEmptySeatTap,
@@ -2962,6 +2967,7 @@ class _SeatGrid extends StatelessWidget {
   });
 
   final List<_StageSeat> seats;
+  final int cols;
   final bool isArabic;
   final bool isHost;
   final ValueChanged<int> onEmptySeatTap;
@@ -2970,24 +2976,21 @@ class _SeatGrid extends StatelessWidget {
   final ValueChanged<String> onProfileTap;
   final String? selectedMoveUserId;
 
-  static const _cols = 4;
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
       final compact = constraints.maxWidth < 340;
       final colGap = compact ? 6.0 : 8.0;
-      final rowGap = compact ? 8.0 : 10.0;
+      final rowGap = compact ? 10.0 : 14.0;
       final aspectRatio = compact ? 0.42 : 0.44;
-      // tileWidth matches the old GridView: exactly fills the row.
       final tileWidth =
-          (constraints.maxWidth - colGap * (_cols - 1)) / _cols;
+          (constraints.maxWidth - colGap * (cols - 1)) / cols;
       final tileHeight = tileWidth / aspectRatio;
 
-      // Split seat list into rows of _cols.
+      // Split seat list into explicit rows of [cols] seats.
       final rows = <List<_StageSeat>>[];
-      for (var i = 0; i < seats.length; i += _cols) {
-        final end = (i + _cols).clamp(0, seats.length);
+      for (var i = 0; i < seats.length; i += cols) {
+        final end = (i + cols).clamp(0, seats.length);
         rows.add(seats.sublist(i, end));
       }
 
@@ -3009,9 +3012,9 @@ class _SeatGrid extends StatelessWidget {
     double tileHeight,
     double gap,
   ) {
-    final isFull = row.length == _cols;
-    // Full rows: spaceBetween keeps outer tiles flush with edges.
-    // Partial rows: center so the lone/few tiles aren't left-aligned.
+    // All rows in these layouts are full (6→2×3, 9→3×3, 12→3×4),
+    // so spaceBetween keeps tiles flush. Center is the safe fallback.
+    final isFull = row.length == cols;
     return Row(
       mainAxisAlignment:
           isFull ? MainAxisAlignment.spaceBetween : MainAxisAlignment.center,
