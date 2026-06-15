@@ -70,6 +70,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
 
   late final RoomMusicService _musicService;
 
+  Set<String> _speakingUserIds = {};
+
   bool _leaving = false;
   bool _connectingAudio = false;
   bool _connectedAudio = false;
@@ -1710,6 +1712,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
           });
         }
 
+        _liveKitRoomService.onSpeakersChanged = (ids) {
+          if (mounted) setState(() => _speakingUserIds = ids);
+        };
+
         await _liveKitRoomService.connect(
           roomId: widget.room.id,
           microphoneEnabled: false,
@@ -2357,6 +2363,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                         onParticipantsTap: _showParticipantsSheet,
                         supportByUserId: _giftSupportByUserId,
                         selectedMoveUserId: _selectedMicMoveMember?.userId,
+                        speakingUserIds: _speakingUserIds,
                         activePk: _activePk?.isActive == true ? _activePk : null,
                         showPkResult: _showPkResult,
                         pkResult: _showPkResult && _activePk?.isFinished == true
@@ -2974,6 +2981,7 @@ class _LiveRoomStage extends StatelessWidget {
     required this.onParticipantsTap,
     required this.supportByUserId,
     required this.selectedMoveUserId,
+    required this.speakingUserIds,
     this.activePk,
     this.showPkResult = false,
     this.pkResult,
@@ -2995,6 +3003,7 @@ class _LiveRoomStage extends StatelessWidget {
   final VoidCallback onParticipantsTap;
   final Map<String, int> supportByUserId;
   final String? selectedMoveUserId;
+  final Set<String> speakingUserIds;
   final PkSession? activePk;
   final bool showPkResult;
   final PkSession? pkResult;
@@ -3149,6 +3158,7 @@ class _LiveRoomStage extends StatelessWidget {
             onOccupiedSeatLongPress: onOccupiedSeatLongPress,
             onProfileTap: onProfileTap,
             selectedMoveUserId: selectedMoveUserId,
+            speakingUserIds: speakingUserIds,
             activePk: activePk,
           ),
         ],
@@ -3218,6 +3228,7 @@ class _SeatGrid extends StatelessWidget {
     required this.onOccupiedSeatLongPress,
     required this.onProfileTap,
     required this.selectedMoveUserId,
+    required this.speakingUserIds,
     this.activePk,
   });
 
@@ -3230,6 +3241,7 @@ class _SeatGrid extends StatelessWidget {
   final void Function(RoomMember, int) onOccupiedSeatLongPress;
   final ValueChanged<String> onProfileTap;
   final String? selectedMoveUserId;
+  final Set<String> speakingUserIds;
   final PkSession? activePk;
 
   @override
@@ -3284,6 +3296,7 @@ class _SeatGrid extends StatelessWidget {
               seat: row[c],
               isArabic: isArabic,
               isHost: isHost,
+              isSpeaking: speakingUserIds.contains(row[c].member?.userId ?? ''),
               onEmptySeatTap: onEmptySeatTap,
               onOccupiedSeatTap: onOccupiedSeatTap,
               onOccupiedSeatLongPress: onOccupiedSeatLongPress,
@@ -3813,6 +3826,7 @@ class _LiveSeatBubble extends StatelessWidget {
     required this.seat,
     required this.isArabic,
     required this.isHost,
+    required this.isSpeaking,
     required this.onEmptySeatTap,
     required this.onOccupiedSeatTap,
     required this.onOccupiedSeatLongPress,
@@ -3824,6 +3838,7 @@ class _LiveSeatBubble extends StatelessWidget {
   final _StageSeat seat;
   final bool isArabic;
   final bool isHost;
+  final bool isSpeaking;
   final ValueChanged<int> onEmptySeatTap;
   final void Function(RoomMember member, int seatNumber) onOccupiedSeatTap;
   final void Function(RoomMember member, int seatNumber)
@@ -4025,7 +4040,7 @@ class _LiveSeatBubble extends StatelessWidget {
                       IgnorePointer(
                         child: VipMicWaveRing(
                           vipLevel: effectiveVipLevel,
-                          isActive: !seat.isMuted,
+                          isActive: !seat.isMuted && isSpeaking,
                           isHost: occupiedByHost,
                           outerSize: outerSize,
                         ),

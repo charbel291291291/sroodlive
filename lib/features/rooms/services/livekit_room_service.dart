@@ -12,6 +12,8 @@ class LiveKitRoomService {
   Room? _room;
   EventsListener<RoomEvent>? _listener;
 
+  void Function(Set<String> speakingIdentities)? onSpeakersChanged;
+
   Room? get room => _room;
 
   Future<Room> connect({
@@ -122,6 +124,8 @@ class LiveKitRoomService {
         debugPrint(
           '[LiveKit] ActiveSpeakersChangedEvent count=${e.speakers.length}',
         );
+        final ids = e.speakers.map((p) => p.identity).toSet();
+        onSpeakersChanged?.call(ids);
       });
   }
 
