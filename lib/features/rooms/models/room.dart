@@ -15,6 +15,7 @@ class Room {
     this.backgroundUrl,
     this.avatarUrl,
     this.roomPinEnabled = false,
+    this.isPersonalRoom = false,
   });
 
   final String id;
@@ -28,6 +29,7 @@ class Room {
   final bool isLocked;
   final bool isClosed;
   final bool roomPinEnabled;
+  final bool isPersonalRoom;
   final DateTime createdAt;
   final String? coverUrl;
   final String? backgroundUrl;
@@ -46,6 +48,7 @@ class Room {
       isLocked: json['is_locked'] as bool? ?? false,
       isClosed: json['is_closed'] as bool? ?? false,
       roomPinEnabled: json['room_pin_enabled'] as bool? ?? false,
+      isPersonalRoom: json['is_personal_room'] as bool? ?? false,
       createdAt: DateTime.parse(json['created_at'].toString()),
       coverUrl: json['cover_url']?.toString(),
       backgroundUrl: json['background_url']?.toString(),

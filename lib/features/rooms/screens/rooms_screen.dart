@@ -31,7 +31,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
   List<Room> _rooms = [];
   Map<String, int> _activeCounts = {};
   bool _loading = true;
-  bool _creating = false;
+  bool _openingMyRoom = false;
   String? _error;
 
   @override
@@ -66,88 +66,24 @@ class _RoomsScreenState extends State<RoomsScreen> {
     }
   }
 
-  Future<void> _createRoom() async {
-    // Prevent double-tap
-    if (_creating) return;
-    final isArabic = context.isArabic;
-
-    final nameController = TextEditingController();
-    final descriptionController = TextEditingController();
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.isArabic ? 'إنشاء غرفة' : 'Create room'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              textDirection:
-                  context.isArabic ? TextDirection.rtl : TextDirection.ltr,
-              decoration: InputDecoration(
-                labelText: context.isArabic ? 'اسم الغرفة' : 'Room name',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: descriptionController,
-              textDirection:
-                  context.isArabic ? TextDirection.rtl : TextDirection.ltr,
-              decoration: InputDecoration(
-                labelText:
-                    context.isArabic ? 'وصف قصير' : 'Short description',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(context.isArabic ? 'إلغاء' : 'Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(context.isArabic ? 'إنشاء' : 'Create'),
-          ),
-        ],
-      ),
-    );
-
-    if (result != true) return;
-
-    final name = nameController.text.trim();
-    final description = descriptionController.text.trim();
-    if (name.isEmpty) return;
-
+  Future<void> _openMyRoom() async {
+    if (_openingMyRoom) return;
     setState(() {
-      _creating = true;
+      _openingMyRoom = true;
       _error = null;
     });
 
     try {
-      final (:room, :alreadyExisted) = await _roomsService.getOrCreateRoom(
-        name: name,
-        description: description.isEmpty ? null : description,
-        language: isArabic ? 'ar' : 'en',
-        maxSeats: 12,
-      );
+      var room = await _roomsService.getOrCreateMyRoom();
 
       if (!mounted) return;
 
-      if (alreadyExisted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              context.isArabic
-                  ? 'لديك غرفة مفتوحة بالفعل'
-                  : 'You already have an active room',
-            ),
-          ),
-        );
+      // If the personal room was closed by the owner, reopen it.
+      if (room.isClosed) {
+        room = await _roomsService.reopenMyRoom();
+        if (!mounted) return;
       }
 
-      // Navigate into the room (new or existing).
       await Navigator.push(
         context,
         MaterialPageRoute(
@@ -161,7 +97,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
       if (!mounted) return;
       setState(() => _error = error.toString());
     } finally {
-      if (mounted) setState(() => _creating = false);
+      if (mounted) setState(() => _openingMyRoom = false);
     }
   }
 
@@ -407,15 +343,15 @@ class _RoomsScreenState extends State<RoomsScreen> {
                       ],
                     ),
                     child: IconButton(
-                      onPressed: _creating ? null : _createRoom,
+                      onPressed: _openingMyRoom ? null : _openMyRoom,
                       color: const Color(0xFF12061F),
-                      icon: _creating
+                      icon: _openingMyRoom
                           ? const SizedBox(
                               width: 18,
                               height: 18,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Icon(Icons.add_rounded),
+                          : const Icon(Icons.other_houses_rounded),
                     ),
                   ),
                 ],

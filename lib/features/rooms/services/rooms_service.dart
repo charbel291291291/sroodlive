@@ -590,6 +590,20 @@ class RoomsService {
         .eq('id', roomId)
         .eq('owner_id', user.id);
   }
+
+  /// Returns the user's personal room, creating it on first call.
+  /// The room may be closed — caller must check [Room.isClosed] and call
+  /// [reopenMyRoom] if needed before navigating into it.
+  Future<Room> getOrCreateMyRoom() async {
+    final data = await SupabaseService.requiredClient.rpc('get_or_create_my_room');
+    return Room.fromJson(Map<String, dynamic>.from(data as Map));
+  }
+
+  /// Un-closes the user's personal room and returns it with [isClosed] = false.
+  Future<Room> reopenMyRoom() async {
+    final data = await SupabaseService.requiredClient.rpc('reopen_my_room');
+    return Room.fromJson(Map<String, dynamic>.from(data as Map));
+  }
 }
 
 class RoomImagePickerCancelled implements Exception {
