@@ -643,15 +643,27 @@ class AdminService {
     int days = 30,
     String? title,
   }) async {
-    await SupabaseService.requiredClient.rpc(
-      'admin_grant_vip',
-      params: {
-        'p_user_id': userId,
-        'p_vip_level': vipLevel,
-        'p_days': days,
-        'p_title': title,
-      },
-    );
+    // Use centralized grant_vip RPC (falls back to admin_grant_vip if unavailable)
+    try {
+      await SupabaseService.requiredClient.rpc(
+        'grant_vip',
+        params: {
+          'p_user_id': userId,
+          'p_vip_level': vipLevel,
+          'p_duration_days': days,
+        },
+      );
+    } catch (_) {
+      await SupabaseService.requiredClient.rpc(
+        'admin_grant_vip',
+        params: {
+          'p_user_id': userId,
+          'p_vip_level': vipLevel,
+          'p_days': days,
+          'p_title': title,
+        },
+      );
+    }
   }
 
   Future<void> setGoldenId({

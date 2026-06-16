@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../games/screens/crash_game_screen.dart';
 import '../../games/screens/gold_ladder_quiz_screen.dart';
@@ -38,8 +39,9 @@ class RoomToolsSheet extends StatefulWidget {
     required this.isLocked,
     required this.onToggleLock,
     required this.onClearChat,
-    required this.onSalute,
     this.onMaxSeatsChanged,
+    this.onSoundChanged,
+    this.onVisualChanged,
     this.onBackgroundChanged,
     this.micMembers = const [],
     this.activePkSessionId,
@@ -57,8 +59,9 @@ class RoomToolsSheet extends StatefulWidget {
   final bool isLocked;
   final Future<void> Function() onToggleLock;
   final VoidCallback onClearChat;
-  final VoidCallback onSalute;
   final void Function(int newSeats)? onMaxSeatsChanged;
+  final void Function(bool)? onSoundChanged;
+  final void Function(bool)? onVisualChanged;
   final void Function(String? backgroundUrl)? onBackgroundChanged;
   // PK integration
   final List<RoomMember> micMembers;
@@ -77,7 +80,6 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
   bool _soundOn = true;
   bool _visualOn = true;
   bool _lockBusy = false;
-  DateTime? _lastSalute;
 
   static const _kSoundKey = 'room_pref_sound';
   static const _kVisualKey = 'room_pref_visual';
@@ -106,6 +108,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
     setState(() => _soundOn = next);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_kSoundKey, next);
+    widget.onSoundChanged?.call(next);
   }
 
   Future<void> _toggleVisual() async {
@@ -114,6 +117,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
     setState(() => _visualOn = next);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_kVisualKey, next);
+    widget.onVisualChanged?.call(next);
   }
 
   String _t(String ar, String en) => context.isArabic ? ar : en;
@@ -217,6 +221,19 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
     );
   }
 
+  void _openRedEnvelope() {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _RedEnvelopeCreateSheet(
+        roomId: widget.room.id,
+        isArabic: context.isArabic,
+      ),
+    );
+  }
+
   void _openMusic() {
     HapticFeedback.lightImpact();
     Navigator.of(context).pop();
@@ -262,25 +279,6 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
         ],
       ),
     );
-  }
-
-  void _handleSalute() {
-    final now = DateTime.now();
-    if (_lastSalute != null &&
-        now.difference(_lastSalute!) < const Duration(seconds: 30)) {
-      final remaining =
-          30 - now.difference(_lastSalute!).inSeconds;
-      _snack(
-        _t('يمكنك الترحيب مرة أخرى بعد $remaining ثانية',
-            'You can salute again in $remaining seconds.'),
-        isError: true,
-      );
-      return;
-    }
-    setState(() => _lastSalute = now);
-    HapticFeedback.mediumImpact();
-    Navigator.of(context).pop();
-    widget.onSalute();
   }
 
   void _openTeamPk() {
@@ -426,17 +424,11 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                           disabled: !_canManage,
                         ),
                         _ToolDef(
-                          icon: Icons.military_tech_rounded,
-                          labelAr: 'تحية',
-                          labelEn: 'Salute',
-                          onTap: _handleSalute,
-                        ),
-                        _ToolDef(
                           icon: Icons.redeem_rounded,
                           labelAr: 'مظروف',
                           labelEn: 'Red',
-                          onTap: () =>
-                              _showComingSoon('مظروف أحمر', 'Red Envelope'),
+                          accent: const Color(0xFFE63946),
+                          onTap: _openRedEnvelope,
                         ),
                         _ToolDef(
                           icon: Icons.sports_esports_rounded,
@@ -1402,6 +1394,216 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
           const SizedBox(height: 4),
         ],
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Red Envelope create sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _RedEnvelopeCreateSheet extends StatefulWidget {
+  const _RedEnvelopeCreateSheet({required this.roomId, required this.isArabic});
+  final String roomId;
+  final bool isArabic;
+
+  @override
+  State<_RedEnvelopeCreateSheet> createState() =>
+      _RedEnvelopeCreateSheetState();
+}
+
+class _RedEnvelopeCreateSheetState extends State<_RedEnvelopeCreateSheet> {
+  final _coinsCtrl = TextEditingController(text: '100');
+  final _countCtrl = TextEditingController(text: '5');
+  bool _loading = false;
+  String? _error;
+
+  String _t(String ar, String en) => widget.isArabic ? ar : en;
+
+  @override
+  void dispose() {
+    _coinsCtrl.dispose();
+    _countCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _send() async {
+    final coins = int.tryParse(_coinsCtrl.text.trim()) ?? 0;
+    final count = int.tryParse(_countCtrl.text.trim()) ?? 0;
+    if (coins < 10) {
+      setState(() => _error = _t('أقل قيمة ١٠ عملات', 'Minimum 10 coins'));
+      return;
+    }
+    if (count < 1) {
+      setState(() => _error = _t('يجب أن يكون هناك مظروف واحد على الأقل', 'At least 1 envelope'));
+      return;
+    }
+    if (count > coins) {
+      setState(() => _error = _t('عدد المظاريف أكبر من العملات', 'Count exceeds coins'));
+      return;
+    }
+    setState(() { _loading = true; _error = null; });
+    try {
+      await Supabase.instance.client.rpc('create_red_envelope', params: {
+        'p_room_id': widget.roomId,
+        'p_total_coins': coins,
+        'p_count': count,
+      });
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e.toString();
+      String friendly;
+      if (msg.contains('insufficient_balance')) {
+        friendly = _t('رصيدك غير كافٍ', 'Insufficient balance');
+      } else if (msg.contains('min_coins_10')) {
+        friendly = _t('أقل قيمة ١٠ عملات', 'Minimum 10 coins');
+      } else {
+        friendly = _t('حدث خطأ، حاول مرة أخرى', 'An error occurred, try again');
+      }
+      setState(() { _error = friendly; _loading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    return Directionality(
+      textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+      child: Container(
+        padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomInset),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF2D0A0A), Color(0xFF1A0D2E)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _Handle(),
+            const SizedBox(height: 8),
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFFE63946).withValues(alpha: 0.15),
+                border: Border.all(color: const Color(0xFFE63946).withValues(alpha: 0.5)),
+              ),
+              child: const Icon(Icons.redeem_rounded, color: Color(0xFFFF6B6B), size: 28),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _t('إرسال مظروف أحمر', 'Send Red Envelope'),
+              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _t('سيحصل كل عضو في الغرفة على نصيبه', 'Room members will race to claim their share'),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
+            ),
+            const SizedBox(height: 20),
+            _EnvelopeField(
+              controller: _coinsCtrl,
+              label: _t('إجمالي العملات', 'Total Coins'),
+              hint: '100',
+              icon: Icons.monetization_on_rounded,
+              accentColor: const Color(0xFFF0C15A),
+            ),
+            const SizedBox(height: 12),
+            _EnvelopeField(
+              controller: _countCtrl,
+              label: _t('عدد المظاريف', 'Number of Envelopes'),
+              hint: '5',
+              icon: Icons.inbox_rounded,
+              accentColor: const Color(0xFFFF6B6B),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                _error!,
+                style: const TextStyle(color: Color(0xFFFF6B6B), fontSize: 12),
+              ),
+            ],
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFE63946),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                onPressed: _loading ? null : _send,
+                child: _loading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : Text(
+                        _t('إرسال', 'Send'),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EnvelopeField extends StatelessWidget {
+  const _EnvelopeField({
+    required this.controller,
+    required this.label,
+    required this.hint,
+    required this.icon,
+    required this.accentColor,
+  });
+  final TextEditingController controller;
+  final String label;
+  final String hint;
+  final IconData icon;
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+            prefixIcon: Icon(icon, color: accentColor, size: 20),
+            filled: true,
+            fillColor: Colors.white.withValues(alpha: 0.06),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: accentColor.withValues(alpha: 0.3)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: accentColor, width: 1.5),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

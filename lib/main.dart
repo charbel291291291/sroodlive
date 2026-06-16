@@ -6,6 +6,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 import 'core/config/supabase_config.dart';
+import 'features/vip/services/vip_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/admin/screens/admin_dashboard_screen.dart';
 import 'features/splash/splash_screen.dart';
@@ -30,6 +31,7 @@ Future<void> main() async {
       url: SupabaseConfig.url,
       anonKey: SupabaseConfig.anonKey,
     );
+    VipService().init();
   }
 
   runApp(const SrOOdLiveApp());

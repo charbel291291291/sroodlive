@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/utils/vip_visuals.dart';
+
 enum VipLevel {
   none(0),
   vip1(1),
@@ -123,18 +125,10 @@ class VipVisualStyle {
   const VipVisualStyle._();
 
   static Color nameColor(int level, BuildContext context) {
-    return switch (level) {
-      1 => const Color(0xFFFFD978),
-      2 => const Color(0xFFFFB0A6),
-      3 => const Color(0xFFE4B5FF),
-      4 => const Color(0xFF9BE8FF),
-      5 => const Color(0xFFFFD15C),
-      6 => const Color(0xFF5DDCFF),
-      7 => const Color(0xFFC875FF),
-      8 => const Color(0xFFFFB44C),
-      9 => const Color(0xFF75FFE8),
-      _ => DefaultTextStyle.of(context).style.color ?? Colors.white,
-    };
+    // Delegate to the same source used by VipUsername so seat names
+    // always match the profile card color/gradient.
+    final style = getVipVisualStyle(level);
+    return style?.nameColor ?? (DefaultTextStyle.of(context).style.color ?? Colors.white);
   }
 
   static List<Color> gradient(int level) {

@@ -116,6 +116,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   RoomMember? _latestVipEntryMember;
   _ActiveLuxuryGiftVideo? _activeLuxuryGiftVideo;
   Timer? _luxuryGiftVideoTimer;
+  bool _soundEnabled = true;
+  bool _visualEnabled = true;
+  Map<String, dynamic>? _activeRedEnvelope;
+  bool _claimingEnvelope = false;
   // _loadingGifts removed Ã¢â‚¬â€ gift loading state is not displayed in the overlay
   bool _isSendingGift = false;
   RoomMember? _selectedMicMoveMember;
@@ -131,6 +135,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   final Map<int, RoomReaction> _seatReactions = {};
   final Map<int, Timer> _reactionTimers = {};
   RealtimeChannel? _reactionsChannel;
+  RealtimeChannel? _redEnvelopesChannel;
 
 
   static const Duration _giftVisibleDuration = Duration(minutes: 1);
@@ -274,6 +279,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     unawaited(_loadActivePk());
     _subscribeToPk();
     _subscribeToReactions();
+    _subscribeToRedEnvelopes();
   }
 
   // When the host changes music locally (via MusicPanel), push the new state
@@ -410,6 +416,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     _reactionTimers.clear();
     final rc = _reactionsChannel;
     if (rc != null) unawaited(SupabaseService.requiredClient.removeChannel(rc));
+    final rec = _redEnvelopesChannel;
+    if (rec != null) unawaited(SupabaseService.requiredClient.removeChannel(rec));
     WidgetsBinding.instance.removeObserver(this);
     unawaited(VoiceRoomForegroundService.stop());
     super.dispose();
@@ -441,6 +449,100 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
 
   // -- Emoji reaction channel (Supabase Broadcast) --
+  void _subscribeToRedEnvelopes() {
+    _redEnvelopesChannel = SupabaseService.requiredClient
+        .channel('red_envelopes_${widget.room.id}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'red_envelopes',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'room_id',
+            value: widget.room.id,
+          ),
+          callback: (payload) {
+            if (!mounted) return;
+            final row = payload.newRecord;
+            if (row.isEmpty) return;
+            if (row['is_expired'] == true) return;
+            setState(() => _activeRedEnvelope = row);
+          },
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'red_envelopes',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'room_id',
+            value: widget.room.id,
+          ),
+          callback: (payload) {
+            if (!mounted) return;
+            final row = payload.newRecord;
+            if (row['id'] != _activeRedEnvelope?['id']) return;
+            final isExpired = row['is_expired'] == true;
+            final claimed = (row['claimed_count'] as int? ?? 0);
+            final total = (row['envelope_count'] as int? ?? 1);
+            if (isExpired || claimed >= total) {
+              setState(() => _activeRedEnvelope = null);
+            } else {
+              setState(() => _activeRedEnvelope = row);
+            }
+          },
+        )
+        .subscribe();
+  }
+
+  Future<void> _claimRedEnvelope() async {
+    final envelope = _activeRedEnvelope;
+    if (envelope == null || _claimingEnvelope) return;
+    final envelopeId = envelope['id'] as String?;
+    if (envelopeId == null) return;
+    setState(() => _claimingEnvelope = true);
+    try {
+      final coins = await SupabaseService.requiredClient
+          .rpc('claim_red_envelope', params: {'p_envelope_id': envelopeId}) as int;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+          context.isArabic ? 'حصلت على $coins عملة!' : 'You got $coins coins!',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        ),
+        backgroundColor: const Color(0xFFD4380D),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+        duration: const Duration(seconds: 3),
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e.toString();
+      String friendly;
+      if (msg.contains('already_claimed')) {
+        friendly = context.isArabic ? 'لقد استلمت هذا المظروف' : 'Already claimed';
+      } else if (msg.contains('envelope_full')) {
+        friendly = context.isArabic ? 'انتهت المظاريف' : 'All envelopes claimed';
+        setState(() => _activeRedEnvelope = null);
+      } else if (msg.contains('envelope_expired')) {
+        friendly = context.isArabic ? 'انتهت صلاحية المظروف' : 'Envelope expired';
+        setState(() => _activeRedEnvelope = null);
+      } else {
+        friendly = context.isArabic ? 'حدث خطأ' : 'An error occurred';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(friendly, style: const TextStyle(color: Colors.white)),
+        backgroundColor: const Color(0xFF2A0F1A),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+      ));
+    } finally {
+      if (mounted) setState(() => _claimingEnvelope = false);
+    }
+  }
+
   void _subscribeToReactions() {
     _reactionsChannel = SupabaseService.requiredClient
         .channel('room_reactions_${widget.room.id}')
@@ -622,7 +724,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
               final receiverId = record['receiver_id'] as String? ?? '';
 
               final config = _LuxuryGiftVideoConfig.fromCode(giftCode);
-              if (config != null && _activeLuxuryGiftVideo == null) {
+              if (config != null && _activeLuxuryGiftVideo == null && _visualEnabled) {
                 String receiverLabel = '';
                 for (final m in _members) {
                   if (m.userId == receiverId) {
@@ -986,6 +1088,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     });
   }
 
+  // ignore: unused_element
   void _sendSalute() {
     if (_currentUserId == null) return;
     final senderName = _members
@@ -1071,7 +1174,6 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         isLocked: _roomLocked,
         onToggleLock: _toggleRoomLock,
         onClearChat: _clearChat,
-        onSalute: _sendSalute,
         onMaxSeatsChanged: (seats) {
           setState(() => _currentMaxSeats = seats);
         },
@@ -1085,6 +1187,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         onPkStarted: () => unawaited(_loadActivePk()),
         onPkCancelRequested: _handlePkCancelRequested,
         onMusicTap: _openMusicPanel,
+        onSoundChanged: (v) => setState(() => _soundEnabled = v),
+        onVisualChanged: (v) => setState(() => _visualEnabled = v),
       ),
     );
   }
@@ -2439,6 +2543,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   }
 
   void _showLuxuryGiftFromTransaction(RoomGiftTransaction transaction) {
+    if (!_visualEnabled) return;
     final config = _LuxuryGiftVideoConfig.fromCode(transaction.giftCode);
 
     if (config == null) {
@@ -2827,6 +2932,21 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             _LuxuryGiftVideoOverlay(
               playback: _activeLuxuryGiftVideo!,
               onDone: _clearLuxuryGiftVideo,
+              soundEnabled: _soundEnabled,
+            ),
+
+          if (_activeRedEnvelope != null)
+            Positioned(
+              top: 80 + MediaQuery.of(context).padding.top,
+              left: 16,
+              right: 16,
+              child: _RedEnvelopeBanner(
+                envelope: _activeRedEnvelope!,
+                isArabic: context.isArabic,
+                loading: _claimingEnvelope,
+                onClaim: _claimRedEnvelope,
+                onDismiss: () => setState(() => _activeRedEnvelope = null),
+              ),
             ),
 
           // Ã¢â€â‚¬Ã¢â€â‚¬ 5. Music mini-player Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
@@ -5895,6 +6015,116 @@ class _ActiveLuxuryGiftVideo {
   final String assetPath;
 }
 
+class _RedEnvelopeBanner extends StatelessWidget {
+  const _RedEnvelopeBanner({
+    required this.envelope,
+    required this.isArabic,
+    required this.loading,
+    required this.onClaim,
+    required this.onDismiss,
+  });
+
+  final Map<String, dynamic> envelope;
+  final bool isArabic;
+  final bool loading;
+  final VoidCallback onClaim;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = envelope['total_coins'] as int? ?? 0;
+    final count = envelope['envelope_count'] as int? ?? 1;
+    final claimed = envelope['claimed_count'] as int? ?? 0;
+    final remaining = count - claimed;
+
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFAA1500), Color(0xFFE63946)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFE63946).withValues(alpha: 0.5),
+              blurRadius: 16,
+              spreadRadius: -2,
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            const Text('🧧', style: TextStyle(fontSize: 32)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isArabic ? 'مظروف أحمر! 🎉' : 'Red Envelope! 🎉',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 15,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isArabic
+                        ? '$total عملة • $remaining مظروف متبقٍ'
+                        : '$total coins • $remaining left',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            loading
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
+                  )
+                : ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFFE63946),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                    ),
+                    onPressed: onClaim,
+                    child: Text(
+                      isArabic ? 'افتح' : 'Claim',
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                  ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: onDismiss,
+              child: Icon(
+                Icons.close_rounded,
+                color: Colors.white.withValues(alpha: 0.7),
+                size: 18,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _LuxuryGiftVideoConfig {
   const _LuxuryGiftVideoConfig({required this.assetPath});
 
@@ -5921,10 +6151,15 @@ class _LuxuryGiftVideoConfig {
 }
 
 class _LuxuryGiftVideoOverlay extends StatefulWidget {
-  const _LuxuryGiftVideoOverlay({required this.playback, required this.onDone});
+  const _LuxuryGiftVideoOverlay({
+    required this.playback,
+    required this.onDone,
+    this.soundEnabled = true,
+  });
 
   final _ActiveLuxuryGiftVideo playback;
   final VoidCallback onDone;
+  final bool soundEnabled;
 
   @override
   State<_LuxuryGiftVideoOverlay> createState() =>
@@ -5940,7 +6175,7 @@ class _LuxuryGiftVideoOverlayState extends State<_LuxuryGiftVideoOverlay> {
     super.initState();
 
     _controller = VideoPlayerController.asset(widget.playback.assetPath)
-      ..setVolume(1)
+      ..setVolume(widget.soundEnabled ? 1.0 : 0.0)
       ..initialize().then((_) {
         if (!mounted) {
           return;
