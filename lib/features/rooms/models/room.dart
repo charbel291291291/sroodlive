@@ -49,7 +49,9 @@ class Room {
       isClosed: json['is_closed'] as bool? ?? false,
       roomPinEnabled: json['room_pin_enabled'] as bool? ?? false,
       isPersonalRoom: json['is_personal_room'] as bool? ?? false,
-      createdAt: DateTime.parse(json['created_at'].toString()),
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'].toString())
+          : DateTime.now(),
       coverUrl: json['cover_url']?.toString(),
       backgroundUrl: json['background_url']?.toString(),
       avatarUrl: json['room_avatar_url']?.toString(),
