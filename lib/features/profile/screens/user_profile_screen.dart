@@ -29,7 +29,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   String? _error;
   Map<String, dynamic>? _profile;
   bool _isFollowing = false;
+  bool _isFollowedBy = false; // target follows ME
   bool _followBusy = false;
+
+  bool get _isMutual => _isFollowing && _isFollowedBy;
 
   @override
   void initState() {
@@ -43,7 +46,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       _error = null;
     });
     try {
-      final [profileRaw, isFollowing] = await Future.wait<dynamic>([
+      final [profileRaw, isFollowing, isFollowedBy] = await Future.wait<dynamic>([
         SupabaseService.requiredClient
             .from('profiles')
             .select(
@@ -52,6 +55,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             .eq('id', widget.userId)
             .maybeSingle(),
         _followService.isFollowing(widget.userId),
+        _followService.isFollowedBy(widget.userId),
       ]);
       if (!mounted) return;
       final profile = profileRaw as Map<String, dynamic>?;
@@ -59,7 +63,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       setState(() {
         _profile = profile ?? {
           'id': widget.userId,
-          'display_name': widget.isArabic ? '??????' : 'Unknown user',
+          'display_name': widget.isArabic ? 'مستخدم' : 'Unknown user',
           'username': '',
           'public_user_id': '',
           'bio': '',
@@ -71,6 +75,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           'visitors_count': 0,
         };
         _isFollowing = isFollowing as bool;
+        _isFollowedBy = isFollowedBy as bool;
         _loading = false;
       });
     } catch (e) {
@@ -91,6 +96,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       } else {
         await _followService.followUser(widget.userId);
       }
+      if (!mounted) return;
       setState(() {
         _isFollowing = !_isFollowing;
         final p = _profile!;
@@ -357,22 +363,30 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 if (!isSelf) ...[
                   Row(
                     children: [
-                      // Follow/Unfollow
+                      // Follow/Unfollow (4 states)
                       Expanded(
                         child: _ActionButton(
-                          label: _isFollowing
-                              ? (isArabic
-                                    ? 'ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â¹Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¥ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¾ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â¹Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂºÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â¹Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â¹Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â¹Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¾ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â¹Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂªÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â¹Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â¹Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â¹Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¹ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â¹Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©'
-                                    : 'Unfollow')
-                              : (isArabic
-                                    ? 'ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â¹Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂªÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â¹Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â¹Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â¹Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¹ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â¹Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©'
-                                    : 'Follow'),
-                          icon: _isFollowing
-                              ? Icons.person_remove_rounded
-                              : Icons.person_add_rounded,
-                          color: _isFollowing
-                              ? const Color(0xFF4A3470)
-                              : const Color(0xFF8B26D9),
+                          label: _isMutual
+                              ? (isArabic ? 'أصدقاء' : 'Friends')
+                              : (!_isFollowing && _isFollowedBy)
+                                  ? (isArabic ? 'تابع أيضاً' : 'Follow back')
+                                  : _isFollowing
+                                      ? (isArabic ? 'إلغاء المتابعة' : 'Unfollow')
+                                      : (isArabic ? 'متابعة' : 'Follow'),
+                          icon: _isMutual
+                              ? Icons.people_rounded
+                              : (!_isFollowing && _isFollowedBy)
+                                  ? Icons.person_add_rounded
+                                  : _isFollowing
+                                      ? Icons.person_remove_rounded
+                                      : Icons.person_add_rounded,
+                          color: _isMutual
+                              ? const Color(0xFFD4AF37)
+                              : (!_isFollowing && _isFollowedBy)
+                                  ? const Color(0xFF8B26D9)
+                                  : _isFollowing
+                                      ? const Color(0xFF4A3470)
+                                      : const Color(0xFF8B26D9),
                           loading: _followBusy,
                           onTap: _toggleFollow,
                         ),

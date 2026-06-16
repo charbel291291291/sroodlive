@@ -111,7 +111,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       return;
     }
 
-    setState(() => _isMutualFriend = true);
+    if (mounted) setState(() => _isMutualFriend = true);
 
     // Mutual friends — open or load the conversation.
     String? cid;
@@ -151,10 +151,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   String _pickName(Map<String, dynamic> p) {
-    final dn = p['display_name']?.toString().trim() ?? '';
-    if (dn.isNotEmpty) return dn;
-    final un = p['username']?.toString().trim() ?? '';
-    if (un.isNotEmpty) return un;
+    for (final key in ['display_name', 'nickname', 'full_name', 'username']) {
+      final v = p[key]?.toString().trim() ?? '';
+      if (v.isNotEmpty) return v;
+    }
     return '';
   }
 

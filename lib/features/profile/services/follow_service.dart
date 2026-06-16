@@ -71,6 +71,24 @@ class FollowService {
         .eq('following_id', targetUserId);
   }
 
+  /// Returns true if [targetUserId] follows the current user (they follow ME).
+  Future<bool> isFollowedBy(String targetUserId) async {
+    final client = SupabaseService.requiredClient;
+    final user = client.auth.currentUser;
+    if (user == null || user.id == targetUserId) return false;
+    try {
+      final data = await client
+          .from('user_follows')
+          .select('following_id')
+          .eq('follower_id', targetUserId)
+          .eq('following_id', user.id)
+          .maybeSingle();
+      return data != null;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Returns true only when BOTH users follow each other (mutual / friends).
   Future<bool> isMutualFollow(String targetUserId) async {
     final client = SupabaseService.requiredClient;
