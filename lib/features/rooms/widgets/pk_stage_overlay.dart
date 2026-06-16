@@ -514,6 +514,25 @@ Color? pkSeatTeamColor(String userId, PkSession? session) {
   return pkTeamColor(member.team);
 }
 
+/// Returns the team code ('a' or 'b') for [userId] in [session],
+/// or null if PK is not active or user is not assigned.
+String? pkSeatTeam(String userId, PkSession? session) {
+  if (session == null || !session.isActive) return null;
+  return session.members
+      .where((m) => m.userId == userId)
+      .firstOrNull
+      ?.team;
+}
+
+/// Returns the per-member PK score for [userId] in [session], or null.
+int? pkMemberScore(String userId, PkSession? session) {
+  if (session == null) return null;
+  return session.members
+      .where((m) => m.userId == userId)
+      .firstOrNull
+      ?.pkScore;
+}
+
 // Spinner widget used in PK loading states.
 class PkSpinner extends StatelessWidget {
   const PkSpinner({super.key});

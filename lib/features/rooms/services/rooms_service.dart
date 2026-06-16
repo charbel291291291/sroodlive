@@ -1,3 +1,7 @@
+
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../../core/supabase/supabase_service.dart';
 import '../../../shared/services/restrictions_service.dart';
 import '../models/room.dart';
@@ -475,4 +479,93 @@ class RoomsService {
       await SupabaseService.requiredClient.rpc('close_empty_rooms');
     } catch (_) {}
   }
+
+  // ── Room appearance (cover + avatar images) ─────────────────────────────
+
+  /// Picks an image from the gallery and uploads it to [bucket].
+  /// Returns the public URL on success, throws on failure.
+  Future<String> pickAndUploadRoomImage({
+    required String roomId,
+    required String bucket,
+  }) async {
+    final client = SupabaseService.requiredClient;
+    final user = client.auth.currentUser;
+    if (user == null) throw StateError('No logged-in user.');
+
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 82,
+      maxWidth: 1280,
+      maxHeight: 1280,
+    );
+    if (picked == null) throw const RoomImagePickerCancelled();
+
+    final bytes = await picked.readAsBytes();
+    final ext = picked.path.split('.').last.toLowerCase();
+    final mimeType = switch (ext) {
+      'png'  => 'image/png',
+      'webp' => 'image/webp',
+      _      => 'image/jpeg',
+    };
+
+    final path = '$roomId/${DateTime.now().millisecondsSinceEpoch}.$ext';
+
+    await client.storage.from(bucket).uploadBinary(
+      path,
+      bytes,
+      fileOptions: FileOptions(contentType: mimeType, upsert: true),
+    );
+
+    return client.storage.from(bucket).getPublicUrl(path);
+  }
+
+  /// Saves cover_url and/or room_avatar_url for the given room.
+  /// Only the room owner can call this (Supabase RLS on rooms table enforces it).
+  Future<void> updateRoomAppearance({
+    required String roomId,
+    String? coverUrl,
+    String? avatarUrl,
+  }) async {
+    final client = SupabaseService.requiredClient;
+    final user = client.auth.currentUser;
+    if (user == null) throw StateError('No logged-in user.');
+
+    final updates = <String, dynamic>{};
+    if (coverUrl != null) updates['cover_url'] = coverUrl;
+    if (avatarUrl != null) updates['room_avatar_url'] = avatarUrl;
+    if (updates.isEmpty) return;
+
+    await client
+        .from('rooms')
+        .update(updates)
+        .eq('id', roomId)
+        .eq('owner_id', user.id);
+  }
+
+  /// Clears cover_url or room_avatar_url for the given room.
+  Future<void> clearRoomImage({
+    required String roomId,
+    required bool clearCover,
+    required bool clearAvatar,
+  }) async {
+    final client = SupabaseService.requiredClient;
+    final user = client.auth.currentUser;
+    if (user == null) throw StateError('No logged-in user.');
+
+    final updates = <String, dynamic>{};
+    if (clearCover) updates['cover_url'] = null;
+    if (clearAvatar) updates['room_avatar_url'] = null;
+    if (updates.isEmpty) return;
+
+    await client
+        .from('rooms')
+        .update(updates)
+        .eq('id', roomId)
+        .eq('owner_id', user.id);
+  }
+}
+
+class RoomImagePickerCancelled implements Exception {
+  const RoomImagePickerCancelled();
 }

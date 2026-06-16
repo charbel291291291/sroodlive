@@ -66,5 +66,12 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+        <key>NSCameraUsageDescription</key>
+        <string>Camera access is needed to scan music QR codes.</string>
+        <key>NSMicrophoneUsageDescription</key>
+        <string>Microphone access is required for live room audio features.</string>
+        <key>NSPhotoLibraryUsageDescription</key>
+        <string>File access is needed to upload music from your device.</string>
 </dict>
 </plist>
+

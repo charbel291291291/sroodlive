@@ -27,7 +27,7 @@ class PkMember {
         team: json['team'].toString(),
         displayName: json['display_name']?.toString(),
         avatarUrl: json['avatar_url']?.toString(),
-        pkScore: 0,
+        pkScore: (json['pk_score'] as num?)?.toInt() ?? 0,
       );
 
   PkMember copyWith({int? pkScore}) => PkMember(

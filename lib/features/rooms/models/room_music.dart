@@ -30,6 +30,15 @@ class RoomSong {
     return '$m:${s.toString().padLeft(2, '0')}';
   }
 
+  factory RoomSong.fromJson(Map<String, dynamic> j) => RoomSong(
+        id: j['id'].toString(),
+        title: j['title'] as String? ?? 'Unknown',
+        artist: j['artist'] as String? ?? '',
+        url: j['track_url'] as String? ?? '',
+        durationSeconds: j['duration_seconds'] as int?,
+        addedBy: j['uploaded_by'] as String?,
+      );
+
   RoomSong copyWith({
     String? addedBy,
     RoomSongSourceType? sourceType,

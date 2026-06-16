@@ -900,6 +900,8 @@ class _RoomCard extends StatelessWidget {
     final crossAxisAlignment = isArabic
         ? CrossAxisAlignment.end
         : CrossAxisAlignment.start;
+    final hasCover  = room.coverUrl?.isNotEmpty == true;
+    final hasAvatar = room.avatarUrl?.isNotEmpty == true;
 
     return Container(
       padding: const EdgeInsets.all(1.2),
@@ -922,129 +924,198 @@ class _RoomCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(27),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF201033), Color(0xFF171125), Color(0xFF12091D)],
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: crossAxisAlignment,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(27),
+        child: Stack(
           children: [
-            Row(
-              textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-              children: [
-                Container(
-                  width: 58,
-                  height: 58,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(22),
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF4A2A1D), Color(0xFF2E2238)],
-                    ),
-                    border: Border.all(
-                      color: const Color(0xFFF0C15A).withValues(alpha: 0.24),
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.mic_rounded,
-                    color: Color(0xFFF0C15A),
-                    size: 30,
+            // \u2500\u2500 Background layer \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+            if (hasCover)
+              Positioned.fill(
+                child: Image.network(
+                  room.coverUrl!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, e, s) => const _RoomCardDefaultBg(),
+                ),
+              )
+            else
+              const Positioned.fill(child: _RoomCardDefaultBg()),
+
+            // \u2500\u2500 Dark gradient overlay \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: hasCover
+                        ? [
+                            Colors.black.withValues(alpha: 0.38),
+                            Colors.black.withValues(alpha: 0.72),
+                          ]
+                        : [Colors.transparent, Colors.transparent],
                   ),
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: crossAxisAlignment,
-                    children: [
-                      Text(
-                        room.name,
-                        textAlign: textAlign,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 21,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        room.description?.isNotEmpty == true
-                            ? room.description!
-                            : (isArabic
-                                  ? '\u0628\u062f\u0648\u0646 \u0648\u0635\u0641'
-                                  : 'No description'),
-                        textAlign: textAlign,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFFD8CFEA),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ),
-            const SizedBox(height: 18),
-            Row(
-              textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Flexible(
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
+
+            // \u2500\u2500 Content \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+            Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: crossAxisAlignment,
+                children: [
+                  Row(
                     textDirection:
                         isArabic ? TextDirection.rtl : TextDirection.ltr,
                     children: [
-                      _RoomPill(
-                        icon: Icons.language_rounded,
-                        label: room.language.toUpperCase(),
-                      ),
-                      _RoomPill(
-                        icon: Icons.people_rounded,
-                        label: '$activeCount/${room.maxSeats}',
-                      ),
-                      if (room.isLocked)
-                        _RoomPill(
-                          icon: Icons.lock_rounded,
-                          label: isArabic ? '\u0645\u0642\u0641\u0644\u0629' : 'Locked',
+                      // Room avatar / icon
+                      Container(
+                        width: 58,
+                        height: 58,
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(22),
+                          gradient: hasAvatar
+                              ? null
+                              : const LinearGradient(
+                                  colors: [
+                                    Color(0xFF4A2A1D),
+                                    Color(0xFF2E2238),
+                                  ],
+                                ),
+                          border: Border.all(
+                            color: const Color(0xFFF0C15A)
+                                .withValues(alpha: 0.30),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.30),
+                              blurRadius: 8,
+                            ),
+                          ],
                         ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(999),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFF0C15A).withValues(alpha: 0.26),
-                        blurRadius: 18,
-                        offset: const Offset(0, 8),
+                        child: hasAvatar
+                            ? Image.network(
+                                room.avatarUrl!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, e, s) => const Icon(
+                                  Icons.mic_rounded,
+                                  color: Color(0xFFF0C15A),
+                                  size: 30,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.mic_rounded,
+                                color: Color(0xFFF0C15A),
+                                size: 30,
+                              ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: crossAxisAlignment,
+                          children: [
+                            Text(
+                              room.name,
+                              textAlign: textAlign,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 21,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.3,
+                                color: Colors.white,
+                                shadows: hasCover
+                                    ? [
+                                        const Shadow(
+                                          blurRadius: 6,
+                                          color: Colors.black54,
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              room.description?.isNotEmpty == true
+                                  ? room.description!
+                                  : (isArabic ? '\u0628\u062f\u0648\u0646 \u0648\u0635\u0641' : 'No description'),
+                              textAlign: textAlign,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: hasCover
+                                    ? Colors.white.withValues(alpha: 0.82)
+                                    : const Color(0xFFD8CFEA),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                  child: FilledButton.icon(
-                    onPressed: onJoin,
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    icon: const Icon(Icons.login_rounded, size: 16),
-                    label: Text(isArabic ? '\u062f\u062e\u0648\u0644' : 'Join'),
+                  const SizedBox(height: 18),
+                  Row(
+                    textDirection:
+                        isArabic ? TextDirection.rtl : TextDirection.ltr,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          textDirection:
+                              isArabic ? TextDirection.rtl : TextDirection.ltr,
+                          children: [
+                            _RoomPill(
+                              icon: Icons.language_rounded,
+                              label: room.language.toUpperCase(),
+                              hasCover: hasCover,
+                            ),
+                            _RoomPill(
+                              icon: Icons.people_rounded,
+                              label: '$activeCount/${room.maxSeats}',
+                              hasCover: hasCover,
+                            ),
+                            if (room.isLocked)
+                              _RoomPill(
+                                icon: Icons.lock_rounded,
+                                label: isArabic ? '\u0645\u0642\u0641\u0644\u0629' : 'Locked',
+                                hasCover: hasCover,
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(999),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFF0C15A)
+                                  .withValues(alpha: 0.26),
+                              blurRadius: 18,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: FilledButton.icon(
+                          onPressed: onJoin,
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 10),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          icon: const Icon(Icons.login_rounded, size: 16),
+                          label: Text(isArabic ? '\u062f\u062e\u0648\u0644' : 'Join'),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -1053,19 +1124,46 @@ class _RoomCard extends StatelessWidget {
   }
 }
 
+class _RoomCardDefaultBg extends StatelessWidget {
+  const _RoomCardDefaultBg();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF201033), Color(0xFF171125), Color(0xFF12091D)],
+        ),
+      ),
+    );
+  }
+}
+
 class _RoomPill extends StatelessWidget {
-  const _RoomPill({required this.icon, required this.label});
+  const _RoomPill({
+    required this.icon,
+    required this.label,
+    this.hasCover = false,
+  });
 
   final IconData icon;
   final String label;
+  final bool hasCover;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: const Color(0xFF241638),
+        color: hasCover
+            ? Colors.black.withValues(alpha: 0.42)
+            : const Color(0xFF241638),
         borderRadius: BorderRadius.circular(999),
+        border: hasCover
+            ? Border.all(color: Colors.white.withValues(alpha: 0.12))
+            : null,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1074,7 +1172,11 @@ class _RoomPill extends StatelessWidget {
           const SizedBox(width: 5),
           Text(
             label,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+              color: Colors.white,
+            ),
           ),
         ],
       ),

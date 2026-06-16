@@ -56,6 +56,12 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
   final _announcementCtrl = TextEditingController();
   bool _savingAnnouncement = false;
 
+  // Appearance
+  String? _roomCoverUrl;
+  String? _roomAvatarUrl;
+  bool _uploadingCover = false;
+  bool _uploadingAvatar = false;
+
   // Schedules
   List<Map<String, dynamic>> _schedules = [];
 
@@ -71,10 +77,12 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 5, vsync: this);
+    _tabs = TabController(length: 6, vsync: this);
     _isLocked = widget.room.isLocked;
     _nameCtrl.text = widget.room.name;
     _descCtrl.text = widget.room.description ?? '';
+    _roomCoverUrl = widget.room.coverUrl;
+    _roomAvatarUrl = widget.room.avatarUrl;
     _loadAll();
   }
 
@@ -528,6 +536,72 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
       );
   }
 
+  // ── Appearance actions ───────────────────────────────────────────────────
+
+  Future<void> _pickAndUploadCover() async {
+    if (_uploadingCover) return;
+    setState(() => _uploadingCover = true);
+    try {
+      final url = await _roomSvc.pickAndUploadRoomImage(
+        roomId: _roomId,
+        bucket: 'room_covers',
+      );
+      await _roomSvc.updateRoomAppearance(roomId: _roomId, coverUrl: url);
+      if (mounted) {
+        setState(() => _roomCoverUrl = url);
+        _snack(_t('تم تحديث غلاف الغرفة', 'Room cover updated'));
+      }
+    } on RoomImagePickerCancelled {
+      // user dismissed picker — no-op
+    } catch (e) {
+      if (mounted) {
+        _snack(
+          _t('تعذر رفع الصورة. حاول مرة أخرى', 'Could not upload image. Please try again.'),
+          error: true,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingCover = false);
+    }
+  }
+
+  Future<void> _pickAndUploadAvatar() async {
+    if (_uploadingAvatar) return;
+    setState(() => _uploadingAvatar = true);
+    try {
+      final url = await _roomSvc.pickAndUploadRoomImage(
+        roomId: _roomId,
+        bucket: 'room_avatars',
+      );
+      await _roomSvc.updateRoomAppearance(roomId: _roomId, avatarUrl: url);
+      if (mounted) {
+        setState(() => _roomAvatarUrl = url);
+        _snack(_t('تم تحديث أيقونة الغرفة', 'Room icon updated'));
+      }
+    } on RoomImagePickerCancelled {
+      // user dismissed picker — no-op
+    } catch (e) {
+      if (mounted) {
+        _snack(
+          _t('تعذر رفع الصورة. حاول مرة أخرى', 'Could not upload image. Please try again.'),
+          error: true,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingAvatar = false);
+    }
+  }
+
+  Future<void> _clearCover() async {
+    await _roomSvc.clearRoomImage(roomId: _roomId, clearCover: true, clearAvatar: false);
+    if (mounted) setState(() => _roomCoverUrl = null);
+  }
+
+  Future<void> _clearAvatar() async {
+    await _roomSvc.clearRoomImage(roomId: _roomId, clearCover: false, clearAvatar: true);
+    if (mounted) setState(() => _roomAvatarUrl = null);
+  }
+
   // ── Build ────────────────────────────────────────────────────────────────
 
   @override
@@ -538,6 +612,14 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
         backgroundColor: const Color(0xFF07030D),
         appBar: AppBar(
           backgroundColor: const Color(0xFF12061F),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                color: Color(0xFFBCAED6)),
+            onPressed: () => Navigator.of(context).pop(<String, String?>{
+              'cover_url': _roomCoverUrl,
+              'avatar_url': _roomAvatarUrl,
+            }),
+          ),
           title: Text(
             _t('إدارة الغرفة', 'Manage Room'),
             style: const TextStyle(
@@ -559,6 +641,7 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
               Tab(text: _t('المشرفون', 'Mods')),
               Tab(text: _t('الحظر', 'Bans')),
               Tab(text: _t('المحتوى', 'Content')),
+              Tab(text: _t('المظهر', 'Appearance')),
             ],
           ),
         ),
@@ -574,9 +657,10 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
                   _buildModsTab(),
                   _buildBansTab(),
                   _buildContentTab(),
+                  _buildAppearanceTab(),
                 ],
               ),
-      ),
+        ),
     );
   }
 
@@ -1403,6 +1487,47 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
     if (coins >= 1000) return '${(coins / 1000).toStringAsFixed(1)}K';
     return '$coins';
   }
+
+  // ── Tab: Appearance ──────────────────────────────────────────────────────
+
+  Widget _buildAppearanceTab() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _SectionHeader(label: _t('مظهر الغرفة', 'Room Appearance')),
+        const SizedBox(height: 14),
+
+        // ── Cover image ──────────────────────────────────────────────
+        _AppearanceImageCard(
+          isArabic: _isArabic,
+          titleAr: 'غلاف الغرفة',
+          titleEn: 'Room Cover',
+          subtitleAr: 'يظهر في قائمة الغرف كخلفية للبطاقة',
+          subtitleEn: 'Shown in the rooms list as the card background',
+          imageUrl: _roomCoverUrl,
+          aspectRatio: 16 / 9,
+          uploading: _uploadingCover,
+          onChangeTap: _pickAndUploadCover,
+          onRemoveTap: _roomCoverUrl != null ? _clearCover : null,
+        ),
+        const SizedBox(height: 16),
+
+        // ── Avatar / icon ────────────────────────────────────────────
+        _AppearanceImageCard(
+          isArabic: _isArabic,
+          titleAr: 'أيقونة الغرفة',
+          titleEn: 'Room Icon',
+          subtitleAr: 'تظهر داخل الغرفة في أعلى اليسار',
+          subtitleEn: 'Shown inside the room at the top-left',
+          imageUrl: _roomAvatarUrl,
+          aspectRatio: 1,
+          uploading: _uploadingAvatar,
+          onChangeTap: _pickAndUploadAvatar,
+          onRemoveTap: _roomAvatarUrl != null ? _clearAvatar : null,
+        ),
+      ],
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1715,6 +1840,170 @@ class _ComingSoonBanner extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Appearance image card
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _AppearanceImageCard extends StatelessWidget {
+  const _AppearanceImageCard({
+    required this.isArabic,
+    required this.titleAr,
+    required this.titleEn,
+    required this.subtitleAr,
+    required this.subtitleEn,
+    required this.aspectRatio,
+    required this.uploading,
+    required this.onChangeTap,
+    this.imageUrl,
+    this.onRemoveTap,
+  });
+
+  final bool isArabic;
+  final String titleAr;
+  final String titleEn;
+  final String subtitleAr;
+  final String subtitleEn;
+  final String? imageUrl;
+  final double aspectRatio;
+  final bool uploading;
+  final VoidCallback onChangeTap;
+  final VoidCallback? onRemoveTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final title    = isArabic ? titleAr    : titleEn;
+    final subtitle = isArabic ? subtitleAr : subtitleEn;
+    final hasImage = imageUrl?.isNotEmpty == true;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A0D33),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFF4A3470).withValues(alpha: 0.6),
+        ),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: Color(0xFFF0C15A),
+              fontWeight: FontWeight.w800,
+              fontSize: 15,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              color: Color(0xFF9E8AB8),
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Preview
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: AspectRatio(
+              aspectRatio: aspectRatio,
+              child: hasImage
+                  ? Image.network(
+                      imageUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, e, s) => _NoImagePlaceholder(
+                        aspectRatio: aspectRatio,
+                      ),
+                    )
+                  : _NoImagePlaceholder(aspectRatio: aspectRatio),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Buttons row
+          Row(
+            textDirection:
+                isArabic ? TextDirection.rtl : TextDirection.ltr,
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: uploading ? null : onChangeTap,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF6E14B8),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: uploading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.image_rounded, size: 18),
+                  label: Text(
+                    isArabic ? 'تغيير' : 'Change',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              if (onRemoveTap != null) ...[
+                const SizedBox(width: 10),
+                OutlinedButton.icon(
+                  onPressed: onRemoveTap,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFE63946),
+                    side: const BorderSide(color: Color(0xFF4A0010)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                  label: Text(
+                    isArabic ? 'إزالة' : 'Remove',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NoImagePlaceholder extends StatelessWidget {
+  const _NoImagePlaceholder({required this.aspectRatio});
+  final double aspectRatio;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFF0E0720),
+      child: Center(
+        child: Icon(
+          aspectRatio == 1
+              ? Icons.mic_rounded
+              : Icons.image_outlined,
+          size: 38,
+          color: const Color(0xFF4A3470),
+        ),
       ),
     );
   }

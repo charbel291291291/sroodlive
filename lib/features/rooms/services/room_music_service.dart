@@ -101,6 +101,34 @@ class RoomMusicService extends ChangeNotifier {
     }
   }
 
+  /// Load a song and seek to [seekTo] without starting playback.
+  /// Used by the sync service to restore paused state for late joiners.
+  Future<void> loadSongPaused(int index, {Duration seekTo = Duration.zero}) async {
+    if (index < 0 || index >= _playlist.length) return;
+    _currentIndex = index;
+    _error = null;
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await _player.stop();
+      final song = _playlist[index];
+      if (song.sourceType == RoomSongSourceType.localFile &&
+          song.localPath != null) {
+        await _player.setAudioSource(AudioSource.uri(Uri.file(song.localPath!)));
+      } else {
+        await _player.setUrl(song.url);
+      }
+      if (seekTo > Duration.zero) await _player.seek(seekTo);
+      // Do NOT call play() — this is load-only.
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> playPause() async {
     if (_isPlaying) {
       await _player.pause();

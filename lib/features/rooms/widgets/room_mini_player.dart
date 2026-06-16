@@ -13,12 +13,23 @@ class RoomMiniPlayer extends StatefulWidget {
     required this.musicService,
     required this.isArabic,
     required this.onTap,
+    this.onStop,
+    this.canManage = false,
     super.key,
   });
 
   final RoomMusicService musicService;
   final bool isArabic;
   final VoidCallback onTap;
+
+  /// Called when the stop button is pressed.
+  /// If null, falls back to [musicService.stop()] (local only).
+  /// Hosts should pass [_syncedMusic.stopForRoom] here.
+  final VoidCallback? onStop;
+
+  /// Whether this user can control music for everyone (host/owner).
+  /// Only affects the stop button tooltip; controls are always shown.
+  final bool canManage;
 
   @override
   State<RoomMiniPlayer> createState() => _RoomMiniPlayerState();
@@ -171,11 +182,15 @@ class _RoomMiniPlayerState extends State<RoomMiniPlayer>
                       ),
                       const SizedBox(width: 6),
 
-                      // Stop
+                      // Stop (host: stops for all; member: mutes locally)
                       GestureDetector(
                         onTap: () {
                           HapticFeedback.mediumImpact();
-                          svc.stop();
+                          if (widget.onStop != null) {
+                            widget.onStop!();
+                          } else {
+                            svc.stop();
+                          }
                         },
                         child: Container(
                           width: 30,

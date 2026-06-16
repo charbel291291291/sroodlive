@@ -13,6 +13,7 @@ class Room {
     this.language = 'ar',
     this.coverUrl,
     this.backgroundUrl,
+    this.avatarUrl,
   });
 
   final String id;
@@ -28,6 +29,7 @@ class Room {
   final DateTime createdAt;
   final String? coverUrl;
   final String? backgroundUrl;
+  final String? avatarUrl;
 
   factory Room.fromJson(Map<String, dynamic> json) {
     return Room(
@@ -44,6 +46,7 @@ class Room {
       createdAt: DateTime.parse(json['created_at'].toString()),
       coverUrl: json['cover_url']?.toString(),
       backgroundUrl: json['background_url']?.toString(),
+      avatarUrl: json['room_avatar_url']?.toString(),
     );
   }
 }
