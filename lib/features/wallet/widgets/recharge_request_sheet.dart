@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/coin_constants.dart';
 import '../models/recharge_package.dart';
 import '../models/recharge_request.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class RechargeRequestInput {
   const RechargeRequestInput({
@@ -89,7 +90,7 @@ class _RechargeRequestSheetState extends State<RechargeRequestSheet> {
 
     if (coins <= 0) {
       setState(() {
-        _error = widget.isArabic
+        _error = context.isArabic
             ? '\u0623\u062f\u062e\u0644 \u0639\u062f\u062f \u0639\u0645\u0644\u0627\u062a \u0635\u062d\u064a\u062d.'
             : 'Enter a valid coin amount.';
       });
@@ -98,7 +99,7 @@ class _RechargeRequestSheetState extends State<RechargeRequestSheet> {
 
     if (coins > CoinConstants.maximumRechargeCoins) {
       setState(() {
-        _error = widget.isArabic
+        _error = context.isArabic
             ? '\u0627\u0644\u0643\u0645\u064a\u0629 \u062a\u062a\u062c\u0627\u0648\u0632 \u0627\u0644\u062d\u062f \u0627\u0644\u0645\u0633\u0645\u0648\u062d.'
             : 'Amount exceeds the maximum per request.';
       });
@@ -125,7 +126,7 @@ class _RechargeRequestSheetState extends State<RechargeRequestSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
     final textDirection = isArabic ? TextDirection.rtl : TextDirection.ltr;
     final packages = widget.packages.isEmpty
         ? RechargePackage.fallbackPackages()

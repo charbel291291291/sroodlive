@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/srood_treasure_models.dart';
 import '../services/srood_treasure_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 // ── Design tokens (matches app palette) ──────────────────────────────────────
 const _kBg      = Color(0xFF080510);
@@ -42,7 +43,7 @@ class _SroodTreasureScreenState extends State<SroodTreasureScreen>
   late final AnimationController _glowCtrl;
   late final Animation<double> _glowAnim;
 
-  bool get _isArabic => widget.isArabic;
+  bool get _isArabic => context.isArabic;
 
   @override
   void initState() {

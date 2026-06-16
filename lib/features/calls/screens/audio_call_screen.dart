@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/supabase/supabase_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class AudioCallScreen extends StatefulWidget {
   const AudioCallScreen({
@@ -95,7 +96,7 @@ class _AudioCallScreenState extends State<AudioCallScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
 
     return Scaffold(
       backgroundColor: Colors.black,

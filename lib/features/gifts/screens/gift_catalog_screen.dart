@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/supabase/supabase_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class GiftCatalogScreen extends StatefulWidget {
   const GiftCatalogScreen({
@@ -164,7 +165,7 @@ class _GiftCatalogScreenState extends State<GiftCatalogScreen>
       builder: (_) => _SendGiftDialog(
         gift: gift,
         targetName: widget.targetName ?? '',
-        isArabic: widget.isArabic,
+        isArabic: context.isArabic,
         isSending: _sending2,
         onSend: (qty) => _sendGift(gift, qty),
       ),
@@ -194,7 +195,7 @@ class _GiftCatalogScreenState extends State<GiftCatalogScreen>
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(widget.isArabic ? 'تم إرسال الهدية!' : 'Gift sent!'),
+          content: Text(context.isArabic ? 'تم إرسال الهدية!' : 'Gift sent!'),
           backgroundColor: const Color(0xFF1A3A28),
         ),
       );
@@ -219,7 +220,7 @@ class _GiftCatalogScreenState extends State<GiftCatalogScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
 
     return Scaffold(
       backgroundColor: const Color(0xFF08060F),
@@ -459,7 +460,7 @@ class _SendGiftDialogState extends State<_SendGiftDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
     final totalCost = widget.gift.coinCost * _qty;
 
     return Dialog(

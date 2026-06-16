@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../../profile/screens/user_profile_screen.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class GiftHistoryScreen extends StatefulWidget {
   const GiftHistoryScreen({required this.isArabic, super.key});
@@ -141,7 +142,7 @@ class _GiftHistoryScreenState extends State<GiftHistoryScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
     return Scaffold(
       backgroundColor: const Color(0xFF08060F),
       body: Container(

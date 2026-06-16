@@ -8,6 +8,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../models/hungry_cat_models.dart';
 import '../services/hungry_cat_game_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 /// Hungry Cat — automatic betting wheel.
 ///
@@ -133,6 +134,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen> {
   // ── Init ─────────────────────────────────────────────────────────────────────
 
   Future<void> _initGame() async {
+    final isArabic = context.isArabic;
     try {
       final client = SupabaseService.requiredClient;
       final user = client.auth.currentUser;
@@ -157,7 +159,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen> {
       }
 
       _post('INIT_GAME', {
-        'isArabic': widget.isArabic,
+        'isArabic': isArabic,
         'balance': balance,
         'betChips': [100, 500, 1000, 2000, 5000],
         'foods': foods.map((f) => f.toBridgeJson()).toList(),
@@ -378,7 +380,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen> {
             ),
             const SizedBox(height: 14),
             Text(
-              widget.isArabic ? 'جاري تحميل اللعبة...' : 'Loading game...',
+              context.isArabic ? 'جاري تحميل اللعبة...' : 'Loading game...',
               style: const TextStyle(
                 color: Color(0xFFF0C15A),
                 fontSize: 15,
@@ -419,7 +421,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen> {
               const SizedBox(height: 10),
               Text(
                 _pageErrorMsg ??
-                    (widget.isArabic
+                    (context.isArabic
                         ? 'تعذر تحميل اللعبة.'
                         : 'Failed to load the game.'),
                 textAlign: TextAlign.center,
@@ -442,7 +444,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen> {
                     _controller.loadFlutterAsset(
                         'assets/games/hungry_cat/index.html');
                   },
-                  child: Text(widget.isArabic ? 'إعادة المحاولة' : 'Retry'),
+                  child: Text(context.isArabic ? 'إعادة المحاولة' : 'Retry'),
                 ),
               ),
             ],

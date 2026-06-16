@@ -8,6 +8,7 @@ import '../services/wallet_service.dart';
 import '../widgets/recharge_request_sheet.dart';
 import 'recharge_help_screen.dart';
 import 'withdrawal_screen.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({required this.isArabic, super.key});
@@ -76,7 +77,7 @@ class _WalletScreenState extends State<WalletScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (_) => RechargeRequestSheet(
-        isArabic: widget.isArabic,
+        isArabic: context.isArabic,
         packages: _rechargePackages,
       ),
     );
@@ -102,7 +103,7 @@ class _WalletScreenState extends State<WalletScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.isArabic
+            context.isArabic
                 ? '\u062a\u0645 \u0625\u0631\u0633\u0627\u0644 \u0637\u0644\u0628 \u0627\u0644\u0634\u062d\u0646'
                 : 'Recharge request submitted',
           ),
@@ -138,7 +139,7 @@ class _WalletScreenState extends State<WalletScreen> {
     Navigator.push(
       context,
       MaterialPageRoute<void>(
-        builder: (_) => RechargeHelpScreen(isArabic: widget.isArabic),
+        builder: (_) => RechargeHelpScreen(isArabic: context.isArabic),
       ),
     );
   }
@@ -147,14 +148,14 @@ class _WalletScreenState extends State<WalletScreen> {
     Navigator.push(
       context,
       MaterialPageRoute<void>(
-        builder: (_) => WithdrawalScreen(isArabic: widget.isArabic),
+        builder: (_) => WithdrawalScreen(isArabic: context.isArabic),
       ),
     ).then((_) => _loadWallet());
   }
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
     final mediaQuery = MediaQuery.of(context);
 
     // Scaffold provides the Material ancestor — without it, text renders

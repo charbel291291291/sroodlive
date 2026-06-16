@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/constants/coin_constants.dart';
 import '../../../core/supabase/supabase_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class WithdrawalScreen extends StatefulWidget {
   const WithdrawalScreen({required this.isArabic, super.key});
@@ -137,7 +138,7 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
     final dir = isArabic ? TextDirection.rtl : TextDirection.ltr;
     final crossAxis = isArabic
         ? CrossAxisAlignment.end

@@ -5,6 +5,7 @@ import '../../../core/supabase/supabase_service.dart';
 import '../../profile/screens/user_profile_screen.dart';
 import '../../rooms/models/room.dart';
 import '../../rooms/screens/room_details_screen.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class DiscoveryScreen extends StatefulWidget {
   const DiscoveryScreen({required this.isArabic, super.key});
@@ -110,7 +111,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
 
     return Scaffold(
       backgroundColor: const Color(0xFF08060F),

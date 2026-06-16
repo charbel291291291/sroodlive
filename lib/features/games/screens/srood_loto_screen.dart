@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../models/srood_loto_models.dart';
 import '../services/srood_loto_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens
@@ -65,7 +66,7 @@ class _SroodLotoScreenState extends State<SroodLotoScreen>
   String? _buyError;
   Map<String, dynamic>? _lastBuyResult;
 
-  bool get _isArabic => widget.isArabic;
+  bool get _isArabic => context.isArabic;
   String _t(String ar, String en) => _isArabic ? ar : en;
 
   @override

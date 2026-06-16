@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/checkin_status.dart';
 import '../services/gamification_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class CheckinScreen extends StatefulWidget {
   const CheckinScreen({required this.isArabic, super.key});
@@ -69,7 +70,7 @@ class _CheckinScreenState extends State<CheckinScreen> {
               ),
               const SizedBox(width: 8),
               Text(
-                widget.isArabic
+                context.isArabic
                     ? '\u062a\u0645 \u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062d\u0636\u0648\u0631! +$rewardAmount ${isDiamond ? '\u0645\u0627\u0633\u0629' : '\u0639\u0645\u0644\u0629'}'
                     : 'Checked in! +$rewardAmount ${isDiamond ? 'diamonds' : 'coins'}',
               ),
@@ -119,14 +120,14 @@ class _CheckinScreenState extends State<CheckinScreen> {
   Widget _buildHeader() => Padding(
     padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
     child: Row(
-      textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+      textDirection: context.isArabic ? TextDirection.rtl : TextDirection.ltr,
       children: [
         IconButton(
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
         ),
         Text(
-          widget.isArabic
+          context.isArabic
               ? '\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062d\u0636\u0648\u0631'
               : 'Daily Check-in',
           style: const TextStyle(
@@ -155,14 +156,14 @@ class _CheckinScreenState extends State<CheckinScreen> {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          _StreakCard(streak: s.streak, isArabic: widget.isArabic),
+          _StreakCard(streak: s.streak, isArabic: context.isArabic),
           const SizedBox(height: 20),
-          _RewardCalendar(status: s, isArabic: widget.isArabic),
+          _RewardCalendar(status: s, isArabic: context.isArabic),
           const SizedBox(height: 28),
           _CheckinButton(
             todayClaimed: s.todayClaimed,
             claiming: _claiming,
-            isArabic: widget.isArabic,
+            isArabic: context.isArabic,
             todayReward: s.todayReward,
             onCheckin: _checkin,
           ),
@@ -190,7 +191,7 @@ class _CheckinScreenState extends State<CheckinScreen> {
         TextButton(
           onPressed: _load,
           child: Text(
-            widget.isArabic
+            context.isArabic
                 ? '\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629'
                 : 'Retry',
             style: const TextStyle(color: Color(0xFFF0C15A)),

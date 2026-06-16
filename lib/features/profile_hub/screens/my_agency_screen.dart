@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/profile_hub_models.dart';
 import '../services/agency_service.dart';
 import '../widgets/profile_hub_widgets.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class MyAgencyScreen extends StatefulWidget {
   const MyAgencyScreen({required this.isArabic, super.key});
@@ -35,9 +36,9 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
 
   String _titleForType(String type) {
     return switch (type) {
-      'join_agency' => widget.isArabic ? 'انضم إلى وكالة' : 'Join Agency',
-      'create_agency' => widget.isArabic ? 'أنشئ وكالة' : 'Create Agency',
-      'become_host' => widget.isArabic ? 'كن مضيفا' : 'Become Host',
+      'join_agency' => context.isArabic ? 'انضم إلى وكالة' : 'Join Agency',
+      'create_agency' => context.isArabic ? 'أنشئ وكالة' : 'Create Agency',
+      'become_host' => context.isArabic ? 'كن مضيفا' : 'Become Host',
       _ => type,
     };
   }
@@ -45,36 +46,36 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
   String _subtitleForType(String type) {
     return switch (type) {
       'join_agency' =>
-        widget.isArabic
+        context.isArabic
             ? 'انضم إلى وكالة موجودة عبر دعوة أو موافقة.'
             : 'Join an existing agency by invitation or approval.',
       'create_agency' =>
-        widget.isArabic
+        context.isArabic
             ? 'ابدأ وكالتك الخاصة وأدر المضيفين.'
             : 'Start your own agency and manage hosts.',
       'become_host' =>
-        widget.isArabic
+        context.isArabic
             ? 'قدم لتصبح مضيف غرف صوتية وتربح من نشاطك.'
             : 'Apply to become a live room host and earn from activity.',
-      _ => widget.isArabic ? 'طلب وكالة' : 'Agency application',
+      _ => context.isArabic ? 'طلب وكالة' : 'Agency application',
     };
   }
 
   String _defaultMessageForType(String type) {
     return switch (type) {
       'join_agency' =>
-        widget.isArabic
+        context.isArabic
             ? 'أريد الانضمام إلى وكالة موجودة.'
             : 'I want to join an existing agency.',
       'create_agency' =>
-        widget.isArabic
+        context.isArabic
             ? 'أريد إنشاء وكالة جديدة وإدارة المضيفين.'
             : 'I want to create a new agency and manage hosts.',
       'become_host' =>
-        widget.isArabic
+        context.isArabic
             ? 'أريد أن أصبح مضيف غرف صوتية.'
             : 'I want to become a live room host.',
-      _ => widget.isArabic ? 'طلب وكالة' : 'Agency application',
+      _ => context.isArabic ? 'طلب وكالة' : 'Agency application',
     };
   }
 
@@ -100,13 +101,13 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: widget.isArabic
+                crossAxisAlignment: context.isArabic
                     ? CrossAxisAlignment.end
                     : CrossAxisAlignment.start,
                 children: [
                   Text(
                     _titleForType(type),
-                    textAlign: widget.isArabic
+                    textAlign: context.isArabic
                         ? TextAlign.right
                         : TextAlign.left,
                     style: const TextStyle(
@@ -117,7 +118,7 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
                   const SizedBox(height: 6),
                   Text(
                     _subtitleForType(type),
-                    textAlign: widget.isArabic
+                    textAlign: context.isArabic
                         ? TextAlign.right
                         : TextAlign.left,
                     style: const TextStyle(
@@ -130,21 +131,21 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
                   TextField(
                     controller: phoneController,
                     decoration: InputDecoration(
-                      labelText: widget.isArabic ? 'الهاتف' : 'Phone',
+                      labelText: context.isArabic ? 'الهاتف' : 'Phone',
                     ),
                   ),
                   const SizedBox(height: 10),
                   TextField(
                     controller: countryController,
                     decoration: InputDecoration(
-                      labelText: widget.isArabic ? 'الدولة' : 'Country',
+                      labelText: context.isArabic ? 'الدولة' : 'Country',
                     ),
                   ),
                   const SizedBox(height: 10),
                   TextField(
                     controller: experienceController,
                     decoration: InputDecoration(
-                      labelText: widget.isArabic ? 'الخبرة' : 'Experience',
+                      labelText: context.isArabic ? 'الخبرة' : 'Experience',
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -152,7 +153,7 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
                     controller: messageController,
                     maxLines: 4,
                     decoration: InputDecoration(
-                      labelText: widget.isArabic ? 'رسالتك' : 'Message',
+                      labelText: context.isArabic ? 'رسالتك' : 'Message',
                       hintText: _defaultMessageForType(type),
                     ),
                   ),
@@ -162,7 +163,7 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
                     child: FilledButton(
                       onPressed: () => Navigator.of(context).pop(true),
                       child: Text(
-                        widget.isArabic ? 'إرسال الطلب' : 'Submit application',
+                        context.isArabic ? 'إرسال الطلب' : 'Submit application',
                       ),
                     ),
                   ),
@@ -195,7 +196,7 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
 
     return ProfileHubScaffold(
       title: isArabic ? 'وكالتي' : 'My agency',

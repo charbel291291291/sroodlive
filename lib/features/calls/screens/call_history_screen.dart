@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/supabase/supabase_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class CallHistoryScreen extends StatefulWidget {
   const CallHistoryScreen({required this.isArabic, super.key});
@@ -109,7 +110,7 @@ class _CallHistoryScreenState extends State<CallHistoryScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
 
     return Scaffold(
       backgroundColor: const Color(0xFF08060F),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/supabase/supabase_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class BlockUserScreen extends StatefulWidget {
   const BlockUserScreen({required this.isArabic, super.key});
@@ -82,7 +83,7 @@ class _BlockUserScreenState extends State<BlockUserScreen> {
   Future<void> _unblock(_BlockedUser user) async {
     if (_unblockPending[user.id] == true) return;
 
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
     final confirmed = await _showConfirmDialog(user.displayName, isArabic);
     if (!confirmed) return;
 
@@ -152,7 +153,7 @@ class _BlockUserScreenState extends State<BlockUserScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
 
     return Scaffold(
       backgroundColor: const Color(0xFF08060F),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../shared/widgets/vip_badge.dart';
 import '../services/vip_privilege_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 // ---------------------------------------------------------------------------
 // VIP Settings Screen
@@ -28,7 +29,7 @@ class _VipSettingsScreenState extends State<VipSettingsScreen> {
   bool _saving = false;
   Map<VipPrivilege, bool> _settings = {};
 
-  String _t(String ar, String en) => widget.isArabic ? ar : en;
+  String _t(String ar, String en) => context.isArabic ? ar : en;
 
   @override
   void initState() {
@@ -99,7 +100,7 @@ class _VipSettingsScreenState extends State<VipSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
     return Directionality(
       textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(

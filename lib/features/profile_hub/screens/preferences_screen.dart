@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/supabase/supabase_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class PreferencesScreen extends StatefulWidget {
   const PreferencesScreen({required this.isArabic, super.key});
@@ -85,7 +86,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(widget.isArabic ? 'تم الحفظ' : 'Preferences saved'),
+          content: Text(context.isArabic ? 'تم الحفظ' : 'Preferences saved'),
           backgroundColor: const Color(0xFF1A3A28),
         ),
       );
@@ -95,7 +96,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
 
     return Scaffold(
       backgroundColor: const Color(0xFF08060F),

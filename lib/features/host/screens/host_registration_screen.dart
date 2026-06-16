@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/supabase/supabase_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class HostRegistrationScreen extends StatefulWidget {
   const HostRegistrationScreen({required this.isArabic, super.key});
@@ -87,7 +88,7 @@ class _HostRegistrationScreenState extends State<HostRegistrationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
     final dir = isArabic ? TextDirection.rtl : TextDirection.ltr;
     final crossAxis = isArabic
         ? CrossAxisAlignment.end

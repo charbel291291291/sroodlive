@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/charisma_models.dart';
 import '../services/charisma_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 const _kSurface = Color(0xFF110D25);
 const _kCard    = Color(0xFF160F2E);
@@ -41,7 +42,7 @@ class _CharismaAdminPanelState extends State<CharismaAdminPanel>
   DateTime _endsAt   = DateTime.now().toUtc().add(const Duration(hours: 25));
   int _rewardCoins   = 100000;
 
-  bool get _ar => widget.isArabic;
+  bool get _ar => context.isArabic;
 
   @override
   void initState() {

@@ -14,6 +14,7 @@ import '../../games/screens/srood_loto_admin_panel.dart';
 import '../../charisma/screens/charisma_admin_panel.dart';
 import 'owner_game_control_screen.dart';
 import 'vip_visual_preview_screen.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 enum _AdminModule {
   overview,
@@ -688,7 +689,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     // Unban (removing account_ban) is exclusive to O-Super Admin
     if (type == 'account_ban' && !isActive) {
       if (!_canUnban) {
-        _showSnack(widget.isArabic
+        _showSnack(context.isArabic
             ? 'فقط O-Super Admin يمكنه فك الحظر'
             : 'Only O-Super Admin can unban users');
         return;
@@ -714,7 +715,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       if (!mounted) return;
       final msg = error.toString();
       if (msg.contains('only_o_super_admin_can_unban')) {
-        _showSnack(widget.isArabic
+        _showSnack(context.isArabic
             ? 'فقط O-Super Admin يمكنه فك الحظر'
             : 'Only O-Super Admin can unban users');
       } else {
@@ -1819,7 +1820,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           height: panelHeight,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(14),
-            child: CharismaAdminPanel(isArabic: widget.isArabic),
+            child: CharismaAdminPanel(isArabic: context.isArabic),
           ),
         ),
       ],

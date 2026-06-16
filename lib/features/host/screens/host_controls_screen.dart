@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import '../../../core/supabase/supabase_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class HostControlsScreen extends StatefulWidget {
   const HostControlsScreen({
@@ -130,14 +131,14 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
       builder: (_) => AlertDialog(
         backgroundColor: const Color(0xFF160B24),
         title: Text(
-          widget.isArabic ? 'طرد المستخدم' : 'Kick user',
+          context.isArabic ? 'طرد المستخدم' : 'Kick user',
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w900,
           ),
         ),
         content: Text(
-          widget.isArabic
+          context.isArabic
               ? 'هل تريد طرد ${seat.displayName}؟'
               : 'Remove ${seat.displayName} from the room?',
           style: const TextStyle(color: Color(0xFFBCAED6)),
@@ -145,12 +146,12 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(widget.isArabic ? 'إلغاء' : 'Cancel'),
+            child: Text(context.isArabic ? 'إلغاء' : 'Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: Text(
-              widget.isArabic ? 'طرد' : 'Kick',
+              context.isArabic ? 'طرد' : 'Kick',
               style: const TextStyle(color: Color(0xFFFF4D6D)),
             ),
           ),
@@ -174,14 +175,14 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
       builder: (_) => AlertDialog(
         backgroundColor: const Color(0xFF160B24),
         title: Text(
-          widget.isArabic ? 'إنهاء الجلسة' : 'End session',
+          context.isArabic ? 'إنهاء الجلسة' : 'End session',
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w900,
           ),
         ),
         content: Text(
-          widget.isArabic
+          context.isArabic
               ? 'هل تريد إنهاء الجلسة؟'
               : 'Are you sure you want to end the session?',
           style: const TextStyle(color: Color(0xFFBCAED6)),
@@ -189,12 +190,12 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(widget.isArabic ? 'إلغاء' : 'Cancel'),
+            child: Text(context.isArabic ? 'إلغاء' : 'Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: Text(
-              widget.isArabic ? 'إنهاء' : 'End',
+              context.isArabic ? 'إنهاء' : 'End',
               style: const TextStyle(color: Color(0xFFFF4D6D)),
             ),
           ),
@@ -223,7 +224,7 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
 
     return Scaffold(
       backgroundColor: const Color(0xFF08060F),

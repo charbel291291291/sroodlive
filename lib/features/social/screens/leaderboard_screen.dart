@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../../profile/screens/user_profile_screen.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({required this.isArabic, super.key});
@@ -101,7 +102,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
     return Scaffold(
       backgroundColor: const Color(0xFF08060F),
       body: Container(

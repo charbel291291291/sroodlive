@@ -24,6 +24,7 @@ import '../services/settings_service.dart';
 import '../widgets/profile_hub_widgets.dart';
 import 'policy_screen.dart';
 import 'preferences_screen.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({required this.isArabic, super.key});
@@ -78,8 +79,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       MaterialPageRoute(
         builder: (_) => PolicyScreen(
           title: title,
-          body: policyBody(key, widget.isArabic),
-          isArabic: widget.isArabic,
+          body: policyBody(key, context.isArabic),
+          isArabic: context.isArabic,
         ),
       ),
     );
@@ -87,7 +88,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
 
     return ProfileHubScaffold(
       title: isArabic ? 'الإعدادات' : 'Settings',

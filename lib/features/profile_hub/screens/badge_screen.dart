@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/profile_hub_models.dart';
 import '../services/badge_service.dart';
 import '../widgets/profile_hub_widgets.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class BadgeScreen extends StatefulWidget {
   const BadgeScreen({required this.isArabic, super.key});
@@ -32,7 +33,7 @@ class _BadgeScreenState extends State<BadgeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
 
     return ProfileHubScaffold(
       title: isArabic ? 'الشارات' : 'Badge',

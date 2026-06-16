@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/supabase/supabase_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class AvailabilityScreen extends StatefulWidget {
   const AvailabilityScreen({required this.isArabic, super.key});
@@ -123,7 +124,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(widget.isArabic ? 'تم حفظ الجدول' : 'Schedule saved'),
+          content: Text(context.isArabic ? 'تم حفظ الجدول' : 'Schedule saved'),
           backgroundColor: const Color(0xFF123A2A),
         ),
       );
@@ -166,7 +167,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
 
     return Scaffold(
       backgroundColor: const Color(0xFF08060F),

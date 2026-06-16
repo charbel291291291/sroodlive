@@ -7,6 +7,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
 import '../services/crash_game_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 /// Rocket Crash — local WebView game with Flutter wallet bridge.
 ///
@@ -139,6 +140,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
   // ── Init ──────────────────────────────────────────────────────────────────
 
   Future<void> _initGame() async {
+    final isArabic = context.isArabic;
     final user = SupabaseService.requiredClient.auth.currentUser;
     if (user == null) {
       debugPrint('[RocketCrash] init: no authenticated user');
@@ -149,7 +151,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
       final balance = await _service.fetchBalance();
       _post('INIT_GAME', {
         'balance': balance,
-        'locale': widget.isArabic ? 'ar' : 'en',
+        'locale': isArabic ? 'ar' : 'en',
         'sound': true,
       });
     } catch (e) {
@@ -158,7 +160,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
       // but has a problem — JS will display 0 and prevent betting
       _post('INIT_GAME', {
         'balance': 0,
-        'locale': widget.isArabic ? 'ar' : 'en',
+        'locale': isArabic ? 'ar' : 'en',
         'sound': true,
         'error': 'wallet_error',
       });
@@ -386,7 +388,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
             ),
             const SizedBox(height: 14),
             Text(
-              widget.isArabic ? 'جاري تحميل اللعبة...' : 'Loading game...',
+              context.isArabic ? 'جاري تحميل اللعبة...' : 'Loading game...',
               style: const TextStyle(
                 color: Color(0xFF00D4FF),
                 fontSize: 15,
@@ -428,7 +430,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
               const SizedBox(height: 10),
               Text(
                 _pageErrorMsg ??
-                    (widget.isArabic
+                    (context.isArabic
                         ? 'تعذر تحميل اللعبة.'
                         : 'Failed to load the game.'),
                 textAlign: TextAlign.center,
@@ -458,7 +460,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
                     _controller
                         .loadFlutterAsset('assets/games/rocket_crash/index.html');
                   },
-                  child: Text(widget.isArabic ? 'إعادة المحاولة' : 'Retry'),
+                  child: Text(context.isArabic ? 'إعادة المحاولة' : 'Retry'),
                 ),
               ),
             ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/task_item.dart';
 import '../services/gamification_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({required this.isArabic, super.key});
@@ -68,7 +69,7 @@ class _TasksScreenState extends State<TasksScreen>
               ),
               const SizedBox(width: 8),
               Text(
-                widget.isArabic
+                context.isArabic
                     ? '\u062a\u0645 \u0627\u0633\u062a\u0644\u0627\u0645 ${_fmt(task.rewardAmount)} \u0639\u0645\u0644\u0629!'
                     : '${_fmt(task.rewardAmount)} coins claimed!',
               ),
@@ -127,14 +128,14 @@ class _TasksScreenState extends State<TasksScreen>
   Widget _buildHeader() => Padding(
     padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
     child: Row(
-      textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+      textDirection: context.isArabic ? TextDirection.rtl : TextDirection.ltr,
       children: [
         IconButton(
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
         ),
         Text(
-          widget.isArabic ? '\u0627\u0644\u0645\u0647\u0627\u0645' : 'Tasks',
+          context.isArabic ? '\u0627\u0644\u0645\u0647\u0627\u0645' : 'Tasks',
           style: const TextStyle(
             color: Colors.white,
             fontSize: 22,
@@ -165,9 +166,9 @@ class _TasksScreenState extends State<TasksScreen>
       labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
       dividerColor: Colors.transparent,
       tabs: [
-        Tab(text: widget.isArabic ? '\u064a\u0648\u0645\u064a\u0629' : 'Daily'),
+        Tab(text: context.isArabic ? '\u064a\u0648\u0645\u064a\u0629' : 'Daily'),
         Tab(
-          text: widget.isArabic
+          text: context.isArabic
               ? '\u0623\u0633\u0628\u0648\u0639\u064a\u0629'
               : 'Weekly',
         ),
@@ -194,13 +195,13 @@ class _TasksScreenState extends State<TasksScreen>
       children: [
         _TaskList(
           tasks: daily,
-          isArabic: widget.isArabic,
+          isArabic: context.isArabic,
           onClaim: _claim,
           onRefresh: _load,
         ),
         _TaskList(
           tasks: weekly,
-          isArabic: widget.isArabic,
+          isArabic: context.isArabic,
           onClaim: _claim,
           onRefresh: _load,
         ),
@@ -227,7 +228,7 @@ class _TasksScreenState extends State<TasksScreen>
         TextButton(
           onPressed: _load,
           child: Text(
-            widget.isArabic
+            context.isArabic
                 ? '\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629'
                 : 'Retry',
             style: const TextStyle(color: Color(0xFFF0C15A)),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/profile_hub_models.dart';
 import '../services/support_service.dart';
 import '../widgets/profile_hub_widgets.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class CustomerServiceScreen extends StatefulWidget {
   const CustomerServiceScreen({required this.isArabic, super.key});
@@ -82,7 +83,7 @@ class _CustomerServiceScreenState extends State<CustomerServiceScreen> {
     final subjectController = TextEditingController(text: title);
     final messageController = TextEditingController();
     final referenceController = TextEditingController();
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
 
     final submitted = await showModalBottomSheet<bool>(
       context: context,
@@ -165,7 +166,7 @@ class _CustomerServiceScreenState extends State<CustomerServiceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
 
     return ProfileHubScaffold(
       title: isArabic ? 'خدمة العملاء' : 'Customer Service',

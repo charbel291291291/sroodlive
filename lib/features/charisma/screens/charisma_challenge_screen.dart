@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../models/charisma_models.dart';
 import '../services/charisma_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const _kBg      = Color(0xFF080510);
@@ -44,7 +45,7 @@ class _CharismaChallengeScreenState extends State<CharismaChallengeScreen> {
   bool _actionLoading = false;
   Timer? _ticker;
 
-  bool get _ar => widget.isArabic;
+  bool get _ar => context.isArabic;
 
   @override
   void initState() {

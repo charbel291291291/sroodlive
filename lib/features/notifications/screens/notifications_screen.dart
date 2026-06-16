@@ -4,6 +4,7 @@ import '../../profile/screens/user_profile_screen.dart';
 import '../../gifts/screens/gift_history_screen.dart';
 import '../../rooms/models/room.dart';
 import '../../rooms/screens/room_details_screen.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({required this.isArabic, super.key});
@@ -144,7 +145,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             MaterialPageRoute<void>(
               builder: (_) => UserProfileScreen(
                 userId: n.actorId!,
-                isArabic: widget.isArabic,
+                isArabic: context.isArabic,
               ),
             ),
           );
@@ -152,7 +153,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'gift':
         Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (_) => GiftHistoryScreen(isArabic: widget.isArabic),
+            builder: (_) => GiftHistoryScreen(isArabic: context.isArabic),
           ),
         );
       case 'room':
@@ -176,7 +177,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         MaterialPageRoute<void>(
           builder: (_) => RoomDetailsScreen(
             room: Room.fromJson(row),
-            isArabic: widget.isArabic,
+            isArabic: context.isArabic,
           ),
         ),
       );
@@ -211,7 +212,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
     final unreadCount = _notifications.where((n) => !n.isRead).length;
 
     return Scaffold(

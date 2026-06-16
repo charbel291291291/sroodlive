@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../../profile/screens/user_profile_screen.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class AgencyManagementScreen extends StatefulWidget {
   const AgencyManagementScreen({required this.isArabic, super.key});
@@ -213,7 +214,7 @@ class _AgencyManagementScreenState extends State<AgencyManagementScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
 
     return Scaffold(
       backgroundColor: const Color(0xFF08060F),

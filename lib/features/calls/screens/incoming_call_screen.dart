@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'audio_call_screen.dart';
 import 'video_call_screen.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class IncomingCallScreen extends StatefulWidget {
   const IncomingCallScreen({
@@ -74,14 +75,14 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
                 peerName: widget.callerName,
                 peerAvatarUrl: widget.callerAvatarUrl,
                 isOutgoing: false,
-                isArabic: widget.isArabic,
+                isArabic: context.isArabic,
               )
             : AudioCallScreen(
                 callId: widget.callId,
                 peerName: widget.callerName,
                 peerAvatarUrl: widget.callerAvatarUrl,
                 isOutgoing: false,
-                isArabic: widget.isArabic,
+                isArabic: context.isArabic,
               ),
       ),
     );
@@ -94,7 +95,7 @@ class _IncomingCallScreenState extends State<IncomingCallScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
 
     return Scaffold(
       backgroundColor: Colors.black,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/profile_hub_models.dart';
 import '../services/income_service.dart';
 import '../widgets/profile_hub_widgets.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class MyIncomeScreen extends StatefulWidget {
   const MyIncomeScreen({required this.isArabic, super.key});
@@ -37,7 +38,7 @@ class _MyIncomeScreenState extends State<MyIncomeScreen> {
     final amountController = TextEditingController();
     final detailsController = TextEditingController();
     var method = 'OMT';
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
 
     final submitted = await showModalBottomSheet<bool>(
       context: context,
@@ -136,7 +137,7 @@ class _MyIncomeScreenState extends State<MyIncomeScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                widget.isArabic
+                context.isArabic
                     ? 'فشل طلب السحب: $e'
                     : 'Payout request failed: $e',
               ),
@@ -149,7 +150,7 @@ class _MyIncomeScreenState extends State<MyIncomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
 
     return ProfileHubScaffold(
       title: isArabic ? 'دخلي' : 'My income',

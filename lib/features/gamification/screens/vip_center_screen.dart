@@ -4,6 +4,7 @@ import '../../../core/utils/vip_visuals.dart';
 import '../../../shared/widgets/vip_framed_avatar.dart';
 import '../../vip/screens/vip_settings_screen.dart';
 import '../services/gamification_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class VipCenterScreen extends StatefulWidget {
   const VipCenterScreen({
@@ -81,14 +82,14 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
   Widget _buildHeader() => Padding(
     padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
     child: Row(
-      textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+      textDirection: context.isArabic ? TextDirection.rtl : TextDirection.ltr,
       children: [
         IconButton(
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
         ),
         Text(
-          widget.isArabic ? 'مركز VIP' : 'VIP Center',
+          context.isArabic ? 'مركز VIP' : 'VIP Center',
           style: const TextStyle(
             color: Colors.white,
             fontSize: 22,
@@ -120,16 +121,16 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
           _CurrentStatusCard(
             vipLevel: widget.currentVipLevel,
             expiresAt: widget.vipExpiresAt,
-            isArabic: widget.isArabic,
+            isArabic: context.isArabic,
           ),
           const SizedBox(height: 12),
           _VipSettingsButton(
             vipLevel: widget.currentVipLevel,
-            isArabic: widget.isArabic,
+            isArabic: context.isArabic,
           ),
           const SizedBox(height: 20),
           Text(
-            widget.isArabic ? 'خطط VIP' : 'VIP Plans',
+            context.isArabic ? 'خطط VIP' : 'VIP Plans',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 16,
@@ -145,13 +146,13 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
                 isCurrent:
                     (plan['level'] as int?) == widget.currentVipLevel &&
                     widget.currentVipLevel > 0,
-                isArabic: widget.isArabic,
+                isArabic: context.isArabic,
                 onTap: () => _showUpgradeInfo(plan),
               ),
             ),
           ),
           const SizedBox(height: 8),
-          _ContactSupportButton(isArabic: widget.isArabic),
+          _ContactSupportButton(isArabic: context.isArabic),
         ],
       ),
     );
@@ -167,7 +168,7 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
       builder: (_) => _UpgradeInfoSheet(
         plan: plan,
         planName: name,
-        isArabic: widget.isArabic,
+        isArabic: context.isArabic,
       ),
     );
   }
@@ -191,7 +192,7 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
         TextButton(
           onPressed: _load,
           child: Text(
-            widget.isArabic ? 'إعادة المحاولة' : 'Retry',
+            context.isArabic ? 'إعادة المحاولة' : 'Retry',
             style: const TextStyle(color: Color(0xFFF0C15A)),
           ),
         ),

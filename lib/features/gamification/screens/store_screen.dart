@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../shared/widgets/avatar_with_frame.dart';
 import '../models/store_item.dart';
 import '../services/gamification_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class StoreScreen extends StatefulWidget {
   const StoreScreen({required this.isArabic, super.key});
@@ -54,7 +55,7 @@ class _StoreScreenState extends State<StoreScreen> {
   Future<void> _buy(StoreItem item) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (_) => _ConfirmBuyDialog(item: item, isArabic: widget.isArabic),
+      builder: (_) => _ConfirmBuyDialog(item: item, isArabic: context.isArabic),
     );
     if (confirm != true || !mounted) return;
 
@@ -64,7 +65,7 @@ class _StoreScreenState extends State<StoreScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.isArabic
+            context.isArabic
                 ? '\u062a\u0645 \u0627\u0644\u0634\u0631\u0627\u0621 \u0628\u0646\u062c\u0627\u062d!'
                 : 'Purchased!',
           ),
@@ -111,14 +112,14 @@ class _StoreScreenState extends State<StoreScreen> {
   Widget _buildHeader() => Padding(
     padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
     child: Row(
-      textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+      textDirection: context.isArabic ? TextDirection.rtl : TextDirection.ltr,
       children: [
         IconButton(
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
         ),
         Text(
-          widget.isArabic ? '\u0627\u0644\u0645\u062a\u062c\u0631' : 'Store',
+          context.isArabic ? '\u0627\u0644\u0645\u062a\u062c\u0631' : 'Store',
           style: const TextStyle(
             color: Colors.white,
             fontSize: 22,
@@ -131,16 +132,16 @@ class _StoreScreenState extends State<StoreScreen> {
 
   Widget _buildFilters() {
     final chips = [
-      ('all', widget.isArabic ? '\u0627\u0644\u0643\u0644' : 'All'),
+      ('all', context.isArabic ? '\u0627\u0644\u0643\u0644' : 'All'),
       (
         'avatar_frame',
-        widget.isArabic
+        context.isArabic
             ? '\u0627\u0644\u0625\u0637\u0627\u0631\u0627\u062a'
             : 'Frames',
       ),
       (
         'badge',
-        widget.isArabic
+        context.isArabic
             ? '\u0627\u0644\u0634\u0627\u0631\u0627\u062a'
             : 'Badges',
       ),
@@ -148,7 +149,7 @@ class _StoreScreenState extends State<StoreScreen> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
       child: Row(
-        textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+        textDirection: context.isArabic ? TextDirection.rtl : TextDirection.ltr,
         children: chips.map((c) {
           final selected = _filter == c.$1;
           return Padding(
@@ -202,11 +203,11 @@ class _StoreScreenState extends State<StoreScreen> {
     if (_error != null) {
       return _ErrorView(
         message: _error!,
-        isArabic: widget.isArabic,
+        isArabic: context.isArabic,
         onRetry: _load,
       );
     }
-    if (_filtered.isEmpty) return _EmptyView(isArabic: widget.isArabic);
+    if (_filtered.isEmpty) return _EmptyView(isArabic: context.isArabic);
 
     return RefreshIndicator(
       color: const Color(0xFFF0C15A),
@@ -223,7 +224,7 @@ class _StoreScreenState extends State<StoreScreen> {
         itemCount: _filtered.length,
         itemBuilder: (_, i) => _StoreItemCard(
           item: _filtered[i],
-          isArabic: widget.isArabic,
+          isArabic: context.isArabic,
           onBuy: () => _buy(_filtered[i]),
         ),
       ),

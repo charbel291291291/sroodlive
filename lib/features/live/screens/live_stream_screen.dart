@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import '../../../core/supabase/supabase_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class LiveStreamScreen extends StatefulWidget {
   const LiveStreamScreen({
@@ -125,14 +126,14 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
       builder: (_) => AlertDialog(
         backgroundColor: const Color(0xFF160B24),
         title: Text(
-          widget.isArabic ? 'إنهاء البث' : 'End stream',
+          context.isArabic ? 'إنهاء البث' : 'End stream',
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w900,
           ),
         ),
         content: Text(
-          widget.isArabic
+          context.isArabic
               ? 'هل تريد إنهاء البث المباشر؟'
               : 'Are you sure you want to end the live stream?',
           style: const TextStyle(color: Color(0xFFBCAED6)),
@@ -140,12 +141,12 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(widget.isArabic ? 'إلغاء' : 'Cancel'),
+            child: Text(context.isArabic ? 'إلغاء' : 'Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: Text(
-              widget.isArabic ? 'إنهاء' : 'End',
+              context.isArabic ? 'إنهاء' : 'End',
               style: const TextStyle(color: Color(0xFFFF4D6D)),
             ),
           ),
@@ -171,7 +172,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -235,7 +236,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    widget.isArabic ? 'الكاميرا مغلقة' : 'Camera off',
+                    context.isArabic ? 'الكاميرا مغلقة' : 'Camera off',
                     style: const TextStyle(
                       color: Color(0xFF9E91B8),
                       fontSize: 13,

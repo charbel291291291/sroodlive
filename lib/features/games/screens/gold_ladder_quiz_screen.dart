@@ -6,6 +6,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
 import '../services/gold_ladder_quiz_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 /// Gold Ladder Quiz — original trivia mini game.
 ///
@@ -109,6 +110,7 @@ class _GoldLadderQuizScreenState extends State<GoldLadderQuizScreen> {
   }
 
   Future<void> _initGame() async {
+    final isArabic = context.isArabic;
     try {
       final client = SupabaseService.requiredClient;
       final user = client.auth.currentUser;
@@ -135,7 +137,7 @@ class _GoldLadderQuizScreenState extends State<GoldLadderQuizScreen> {
         'userId': user.id,
         'displayName': profile?['display_name'] ?? 'Player',
         'balance': balance,
-        'isArabic': widget.isArabic,
+        'isArabic': isArabic,
         'entryFees': [100, 500, 1000],
         'recentWinners': winners.map((w) => w.toBridgeJson()).toList(),
       });
@@ -266,7 +268,7 @@ class _GoldLadderQuizScreenState extends State<GoldLadderQuizScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                widget.isArabic
+                context.isArabic
                     ? 'انتظر انتهاء العملية الحالية...'
                     : 'Wait for the current action to finish...',
               ),
@@ -310,7 +312,7 @@ class _GoldLadderQuizScreenState extends State<GoldLadderQuizScreen> {
             ),
             const SizedBox(height: 14),
             Text(
-              widget.isArabic ? 'جاري تحميل اللعبة...' : 'Loading game...',
+              context.isArabic ? 'جاري تحميل اللعبة...' : 'Loading game...',
               style: const TextStyle(
                 color: Color(0xFFF0C15A),
                 fontSize: 15,
@@ -351,7 +353,7 @@ class _GoldLadderQuizScreenState extends State<GoldLadderQuizScreen> {
               const SizedBox(height: 10),
               Text(
                 _errorMessage ??
-                    (widget.isArabic
+                    (context.isArabic
                         ? 'تعذر تحميل اللعبة.'
                         : 'Failed to load the game.'),
                 textAlign: TextAlign.center,
@@ -375,7 +377,7 @@ class _GoldLadderQuizScreenState extends State<GoldLadderQuizScreen> {
                         'assets/games/gold_ladder_quiz/index.html');
                   },
                   child: Text(
-                    widget.isArabic ? 'إعادة المحاولة' : 'Retry',
+                    context.isArabic ? 'إعادة المحاولة' : 'Retry',
                   ),
                 ),
               ),

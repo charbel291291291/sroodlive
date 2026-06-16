@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/profile_hub_models.dart';
 import '../services/level_service.dart';
 import '../widgets/profile_hub_widgets.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class MyLevelScreen extends StatefulWidget {
   const MyLevelScreen({required this.isArabic, super.key});
@@ -35,7 +36,7 @@ class _MyLevelScreenState extends State<MyLevelScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
 
     return ProfileHubScaffold(
       title: isArabic ? 'مستواي' : 'My level',

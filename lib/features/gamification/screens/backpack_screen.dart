@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../shared/widgets/avatar_with_frame.dart';
 import '../models/backpack_item.dart';
 import '../services/gamification_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class BackpackScreen extends StatefulWidget {
   const BackpackScreen({required this.isArabic, super.key});
@@ -58,7 +59,7 @@ class _BackpackScreenState extends State<BackpackScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.isArabic
+            context.isArabic
                 ? '\u062a\u0645 \u0627\u0644\u062a\u0641\u0639\u064a\u0644!'
                 : 'Equipped!',
           ),
@@ -105,14 +106,14 @@ class _BackpackScreenState extends State<BackpackScreen> {
   Widget _buildHeader() => Padding(
     padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
     child: Row(
-      textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+      textDirection: context.isArabic ? TextDirection.rtl : TextDirection.ltr,
       children: [
         IconButton(
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
         ),
         Text(
-          widget.isArabic
+          context.isArabic
               ? '\u0627\u0644\u062d\u0642\u064a\u0628\u0629'
               : 'Backpack',
           style: const TextStyle(
@@ -127,16 +128,16 @@ class _BackpackScreenState extends State<BackpackScreen> {
 
   Widget _buildFilters() {
     final chips = [
-      ('all', widget.isArabic ? '\u0627\u0644\u0643\u0644' : 'All'),
+      ('all', context.isArabic ? '\u0627\u0644\u0643\u0644' : 'All'),
       (
         'avatar_frame',
-        widget.isArabic
+        context.isArabic
             ? '\u0627\u0644\u0625\u0637\u0627\u0631\u0627\u062a'
             : 'Frames',
       ),
       (
         'badge',
-        widget.isArabic
+        context.isArabic
             ? '\u0627\u0644\u0634\u0627\u0631\u0627\u062a'
             : 'Badges',
       ),
@@ -144,7 +145,7 @@ class _BackpackScreenState extends State<BackpackScreen> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
       child: Row(
-        textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+        textDirection: context.isArabic ? TextDirection.rtl : TextDirection.ltr,
         children: chips.map((c) {
           final selected = _filter == c.$1;
           return Padding(
@@ -208,7 +209,7 @@ class _BackpackScreenState extends State<BackpackScreen> {
         separatorBuilder: (_, _) => const SizedBox(height: 10),
         itemBuilder: (_, i) => _BackpackItemCard(
           bp: _filtered[i],
-          isArabic: widget.isArabic,
+          isArabic: context.isArabic,
           onEquip: () => _equip(_filtered[i]),
         ),
       ),
@@ -234,7 +235,7 @@ class _BackpackScreenState extends State<BackpackScreen> {
         TextButton(
           onPressed: _load,
           child: Text(
-            widget.isArabic
+            context.isArabic
                 ? '\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629'
                 : 'Retry',
             style: const TextStyle(color: Color(0xFFF0C15A)),
@@ -251,7 +252,7 @@ class _BackpackScreenState extends State<BackpackScreen> {
         const Icon(Icons.backpack_rounded, color: Color(0xFF4A3470), size: 56),
         const SizedBox(height: 12),
         Text(
-          widget.isArabic
+          context.isArabic
               ? '\u062d\u0642\u064a\u0628\u062a\u0643 \u0641\u0627\u0631\u063a\u0629'
               : 'Your backpack is empty',
           style: const TextStyle(
@@ -262,7 +263,7 @@ class _BackpackScreenState extends State<BackpackScreen> {
         ),
         const SizedBox(height: 6),
         Text(
-          widget.isArabic
+          context.isArabic
               ? '\u0627\u0634\u062a\u0631\u064a \u0648\u0641\u0639\u0651\u0644'
               : 'Equipped',
           style: const TextStyle(color: Color(0xFF4A3470), fontSize: 13),

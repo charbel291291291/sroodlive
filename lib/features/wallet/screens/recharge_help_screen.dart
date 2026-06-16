@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class RechargeHelpScreen extends StatefulWidget {
   const RechargeHelpScreen({required this.isArabic, super.key});
@@ -51,7 +52,7 @@ class _RechargeHelpScreenState extends State<RechargeHelpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Container(

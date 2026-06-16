@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/profile_hub_models.dart';
 import '../services/feedback_service.dart';
 import '../widgets/profile_hub_widgets.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class FeedbackScreen extends StatefulWidget {
   const FeedbackScreen({required this.isArabic, super.key});
@@ -26,7 +27,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
   void _retry() => setState(() => _future = _service.getMyTickets());
 
   Future<void> _openForm() async {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
     final titleController = TextEditingController();
     final messageController = TextEditingController();
     var category = 'suggestion';
@@ -130,7 +131,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
 
     return ProfileHubScaffold(
       title: isArabic ? 'ملاحظات' : 'Feedback',
