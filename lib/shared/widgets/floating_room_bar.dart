@@ -46,10 +46,10 @@ class _FloatingRoomBarState extends State<FloatingRoomBar>
   Future<void> _returnToRoom(Room room) async {
     HapticFeedback.lightImpact();
     if (!mounted) return;
-    // Push the room screen WITHOUT clearing the session first.
-    // Clearing before push was causing !mounted to fire and aborting navigation.
-    // The session is cleared when the user exits or closes the room.
-    await Navigator.of(context).push<void>(
+    // FloatingRoomBar lives inside AppViewport (MaterialApp.builder), which is
+    // outside the app's main Navigator subtree. rootNavigator: true ensures we
+    // always push on the correct root navigator, not a stale or nested one.
+    await Navigator.of(context, rootNavigator: true).push<void>(
       MaterialPageRoute(
         builder: (_) => RoomDetailsScreen(
           room: room,
