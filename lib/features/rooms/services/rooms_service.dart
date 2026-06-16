@@ -178,16 +178,19 @@ class RoomsService {
       return (room: Room.fromJson(existing), alreadyExisted: true);
     }
 
-    final data = await client.rpc('get_or_create_my_room', params: {
-      'p_name':        name,
-      'p_description': description,
-      'p_language':    language,
-      'p_max_seats':   maxSeats,
-    });
+    final lkName =
+        'srood_${DateTime.now().millisecondsSinceEpoch}_${user.id.substring(0, 8)}';
 
-    final list = (data as List<dynamic>);
-    if (list.isEmpty) throw StateError('get_or_create_my_room returned empty.');
-    return (room: Room.fromJson(list.first as Map<String, dynamic>), alreadyExisted: false);
+    final inserted = await client.from('rooms').insert({
+      'owner_id': user.id,
+      'name': name,
+      if (description != null) 'description': description,
+      'language': language,
+      'max_seats': maxSeats,
+      'livekit_room_name': lkName,
+    }).select().single();
+
+    return (room: Room.fromJson(inserted), alreadyExisted: false);
   }
 
   /// Legacy direct-insert path kept for internal use; prefer [getOrCreateRoom].
@@ -596,13 +599,23 @@ class RoomsService {
   /// [reopenMyRoom] if needed before navigating into it.
   Future<Room> getOrCreateMyRoom() async {
     final data = await SupabaseService.requiredClient.rpc('get_or_create_my_room');
-    return Room.fromJson(Map<String, dynamic>.from(data as Map));
+    return Room.fromJson(_singleRow(data));
   }
 
   /// Un-closes the user's personal room and returns it with [isClosed] = false.
   Future<Room> reopenMyRoom() async {
     final data = await SupabaseService.requiredClient.rpc('reopen_my_room');
-    return Room.fromJson(Map<String, dynamic>.from(data as Map));
+    return Room.fromJson(_singleRow(data));
+  }
+
+  /// PostgREST may return a single composite-type RPC result as either a Map
+  /// or a one-element List depending on the function signature. This handles both.
+  static Map<String, dynamic> _singleRow(dynamic data) {
+    if (data is Map) return Map<String, dynamic>.from(data);
+    if (data is List && data.isNotEmpty) {
+      return Map<String, dynamic>.from(data.first as Map);
+    }
+    throw StateError('RPC returned unexpected data: $data');
   }
 }
 

@@ -84,6 +84,11 @@ class _RoomsScreenState extends State<RoomsScreen> {
         if (!mounted) return;
       }
 
+      // Join as a member (adds owner to room_members so seat logic works).
+      await _roomsService.joinRoom(room.id);
+
+      if (!mounted) return;
+
       await Navigator.push(
         context,
         MaterialPageRoute(
