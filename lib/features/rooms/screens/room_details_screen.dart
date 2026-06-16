@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -40,6 +41,7 @@ import '../models/room_reaction.dart';
 import '../widgets/reaction_picker_sheet.dart';
 import '../widgets/seat_reaction_overlay.dart';
 import '../../../core/services/active_room_session.dart';
+import '../widgets/vault_pin_sheet.dart';
 
 // Seat sizes Ã¢â‚¬â€ host > occupied > empty, never the reverse.
 // Reduced ~17% from previous values to open more background space.
@@ -2009,9 +2011,11 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     try {
       await _roomsService.leaveRoom(widget.room.id);
       await _teardownRoom();
-      ActiveRoomSession.instance.clear();
       if (!mounted) return;
       Navigator.of(context).pop();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ActiveRoomSession.instance.clear();
+      });
     } catch (_) {
       if (!mounted) return;
       setState(() => _leaving = false);
@@ -2029,7 +2033,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   }
 
   // Close Room: owner force-closes the room for all participants.
-  Future<void> _handleCloseRoom() async {
+  Future<void> _handleCloseRoom({String? pin}) async {
     if (_isClosingRoom) return;
     setState(() {
       _isClosingRoom = true;
@@ -2037,13 +2041,15 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     });
     try {
       await Future.wait<void>([
-        _roomsService.closeRoom(widget.room.id),
+        _roomsService.closeRoomWithPin(widget.room.id, pin: pin),
         Future<void>.delayed(const Duration(milliseconds: 850)),
       ]);
       await _teardownRoom();
-      ActiveRoomSession.instance.clear();
       if (!mounted) return;
       Navigator.of(context).pop();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ActiveRoomSession.instance.clear();
+      });
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -2471,36 +2477,23 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       return false;
     }
 
-    // closeRoom
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF1A0840),
-        title: Text(
-          isArabic ? 'إغلاق الغرفة؟' : 'Close Room?',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-        ),
-        content: Text(
-          isArabic
-              ? 'سيتم إنهاء الغرفة لجميع المشاركين.'
-              : 'This will end the room for all participants.',
-          style: const TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(isArabic ? 'إلغاء' : 'Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: const Color(0xFFE63946)),
-            child: Text(isArabic ? 'إغلاق الغرفة' : 'Close Room'),
-          ),
-        ],
-      ),
+    // closeRoom — show vault PIN sheet as dramatic confirmation
+    final pin = await showVaultPinSheet(
+      context,
+      title: isArabic ? 'إغلاق الغرفة' : 'Close Room',
+      subtitle: isArabic
+          ? (widget.room.roomPinEnabled
+              ? 'أدخل رمز القبو لإغلاق الغرفة.'
+              : 'سيتم إنهاء الغرفة لجميع المشاركين.')
+          : (widget.room.roomPinEnabled
+              ? 'Enter your vault PIN to close the room.'
+              : 'This will end the room for all participants.'),
+      requirePin: widget.room.roomPinEnabled,
     );
-    if (confirmed == true) return true;
-    return false;
+    if (pin == null || !mounted) return false;
+    // Pass pin directly; backend validates it (or ignores it if no PIN set).
+    await _handleCloseRoom(pin: widget.room.roomPinEnabled ? pin : null);
+    return false; // Navigation already handled inside _handleCloseRoom
   }
 
   void _minimizeRoom() {
@@ -2812,10 +2805,27 @@ class _CompactRoomHeader extends StatelessWidget {
                 // Background (cover or gradient)
                 if (hasCover)
                   Positioned.fill(
-                    child: Image.network(
-                      room.coverUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (ctx, err, stack) => const _RoomDefaultBg(),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        // Layer 1: blurred fill so no gaps on tall/wide images
+                        ImageFiltered(
+                          imageFilter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                          child: Image.network(
+                            room.coverUrl!,
+                            fit: BoxFit.cover,
+                            alignment: Alignment.center,
+                            errorBuilder: (_, e, s) => const _RoomDefaultBg(),
+                          ),
+                        ),
+                        // Layer 2: actual image showing full width without harsh crop
+                        Image.network(
+                          room.coverUrl!,
+                          fit: BoxFit.fitWidth,
+                          alignment: Alignment.center,
+                          errorBuilder: (_, e, s) => const SizedBox.shrink(),
+                        ),
+                      ],
                     ),
                   )
                 else
@@ -2829,8 +2839,8 @@ class _CompactRoomHeader extends StatelessWidget {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Colors.black.withValues(alpha: hasCover ? 0.45 : 0.0),
-                          Colors.black.withValues(alpha: hasCover ? 0.75 : 0.0),
+                          Colors.black.withValues(alpha: hasCover ? 0.30 : 0.0),
+                          Colors.black.withValues(alpha: hasCover ? 0.65 : 0.0),
                         ],
                       ),
                     ),
@@ -2840,21 +2850,29 @@ class _CompactRoomHeader extends StatelessWidget {
                 // Content row
                 Padding(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 8),
+                      horizontal: 12, vertical: 12),
                   child: Row(
                     children: [
                       // Room icon / avatar
                       Container(
-                        width: 36,
-                        height: 36,
+                        width: 48,
+                        height: 48,
                         clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
                           color: const Color(0xFFF0C15A).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
                           border: Border.all(
                             color: const Color(0xFFF0C15A)
-                                .withValues(alpha: 0.30),
+                                .withValues(alpha: 0.50),
+                            width: 1.5,
                           ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFF0C15A).withValues(alpha: 0.18),
+                              blurRadius: 8,
+                              spreadRadius: 0,
+                            ),
+                          ],
                         ),
                         child: room.avatarUrl?.isNotEmpty == true
                             ? Image.network(
@@ -2863,13 +2881,13 @@ class _CompactRoomHeader extends StatelessWidget {
                                 errorBuilder: (_, e, s) => const Icon(
                                   Icons.mic_rounded,
                                   color: Color(0xFFF0C15A),
-                                  size: 18,
+                                  size: 22,
                                 ),
                               )
                             : const Icon(
                                 Icons.mic_rounded,
                                 color: Color(0xFFF0C15A),
-                                size: 18,
+                                size: 22,
                               ),
                       ),
                       const SizedBox(width: 12),

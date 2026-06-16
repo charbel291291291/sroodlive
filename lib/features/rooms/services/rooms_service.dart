@@ -481,6 +481,23 @@ class RoomsService {
     await client.rpc('owner_close_room', params: {'p_room_id': roomId});
   }
 
+  /// Close room with optional PIN verification (backend validates the PIN).
+  Future<void> closeRoomWithPin(String roomId, {String? pin}) async {
+    final client = SupabaseService.requiredClient;
+    if (client.auth.currentUser == null) throw StateError('No logged-in user.');
+    await client.rpc('owner_close_room_with_pin', params: {
+      'p_room_id': roomId,
+      'p_pin': pin,
+    });
+  }
+
+  /// Returns true if the PIN is correct (or room has no PIN set).
+  Future<bool> verifyRoomPin(String roomId, String pin) async {
+    final result = await SupabaseService.requiredClient
+        .rpc('verify_room_pin', params: {'p_room_id': roomId, 'p_pin': pin});
+    return result as bool? ?? false;
+  }
+
   /// Closes any active rooms with zero remaining members.
   /// Call this on room-list load and after leaving a room.
   Future<void> closeEmptyRooms() async {

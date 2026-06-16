@@ -11,6 +11,7 @@ import '../../../features/search/screens/search_screen.dart';
 import '../../../features/social/screens/leaderboard_screen.dart';
 import '../models/room.dart';
 import '../services/rooms_service.dart';
+import '../widgets/vault_pin_sheet.dart';
 import 'room_details_screen.dart';
 import 'room_schedule_screen.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
@@ -165,8 +166,21 @@ class _RoomsScreenState extends State<RoomsScreen> {
   }
 
   Future<void> _joinRoom(Room room) async {
+    // If the room is locked, ask for a PIN via the vault sheet first.
+    String? password;
+    if (room.isLocked) {
+      password = await showVaultPinSheet(
+        context,
+        title: context.isArabic ? 'غرفة مقفلة' : 'Locked Room',
+        subtitle: context.isArabic
+            ? 'أدخل كلمة المرور للانضمام.'
+            : 'Enter the password to join.',
+        requirePin: true,
+      );
+      if (password == null || !mounted) return;
+    }
     try {
-      await _roomsService.joinRoom(room.id);
+      await _roomsService.joinRoom(room.id, password: password);
 
       if (!mounted) return;
 
