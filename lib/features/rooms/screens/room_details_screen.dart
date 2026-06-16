@@ -41,6 +41,7 @@ import '../models/room_reaction.dart';
 import '../widgets/reaction_picker_sheet.dart';
 import '../widgets/seat_reaction_overlay.dart';
 import '../../../core/services/active_room_session.dart';
+import '../../../core/services/voice_room_foreground_service.dart';
 import '../widgets/vault_pin_sheet.dart';
 
 // Seat sizes Ã¢â‚¬â€ host > occupied > empty, never the reverse.
@@ -72,7 +73,8 @@ class RoomDetailsScreen extends StatefulWidget {
   State<RoomDetailsScreen> createState() => _RoomDetailsScreenState();
 }
 
-class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
+class _RoomDetailsScreenState extends State<RoomDetailsScreen>
+    with WidgetsBindingObserver {
   final RoomsService _roomsService = const RoomsService();
   final GiftsService _giftsService = const GiftsService();
   final LiveKitRoomService _liveKitRoomService = LiveKitRoomService();
@@ -90,6 +92,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   bool _syncingMicConnection = false;
   bool _wasCurrentUserOnMic = false;
   bool _micEnabled = true;
+  // Cached so we don't call permission_handler on every mic-seat change.
+  bool? _micPermissionGranted;
   bool _lockBusy = false;
   late bool _roomLocked;
   int _moderatorCount = 0;
@@ -232,6 +236,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    debugPrint('[Room] ${_roomTs()} room screen opened id=${widget.room.id}');
     _musicService = RoomMusicService();
     _syncedMusic = RoomSyncedMusicService(
       roomId: widget.room.id,
@@ -244,9 +250,15 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     _roomBackgroundUrl = widget.room.backgroundUrl;
     _roomAvatarUrl = widget.room.avatarUrl;
     _roomCoverUrl = widget.room.coverUrl;
-    // _loadMembers() ends by calling _syncMicConnectionWithSeat(), which now
-    // connects to the room audio for listening even when the user is not on a
-    // mic seat Ã¢â‚¬â€ so every participant hears the room.
+
+    // Keep the process alive while the user is in the voice room so audio
+    // continues when the screen turns off.
+    unawaited(VoiceRoomForegroundService.start());
+
+    // Start LiveKit in listen-only mode immediately, in parallel with
+    // member loading, so audio is ready before the member list arrives.
+    unawaited(_connectAudioEarly());
+
     _loadMembers();
     _loadRoomGifts();
     _loadModeratorCount();
@@ -272,6 +284,90 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     if (!(_iAmRoomOwner || _iAmHost)) return;
     if (_syncedMusic.applyingServerState) return;
     unawaited(_syncedMusic.pushCurrentStateIfChanged());
+  }
+
+  // ---------------------------------------------------------------------------
+  // App lifecycle — keep audio alive on background, reconnect on resume.
+  // ---------------------------------------------------------------------------
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+        // Screen off / home pressed — do NOT disconnect. The Android foreground
+        // service and LiveKit native SDK keep the audio session alive.
+        debugPrint('[Room] ${_roomTs()} app $state — keeping audio alive');
+        break;
+      case AppLifecycleState.resumed:
+        debugPrint('[Room] ${_roomTs()} app resumed — checking audio state');
+        if (!_connectedAudio || !_liveKitRoomService.isConnected) {
+          debugPrint('[Room] ${_roomTs()} audio dropped — reconnecting silently…');
+          unawaited(_reconnectAudio());
+        }
+        break;
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+        break;
+    }
+  }
+
+  Future<void> _reconnectAudio() async {
+    if (_syncingMicConnection) return;
+    if (mounted) setState(() => _connectingAudio = true);
+    try {
+      await _liveKitRoomService.reconnectIfNeeded();
+      if (mounted) {
+        setState(() => _connectedAudio = _liveKitRoomService.isConnected);
+      }
+      await _syncMicConnectionWithSeat();
+    } catch (e) {
+      debugPrint('[Room] reconnect failed: $e');
+    } finally {
+      if (mounted) setState(() => _connectingAudio = false);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Early audio — connects for listening immediately on room entry.
+  // ---------------------------------------------------------------------------
+
+  /// Connects LiveKit in listen-only mode in parallel with [_loadMembers].
+  /// [_syncMicConnectionWithSeat] skips the connect step when it runs later
+  /// because [_connectedAudio] will already be true.
+  Future<void> _connectAudioEarly() async {
+    if (_connectedAudio || _connectingAudio || _syncingMicConnection) return;
+    if (mounted) setState(() => _connectingAudio = true);
+
+    _liveKitRoomService.onSpeakersChanged = (ids) {
+      if (mounted) setState(() => _speakingUserIds = ids);
+    };
+
+    debugPrint('[Room] ${_roomTs()} LiveKit connect started (early)');
+    try {
+      await _liveKitRoomService.connect(
+        roomId: widget.room.id,
+        microphoneEnabled: false,
+      );
+      debugPrint('[Room] ${_roomTs()} LiveKit connected');
+      if (mounted) {
+        setState(() {
+          _connectedAudio = true;
+          _connectingAudio = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('[Room] ${_roomTs()} early audio connect failed: $e');
+      if (mounted) setState(() => _connectingAudio = false);
+    }
+  }
+
+  static String _roomTs() {
+    final t = DateTime.now();
+    return '${t.hour.toString().padLeft(2, '0')}:'
+        '${t.minute.toString().padLeft(2, '0')}:'
+        '${t.second.toString().padLeft(2, '0')}.'
+        '${t.millisecond.toString().padLeft(3, '0')}';
   }
 
   @override
@@ -314,6 +410,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     _reactionTimers.clear();
     final rc = _reactionsChannel;
     if (rc != null) unawaited(SupabaseService.requiredClient.removeChannel(rc));
+    WidgetsBinding.instance.removeObserver(this);
+    unawaited(VoiceRoomForegroundService.stop());
     super.dispose();
   }
 
@@ -1791,15 +1889,21 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   }
 
   Future<bool> _ensureMicrophonePermission() async {
+    // Short-circuit if we already know it's granted (avoids a system IPC call
+    // on every seat change).
+    if (_micPermissionGranted == true) return true;
+
     final status = await Permission.microphone.status;
 
     if (status.isGranted) {
+      _micPermissionGranted = true;
       return true;
     }
 
     final result = await Permission.microphone.request();
 
     if (result.isGranted) {
+      _micPermissionGranted = true;
       return true;
     }
 
@@ -1835,9 +1939,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   }
 
   Future<void> _syncMicConnectionWithSeat() async {
-    if (_syncingMicConnection || !mounted) {
-      return;
-    }
+    if (_syncingMicConnection || !mounted) return;
 
     final member = _myMember;
     final shouldPublishMic = _memberIsOnMic(member);
@@ -1847,37 +1949,25 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     var attemptingPublish = false;
 
     try {
-      // Always connect so we can HEAR the room \u2014 even as a pure listener who
-      // never takes a mic seat. The microphone is published separately, only
-      // when the user is actually on a seat. This is what makes audio two-way:
-      // previously a listener never connected at all and heard nobody.
       if (!_connectedAudio) {
-        if (mounted) {
-          setState(() {
-            _connectingAudio = true;
-          });
-        }
+        // Early connect may still be in-flight; wait for it to finish rather
+        // than launching a second connection attempt.
+        if (_connectingAudio) return;
+
+        if (mounted) setState(() => _connectingAudio = true);
 
         _liveKitRoomService.onSpeakersChanged = (ids) {
           if (mounted) setState(() => _speakingUserIds = ids);
         };
 
+        debugPrint('[Room] ${_roomTs()} LiveKit connect started (sync)');
         await _liveKitRoomService.connect(
           roomId: widget.room.id,
           microphoneEnabled: false,
         );
+        debugPrint('[Room] ${_roomTs()} LiveKit connected');
 
-        if (mounted) {
-          setState(() {
-            _connectedAudio = true;
-          });
-        }
-
-        if (kDebugMode) {
-          debugPrint(
-            '[Room] Audio connected (listening) room=${widget.room.id}',
-          );
-        }
+        if (mounted) setState(() => _connectedAudio = true);
       }
 
       if (shouldPublishMic) {
@@ -2026,6 +2116,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     if (gc != null) unawaited(SupabaseService.requiredClient.removeChannel(gc));
     if (ms != null) unawaited(SupabaseService.requiredClient.removeChannel(ms));
     await _liveKitRoomService.disconnect();
+    unawaited(VoiceRoomForegroundService.stop());
   }
 
   // Exit Room: only the current user leaves. Room stays open for others.
