@@ -2759,7 +2759,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
             bottom: 280 + bottomPad + kbHeight,
             child: _LotoFloatingButton(
               isArabic: context.isArabic,
-              onTap: () => Navigator.of(context).push(
+              onTap: () => Navigator.of(context, rootNavigator: true).push(
                 MaterialPageRoute<void>(
                   builder: (_) =>
                       SroodLotoScreen(isArabic: context.isArabic),

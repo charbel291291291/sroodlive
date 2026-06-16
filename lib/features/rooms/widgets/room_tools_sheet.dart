@@ -191,12 +191,17 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
 
   void _openGameCenter() {
     HapticFeedback.lightImpact();
-    Navigator.of(context).pop();
+    // Capture isArabic before popping — context will be defunct afterwards.
+    final isArabic = context.isArabic;
+    Navigator.of(context).pop(); // close tools sheet
+    // useRootNavigator: true so the sheet is anchored to the root navigator,
+    // not to the (now-popped) tools sheet context.
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _GameCenterSheet(isArabic: context.isArabic),
+      useRootNavigator: true,
+      builder: (_) => _GameCenterSheet(isArabic: isArabic),
     );
   }
 
@@ -1578,8 +1583,13 @@ class _GameCenterSheet extends StatelessWidget {
                 game: g,
                 isArabic: isArabic,
                 onTap: () {
-                  Navigator.of(context).pop(); // close game sheet
-                  Navigator.of(context).push(
+                  // Capture root navigator BEFORE popping this sheet.
+                  // After pop(), this widget's context is defunct; any
+                  // Navigator.of(context) call on it crashes with
+                  // "widget has been unmounted".
+                  final rootNav = Navigator.of(context, rootNavigator: true);
+                  Navigator.of(context).pop(); // close game-center sheet
+                  rootNav.push(
                     MaterialPageRoute<void>(builder: (_) => g.screen),
                   );
                 },
