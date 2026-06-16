@@ -57,6 +57,11 @@ class _RoomMiniPlayerState extends State<RoomMiniPlayer>
         final progress = (pos / total).clamp(0.0, 1.0);
         final isRtl = context.isArabic;
 
+        // Combine title + artist into one label to avoid a second text row.
+        final label = song.artist.isNotEmpty
+            ? '${song.title} · ${song.artist}'
+            : song.title;
+
         return GestureDetector(
           onTap: () {
             HapticFeedback.lightImpact();
@@ -65,7 +70,7 @@ class _RoomMiniPlayerState extends State<RoomMiniPlayer>
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(14),
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -76,8 +81,8 @@ class _RoomMiniPlayerState extends State<RoomMiniPlayer>
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF8B26D9).withValues(alpha: 0.30),
-                  blurRadius: 14,
+                  color: const Color(0xFF8B26D9).withValues(alpha: 0.28),
+                  blurRadius: 12,
                   spreadRadius: -2,
                 ),
               ],
@@ -86,16 +91,16 @@ class _RoomMiniPlayerState extends State<RoomMiniPlayer>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   child: Row(
                     textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
                     children: [
-                      // Animated music icon
+                      // Animated music icon — compact 28 px
                       AnimatedBuilder(
                         animation: _wave,
-                        builder: (_, _) => Container(
-                          width: 34,
-                          height: 34,
+                        builder: (_, child) => Container(
+                          width: 28,
+                          height: 28,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: const Color(0xFF8B26D9).withValues(
@@ -110,71 +115,64 @@ class _RoomMiniPlayerState extends State<RoomMiniPlayer>
                                 ? Icons.music_note_rounded
                                 : Icons.music_note_outlined,
                             color: const Color(0xFFC875FF),
-                            size: 17,
+                            size: 14,
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 9),
-
-                      // Song info
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: isRtl
-                              ? CrossAxisAlignment.end
-                              : CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              song.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            if (song.artist.isNotEmpty)
-                              Text(
-                                song.artist,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.50),
-                                  fontSize: 10,
-                                ),
-                              ),
-                          ],
                         ),
                       ),
                       const SizedBox(width: 8),
 
-                      // Play / Pause
+                      // Single-line song label (title · artist)
+                      Expanded(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textDirection:
+                              isRtl ? TextDirection.rtl : TextDirection.ltr,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            height: 1.2,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+
+                      // Play / Pause — 32 px visible, 44 px tap target
                       GestureDetector(
+                        behavior: HitTestBehavior.opaque,
                         onTap: () {
                           HapticFeedback.selectionClick();
                           svc.playPause();
                         },
-                        child: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFF8B26D9).withValues(alpha: 0.35),
-                          ),
-                          child: Icon(
-                            svc.isPlaying
-                                ? Icons.pause_rounded
-                                : Icons.play_arrow_rounded,
-                            color: Colors.white,
-                            size: 20,
+                        child: SizedBox(
+                          width: 44,
+                          height: 44,
+                          child: Center(
+                            child: Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: const Color(0xFF8B26D9)
+                                    .withValues(alpha: 0.35),
+                              ),
+                              child: Icon(
+                                svc.isPlaying
+                                    ? Icons.pause_rounded
+                                    : Icons.play_arrow_rounded,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
 
-                      // ✕ Close — host: stops for all; member: mutes locally
+                      // ✕ Close — 28 px visible, 44 px tap target
                       GestureDetector(
+                        behavior: HitTestBehavior.opaque,
                         onTap: () {
                           HapticFeedback.mediumImpact();
                           if (widget.onStop != null) {
@@ -183,20 +181,26 @@ class _RoomMiniPlayerState extends State<RoomMiniPlayer>
                             svc.stop();
                           }
                         },
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withValues(alpha: 0.10),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.22),
+                        child: SizedBox(
+                          width: 44,
+                          height: 44,
+                          child: Center(
+                            child: Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white.withValues(alpha: 0.10),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.22),
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.close_rounded,
+                                color: Colors.white,
+                                size: 15,
+                              ),
                             ),
-                          ),
-                          child: const Icon(
-                            Icons.close_rounded,
-                            color: Colors.white,
-                            size: 17,
                           ),
                         ),
                       ),
@@ -204,10 +208,10 @@ class _RoomMiniPlayerState extends State<RoomMiniPlayer>
                   ),
                 ),
 
-                // Progress bar
+                // Thin progress bar at the bottom edge
                 ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(16)),
+                  borderRadius:
+                      const BorderRadius.vertical(bottom: Radius.circular(14)),
                   child: LinearProgressIndicator(
                     value: progress,
                     minHeight: 2,

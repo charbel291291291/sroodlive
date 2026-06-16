@@ -2706,9 +2706,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
 
           // Ã¢â€â‚¬Ã¢â€â‚¬ 5. Music mini-player Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
           // Music mini-player sits just above the bottom toolbar + chat bar.
-          // bottom = toolbar(58) + chat(50) + gap(8) + bottomPad
+          // bottom = action bar height (~116) + 4px breathing gap + bottomPad
           Positioned(
-            bottom: 116 + bottomPad + kbHeight,
+            bottom: 120 + bottomPad + kbHeight,
             left: 0,
             right: 0,
             child: ListenableBuilder(
