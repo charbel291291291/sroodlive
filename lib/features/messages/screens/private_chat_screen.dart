@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../../../shared/widgets/avatar_with_frame.dart';
 import '../../profile/screens/user_profile_screen.dart';
+import '../../profile/services/follow_service.dart';
 import '../models/private_message.dart';
 import '../services/private_message_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
@@ -33,6 +34,7 @@ class PrivateChatScreen extends StatefulWidget {
 
 class _PrivateChatScreenState extends State<PrivateChatScreen> {
   final PrivateMessageService _service = const PrivateMessageService();
+  final _followService = const FollowService();
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
@@ -40,6 +42,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
   bool _loading = true;
   bool _sending = false;
+  bool _isMutualFriend = false;
   String? _conversationId;
   String? _error;
   List<PrivateMessage> _messages = const [];
@@ -78,30 +81,43 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // ---------------------------------------------------------------------------
 
   Future<void> _load() async {
-    // Fetch profile and conversation in parallel
+    // Check mutual follow and fetch profile in parallel.
     final results = await Future.wait([
       _service.fetchTargetProfile(widget.targetUserId).catchError((_) => null),
-      _service
-          .getOrCreateConversation(widget.targetUserId)
-          .then<String?>((v) => v)
-          .catchError((_) => null),
+      _followService.isMutualFollow(widget.targetUserId).catchError((_) => false),
     ]);
 
     final profile = results[0] as Map<String, dynamic>?;
-    final cid = results[1] as String?;
+    final mutual = results[1] as bool;
 
     if (profile != null) {
       final name = _pickName(profile);
       if (mounted) {
         setState(() {
           _resolvedName = name;
-          _resolvedAvatarUrl =
-              profile['avatar_url']?.toString();
-          _resolvedFrameKey =
-              profile['selected_avatar_frame_key']?.toString();
+          _resolvedAvatarUrl = profile['avatar_url']?.toString();
+          _resolvedFrameKey = profile['selected_avatar_frame_key']?.toString();
         });
       }
     }
+
+    if (!mutual) {
+      if (mounted) {
+        setState(() {
+          _isMutualFriend = false;
+          _loading = false;
+        });
+      }
+      return;
+    }
+
+    setState(() => _isMutualFriend = true);
+
+    // Mutual friends — open or load the conversation.
+    String? cid;
+    try {
+      cid = await _service.getOrCreateConversation(widget.targetUserId);
+    } catch (_) {}
 
     if (cid == null) {
       if (mounted) {
@@ -414,6 +430,67 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         child: CircularProgressIndicator(color: Color(0xFF8B26D9)),
       );
     }
+
+    // Not mutual friends — show a wall instead of chat history.
+    if (!_isMutualFriend) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A0A2E),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: const Color(0xFF8B26D9).withValues(alpha: 0.35),
+                  ),
+                ),
+                child: const Icon(Icons.lock_rounded,
+                    color: Color(0xFF8B26D9), size: 36),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                isArabic ? 'لا يمكنك المراسلة' : 'Cannot Send Messages',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                isArabic
+                    ? 'يجب أن تتابع بعضكما البعض لتتمكنا من التحدث.\nاطلب المتابعة أولاً.'
+                    : 'You must follow each other to chat.\nFollow them and ask them to follow you back.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF9E91B8),
+                  fontSize: 13,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              TextButton.icon(
+                onPressed: _openTargetProfile,
+                icon: const Icon(Icons.person_add_rounded,
+                    color: Color(0xFF8B26D9), size: 18),
+                label: Text(
+                  isArabic ? 'عرض الملف الشخصي' : 'View Profile',
+                  style: const TextStyle(
+                    color: Color(0xFF8B26D9),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (_error != null) {
       return Center(
         child: Column(
@@ -478,7 +555,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 message: msg,
                 mine: mine,
                 isArabic: isArabic,
-                onLongPress: mine && !msg.isDeleted
+                onDelete: mine && !msg.isDeleted
                     ? () => _confirmDelete(msg)
                     : null,
                 onTapOther:
@@ -492,6 +569,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   }
 
   Widget _buildInput(bool isArabic) {
+    if (!_isMutualFriend && !_loading) return const SizedBox.shrink();
     return Container(
       padding: EdgeInsets.fromLTRB(
         12,
@@ -582,14 +660,14 @@ class _MessageBubble extends StatelessWidget {
     required this.message,
     required this.mine,
     required this.isArabic,
-    this.onLongPress,
+    this.onDelete,
     this.onTapOther,
   });
 
   final PrivateMessage message;
   final bool mine;
   final bool isArabic;
-  final VoidCallback? onLongPress;
+  final VoidCallback? onDelete;
   final VoidCallback? onTapOther;
 
   @override
@@ -601,20 +679,45 @@ class _MessageBubble extends StatelessWidget {
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.72,
+          maxWidth: MediaQuery.sizeOf(context).width * 0.82,
         ),
         margin: const EdgeInsets.only(bottom: 4),
         child: Column(
           crossAxisAlignment:
               mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
-            GestureDetector(
-              onLongPress: deleted
-                  ? null
-                  : () {
-                      HapticFeedback.mediumImpact();
-                      onLongPress?.call();
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              textDirection: mine ? TextDirection.rtl : TextDirection.ltr,
+              children: [
+                // Delete button — visible only on own non-deleted messages
+                if (mine && !deleted)
+                  GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      onDelete?.call();
                     },
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A0A2E),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFFFF5C7A).withValues(alpha: 0.35),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.delete_outline_rounded,
+                        size: 14,
+                        color: Color(0xFFFF5C7A),
+                      ),
+                    ),
+                  ),
+                Flexible(
+                  child: GestureDetector(
               onTap: mine ? null : onTapOther,
               child: Container(
                 padding: const EdgeInsets.symmetric(
@@ -673,6 +776,9 @@ class _MessageBubble extends StatelessWidget {
                         ),
                       ),
               ),
+            ),
+                ), // Flexible
+              ], // Row
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),

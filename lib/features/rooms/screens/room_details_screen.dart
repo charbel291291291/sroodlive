@@ -1982,46 +1982,69 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   }
 
   // Single entry point for all leave/close flows.
-  Future<void> _handleLeaveOrClose() async {
-    if (_isClosingRoom) return; // prevent double-tap / re-entrant calls
+  // Shared teardown: cancels timers, removes realtime channels, disconnects audio.
+  Future<void> _teardownRoom() async {
+    _heartbeatTimer?.cancel();
+    _membersRefreshTimer?.cancel();
+    _giftBannerTimer?.cancel();
+    _giftFeedCleanupTimer?.cancel();
+    _vipEntryBannerTimer?.cancel();
+    for (final t in _giftEventTimers) {
+      t.cancel();
+    }
+    _pkSub?.cancel();
+    final mc = _membersChannel;
+    final gc = _giftTransactionsChannel;
+    final ms = _messagesChannel;
+    if (mc != null) unawaited(SupabaseService.requiredClient.removeChannel(mc));
+    if (gc != null) unawaited(SupabaseService.requiredClient.removeChannel(gc));
+    if (ms != null) unawaited(SupabaseService.requiredClient.removeChannel(ms));
+    await _liveKitRoomService.disconnect();
+  }
 
+  // Exit Room: only the current user leaves. Room stays open for others.
+  Future<void> _handleExitRoom() async {
+    if (_leaving) return;
+    setState(() => _leaving = true);
+    try {
+      await _roomsService.leaveRoom(widget.room.id);
+      await _teardownRoom();
+      ActiveRoomSession.instance.clear();
+      if (!mounted) return;
+      Navigator.of(context).pop();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _leaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.isArabic
+                ? '\u062a\u0639\u0630\u0631 \u0645\u063a\u0627\u062f\u0631\u0629 \u0627\u0644\u063a\u0631\u0641\u0629. \u062d\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.'
+                : 'Could not leave the room. Please try again.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  // Close Room: owner force-closes the room for all participants.
+  Future<void> _handleCloseRoom() async {
+    if (_isClosingRoom) return;
     setState(() {
       _isClosingRoom = true;
       _leaving = true;
     });
-
     try {
-      // Run backend leave + minimum animation delay in parallel so the vault
-      // animation always has time to render before we navigate away.
       await Future.wait<void>([
-        _roomsService.leaveRoom(widget.room.id),
+        _roomsService.closeRoom(widget.room.id),
         Future<void>.delayed(const Duration(milliseconds: 850)),
       ]);
-
-      // Tear down audio & realtime subscriptions before removing widget.
-      _heartbeatTimer?.cancel();
-      _membersRefreshTimer?.cancel();
-      _giftBannerTimer?.cancel();
-      _giftFeedCleanupTimer?.cancel();
-      _vipEntryBannerTimer?.cancel();
-      for (final t in _giftEventTimers) {
-        t.cancel();
-      }
-      _pkSub?.cancel();
-
-      final mc = _membersChannel;
-      final gc = _giftTransactionsChannel;
-      final ms = _messagesChannel;
-      if (mc != null) unawaited(SupabaseService.requiredClient.removeChannel(mc));
-      if (gc != null) unawaited(SupabaseService.requiredClient.removeChannel(gc));
-      if (ms != null) unawaited(SupabaseService.requiredClient.removeChannel(ms));
-
-      await _liveKitRoomService.disconnect();
-
-      // Guard: only navigate if widget is still mounted.
+      await _teardownRoom();
+      ActiveRoomSession.instance.clear();
       if (!mounted) return;
       Navigator.of(context).pop();
-    } catch (error) {
+    } catch (_) {
       if (!mounted) return;
       setState(() {
         _isClosingRoom = false;
@@ -2040,8 +2063,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     }
   }
 
-  // Legacy alias \u2014 kept so existing call-sites continue to compile.
-  Future<void> _leaveRoom() => _handleLeaveOrClose();
+  // Called from the bottom action bar exit button \u2014 exits quietly (no vault anim).
+  Future<void> _leaveRoom() => _handleExitRoom();
 
   String _roleLabel(String role) {
     switch (role) {
@@ -2409,12 +2432,75 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       builder: (ctx) => _RoomExitSheet(isOwner: isOwner, isArabic: isArabic),
     );
 
-    if (action == null) return false;
+    if (action == null || !mounted) return false;
+
     if (action == _RoomExitAction.minimize) {
       _minimizeRoom();
       return false;
     }
-    return true;
+
+    if (action == _RoomExitAction.exit) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          backgroundColor: const Color(0xFF1A0840),
+          title: Text(
+            isArabic ? 'مغادرة الغرفة؟' : 'Exit Room?',
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          ),
+          content: Text(
+            isArabic
+                ? 'ستغادر الغرفة. ستبقى مفتوحة للآخرين.'
+                : 'You will leave this room. The room will stay open for others.',
+            style: const TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(isArabic ? 'إلغاء' : 'Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(foregroundColor: const Color(0xFFE63946)),
+              child: Text(isArabic ? 'مغادرة' : 'Exit Room'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true && mounted) await _handleExitRoom();
+      return false;
+    }
+
+    // closeRoom
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF1A0840),
+        title: Text(
+          isArabic ? 'إغلاق الغرفة؟' : 'Close Room?',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        ),
+        content: Text(
+          isArabic
+              ? 'سيتم إنهاء الغرفة لجميع المشاركين.'
+              : 'This will end the room for all participants.',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(isArabic ? 'إلغاء' : 'Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFFE63946)),
+            child: Text(isArabic ? 'إغلاق الغرفة' : 'Close Room'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) return true;
+    return false;
   }
 
   void _minimizeRoom() {
@@ -2425,17 +2511,19 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final bottomPad = MediaQuery.of(context).padding.bottom;
+    final kbHeight = MediaQuery.of(context).viewInsets.bottom;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop || _isClosingRoom) return;
         final ok = await _confirmLeave();
-        if (ok && mounted) await _handleLeaveOrClose();
+        if (ok && mounted) await _handleCloseRoom();
       },
       child: Stack(
         children: [
           Scaffold(
       extendBodyBehindAppBar: true,
+      resizeToAvoidBottomInset: false,
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -2583,7 +2671,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                     chatMessages: _chatMessages,
                     isArabic: context.isArabic,
                     onProfileTap: _openUserProfileSheet,
-                    bottomPad: 116 + bottomPad,
+                    bottomPad: 116 + bottomPad + kbHeight,
                   ),
                 ),
               ],
@@ -2592,7 +2680,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
 
           // â”€â”€ Pinned bottom action bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           Positioned(
-            bottom: 0,
+            bottom: kbHeight,
             left: 0,
             right: 0,
             child: _LiveBottomActionBar(
@@ -2627,7 +2715,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
           // Music mini-player sits just above the bottom toolbar + chat bar.
           // bottom = toolbar(58) + chat(50) + gap(8) + bottomPad
           Positioned(
-            bottom: 116 + bottomPad,
+            bottom: 116 + bottomPad + kbHeight,
             left: 0,
             right: 0,
             child: ListenableBuilder(
@@ -2651,7 +2739,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
           Positioned(
             right: context.isArabic ? null : 0,
             left: context.isArabic ? 0 : null,
-            bottom: 280 + bottomPad,
+            bottom: 280 + bottomPad + kbHeight,
             child: _LotoFloatingButton(
               isArabic: context.isArabic,
               onTap: () => Navigator.of(context).push(

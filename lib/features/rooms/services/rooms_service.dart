@@ -472,6 +472,15 @@ class RoomsService {
     }
   }
 
+  /// Force-closes the room for all participants. Owner-only.
+  /// Calls the owner_close_room RPC which marks all members as left and
+  /// sets is_closed = true regardless of remaining member count.
+  Future<void> closeRoom(String roomId) async {
+    final client = SupabaseService.requiredClient;
+    if (client.auth.currentUser == null) throw StateError('No logged-in user.');
+    await client.rpc('owner_close_room', params: {'p_room_id': roomId});
+  }
+
   /// Closes any active rooms with zero remaining members.
   /// Call this on room-list load and after leaving a room.
   Future<void> closeEmptyRooms() async {

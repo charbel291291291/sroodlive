@@ -1,9 +1,19 @@
 import '../../../core/supabase/supabase_service.dart';
+import '../../profile/services/follow_service.dart';
 import '../models/private_conversation.dart';
 import '../models/private_message.dart';
 
 class PrivateMessageService {
   const PrivateMessageService();
+
+  static const _followService = FollowService();
+
+  /// Checks mutual follow. Throws [StateError] with code 'not_mutual_friends'
+  /// if the two users do not follow each other in both directions.
+  Future<void> _requireMutualFriends(String targetUserId) async {
+    final ok = await _followService.isMutualFollow(targetUserId);
+    if (!ok) throw StateError('not_mutual_friends');
+  }
 
   Future<String> getOrCreateConversation(String targetUserId) async {
     final client = SupabaseService.requiredClient;
@@ -16,6 +26,8 @@ class PrivateMessageService {
     if (user.id == targetUserId) {
       throw StateError('Cannot message yourself.');
     }
+
+    await _requireMutualFriends(targetUserId);
 
     final ids = [user.id, targetUserId]..sort();
     final existing = await client

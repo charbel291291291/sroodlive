@@ -45,8 +45,10 @@ class _FloatingRoomBarState extends State<FloatingRoomBar>
 
   Future<void> _returnToRoom(Room room) async {
     HapticFeedback.lightImpact();
-    ActiveRoomSession.instance.clear();
     if (!mounted) return;
+    // Push the room screen WITHOUT clearing the session first.
+    // Clearing before push was causing !mounted to fire and aborting navigation.
+    // The session is cleared when the user exits or closes the room.
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => RoomDetailsScreen(
@@ -59,6 +61,39 @@ class _FloatingRoomBarState extends State<FloatingRoomBar>
 
   Future<void> _exitRoom(Room room) async {
     if (_leaving) return;
+
+    // Show confirmation before leaving.
+    final isArabic = context.isArabic;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF1A0840),
+        title: Text(
+          isArabic ? 'مغادرة الغرفة؟' : 'Exit Room?',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        ),
+        content: Text(
+          isArabic
+              ? 'ستغادر الغرفة. ستبقى مفتوحة للآخرين.'
+              : 'You will leave this room. The room will stay open for others.',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(isArabic ? 'إلغاء' : 'Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFFE63946)),
+            child: Text(isArabic ? 'مغادرة' : 'Exit Room'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
     HapticFeedback.mediumImpact();
     setState(() => _leaving = true);
     try {

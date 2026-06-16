@@ -87,7 +87,7 @@ class _BottomNavBar extends StatelessWidget {
         badge: messagesUnread,
       ),
       _NavItem(
-        icon: Icons.rocket_launch_rounded,
+        icon: Icons.sports_esports_rounded,
         labelEn: 'Games',
         labelAr: 'الألعاب',
         gradTop: const Color(0xFFF97316),
