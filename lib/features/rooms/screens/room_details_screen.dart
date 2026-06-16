@@ -1950,24 +1950,34 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
     try {
       if (!_connectedAudio) {
-        // Early connect may still be in-flight; wait for it to finish rather
-        // than launching a second connection attempt.
-        if (_connectingAudio) return;
+        // If early connect is still in-flight, wait for it instead of bailing —
+        // bailing causes up to a 5-second delay before the next refresh retries.
+        if (_connectingAudio) {
+          _syncingMicConnection = false;
+          while (_connectingAudio && mounted) {
+            await Future.delayed(const Duration(milliseconds: 100));
+          }
+          if (!mounted) return;
+          _syncingMicConnection = true;
+        }
 
-        if (mounted) setState(() => _connectingAudio = true);
+        if (!_connectedAudio) {
+          // Early connect failed or never started — connect now.
+          if (mounted) setState(() => _connectingAudio = true);
 
-        _liveKitRoomService.onSpeakersChanged = (ids) {
-          if (mounted) setState(() => _speakingUserIds = ids);
-        };
+          _liveKitRoomService.onSpeakersChanged = (ids) {
+            if (mounted) setState(() => _speakingUserIds = ids);
+          };
 
-        debugPrint('[Room] ${_roomTs()} LiveKit connect started (sync)');
-        await _liveKitRoomService.connect(
-          roomId: widget.room.id,
-          microphoneEnabled: false,
-        );
-        debugPrint('[Room] ${_roomTs()} LiveKit connected');
+          debugPrint('[Room] ${_roomTs()} LiveKit connect started (sync)');
+          await _liveKitRoomService.connect(
+            roomId: widget.room.id,
+            microphoneEnabled: false,
+          );
+          debugPrint('[Room] ${_roomTs()} LiveKit connected');
 
-        if (mounted) setState(() => _connectedAudio = true);
+          if (mounted) setState(() => _connectedAudio = true);
+        }
       }
 
       if (shouldPublishMic) {
