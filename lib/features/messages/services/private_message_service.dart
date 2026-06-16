@@ -90,13 +90,41 @@ class PrivateMessageService {
   Future<List<PrivateMessage>> fetchMessages(String conversationId) async {
     final data = await SupabaseService.requiredClient
         .from('private_messages')
-        .select()
+        .select('id, conversation_id, sender_id, receiver_id, body, created_at, read_at, deleted_at')
         .eq('conversation_id', conversationId)
         .order('created_at', ascending: true);
 
     return (data as List<dynamic>)
         .map((item) => PrivateMessage.fromJson(item as Map<String, dynamic>))
         .toList();
+  }
+
+  /// Soft-deletes a message by setting deleted_at to now.
+  /// Only the sender may call this — RLS enforces it on the server side.
+  Future<void> deleteMessage(String messageId) async {
+    final client = SupabaseService.requiredClient;
+    final uid = client.auth.currentUser?.id;
+    if (uid == null) throw StateError('Not authenticated');
+
+    await client
+        .from('private_messages')
+        .update({
+          'deleted_at': DateTime.now().toUtc().toIso8601String(),
+          'deleted_by': uid,
+        })
+        .eq('id', messageId)
+        .eq('sender_id', uid);
+  }
+
+  /// Loads the minimal profile fields needed for the chat header.
+  /// Returns null if the user has no profile row yet.
+  Future<Map<String, dynamic>?> fetchTargetProfile(String userId) async {
+    final data = await SupabaseService.requiredClient
+        .from('profiles')
+        .select('id, display_name, username, avatar_url, selected_avatar_frame_key')
+        .eq('id', userId)
+        .maybeSingle();
+    return data;
   }
 
   Future<List<PrivateConversationPreview>> fetchConversations() async {
@@ -160,12 +188,7 @@ class PrivateMessageService {
       final two = row['user_two_id']?.toString() ?? '';
       final otherId = one == user.id ? two : one;
       final profile = profiles[otherId];
-      final nickname =
-          profile?['display_name']?.toString().trim().isNotEmpty == true
-          ? profile!['display_name'].toString()
-          : (profile?['username']?.toString().trim().isNotEmpty == true
-                ? profile!['username'].toString()
-                : _fallbackUserLabel(otherId));
+      final nickname = _safeDisplayName(profile);
       final convId = row['id']?.toString() ?? '';
 
       return PrivateConversationPreview(
@@ -213,8 +236,15 @@ class PrivateMessageService {
     return (data as List<dynamic>).length;
   }
 
-  String _fallbackUserLabel(String userId) {
-    final shortId = userId.length >= 8 ? userId.substring(0, 8) : userId;
-    return 'User $shortId';
+  String _safeDisplayName(Map<String, dynamic>? profile) {
+    final displayName = profile?['display_name']?.toString().trim();
+    final fullName = profile?['full_name']?.toString().trim();
+    final username = profile?['username']?.toString().trim();
+
+    if (displayName != null && displayName.isNotEmpty) return displayName;
+    if (fullName != null && fullName.isNotEmpty) return fullName;
+    if (username != null && username.isNotEmpty) return username;
+
+    return 'Unknown user';
   }
 }

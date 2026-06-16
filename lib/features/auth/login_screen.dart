@@ -41,9 +41,9 @@ class _LoginScreenState extends State<LoginScreen> {
         .from('profiles')
         .select('is_banned')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
-    return profile['is_banned'] == true;
+    return profile?['is_banned'] == true;
   }
 
   Future<void> _login() async {

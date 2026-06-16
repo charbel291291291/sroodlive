@@ -7,6 +7,7 @@ class PrivateMessage {
     required this.body,
     required this.createdAt,
     this.readAt,
+    this.deletedAt,
   });
 
   factory PrivateMessage.fromJson(Map<String, dynamic> json) {
@@ -20,6 +21,7 @@ class PrivateMessage {
           DateTime.tryParse(json['created_at']?.toString() ?? '') ??
           DateTime.now(),
       readAt: DateTime.tryParse(json['read_at']?.toString() ?? ''),
+      deletedAt: DateTime.tryParse(json['deleted_at']?.toString() ?? ''),
     );
   }
 
@@ -30,4 +32,7 @@ class PrivateMessage {
   final String body;
   final DateTime createdAt;
   final DateTime? readAt;
+  final DateTime? deletedAt;
+
+  bool get isDeleted => deletedAt != null;
 }

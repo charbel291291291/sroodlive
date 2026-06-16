@@ -6,6 +6,7 @@ import '../../gifts/screens/gift_catalog_screen.dart';
 import '../../messages/screens/private_chat_screen.dart';
 import '../../social/screens/report_user_screen.dart';
 import '../services/follow_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({
@@ -49,12 +50,26 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               'id, username, public_user_id, display_name, bio, avatar_url, vip_level, followers_count, following_count, gifts_received_count, visitors_count',
             )
             .eq('id', widget.userId)
-            .single(),
+            .maybeSingle(),
         _followService.isFollowing(widget.userId),
       ]);
       if (!mounted) return;
+      final profile = profileRaw as Map<String, dynamic>?;
+
       setState(() {
-        _profile = profileRaw as Map<String, dynamic>;
+        _profile = profile ?? {
+          'id': widget.userId,
+          'display_name': widget.isArabic ? '??????' : 'Unknown user',
+          'username': '',
+          'public_user_id': '',
+          'bio': '',
+          'avatar_url': null,
+          'vip_level': 0,
+          'followers_count': 0,
+          'following_count': 0,
+          'gifts_received_count': 0,
+          'visitors_count': 0,
+        };
         _isFollowing = isFollowing as bool;
         _loading = false;
       });
@@ -90,7 +105,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
 
     return Scaffold(
       backgroundColor: const Color(0xFF08060F),
@@ -146,9 +161,22 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
   }
 
+
+  String _safeDisplayName(Map<String, dynamic>? profile, bool isArabic) {
+    final displayName = profile?['display_name']?.toString().trim();
+    final fullName = profile?['full_name']?.toString().trim();
+    final username = profile?['username']?.toString().trim();
+
+    if (displayName != null && displayName.isNotEmpty) return displayName;
+    if (fullName != null && fullName.isNotEmpty) return fullName;
+    if (username != null && username.isNotEmpty) return username;
+
+    return isArabic ? '??????' : 'Unknown user';
+  }
+
   Widget _buildContent(bool isArabic) {
     final p = _profile!;
-    final displayName = p['display_name'] as String? ?? '';
+    final displayName = _safeDisplayName(p, isArabic);
     final publicUserId = p['public_user_id']?.toString().trim() ?? '';
     final fallbackSroodId = widget.userId.replaceAll('-', '');
     final sroodId = publicUserId.isNotEmpty

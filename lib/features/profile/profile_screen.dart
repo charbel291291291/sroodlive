@@ -23,6 +23,7 @@ import '../games/screens/srood_loto_screen.dart';
 import 'models/avatar_frame.dart';
 import 'screens/follow_list_screen.dart';
 import 'services/follow_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({required this.isArabic, super.key});
@@ -137,18 +138,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (user == null) {
         setState(() {
           isLoading = false;
-          errorMessage = widget.isArabic
+          errorMessage = context.isArabic
               ? 'لا يوجد مستخدم مسجل.'
               : 'No logged-in user found.';
         });
         return;
       }
 
-      final data = await client
+      final data = (await client
           .from('profiles')
           .select()
           .eq('id', user.id)
-          .single();
+          .maybeSingle()) ?? <String, dynamic>{};
       var frames = _fallbackAvatarFrames;
 
       try {
@@ -214,7 +215,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (error) {
       setState(() {
         isLoading = false;
-        errorMessage = widget.isArabic
+        errorMessage = context.isArabic
             ? 'فشل تحميل الملف الشخصي: $error'
             : 'Failed to load profile: $error';
       });
@@ -262,7 +263,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showSoon() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(widget.isArabic ? 'قريباً' : 'Coming soon'),
+        content: Text(context.isArabic ? 'قريباً' : 'Coming soon'),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -271,7 +272,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _openWalletScreen() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => WalletScreen(isArabic: widget.isArabic),
+        builder: (_) => WalletScreen(isArabic: context.isArabic),
       ),
     );
     if (mounted) await _loadProfile();
@@ -295,7 +296,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         MaterialPageRoute(
           builder: (_) => RoomDetailsScreen(
             room: result.room,
-            isArabic: widget.isArabic,
+            isArabic: context.isArabic,
           ),
         ),
       );
@@ -304,7 +305,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.isArabic ? 'فشل فتح الغرفة: $e' : 'Failed to open room: $e',
+            context.isArabic ? 'فشل فتح الغرفة: $e' : 'Failed to open room: $e',
           ),
           behavior: SnackBarBehavior.floating,
         ),
@@ -316,7 +317,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _openStore() async {
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => StoreScreen(isArabic: widget.isArabic)),
+      MaterialPageRoute(builder: (_) => StoreScreen(isArabic: context.isArabic)),
     );
     if (mounted) await _loadProfile();
   }
@@ -324,7 +325,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _openCheckin() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => CheckinScreen(isArabic: widget.isArabic),
+        builder: (_) => CheckinScreen(isArabic: context.isArabic),
       ),
     );
     if (mounted) await _loadProfile();
@@ -333,7 +334,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _openBackpack() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => BackpackScreen(isArabic: widget.isArabic),
+        builder: (_) => BackpackScreen(isArabic: context.isArabic),
       ),
     );
     if (mounted) await _loadProfile();
@@ -346,7 +347,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => VipCenterScreen(
-          isArabic: widget.isArabic,
+          isArabic: context.isArabic,
           currentVipLevel: _effectiveProfileVipLevel(),
           vipExpiresAt: expiresAt,
         ),
@@ -357,7 +358,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _openLoto() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => SroodLotoScreen(isArabic: widget.isArabic),
+        builder: (_) => SroodLotoScreen(isArabic: context.isArabic),
       ),
     );
   }
@@ -369,22 +370,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: const Color(0xFF12091D),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: Text(
-          widget.isArabic ? 'تسجيل الخروج' : 'Sign Out',
+          context.isArabic ? 'تسجيل الخروج' : 'Sign Out',
           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
-          textAlign: widget.isArabic ? TextAlign.right : TextAlign.left,
+          textAlign: context.isArabic ? TextAlign.right : TextAlign.left,
         ),
         content: Text(
-          widget.isArabic
+          context.isArabic
               ? 'هل أنت متأكد أنك تريد تسجيل الخروج؟'
               : 'Are you sure you want to sign out?',
           style: const TextStyle(color: Color(0xFFBCAED6)),
-          textAlign: widget.isArabic ? TextAlign.right : TextAlign.left,
+          textAlign: context.isArabic ? TextAlign.right : TextAlign.left,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(
-              widget.isArabic ? 'إلغاء' : 'Cancel',
+              context.isArabic ? 'إلغاء' : 'Cancel',
               style: const TextStyle(color: Color(0xFFBCAED6)),
             ),
           ),
@@ -396,7 +397,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(widget.isArabic ? 'خروج' : 'Sign Out'),
+            child: Text(context.isArabic ? 'خروج' : 'Sign Out'),
           ),
         ],
       ),
@@ -411,7 +412,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(widget.isArabic ? 'تم نسخ المعرف' : 'ID copied'),
+        content: Text(context.isArabic ? 'تم نسخ المعرف' : 'ID copied'),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -447,12 +448,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: widget.isArabic
+                    crossAxisAlignment: context.isArabic
                         ? CrossAxisAlignment.end
                         : CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.isArabic ? 'تعديل الملف' : 'Edit Profile',
+                        context.isArabic ? 'تعديل الملف' : 'Edit Profile',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 22,
@@ -462,34 +463,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 16),
                       _ProfileInput(
                         controller: displayNameController,
-                        label: widget.isArabic ? 'اللقب' : 'Nickname',
-                        isArabic: widget.isArabic,
+                        label: context.isArabic ? 'اللقب' : 'Nickname',
+                        isArabic: context.isArabic,
                       ),
                       _ProfileInput(
                         controller: birthDateController,
-                        label: widget.isArabic
+                        label: context.isArabic
                             ? 'تاريخ الميلاد'
                             : 'Date of birth',
-                        isArabic: widget.isArabic,
+                        isArabic: context.isArabic,
                         readOnly: true,
                         onTap: _pickBirthDate,
                       ),
                       _ProfileInput(
                         controller: countryController,
-                        label: widget.isArabic ? 'الدولة' : 'Country',
-                        isArabic: widget.isArabic,
+                        label: context.isArabic ? 'الدولة' : 'Country',
+                        isArabic: context.isArabic,
                       ),
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: Directionality(
-                          textDirection: widget.isArabic
+                          textDirection: context.isArabic
                               ? TextDirection.rtl
                               : TextDirection.ltr,
                           child: DropdownButtonFormField<String>(
                             initialValue: selectedGender,
                             decoration: InputDecoration(
                               labelText:
-                                  widget.isArabic ? 'الجنس' : 'Gender',
+                                  context.isArabic ? 'الجنس' : 'Gender',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(18),
                               ),
@@ -498,7 +499,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               return DropdownMenuItem(
                                 value: genderOptions[i],
                                 child: Text(
-                                  widget.isArabic
+                                  context.isArabic
                                       ? genderLabelsAr[i]
                                       : genderLabelsEn[i],
                                 ),
@@ -514,8 +515,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       _ProfileInput(
                         controller: bioController,
-                        label: widget.isArabic ? 'النبذة' : 'Bio',
-                        isArabic: widget.isArabic,
+                        label: context.isArabic ? 'النبذة' : 'Bio',
+                        isArabic: context.isArabic,
                         maxLines: 4,
                       ),
                       const SizedBox(height: 6),
@@ -534,10 +535,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           icon: const Icon(Icons.save_rounded),
                           label: Text(
                             isSaving
-                                ? (widget.isArabic
+                                ? (context.isArabic
                                       ? 'جار الحفظ...'
                                       : 'Saving...')
-                                : (widget.isArabic
+                                : (context.isArabic
                                       ? 'حفظ التغييرات'
                                       : 'Save changes'),
                           ),
@@ -573,7 +574,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _uploadAvatar() async {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
     setState(() {
       isUploadingAvatar = true;
       errorMessage = null;
@@ -665,7 +666,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           selectedFrameKey: selectedFrameKey,
           avatarUrl: avatarUrl,
           vipLevel: vipLevel,
-          isArabic: widget.isArabic,
+          isArabic: context.isArabic,
         );
       },
     );
@@ -688,11 +689,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await _loadProfile();
       setState(() {
         successMessage =
-            widget.isArabic ? 'تم حفظ إطار الصورة.' : 'Avatar frame saved.';
+            context.isArabic ? 'تم حفظ إطار الصورة.' : 'Avatar frame saved.';
       });
     } catch (error) {
       setState(() {
-        errorMessage = widget.isArabic
+        errorMessage = context.isArabic
             ? 'فشل حفظ الإطار: $error'
             : 'Frame save failed: $error';
       });
@@ -713,7 +714,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _saveProfile() async {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
     final currentUsername = usernameController.text.trim();
     final displayName = displayNameController.text.trim();
     final dateOfBirth = birthDateController.text.trim();
@@ -791,7 +792,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
 
     if (isLoading) {
       return Container(

@@ -14,7 +14,7 @@ class RoomUserProfileService {
         .from('profiles')
         .select()
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
     final followers = await _followService.followersCount(userId);
     final following = await _followService.followingCount(userId);
@@ -26,27 +26,15 @@ class RoomUserProfileService {
 
     return RoomUserProfile(
       userId: userId,
-      nickname: data['display_name']?.toString().trim().isNotEmpty == true
-          ? data['display_name'].toString()
-          : (data['username']?.toString().trim().isNotEmpty == true
-                ? data['username'].toString()
-                : _fallbackUserLabel(userId)),
-      publicUserId:
-          data['public_user_id']?.toString() ?? _fallbackUserLabel(userId),
-      avatarUrl: data['avatar_url']?.toString(),
-      selectedAvatarFrame: data['selected_avatar_frame_key']?.toString(),
-      bio: data['bio']?.toString(),
-      dateOfBirth: data['date_of_birth']?.toString(),
-      country: data['country']?.toString(),
-      gender: data['gender']?.toString(),
-      vipLevel: (data['vip_level'] as num?)?.toInt() ?? 0,
-      vipStartedAt: _parseDate(data['vip_started_at']),
-      vipExpiresAt: _parseDate(data['vip_expires_at']),
-      isGoldenId: data['is_golden_id'] == true,
-      goldenIdExpiresAt: _parseDate(data['golden_id_expires_at']),
+      nickname: _safeDisplayName(data),
+      publicUserId: data?['public_user_id']?.toString() ?? '',
+      avatarUrl: data?['avatar_url']?.toString(),
+      selectedAvatarFrame: data?['selected_avatar_frame_key']?.toString(),
+      bio: data?['bio']?.toString(),
+      country: data?['country']?.toString(),
+      vipLevel: data?['vip_level'] as int? ?? 0,
       followersCount: followers,
       followingCount: following,
-      friendsCount: 0,
       giftReceivedCount: gifts,
       charmScore: gifts,
       nobleLevel: 0,
@@ -131,17 +119,17 @@ class RoomUserProfileService {
     }
   }
 
-  DateTime? _parseDate(dynamic value) {
-    if (value == null) {
-      return null;
-    }
 
-    return DateTime.tryParse(value.toString());
-  }
+  String _safeDisplayName(Map<String, dynamic>? profile) {
+    final displayName = profile?['display_name']?.toString().trim();
+    final fullName = profile?['full_name']?.toString().trim();
+    final username = profile?['username']?.toString().trim();
 
-  String _fallbackUserLabel(String userId) {
-    final shortId = userId.length >= 8 ? userId.substring(0, 8) : userId;
-    return 'ID $shortId';
+    if (displayName != null && displayName.isNotEmpty) return displayName;
+    if (fullName != null && fullName.isNotEmpty) return fullName;
+    if (username != null && username.isNotEmpty) return username;
+
+    return 'Unknown user';
   }
 
   String? _giftImageUrl(String code) {

@@ -7,6 +7,7 @@ import '../../../core/supabase/supabase_service.dart';
 import '../../../shared/widgets/avatar_with_frame.dart';
 import '../models/private_message.dart';
 import '../services/private_message_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class PrivateChatSheet extends StatefulWidget {
   const PrivateChatSheet({
@@ -197,7 +198,7 @@ class _PrivateChatSheetState extends State<PrivateChatSheet> {
             child: Column(
               children: [
                 Row(
-                  textDirection: widget.isArabic
+                  textDirection: context.isArabic
                       ? TextDirection.rtl
                       : TextDirection.ltr,
                   children: [
@@ -241,7 +242,7 @@ class _PrivateChatSheetState extends State<PrivateChatSheet> {
                       : _messages.isEmpty
                       ? Center(
                           child: Text(
-                            widget.isArabic
+                            context.isArabic
                                 ? '\u0627\u0628\u062f\u0623 \u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0629'
                                 : 'Start the conversation',
                             style: const TextStyle(color: Color(0xFFD8CFEA)),
@@ -289,20 +290,20 @@ class _PrivateChatSheetState extends State<PrivateChatSheet> {
                 ),
                 const SizedBox(height: 10),
                 Row(
-                  textDirection: widget.isArabic
+                  textDirection: context.isArabic
                       ? TextDirection.rtl
                       : TextDirection.ltr,
                   children: [
                     Expanded(
                       child: TextField(
                         controller: _controller,
-                        textDirection: widget.isArabic
+                        textDirection: context.isArabic
                             ? TextDirection.rtl
                             : TextDirection.ltr,
                         minLines: 1,
                         maxLines: 3,
                         decoration: InputDecoration(
-                          hintText: widget.isArabic
+                          hintText: context.isArabic
                               ? '\u0627\u0643\u062a\u0628 \u0631\u0633\u0627\u0644\u0629...'
                               : 'Write a message...',
                           filled: true,

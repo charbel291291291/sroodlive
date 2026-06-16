@@ -42,9 +42,9 @@ class _SplashScreenState extends State<SplashScreen> {
           .from('profiles')
           .select('is_banned')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
-      final isBanned = profile['is_banned'] == true;
+      final isBanned = profile?['is_banned'] == true;
 
       if (!mounted) return;
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../services/follow_service.dart';
 import 'user_profile_screen.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class FollowListScreen extends StatefulWidget {
   const FollowListScreen({
@@ -119,7 +120,7 @@ class _FollowListScreenState extends State<FollowListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
     final title = isArabic
         ? (widget.isFollowers ? 'المتابعون' : 'يتابع')
         : (widget.isFollowers ? 'Followers' : 'Following');

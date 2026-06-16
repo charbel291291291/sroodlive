@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/supabase/supabase_service.dart';
 import '../home/home_screen.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   const ProfileSetupScreen({
@@ -84,7 +85,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     },
   ];
 
-  bool get _isArabic => widget.isArabic;
+  bool get _isArabic => context.isArabic;
 
   @override
   void dispose() {

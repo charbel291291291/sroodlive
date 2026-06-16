@@ -11,6 +11,7 @@ import '../../messages/widgets/private_chat_sheet.dart';
 import '../../profile/screens/user_profile_screen.dart';
 import '../models/room_user_profile.dart';
 import '../services/room_user_profile_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 // ── Public entry point ────────────────────────────────────────────────────────
 
@@ -170,12 +171,13 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
 
   Future<void> _createReminder() async {
     if (_isMe || _reminderBusy) return;
+    final isArabic = context.isArabic;
     setState(() => _reminderBusy = true);
     try {
       await _service.createReminder(widget.userId);
-      _snack(widget.isArabic ? 'تم حفظ التذكير' : 'Reminder saved');
+      _snack(isArabic ? 'تم حفظ التذكير' : 'Reminder saved');
     } catch (_) {
-      _snack(widget.isArabic ? 'تم حفظ التذكير' : 'Reminder saved');
+      _snack(isArabic ? 'تم حفظ التذكير' : 'Reminder saved');
     } finally {
       if (mounted) setState(() => _reminderBusy = false);
     }
@@ -183,10 +185,11 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
 
   Future<void> _sayHi() async {
     if (_isMe || _sayHiBusy) return;
+    final isArabic = context.isArabic;
     setState(() => _sayHiBusy = true);
     try {
-      await _msgService.sendHi(widget.userId, isArabic: widget.isArabic);
-      _snack(widget.isArabic ? 'تم إرسال التحية' : 'Hi sent');
+      await _msgService.sendHi(widget.userId, isArabic: isArabic);
+      _snack(isArabic ? 'تم إرسال التحية' : 'Hi sent');
     } catch (e) {
       _snack(e.toString());
     } finally {
@@ -197,6 +200,7 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
   Future<void> _openMessage() async {
     final p = _profile;
     if (_isMe || p == null) return;
+    final isArabic = context.isArabic;
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -206,7 +210,7 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
         targetName: p.nickname,
         targetAvatarUrl: p.avatarUrl,
         targetFrameKey: p.selectedAvatarFrame,
-        isArabic: widget.isArabic,
+        isArabic: isArabic,
       ),
     );
   }
@@ -221,7 +225,7 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
     Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => UserProfileScreen(
         userId: widget.userId,
-        isArabic: widget.isArabic,
+        isArabic: context.isArabic,
       ),
     ));
   }
@@ -229,7 +233,7 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
   void _copyId() {
     final id = _profile?.publicUserId ?? widget.userId;
     Clipboard.setData(ClipboardData(text: id));
-    _snack(widget.isArabic ? 'تم نسخ ID' : 'ID copied');
+    _snack(context.isArabic ? 'تم نسخ ID' : 'ID copied');
   }
 
   // ── Moderation actions ──────────────────────────────────────────────────────
@@ -237,6 +241,7 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
   Future<void> _doMute() async {
     final cb = widget.onToggleMute;
     if (cb == null || _muteBusy) return;
+    final isArabic = context.isArabic;
     setState(() => _muteBusy = true);
     try {
       final newMuted = !_isMuted;
@@ -244,8 +249,8 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
       if (mounted) setState(() => _isMuted = newMuted);
       _snack(
         _isMuted
-            ? (widget.isArabic ? 'تم كتم الصوت' : 'Mic muted')
-            : (widget.isArabic ? 'تم فك الكتم' : 'Mic unmuted'),
+            ? (isArabic ? 'تم كتم الصوت' : 'Mic muted')
+            : (isArabic ? 'تم فك الكتم' : 'Mic unmuted'),
       );
     } catch (e) {
       _snack(e.toString());
@@ -257,11 +262,12 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
   Future<void> _doStandUp() async {
     final cb = widget.onStandUp;
     if (cb == null || _standBusy) return;
+    final isArabic = context.isArabic;
     final ok = await _confirmDialog(
       icon: Icons.hearing_rounded,
       iconColor: const Color(0xFF8B26D9),
-      title: widget.isArabic ? 'إنزال من المايك' : 'Stand Up',
-      body: widget.isArabic
+      title: isArabic ? 'إنزال من المايك' : 'Stand Up',
+      body: isArabic
           ? 'هل تريد إزالة هذا المستخدم من المايك؟'
           : 'Remove this user from the mic seat?',
     );
@@ -280,11 +286,12 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
   Future<void> _doKick() async {
     final cb = widget.onKick;
     if (cb == null || _kickBusy) return;
+    final isArabic = context.isArabic;
     final ok = await _confirmDialog(
       icon: Icons.logout_rounded,
       iconColor: const Color(0xFFE63946),
-      title: widget.isArabic ? 'طرد من الغرفة' : 'Kick Out',
-      body: widget.isArabic
+      title: isArabic ? 'طرد من الغرفة' : 'Kick Out',
+      body: isArabic
           ? 'هل تريد طرد هذا المستخدم من الغرفة؟'
           : 'Remove this user from the room?',
     );
@@ -303,11 +310,12 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
   Future<void> _doBan() async {
     final cb = widget.onBan;
     if (cb == null || _banBusy) return;
+    final isArabic = context.isArabic;
     final ok = await _confirmDialog(
       icon: Icons.block_rounded,
       iconColor: const Color(0xFFE63946),
-      title: widget.isArabic ? 'حظر من الغرفة' : 'Ban from Room',
-      body: widget.isArabic
+      title: isArabic ? 'حظر من الغرفة' : 'Ban from Room',
+      body: isArabic
           ? 'هل تريد حظر هذا المستخدم من الغرفة؟'
           : 'Ban this user from the room?',
     );
@@ -326,10 +334,11 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
   Future<void> _doSetAdmin() async {
     final cb = widget.onSetAdmin;
     if (cb == null || _adminBusy) return;
+    final isArabic = context.isArabic;
     setState(() => _adminBusy = true);
     try {
       await cb();
-      _snack(widget.isArabic ? 'تم تعيين مشرف' : 'Admin set');
+      _snack(isArabic ? 'تم تعيين مشرف' : 'Admin set');
     } catch (e) {
       _snack(e.toString());
     } finally {
@@ -340,10 +349,11 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
   Future<void> _doRemoveAdmin() async {
     final cb = widget.onRemoveAdmin;
     if (cb == null || _adminBusy) return;
+    final isArabic = context.isArabic;
     setState(() => _adminBusy = true);
     try {
       await cb();
-      _snack(widget.isArabic ? 'تم إزالة المشرف' : 'Admin removed');
+      _snack(isArabic ? 'تم إزالة المشرف' : 'Admin removed');
     } catch (e) {
       _snack(e.toString());
     } finally {
@@ -377,14 +387,14 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(
-              widget.isArabic ? 'إلغاء' : 'Cancel',
+              context.isArabic ? 'إلغاء' : 'Cancel',
               style: const TextStyle(color: Color(0xFF9E91B8)),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(
-              widget.isArabic ? 'تأكيد' : 'Confirm',
+              context.isArabic ? 'تأكيد' : 'Confirm',
               style: TextStyle(
                 color: iconColor,
                 fontWeight: FontWeight.w900,
@@ -460,13 +470,13 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
                               ),
                             )
                           : _error != null
-                              ? _ErrorBody(isArabic: widget.isArabic)
+                              ? _ErrorBody(isArabic: context.isArabic)
                               : _SheetBody(
                                   profile: _profile!,
                                   giftWall: _giftWall,
                                   prestige: prestige,
                                   glowAnim: _glowAnim,
-                                  isArabic: widget.isArabic,
+                                  isArabic: context.isArabic,
                                   isMe: _isMe,
                                   canModerate: _canModerate,
                                   isViewerOwner: widget.isViewerOwner,

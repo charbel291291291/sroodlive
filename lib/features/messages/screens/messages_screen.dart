@@ -9,6 +9,7 @@ import '../../../shared/widgets/vip_username.dart';
 import '../models/private_conversation.dart';
 import '../services/private_message_service.dart';
 import 'private_chat_screen.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({
@@ -122,7 +123,7 @@ class _MessagesScreenState extends State<MessagesScreen>
           targetName: convo.otherNickname,
           targetAvatarUrl: convo.otherAvatarUrl,
           targetFrameKey: convo.otherFrameId,
-          isArabic: widget.isArabic,
+          isArabic: context.isArabic,
         ),
       ),
     );
@@ -150,7 +151,7 @@ class _MessagesScreenState extends State<MessagesScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _Header(isArabic: widget.isArabic),
+            _Header(isArabic: context.isArabic),
             Expanded(child: _buildBody()),
           ],
         ),
@@ -171,13 +172,13 @@ class _MessagesScreenState extends State<MessagesScreen>
     if (_error != null) {
       return _ErrorState(
         message: _error!,
-        isArabic: widget.isArabic,
+        isArabic: context.isArabic,
         onRetry: _load,
       );
     }
 
     if (_conversations.isEmpty) {
-      return _EmptyState(isArabic: widget.isArabic);
+      return _EmptyState(isArabic: context.isArabic);
     }
 
     return RefreshIndicator(
@@ -196,7 +197,7 @@ class _MessagesScreenState extends State<MessagesScreen>
         itemBuilder: (context, index) {
           return _ConversationTile(
             convo: _conversations[index],
-            isArabic: widget.isArabic,
+            isArabic: context.isArabic,
             onTap: () => _openChat(_conversations[index]),
           );
         },
