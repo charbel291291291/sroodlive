@@ -35,20 +35,25 @@ import '../services/room_music_upload_service.dart';
 import '../services/room_synced_music_service.dart';
 import '../../games/screens/srood_loto_screen.dart';
 import 'room_owner_management_screen.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
+import '../models/room_reaction.dart';
+import '../widgets/reaction_picker_sheet.dart';
+import '../widgets/seat_reaction_overlay.dart';
+import '../../../core/services/active_room_session.dart';
 
 // Seat sizes Ã¢â‚¬â€ host > occupied > empty, never the reverse.
 // Reduced ~17% from previous values to open more background space.
-const double _hostSeatAvatarSize = 68.0;  // visual frame is 68*1.35=91.8px
-const double _hostSeatOuterSize  = 72.0;  // layout anchor (host)
-const double _seatAvatarSize     = 58.0;  // visual frame is 58*1.35=78.3px (VIP)
-const double _seatOuterSize      = 62.0;  // layout anchor (normal)
-const double _emptySeatSize      = 64.0;  // empty ring, slightly smaller
-const double _micSeatIconSize    = 20.0;
-const double _micSeatBadgeHorizontalPadding = 6.0;
-const double _micSeatSupportSlotHeight      = 16.0;
+const double _hostSeatAvatarSize = 46.0;
+const double _hostSeatOuterSize  = 50.0;
+const double _seatAvatarSize     = 40.0;
+const double _seatOuterSize      = 44.0;
+const double _emptySeatSize      = 44.0;
+const double _micSeatIconSize    = 13.0;
+const double _micSeatBadgeHorizontalPadding = 4.0;
+const double _micSeatSupportSlotHeight      = 5.0;
 // Fixed height for the avatar zone inside every grid cell.
-// Must be >= _hostSeatOuterSize (72) so the host avatar is never clipped.
-const double _kAvatarAreaHeight = 78.0;
+// Must be >= _hostSeatOuterSize (58) so the host avatar is never clipped.
+const double _kAvatarAreaHeight = 50.0;
 
 
 class RoomDetailsScreen extends StatefulWidget {
@@ -115,6 +120,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   final List<RoomMessage> _chatMessages = [];
   RealtimeChannel? _messagesChannel;
   bool _isSendingMessage = false;
+
+  // -- Emoji reactions (keyed by seat number 1-based) --
+  final Map<int, RoomReaction> _seatReactions = {};
+  final Map<int, Timer> _reactionTimers = {};
+  RealtimeChannel? _reactionsChannel;
+
 
   static const Duration _giftVisibleDuration = Duration(minutes: 1);
 
@@ -248,6 +259,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     _subscribeToMessages();
     unawaited(_loadActivePk());
     _subscribeToPk();
+    _subscribeToReactions();
   }
 
   // When the host changes music locally (via MusicPanel), push the new state
@@ -296,6 +308,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
 
     _pkSub?.cancel();
     _liveKitRoomService.disconnect();
+    for (final t in _reactionTimers.values) { t.cancel(); }
+    _reactionTimers.clear();
+    final rc = _reactionsChannel;
+    if (rc != null) unawaited(SupabaseService.requiredClient.removeChannel(rc));
     super.dispose();
   }
 
@@ -321,6 +337,51 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         debugPrint('[PK] load active failed: $error');
       }
     }
+  }
+
+
+  // -- Emoji reaction channel (Supabase Broadcast) --
+  void _subscribeToReactions() {
+    _reactionsChannel = SupabaseService.requiredClient
+        .channel('room_reactions_${widget.room.id}')
+        .onBroadcast(
+          event: 'reaction',
+          callback: (payload) {
+            if (!mounted) return;
+            final seatNum = payload['seat'] as int?;
+            final emoji = payload['emoji'] as String?;
+            if (seatNum == null || emoji == null) return;
+            _applyReaction(seatNum, emoji);
+          },
+        )
+        .subscribe();
+  }
+
+  void _applyReaction(int seatNumber, String emoji) {
+    _reactionTimers[seatNumber]?.cancel();
+    setState(() {
+      _seatReactions[seatNumber] = RoomReaction(
+        emoji: emoji,
+        expiresAt: DateTime.now().add(const Duration(seconds: 3)),
+      );
+    });
+    _reactionTimers[seatNumber] = Timer(const Duration(seconds: 3), () {
+      if (!mounted) return;
+      setState(() => _seatReactions.remove(seatNumber));
+    });
+  }
+
+  void _sendReaction(String emoji) {
+    // Find the current user's seat number
+    final myMember = _myMember;
+    final seat = myMember?.seatNumber ?? 1;
+    // Broadcast to channel (fire and forget)
+    _reactionsChannel?.sendBroadcastMessage(
+      event: 'reaction',
+      payload: {'seat': seat, 'emoji': emoji},
+    );
+    // Apply locally immediately
+    _applyReaction(seat, emoji);
   }
 
   void _subscribeToPk() {
@@ -465,7 +526,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                 String receiverLabel = '';
                 for (final m in _members) {
                   if (m.userId == receiverId) {
-                    receiverLabel = m.fallbackName(widget.isArabic);
+                    receiverLabel = m.fallbackName(context.isArabic);
                     break;
                   }
                 }
@@ -501,7 +562,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  widget.isArabic
+                  context.isArabic
                       ? 'Ã˜ÂªÃ˜Â¹Ã˜Â°Ã˜Â± Ã˜Â§Ã™â€žÃ˜Â§Ã˜ÂªÃ˜ÂµÃ˜Â§Ã™â€ž Ã˜Â¨Ã˜Â« Ã˜Â§Ã™â€žÃ™â€¡Ã˜Â¯Ã˜Â§Ã™Å Ã˜Â§ Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â¨Ã˜Â§Ã˜Â´Ã˜Â±. Ã™â€šÃ˜Â¯ Ã™â€žÃ˜Â§ Ã˜ÂªÃ˜Â¸Ã™â€¡Ã˜Â± Ã˜Â§Ã™â€žÃ™â€¡Ã˜Â¯Ã˜Â§Ã™Å Ã˜Â§ Ã™ÂÃ™Ë†Ã˜Â±Ã˜Â§Ã™â€¹.'
                       : 'Live gift connection failed. Gifts may not appear instantly.',
                 ),
@@ -639,7 +700,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       builder: (dialogContext) {
         return AlertDialog(
           title: Text(
-            widget.isArabic
+            context.isArabic
                 ? '\u0636\u0639 \u0643\u0644\u0645\u0629 \u0645\u0631\u0648\u0631 \u0644\u0644\u063a\u0631\u0641\u0629'
                 : 'Set room password',
           ),
@@ -648,7 +709,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
             autofocus: true,
             obscureText: true,
             decoration: InputDecoration(
-              hintText: widget.isArabic
+              hintText: context.isArabic
                   ? '\u0623\u0642\u0644 \u0634\u064a 3 \u0623\u062d\u0631\u0641'
                   : 'Minimum 3 characters',
             ),
@@ -660,14 +721,14 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
               child: Text(
-                widget.isArabic ? '\u0625\u0644\u063a\u0627\u0621' : 'Cancel',
+                context.isArabic ? '\u0625\u0644\u063a\u0627\u0621' : 'Cancel',
               ),
             ),
             FilledButton(
               onPressed: () {
                 Navigator.of(dialogContext).pop(controller.text.trim());
               },
-              child: Text(widget.isArabic ? '\u0642\u0641\u0644' : 'Lock'),
+              child: Text(context.isArabic ? '\u0642\u0641\u0644' : 'Lock'),
             ),
           ],
         );
@@ -818,7 +879,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       _chatMessages.clear();
       _chatMessages.add(RoomMessage.local(
         roomId: widget.room.id,
-        message: widget.isArabic
+        message: context.isArabic
             ? 'Ã™â€šÃ˜Â§Ã™â€¦ Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â¶Ã™Å Ã™Â Ã˜Â¨Ã™â€¦Ã˜Â³Ã˜Â­ Ã˜Â§Ã™â€žÃ˜Â¯Ã˜Â±Ã˜Â¯Ã˜Â´Ã˜Â©.'
             : 'The room owner has cleaned the chat.',
       ));
@@ -831,8 +892,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
             .where((m) => m.userId == _currentUserId)
             .firstOrNull
             ?.displayName ??
-        (widget.isArabic ? 'Ã™â€¦Ã˜Â³Ã˜ÂªÃ˜Â®Ã˜Â¯Ã™â€¦' : 'User');
-    final text = widget.isArabic
+        (context.isArabic ? 'Ã™â€¦Ã˜Â³Ã˜ÂªÃ˜Â®Ã˜Â¯Ã™â€¦' : 'User');
+    final text = context.isArabic
         ? '$senderName Ã˜Â£Ã˜Â±Ã˜Â³Ã™â€ž Ã˜ÂªÃ˜Â­Ã™Å Ã˜Â© Ã™â€žÃ™â€žÃ˜ÂºÃ˜Â±Ã™ÂÃ˜Â© Ã°Å¸â€˜â€¹'
         : '$senderName sent a salute to the room Ã°Å¸â€˜â€¹';
     setState(() {
@@ -851,7 +912,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => MusicPanel(
         musicService: _musicService,
-        isArabic: widget.isArabic,
+        isArabic: context.isArabic,
         canManage: canManage,
         roomId: widget.room.id,
         uploadService: canManage ? _uploadService : null,
@@ -868,6 +929,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     );
   }
 
+  void _openReactionPicker() {
+    ReactionPickerSheet.show(context, onPick: _sendReaction);
+  }
+
   void _openToolsSheet() {
     showModalBottomSheet<void>(
       context: context,
@@ -875,7 +940,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => RoomToolsSheet(
         room: _currentRoom,
-        isArabic: widget.isArabic,
+        isArabic: context.isArabic,
         isOwner: _iAmRoomOwner,
         isHost: _iAmHost,
         moderatorCount: _moderatorCount,
@@ -953,7 +1018,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.isArabic
+            context.isArabic
                 ? (nextValue
                       ? '\u062a\u0645 \u0642\u0641\u0644 \u0627\u0644\u063a\u0631\u0641\u0629 \u0628\u0643\u0644\u0645\u0629 \u0645\u0631\u0648\u0631'
                       : '\u062a\u0645 \u0641\u062a\u062d \u0627\u0644\u063a\u0631\u0641\u0629')
@@ -965,7 +1030,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       if (!mounted) return;
 
       final message = error is RoomPasswordRequiredException
-          ? (widget.isArabic
+          ? (context.isArabic
                 ? '\u0643\u0644\u0645\u0629 \u0645\u0631\u0648\u0631 \u0627\u0644\u063a\u0631\u0641\u0629 \u0645\u0637\u0644\u0648\u0628\u0629.'
                 : 'Room password is required.')
           : error.toString();
@@ -1024,15 +1089,15 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
             padding: const EdgeInsets.all(18),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: widget.isArabic
+              crossAxisAlignment: context.isArabic
                   ? CrossAxisAlignment.end
                   : CrossAxisAlignment.start,
               children: [
                 Text(
-                  widget.isArabic
+                  context.isArabic
                       ? '\u0627\u0644\u0627\u0646\u062a\u0642\u0627\u0644 \u0625\u0644\u0649 \u0645\u0627\u064a\u0643 $seatNumber'
                       : 'Move to Mic $seatNumber',
-                  textAlign: widget.isArabic ? TextAlign.right : TextAlign.left,
+                  textAlign: context.isArabic ? TextAlign.right : TextAlign.left,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w900,
@@ -1049,7 +1114,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                     },
                     icon: const Icon(Icons.event_seat_rounded),
                     label: Text(
-                      widget.isArabic
+                      context.isArabic
                           ? '\u0627\u0646\u0642\u0644\u0646\u064a \u0625\u0644\u0649 \u0647\u0630\u0627 \u0627\u0644\u0645\u0627\u064a\u0643'
                           : 'Move myself here',
                     ),
@@ -1058,10 +1123,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                 const SizedBox(height: 14),
                 if (_iAmHost && availableMembers.isEmpty)
                   Text(
-                    widget.isArabic
+                    context.isArabic
                         ? '\u0644\u0627 \u064a\u0648\u062c\u062f \u0623\u0639\u0636\u0627\u0621 \u0645\u062a\u0627\u062d\u0648\u0646 \u0644\u0647\u0630\u0627 \u0627\u0644\u0645\u0627\u064a\u0643.'
                         : 'No available users for this mic.',
-                    textAlign: widget.isArabic
+                    textAlign: context.isArabic
                         ? TextAlign.right
                         : TextAlign.left,
                     style: const TextStyle(
@@ -1082,17 +1147,17 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                         fallbackIcon: Icons.person_rounded,
                       ),
                       title: VipUsername(
-                        name: member.fallbackName(widget.isArabic),
+                        name: member.fallbackName(context.isArabic),
                         vipLevel: member.effectiveVipLevel,
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
-                        textAlign: widget.isArabic
+                        textAlign: context.isArabic
                             ? TextAlign.right
                             : TextAlign.left,
                       ),
                       subtitle: Text(
                         _roleLabel(member.role),
-                        textAlign: widget.isArabic
+                        textAlign: context.isArabic
                             ? TextAlign.right
                             : TextAlign.left,
                       ),
@@ -1161,7 +1226,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.isArabic
+            context.isArabic
                 ? '\u062a\u0645 \u0646\u0642\u0644\u0647 \u0625\u0644\u0649 \u0645\u0627\u064a\u0643 $seatNumber.'
                 : 'Moved to Mic $seatNumber.',
           ),
@@ -1211,7 +1276,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.isArabic
+            context.isArabic
                 ? '\u062a\u0645 \u0646\u0642\u0644\u0643 \u0625\u0644\u0649 \u0647\u0630\u0627 \u0627\u0644\u0645\u0627\u064a\u0643'
                 : 'Moved you to this mic.',
           ),
@@ -1235,7 +1300,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.isArabic
+            context.isArabic
                 ? '\u0644\u0627 \u064a\u0645\u0643\u0646 \u0646\u0642\u0644 \u0645\u0642\u0639\u062f \u0627\u0644\u0645\u0636\u064a\u0641.'
                 : 'Host seat cannot be moved.',
           ),
@@ -1253,8 +1318,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (sheetContext) {
-        final textAlign = widget.isArabic ? TextAlign.right : TextAlign.left;
-        final crossAxisAlignment = widget.isArabic
+        final textAlign = context.isArabic ? TextAlign.right : TextAlign.left;
+        final crossAxisAlignment = context.isArabic
             ? CrossAxisAlignment.end
             : CrossAxisAlignment.start;
 
@@ -1266,7 +1331,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
               crossAxisAlignment: crossAxisAlignment,
               children: [
                 Text(
-                  member.fallbackName(widget.isArabic),
+                  member.fallbackName(context.isArabic),
                   textAlign: textAlign,
                   style: const TextStyle(
                     fontSize: 20,
@@ -1275,7 +1340,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  widget.isArabic
+                  context.isArabic
                       ? '${_roleLabel(member.role)} - \u0645\u0627\u064a\u0643 $seatNumber'
                       : '${_roleLabel(member.role)} - Mic $seatNumber',
                   textAlign: textAlign,
@@ -1293,7 +1358,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                     ).pop(const _OccupiedSeatAction.selectForMove()),
                     icon: const Icon(Icons.touch_app_rounded),
                     label: Text(
-                      widget.isArabic
+                      context.isArabic
                           ? '\u0627\u062e\u062a\u0631\u0647 \u062b\u0645 \u0627\u0636\u063a\u0637 \u0645\u0627\u064a\u0643 \u0641\u0627\u0631\u063a'
                           : 'Select, then tap empty mic',
                     ),
@@ -1302,7 +1367,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                 const SizedBox(height: 14),
                 if (emptySeats.isNotEmpty) ...[
                   Text(
-                    widget.isArabic
+                    context.isArabic
                         ? '\u0646\u0642\u0644\u0647 \u0625\u0644\u0649 \u0645\u0627\u064a\u0643 \u0622\u062e\u0631'
                         : 'Move to another mic',
                     textAlign: textAlign,
@@ -1315,7 +1380,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    textDirection: widget.isArabic
+                    textDirection: context.isArabic
                         ? TextDirection.rtl
                         : TextDirection.ltr,
                     children: emptySeats.map((number) {
@@ -1340,7 +1405,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                     ).pop(const _OccupiedSeatAction.moveToListener()),
                     icon: const Icon(Icons.hearing_rounded),
                     label: Text(
-                      widget.isArabic
+                      context.isArabic
                           ? '\u0625\u0639\u0627\u062f\u062a\u0647 \u0645\u0633\u062a\u0645\u0639\u0627\u064b'
                           : 'Move to listener',
                     ),
@@ -1352,7 +1417,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                   child: OutlinedButton(
                     onPressed: () => Navigator.of(sheetContext).pop(),
                     child: Text(
-                      widget.isArabic
+                      context.isArabic
                           ? '\u0625\u063a\u0644\u0627\u0642'
                           : 'Close',
                     ),
@@ -1399,7 +1464,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.isArabic
+            context.isArabic
                 ? '\u0644\u0627 \u064a\u0645\u0643\u0646 \u0646\u0642\u0644 \u0645\u0642\u0639\u062f \u0627\u0644\u0645\u0636\u064a\u0641.'
                 : 'Host seat cannot be moved.',
           ),
@@ -1419,9 +1484,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          widget.isArabic
-              ? '\u0627\u0636\u063a\u0637 \u0639\u0644\u0649 \u0645\u0627\u064a\u0643 \u0641\u0627\u0631\u063a \u0644\u0646\u0642\u0644 ${member.fallbackName(widget.isArabic)}.'
-              : 'Tap an empty mic to move ${member.fallbackName(widget.isArabic)}.',
+          context.isArabic
+              ? '\u0627\u0636\u063a\u0637 \u0639\u0644\u0649 \u0645\u0627\u064a\u0643 \u0641\u0627\u0631\u063a \u0644\u0646\u0642\u0644 ${member.fallbackName(context.isArabic)}.'
+              : 'Tap an empty mic to move ${member.fallbackName(context.isArabic)}.',
         ),
       ),
     );
@@ -1464,7 +1529,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              widget.isArabic
+              context.isArabic
                   ? '\u0645\u0642\u0627\u0639\u062f \u0627\u0644\u0645\u062a\u062d\u062f\u062b\u064a\u0646 \u0645\u0645\u062a\u0644\u0626\u0629.'
                   : 'Speaker seats are full.',
             ),
@@ -1493,7 +1558,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.isArabic
+            context.isArabic
                 ? '\u062a\u0645 \u062a\u062d\u062f\u064a\u062b \u0627\u0644\u062f\u0648\u0631'
                 : 'Role updated',
           ),
@@ -1559,7 +1624,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.isArabic
+            context.isArabic
                 ? '\u0644\u0627 \u064a\u0645\u0643\u0646\u0643 \u0637\u0631\u062f \u0645\u0633\u062a\u062e\u062f\u0645 VIP \u0628\u0647\u0630\u0627 \u0627\u0644\u0645\u0633\u062a\u0648\u0649'
                 : 'You cannot remove a VIP user at this level',
           ),
@@ -1576,7 +1641,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.isArabic
+            context.isArabic
                 ? '\u0644\u0627 \u064a\u0645\u0643\u0646\u0643 \u0637\u0631\u062f \u0645\u0633\u062a\u062e\u062f\u0645 VIP \u0628\u0647\u0630\u0627 \u0627\u0644\u0645\u0633\u062a\u0648\u0649'
                 : 'This VIP 5+ user is protected from removal.',
           ),
@@ -1596,7 +1661,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       if (kickBlocked) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
-            widget.isArabic
+            context.isArabic
                 ? 'Ã™â€¡Ã˜Â°Ã˜Â§ Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â³Ã˜ÂªÃ˜Â®Ã˜Â¯Ã™â€¦ VIP Ã™â€¦Ã˜Â­Ã™â€¦Ã™Å  Ã™â€¦Ã™â€  Ã˜Â§Ã™â€žÃ˜Â·Ã˜Â±Ã˜Â¯'
                 : 'This VIP user is protected from kick.',
           ),
@@ -1635,7 +1700,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.isArabic
+            context.isArabic
                 ? '\u062a\u0645 \u0625\u0632\u0627\u0644\u0629 \u0627\u0644\u0639\u0636\u0648 \u0645\u0646 \u0627\u0644\u063a\u0631\u0641\u0629.'
                 : 'User removed from the room.',
           ),
@@ -1721,7 +1786,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          widget.isArabic
+          context.isArabic
               ? (permanentlyDenied
                     ? '\u062a\u0645 \u062d\u0638\u0631 \u0625\u0630\u0646 \u0627\u0644\u0645\u064a\u0643\u0631\u0648\u0641\u0648\u0646. \u0627\u0641\u062a\u062d \u0627\u0644\u0625\u0639\u062f\u0627\u062f\u0627\u062a \u0648\u0627\u0633\u0645\u062d \u0628\u0627\u0644\u0645\u064a\u0643\u0631\u0648\u0641\u0648\u0646.'
                     : '\u064a\u062d\u062a\u0627\u062c SrOOd Live \u0625\u0644\u0649 \u0625\u0630\u0646 \u0627\u0644\u0645\u064a\u0643\u0631\u0648\u0641\u0648\u0646 \u0644\u0644\u062a\u062d\u062f\u062b \u0641\u064a \u0627\u0644\u063a\u0631\u0641.')
@@ -1731,7 +1796,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         ),
         action: permanentlyDenied
             ? SnackBarAction(
-                label: widget.isArabic
+                label: context.isArabic
                     ? '\u0627\u0644\u0625\u0639\u062f\u0627\u062f\u0627\u062a'
                     : 'Settings',
                 onPressed: openAppSettings,
@@ -1863,7 +1928,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              widget.isArabic
+              context.isArabic
                   ? '\u062a\u0639\u0630\u0631 \u062a\u0634\u063a\u064a\u0644 \u0627\u0644\u0645\u0627\u064a\u0643. \u062a\u0623\u0643\u062f \u0645\u0646 \u0625\u0630\u0646 \u0627\u0644\u0645\u064a\u0643\u0631\u0648\u0641\u0648\u0646.'
                   : 'Could not start the microphone. Please check microphone permission.',
             ),
@@ -1965,7 +2030,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.isArabic
+            context.isArabic
                 ? '\u062a\u0639\u0630\u0631 \u0625\u063a\u0644\u0627\u0642 \u0627\u0644\u063a\u0631\u0641\u0629. \u062d\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.'
                 : 'Could not close the room. Please try again.',
           ),
@@ -1981,11 +2046,11 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   String _roleLabel(String role) {
     switch (role) {
       case 'host':
-        return widget.isArabic ? '\u0645\u0636\u064a\u0641' : 'Host';
+        return context.isArabic ? '\u0645\u0636\u064a\u0641' : 'Host';
       case 'speaker':
-        return widget.isArabic ? '\u0645\u062a\u062d\u062f\u062b' : 'Speaker';
+        return context.isArabic ? '\u0645\u062a\u062d\u062f\u062b' : 'Speaker';
       default:
-        return widget.isArabic ? '\u0645\u0633\u062a\u0645\u0639' : 'Listener';
+        return context.isArabic ? '\u0645\u0633\u062a\u0645\u0639' : 'Listener';
     }
   }
 
@@ -2009,7 +2074,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         return RoomUserProfileSheet(
           userId: userId,
           currentUserId: _currentUserId,
-          isArabic: widget.isArabic,
+          isArabic: context.isArabic,
           onSendGift: (targetUserId) {
             Future.microtask(() => _openGiftSheet(targetUserId: targetUserId));
           },
@@ -2103,7 +2168,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.isArabic
+            context.isArabic
                 ? '\u062a\u0639\u0630\u0631 \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0647\u062f\u0627\u064a\u0627. \u0633\u064a\u062a\u0645 \u0627\u0633\u062a\u062e\u062f\u0627\u0645 \u0627\u0644\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0645\u062d\u0644\u064a\u0629.'
                 : 'Could not load gifts. Using local gifts.',
           ),
@@ -2122,7 +2187,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       ),
       builder: (sheetContext) {
         return _GiftSheet(
-          isArabic: widget.isArabic,
+          isArabic: context.isArabic,
           receivers: receivers,
           gifts: gifts,
           roleLabel: _roleLabel,
@@ -2155,10 +2220,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
 
       final errorText = error.toString();
       final message = errorText.contains('insufficient_coins')
-          ? (widget.isArabic
+          ? (context.isArabic
                 ? '\u0631\u0635\u064a\u062f\u0643 \u063a\u064a\u0631 \u0643\u0627\u0641\u064d'
                 : 'Not enough coins')
-          : (widget.isArabic
+          : (context.isArabic
                 ? '\u062a\u0639\u0630\u0631 \u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0647\u062f\u064a\u0629. \u062d\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.'
                 : 'Could not send gift. Please try again.');
 
@@ -2179,7 +2244,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          widget.isArabic
+          context.isArabic
               ? '\u062a\u0645 \u0625\u0631\u0633\u0627\u0644 ${result.gift.name} \u0625\u0644\u0649 ${result.receiverName}'
               : '${result.gift.name} sent to ${result.receiverName}',
         ),
@@ -2313,7 +2378,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
             return _RoomParticipantsSheet(
               members: _participantsForDisplay,
               currentUserId: _currentUserId,
-              isArabic: widget.isArabic,
+              isArabic: context.isArabic,
               refreshing: refreshing,
               supportByUserId: _giftSupportByUserId,
               roleBusyUserId: _roleBusyUserId,
@@ -2336,48 +2401,25 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   Future<bool> _confirmLeave() async {
     if (_isClosingRoom) return false;
     final isOwner = _iAmRoomOwner;
-    final confirmed = await showDialog<bool>(
+    final isArabic = context.isArabic;
+
+    final action = await showModalBottomSheet<_RoomExitAction>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A0D33),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          widget.isArabic
-              ? (isOwner ? 'Ù‡Ù„ ØªØ±ÙŠØ¯ Ø¥ØºÙ„Ø§Ù‚ Ù‡Ø°Ù‡ Ø§Ù„ØºØ±ÙØ©ØŸ' : 'Ù‡Ù„ ØªØ±ÙŠØ¯ Ù…ØºØ§Ø¯Ø±Ø© Ø§Ù„ØºØ±ÙØ©ØŸ')
-              : (isOwner ? 'Close this room?' : 'Leave this room?'),
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w800,
-            fontSize: 17,
-          ),
-        ),
-        content: Text(
-          widget.isArabic
-              ? (isOwner ? 'Ø³ØªÙØºÙ„Ù‚ Ø§Ù„ØºØ±ÙØ© Ù„Ø¬Ù…ÙŠØ¹ Ø§Ù„Ù…Ø´Ø§Ø±ÙƒÙŠÙ†.' : 'Ø³ØªØºØ§Ø¯Ø± Ø§Ù„ØºØ±ÙØ© Ø§Ù„Ø­Ø§Ù„ÙŠØ©.')
-              : (isOwner ? 'The room will be closed for all participants.' : 'You will leave the current room.'),
-          style: const TextStyle(color: Color(0xFFBCAED6)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(
-              widget.isArabic ? 'Ø¥Ù„ØºØ§Ø¡' : 'Cancel',
-              style: const TextStyle(color: Color(0xFF9E8AB8)),
-            ),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFF6E14B8)),
-            child: Text(
-              widget.isArabic
-                  ? (isOwner ? 'Ø¥ØºÙ„Ø§Ù‚ Ø§Ù„ØºØ±ÙØ©' : 'Ù…ØºØ§Ø¯Ø±Ø©')
-                  : (isOwner ? 'Close Room' : 'Leave'),
-            ),
-          ),
-        ],
-      ),
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _RoomExitSheet(isOwner: isOwner, isArabic: isArabic),
     );
-    return confirmed == true;
+
+    if (action == null) return false;
+    if (action == _RoomExitAction.minimize) {
+      _minimizeRoom();
+      return false;
+    }
+    return true;
+  }
+
+  void _minimizeRoom() {
+    ActiveRoomSession.instance.minimize(widget.room);
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -2401,7 +2443,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         scrolledUnderElevation: 0,
         foregroundColor: Colors.white,
         title: Text(
-          widget.isArabic ? '\u0627\u0644\u063a\u0631\u0641\u0629' : 'Room',
+          context.isArabic ? '\u0627\u0644\u063a\u0631\u0641\u0629' : 'Room',
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w800,
@@ -2412,7 +2454,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
           if (_iAmRoomOwner)
             IconButton(
               icon: const Icon(Icons.manage_accounts_rounded),
-              tooltip: widget.isArabic ? '\u0625\u062f\u0627\u0631\u0629 \u0627\u0644\u063a\u0631\u0641\u0629' : 'Manage Room',
+              tooltip: context.isArabic ? '\u0625\u062f\u0627\u0631\u0629 \u0627\u0644\u063a\u0631\u0641\u0629' : 'Manage Room',
               style: IconButton.styleFrom(
                 backgroundColor: Colors.black.withValues(alpha: 0.35),
               ),
@@ -2421,7 +2463,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                   MaterialPageRoute(
                     builder: (_) => RoomOwnerManagementScreen(
                       room: _currentRoom,
-                      isArabic: widget.isArabic,
+                      isArabic: context.isArabic,
                     ),
                   ),
                 );
@@ -2462,7 +2504,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                     walletCoins: _walletCoins,
                     isLocked: _roomLocked,
                     isHost: _iAmHost,
-                    isArabic: widget.isArabic,
+                    isArabic: context.isArabic,
                     announcement: _activeAnnouncementText,
                   ),
                 ),
@@ -2476,7 +2518,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                           padding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
                           child: _GiftRoomBanner(
                             gift: _latestGiftBanner!,
-                            isArabic: widget.isArabic,
+                            isArabic: context.isArabic,
                             onProfileTap: _openUserProfileSheet,
                           ),
                         ),
@@ -2491,17 +2533,27 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                           padding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
                           child: _VipEntryRoomBanner(
                             member: _latestVipEntryMember!,
-                            isArabic: widget.isArabic,
+                            isArabic: context.isArabic,
                           ),
                         ),
                 ),
-                // Mic stage (FIXED â€” never inside a scroll container)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-                  child: _LiveRoomStage(
+                // Mic stage glass panel (FIXED -- never inside a scroll container)
+                Container(
+                  margin: const EdgeInsets.fromLTRB(10, 6, 10, 0),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.38),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.07),
+                      width: 1,
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 6, 4, 6),
+                    child: _LiveRoomStage(
                     members: _members,
                     maxSeats: _currentMaxSeats,
-                    isArabic: widget.isArabic,
+                    isArabic: context.isArabic,
                     activeSpeakerCount: _activeSpeakerCount,
                     isHost: _iAmHost,
                     onEmptySeatTap: _pickListenerForSeat,
@@ -2521,13 +2573,15 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                     onPkFinish: _handlePkAutoFinish,
                     onPkResultClose: () =>
                         setState(() => _showPkResult = false),
+                    seatReactions: _seatReactions,
                   ),
+                ),
                 ),
                 // Scrollable chat feed (only this area scrolls)
                 Expanded(
                   child: _RoomChatFeed(
                     chatMessages: _chatMessages,
-                    isArabic: widget.isArabic,
+                    isArabic: context.isArabic,
                     onProfileTap: _openUserProfileSheet,
                     bottomPad: 116 + bottomPad,
                   ),
@@ -2542,7 +2596,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
             left: 0,
             right: 0,
             child: _LiveBottomActionBar(
-              isArabic: widget.isArabic,
+              isArabic: context.isArabic,
               connectingAudio: _connectingAudio,
               micEnabled: _micEnabled,
               isOnMic: _isCurrentUserOnMic,
@@ -2552,6 +2606,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
               onLeaveRoom: _leaveRoom,
               onGiftTap: _openGiftSheet,
               onMoreTap: _openToolsSheet,
+              onReactionTap: _openReactionPicker,
               onSendMessage: _sendChatMessage,
               bottomPad: bottomPad,
             ),
@@ -2559,7 +2614,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
 
           // \u2500\u2500 3. Gift floating event overlay \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
           _GiftEventOverlay(
-              events: _giftEvents, isArabic: widget.isArabic),
+              events: _giftEvents, isArabic: context.isArabic),
 
           // \u2500\u2500 4. Full-screen luxury gift video \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
           if (_activeLuxuryGiftVideo != null)
@@ -2569,8 +2624,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
             ),
 
           // Ã¢â€â‚¬Ã¢â€â‚¬ 5. Music mini-player Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+          // Music mini-player sits just above the bottom toolbar + chat bar.
+          // bottom = toolbar(58) + chat(50) + gap(8) + bottomPad
           Positioned(
-            bottom: 120 + bottomPad,
+            bottom: 116 + bottomPad,
             left: 0,
             right: 0,
             child: ListenableBuilder(
@@ -2578,7 +2635,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
               builder: (_, _) => _musicService.isActive
                   ? RoomMiniPlayer(
                       musicService: _musicService,
-                      isArabic: widget.isArabic,
+                      isArabic: context.isArabic,
                       onTap: _openMusicPanel,
                       canManage: _iAmRoomOwner || _iAmHost,
                       onStop: (_iAmRoomOwner || _iAmHost)
@@ -2592,15 +2649,15 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
           // Ã¢â€â‚¬Ã¢â€â‚¬ 6. Srood Loto side shortcut (lower-right / lower-left for RTL) Ã¢â€â‚¬Ã¢â€â‚¬
           // Positioned above the chat overlay so it never blocks messages.
           Positioned(
-            right: widget.isArabic ? null : 0,
-            left: widget.isArabic ? 0 : null,
+            right: context.isArabic ? null : 0,
+            left: context.isArabic ? 0 : null,
             bottom: 280 + bottomPad,
             child: _LotoFloatingButton(
-              isArabic: widget.isArabic,
+              isArabic: context.isArabic,
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) =>
-                      SroodLotoScreen(isArabic: widget.isArabic),
+                      SroodLotoScreen(isArabic: context.isArabic),
                 ),
               ),
             ),
@@ -2613,7 +2670,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
           if (_isClosingRoom)
             _RoomClosingOverlay(
               isOwnerClosing: _iAmRoomOwner,
-              isArabic: widget.isArabic,
+              isArabic: context.isArabic,
             ),
         ],
       ),
@@ -2775,9 +2832,12 @@ class _CompactRoomHeader extends StatelessWidget {
                       const SizedBox(width: 8),
 
                       // Status pills column
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        mainAxisSize: MainAxisSize.min,
+                      // Status pills — wrap so 4 pills fit in 2 rows (saves ~45px vs stacked column)
+                      Wrap(
+                        direction: Axis.horizontal,
+                        alignment: WrapAlignment.end,
+                        spacing: 4,
+                        runSpacing: 4,
                         children: [
                           // Online members count
                           _MiniRoomStatusPill(
@@ -2785,13 +2845,11 @@ class _CompactRoomHeader extends StatelessWidget {
                             label: memberCount.toString(),
                             color: const Color(0xFF4ADE80),
                           ),
-                          const SizedBox(height: 4),
                           // Seats
                           _MiniRoomStatusPill(
                             icon: Icons.event_seat_rounded,
                             label: '$activeSpeakerCount/${room.maxSeats}',
                           ),
-                          const SizedBox(height: 4),
                           // Wallet coins
                           _MiniRoomStatusPill(
                             icon: Icons.monetization_on_rounded,
@@ -2800,14 +2858,12 @@ class _CompactRoomHeader extends StatelessWidget {
                                 : walletCoins.toString(),
                             color: const Color(0xFFF0C15A),
                           ),
-                          if (isHost) ...[
-                            const SizedBox(height: 4),
+                          if (isHost)
                             _MiniRoomStatusPill(
                               icon: Icons.admin_panel_settings_rounded,
-                              label: isArabic ? '\u0645\u0636\u064a\u0641' : 'Host',
+                              label: isArabic ? 'مضيف' : 'Host',
                               color: const Color(0xFFF0C15A),
                             ),
-                          ],
                         ],
                       ),
                     ],
@@ -2820,11 +2876,11 @@ class _CompactRoomHeader extends StatelessWidget {
           // \u2500\u2500 Announcement strip \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
           if (announcement != null && announcement!.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.only(top: 4),
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 10),
+                    horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1E0E38),
                   borderRadius: BorderRadius.circular(14),
@@ -2843,7 +2899,7 @@ class _CompactRoomHeader extends StatelessWidget {
                     Expanded(
                       child: Text(
                         announcement!,
-                        maxLines: 2,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 12,
@@ -2898,10 +2954,10 @@ class _FullRoomBackground extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
+                  Colors.black.withValues(alpha: imageUrl != null ? 0.78 : 0.0),
+                  Colors.black.withValues(alpha: imageUrl != null ? 0.52 : 0.0),
                   Colors.black.withValues(alpha: imageUrl != null ? 0.62 : 0.0),
-                  Colors.black.withValues(alpha: imageUrl != null ? 0.18 : 0.0),
-                  Colors.black.withValues(alpha: imageUrl != null ? 0.28 : 0.0),
-                  Colors.black.withValues(alpha: 0.78),
+                  Colors.black.withValues(alpha: 0.92),
                 ],
                 stops: const [0.0, 0.28, 0.55, 1.0],
               ),
@@ -3161,6 +3217,7 @@ class _LiveRoomStage extends StatelessWidget {
     this.pkResult,
     this.onPkFinish,
     this.onPkResultClose,
+    this.seatReactions = const {},
   });
 
   final List<RoomMember> members;
@@ -3183,17 +3240,17 @@ class _LiveRoomStage extends StatelessWidget {
   final PkSession? pkResult;
   final VoidCallback? onPkFinish;
   final VoidCallback? onPkResultClose;
+  final Map<int, RoomReaction> seatReactions;
 
   @override
   Widget build(BuildContext context) {
     final seats = _buildSeats();
-    final textAlign = isArabic ? TextAlign.right : TextAlign.left;
     final crossAxisAlignment = isArabic
         ? CrossAxisAlignment.end
         : CrossAxisAlignment.start;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(2, 8, 2, 12),
+      padding: const EdgeInsets.fromLTRB(2, 4, 2, 6),
       child: Column(
         crossAxisAlignment: crossAxisAlignment,
         children: [
@@ -3206,73 +3263,64 @@ class _LiveRoomStage extends StatelessWidget {
               onFinish: onPkFinish ?? () {},
             )
           else
-          // Stage header row
+          // Stage header row (compact single line)
           Row(
             textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
             children: [
-              // Left: title + seat count
+              // Left: title + live dot + count + participants chip on one row
               Expanded(
-                child: Column(
-                  crossAxisAlignment: crossAxisAlignment,
+                child: Row(
+                  textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
                   children: [
                     Text(
-                      isArabic ? '\u0645\u0646\u0635\u0629 \u0627\u0644\u0635\u0648\u062a' : 'Voice Stage',
-                      textAlign: textAlign,
+                      isArabic ? 'منصة الصوت' : 'Voice Stage',
                       style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
                         color: Colors.white,
-                        letterSpacing: -0.3,
+                        letterSpacing: -0.2,
                         shadows: [
-                          Shadow(blurRadius: 6, color: Colors.black45),
+                          Shadow(blurRadius: 4, color: Colors.black45),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    Row(
-                      textDirection: isArabic
-                          ? TextDirection.rtl
-                          : TextDirection.ltr,
-                      children: [
-                        Container(
-                          width: 7,
-                          height: 7,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Color(0xFF4ADE80),
-                          ),
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Color(0xFF4ADE80),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        isArabic
+                            ? '$activeSpeakerCount/$maxSeats نشط'
+                            : '$activeSpeakerCount/$maxSeats',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.65),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
                         ),
-                        const SizedBox(width: 5),
-                        Flexible(
-                          child: Text(
-                            isArabic
-                                ? '$activeSpeakerCount/$maxSeats \u0645\u0642\u0639\u062f \u0646\u0634\u0637'
-                                : '$activeSpeakerCount/$maxSeats active',
-                            textAlign: textAlign,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.7),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        _ParticipantsChip(
-                          count: memberCount,
-                          isArabic: isArabic,
-                          onTap: onParticipantsTap,
-                        ),
-                      ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    _ParticipantsChip(
+                      count: memberCount,
+                      isArabic: isArabic,
+                      onTap: onParticipantsTap,
                     ),
                   ],
                 ),
               ),
               // Right: animated EQ icon
               Container(
-                width: 42,
-                height: 42,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: const LinearGradient(
@@ -3281,7 +3329,7 @@ class _LiveRoomStage extends StatelessWidget {
                   boxShadow: [
                     BoxShadow(
                       color: const Color(0xFFF0C15A).withValues(alpha: 0.35),
-                      blurRadius: 16,
+                      blurRadius: 12,
                       spreadRadius: -2,
                     ),
                   ],
@@ -3289,12 +3337,12 @@ class _LiveRoomStage extends StatelessWidget {
                 child: const Icon(
                   Icons.graphic_eq_rounded,
                   color: Color(0xFF160B26),
-                  size: 22,
+                  size: 18,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 4),
           // Ã¢â€â‚¬Ã¢â€â‚¬ PK result banner Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
           if (showPkResult && pkResult != null) ...[
             PkResultBanner(
@@ -3359,6 +3407,7 @@ class _LiveRoomStage extends StatelessWidget {
                 selectedMoveUserId: selectedMoveUserId,
                 speakingUserIds: speakingUserIds,
                 activePk: activePk,
+                seatReactions: seatReactions,
               ),
             ],
           ),
@@ -3431,6 +3480,7 @@ class _SeatGrid extends StatelessWidget {
     required this.selectedMoveUserId,
     required this.speakingUserIds,
     this.activePk,
+    this.seatReactions = const {},
   });
 
   final List<_StageSeat> seats;
@@ -3444,6 +3494,7 @@ class _SeatGrid extends StatelessWidget {
   final String? selectedMoveUserId;
   final Set<String> speakingUserIds;
   final PkSession? activePk;
+  final Map<int, RoomReaction> seatReactions;
 
   @override
   Widget build(BuildContext context) {
@@ -3451,11 +3502,15 @@ class _SeatGrid extends StatelessWidget {
       // Use a single stable aspect ratio and fixed gaps so tile positions
       // never shift regardless of content state, screen size, or animations.
       const colGap = 8.0;
-      const rowGap = 12.0;
-      // Aspect ratio: slightly taller than wide so name + price fit.
-      const aspectRatio = 0.43;
+      const rowGap = 6.0;
+      const aspectRatio = 0.95;
+      // Minimum height = sum of all fixed zones in _LiveSeatBubble so the
+      // tile never clips its content on high-density small screens.
+      const minBubbleHeight =
+          _kAvatarAreaHeight + 2 + 11 + _micSeatSupportSlotHeight + 12; // 80 px
       final tileWidth = (constraints.maxWidth - colGap * (cols - 1)) / cols;
-      final tileHeight = tileWidth / aspectRatio;
+      final tileHeight =
+          math.max(tileWidth / aspectRatio, minBubbleHeight);
 
       final rows = <List<_StageSeat>>[];
       for (var i = 0; i < seats.length; i += cols) {
@@ -3507,6 +3562,7 @@ class _SeatGrid extends StatelessWidget {
                 selectedForMove: row[c].member?.userId == selectedMoveUserId,
                 pkTeam: pkSeatTeam(
                     row[c].member?.userId ?? '', activePk),
+                activeReaction: seatReactions[row[c].number],
               ),
             ),
           ),
@@ -4037,6 +4093,7 @@ class _LiveSeatBubble extends StatelessWidget {
     required this.onProfileTap,
     required this.selectedForMove,
     this.pkTeam,
+    this.activeReaction,
   });
 
   final _StageSeat seat;
@@ -4051,6 +4108,7 @@ class _LiveSeatBubble extends StatelessWidget {
   final bool selectedForMove;
   // 'a', 'b', or null â€” non-null only when PK is active and seat is assigned.
   final String? pkTeam;
+  final RoomReaction? activeReaction;
 
   @override
   Widget build(BuildContext context) {
@@ -4332,19 +4390,6 @@ class _LiveSeatBubble extends StatelessWidget {
                         ),
                       ),
 
-                      // 5. Smiley accent Ã¢â‚¬â€ premium floating decoration at
-                      //    top-right of the avatar. Varies by seat type.
-                      Positioned(
-                        top: occupiedByHost ? -10.0 : -7.0,
-                        right: -5.0,
-                        child: IgnorePointer(
-                          child: _SeatSmileyAccent(
-                            isHost: occupiedByHost,
-                            vipLevel: effectiveVipLevel,
-                            seatNumber: seat.number,
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -4357,12 +4402,25 @@ class _LiveSeatBubble extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // Ã¢â€â‚¬Ã¢â€â‚¬ Zone 1: avatar Ã¢â‚¬â€ always _kAvatarAreaHeight Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-        avatarZone,
+        // Zone 1 + reaction overlay
+        Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
+          children: [
+            avatarZone,
+            if (activeReaction != null && activeReaction!.isActive)
+              SeatReactionOverlay(
+                key: ValueKey(activeReaction!.expiresAt),
+                emoji: activeReaction!.emoji,
+                onExpired: () {},
+              ),
+          ],
+        ),
 
         // Ã¢â€â‚¬Ã¢â€â‚¬ Zone 2: name Ã¢â‚¬â€ always 14 px Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
         const SizedBox(height: 2),
         SizedBox(
-          height: 14,
+          height: 11,
           child: Align(
             alignment: Alignment.topCenter,
             child: Text(
@@ -4406,7 +4464,7 @@ class _LiveSeatBubble extends StatelessWidget {
 
         // Ã¢â€â‚¬Ã¢â€â‚¬ Zone 4: role badge Ã¢â‚¬â€ 18 px, hidden when badge is empty Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
         SizedBox(
-          height: 18,
+          height: 12,
           child: badge.isEmpty
               ? null
               : Center(
@@ -4512,23 +4570,23 @@ class _SeatSmileyAccentState extends State<_SeatSmileyAccent>
     final double size;
 
     if (widget.isHost) {
-      emoji = 'Ã¢Å“Â¨'; // Ã¢Å“Â¨
+      emoji = '✨'; // sparks
       glow = const Color(0xFFF0C15A);
       size = 22;
     } else if (widget.vipLevel >= 7) {
-      emoji = 'Ã°Å¸â€™Â«'; // Ã°Å¸â€™Â«
+      emoji = String.fromCharCode(0x1F4AB); // dizzy
       glow = const Color(0xFFCE93D8);
       size = 20;
     } else if (widget.vipLevel >= 4) {
-      emoji = 'Ã°Å¸Å’Å¸'; // Ã°Å¸Å’Å¸
+      emoji = String.fromCharCode(0x1F31F); // star
       glow = const Color(0xFF9C27B0);
       size = 19;
     } else if (widget.vipLevel >= 1) {
-      emoji = 'Ã°Å¸Å’Â¸'; // Ã°Å¸Å’Â¸
+      emoji = String.fromCharCode(0x1F338); // cherry
       glow = const Color(0xFFFF80AB);
       size = 18;
     } else {
-      emoji = 'Ã°Å¸ËœÅ '; // Ã°Å¸ËœÅ 
+      emoji = String.fromCharCode(0x1F60A); // smile
       glow = const Color(0xFF8B26D9);
       size = 18;
     }
@@ -4762,7 +4820,7 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
   @override
   Widget build(BuildContext context) {
     final msg = widget.message;
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
 
     if (msg.isSystem) {
       return Padding(
@@ -5136,7 +5194,7 @@ class _VipEntryRoomBannerState extends State<_VipEntryRoomBanner>
   Widget build(BuildContext context) {
     final level = widget.member.effectiveVipLevel;
     final prestige = VipVisualResolver.resolve(level);
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
 
     final text = isArabic
         ? '${widget.member.fallbackName(isArabic)} \u062f\u062e\u0644 \u0627\u0644\u063a\u0631\u0641\u0629 \u0643\u0640 VIP $level'
@@ -5831,7 +5889,7 @@ class _GiftSheetState extends State<_GiftSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.isArabic
+            context.isArabic
                 ? '\u0627\u062e\u062a\u0631 \u0647\u062f\u064a\u0629 \u0623\u0648\u0644\u0627\u064b.'
                 : 'Choose a gift first.',
           ),
@@ -5844,7 +5902,7 @@ class _GiftSheetState extends State<_GiftSheet> {
       _GiftSendResult(
         gift: gift,
         receiverUserId: receiver.userId,
-        receiverName: receiver.fallbackName(widget.isArabic),
+        receiverName: receiver.fallbackName(context.isArabic),
         quantity: _quantity,
       ),
     );
@@ -5854,7 +5912,7 @@ class _GiftSheetState extends State<_GiftSheet> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          widget.isArabic
+          context.isArabic
               ? '\u0627\u062e\u062a\u0631 \u0634\u062e\u0635\u0627\u064b \u0644\u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0647\u062f\u064a\u0629.'
               : 'Choose someone to receive the gift.',
         ),
@@ -5889,10 +5947,10 @@ class _GiftSheetState extends State<_GiftSheet> {
           ),
           child: Column(
             children: [
-              _GiftSheetGrabber(isArabic: widget.isArabic),
+              _GiftSheetGrabber(isArabic: context.isArabic),
               const SizedBox(height: 10),
               _GiftReceiverRail(
-                isArabic: widget.isArabic,
+                isArabic: context.isArabic,
                 receivers: widget.receivers,
                 selectedReceiver: _selectedReceiver,
                 roleLabel: widget.roleLabel,
@@ -5904,7 +5962,7 @@ class _GiftSheetState extends State<_GiftSheet> {
               ),
               const SizedBox(height: 12),
               _GiftCategoryTabs(
-                isArabic: widget.isArabic,
+                isArabic: context.isArabic,
                 selectedCategoryKey: _selectedCategoryKey,
                 onSelected: (key) {
                   setState(() {
@@ -5933,7 +5991,7 @@ class _GiftSheetState extends State<_GiftSheet> {
                         final gift = gifts[index];
                         return _GiftCard(
                           gift: gift,
-                          isArabic: widget.isArabic,
+                          isArabic: context.isArabic,
                           selected: _selectedGift?.name == gift.name,
                           onTap: () => _chooseGift(gift),
                         );
@@ -5943,7 +6001,7 @@ class _GiftSheetState extends State<_GiftSheet> {
                 ),
               ),
               _GiftSendBar(
-                isArabic: widget.isArabic,
+                isArabic: context.isArabic,
                 quantity: _quantity,
                 selectedGift: _selectedGift,
                 userCoinsBalance: _userCoinsBalance,
@@ -6574,6 +6632,7 @@ class _LiveBottomActionBar extends StatefulWidget {
     required this.onLeaveRoom,
     required this.onGiftTap,
     required this.onMoreTap,
+    required this.onReactionTap,
     required this.onSendMessage,
     this.bottomPad = 0,
   });
@@ -6588,6 +6647,7 @@ class _LiveBottomActionBar extends StatefulWidget {
   final VoidCallback onLeaveRoom;
   final VoidCallback onGiftTap;
   final VoidCallback onMoreTap;
+  final VoidCallback onReactionTap;
   final Future<void> Function(String) onSendMessage;
   final double bottomPad;
 
@@ -6677,31 +6737,9 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
             // Row 1: composer
             Row(
               textDirection:
-                  widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+                  context.isArabic ? TextDirection.rtl : TextDirection.ltr,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                // Left gift / media button
-                GestureDetector(
-                  onTap: widget.onGiftTap,
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      color: Colors.white.withValues(alpha: 0.07),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.12),
-                        width: 1.0,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.card_giftcard_rounded,
-                      color: Color(0xFFF0C15A),
-                      size: 20,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
                 // Center: expandable text pill
                 Expanded(
                   child: AnimatedContainer(
@@ -6727,7 +6765,7 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
                           : const [],
                     ),
                     child: Row(
-                      textDirection: widget.isArabic
+                      textDirection: context.isArabic
                           ? TextDirection.rtl
                           : TextDirection.ltr,
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -6742,7 +6780,7 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
                           child: TextField(
                             controller: _ctrl,
                             focusNode: _focus,
-                            textDirection: widget.isArabic
+                            textDirection: context.isArabic
                                 ? TextDirection.rtl
                                 : TextDirection.ltr,
                             style: const TextStyle(
@@ -6763,7 +6801,7 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
                               border: InputBorder.none,
                               isDense: true,
                               contentPadding: EdgeInsets.zero,
-                              hintText: widget.isArabic
+                              hintText: context.isArabic
                                   ? 'Ø£Ù‡Ù„Ø§Ù‹ØŒ Ø§ÙƒØªØ¨ Ø´ÙŠØ¦Ø§Ù‹...'
                                   : 'Say something...',
                               hintStyle: TextStyle(
@@ -6846,7 +6884,7 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
             if (!keyboardOpen) ...[
               const SizedBox(height: 6),
               Row(
-                textDirection: widget.isArabic
+                textDirection: context.isArabic
                     ? TextDirection.rtl
                     : TextDirection.ltr,
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -6866,21 +6904,9 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
                     opacity: widget.isOnMic ? 1.0 : 0.40,
                   ),
                   _QuickActionBtn(
-                    icon: Icons.auto_fix_high_rounded,
-                    color: Colors.white.withValues(alpha: 0.60),
-                    onTap: null,
-                    opacity: 0.40,
-                  ),
-                  _QuickActionBtn(
                     icon: Icons.tune_rounded,
                     color: Colors.white.withValues(alpha: 0.85),
                     onTap: widget.onMoreTap,
-                  ),
-                  _QuickActionBtn(
-                    icon: Icons.sticky_note_2_outlined,
-                    color: Colors.white.withValues(alpha: 0.60),
-                    onTap: null,
-                    opacity: 0.40,
                   ),
                   _QuickActionBtn(
                     icon: Icons.card_giftcard_rounded,
@@ -6890,7 +6916,7 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
                   _QuickActionBtn(
                     icon: Icons.emoji_emotions_outlined,
                     color: Colors.white.withValues(alpha: 0.85),
-                    onTap: () => _focus.requestFocus(),
+                    onTap: () => widget.onReactionTap(),
                   ),
                   _QuickActionBtn(
                     icon: Icons.logout_rounded,
@@ -7082,7 +7108,7 @@ class _RoomChatFeedState extends State<_RoomChatFeed> {
     if (widget.chatMessages.isEmpty) return const SizedBox.shrink();
     return Directionality(
       textDirection:
-          widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+          context.isArabic ? TextDirection.rtl : TextDirection.ltr,
       child: ListView.builder(
         controller: _ctrl,
         padding: EdgeInsets.fromLTRB(10, 8, 10, widget.bottomPad),
@@ -7091,7 +7117,7 @@ class _RoomChatFeedState extends State<_RoomChatFeed> {
           final msg = widget.chatMessages[index];
           return _ChatBubbleRow(
             message: msg,
-            isArabic: widget.isArabic,
+            isArabic: context.isArabic,
             onProfileTap:
                 msg.isSystem ? null : () => widget.onProfileTap(msg.senderId),
           );
@@ -7180,7 +7206,7 @@ class _RoomClosingOverlayState extends State<_RoomClosingOverlay>
 
   @override
   Widget build(BuildContext context) {
-    final isAr = widget.isArabic;
+    final isAr = context.isArabic;
     final isOwner = widget.isOwnerClosing;
 
     final titleText = isOwner
@@ -7426,6 +7452,202 @@ class _PulsingDotsState extends State<_PulsingDots>
           }),
         );
       },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Room exit action sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum _RoomExitAction { minimize, exit, closeRoom }
+
+class _RoomExitSheet extends StatelessWidget {
+  const _RoomExitSheet({required this.isOwner, required this.isArabic});
+  final bool isOwner;
+  final bool isArabic;
+
+  String _t(String ar, String en) => isArabic ? ar : en;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF130828),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border(
+          top: BorderSide(color: Color(0xFF4A1A8A), width: 1),
+        ),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        20, 16, 20, MediaQuery.of(context).padding.bottom + 20,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Grabber
+          Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.white24,
+              borderRadius: BorderRadius.circular(99),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _t('خيارات الغرفة', 'Room Options'),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Minimize
+          _ExitOption(
+            icon: Icons.picture_in_picture_alt_rounded,
+            iconColor: const Color(0xFF8B26D9),
+            iconBg: const Color(0xFF2A0E50),
+            title: _t('تصغير الغرفة', 'Minimize'),
+            subtitle: _t(
+              'العودة للتطبيق مع بقاء الغرفة نشطة',
+              'Browse the app while staying in the room',
+            ),
+            onTap: () => Navigator.of(context).pop(_RoomExitAction.minimize),
+          ),
+          const SizedBox(height: 10),
+
+          // Exit room (always available — even owner can leave without closing)
+          _ExitOption(
+            icon: Icons.logout_rounded,
+            iconColor: const Color(0xFFFF6B6B),
+            iconBg: const Color(0xFF3A1010),
+            title: _t('مغادرة الغرفة', 'Exit Room'),
+            subtitle: _t(
+              'ستغادر الغرفة وتظل الغرفة مفتوحة',
+              'Leave the room — it stays open for others',
+            ),
+            onTap: () => Navigator.of(context).pop(_RoomExitAction.exit),
+          ),
+
+          // Close room — owner only
+          if (isOwner) ...[
+            const SizedBox(height: 10),
+            _ExitOption(
+              icon: Icons.cancel_rounded,
+              iconColor: const Color(0xFFFF3B3B),
+              iconBg: const Color(0xFF3A0808),
+              title: _t('إغلاق الغرفة', 'Close Room'),
+              subtitle: _t(
+                'ستُغلق الغرفة لجميع المشاركين',
+                'End the room for all participants',
+              ),
+              onTap: () => Navigator.of(context).pop(_RoomExitAction.closeRoom),
+            ),
+          ],
+
+          const SizedBox(height: 12),
+
+          // Cancel
+          GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white12),
+              ),
+              child: Text(
+                _t('إلغاء', 'Cancel'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExitOption extends StatelessWidget {
+  const _ExitOption({
+    required this.icon,
+    required this.iconColor,
+    required this.iconBg,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBg;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: iconColor, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.45),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: Colors.white.withValues(alpha: 0.25),
+              size: 20,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

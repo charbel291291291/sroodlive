@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/room.dart';
 import '../services/room_management_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 /// Premium settings bottom sheet (inspired by Image B).
 ///
@@ -74,7 +75,7 @@ class _RoomSettingsSheetState extends State<RoomSettingsSheet> {
     setState(() => _savingName = true);
     try {
       await _mgmt.updateRoom(widget.room.id, name: name);
-      if (mounted) _showSuccess(widget.isArabic ? 'تم تحديث الاسم' : 'Name updated');
+      if (mounted) _showSuccess(context.isArabic ? 'تم تحديث الاسم' : 'Name updated');
     } catch (e) {
       if (mounted) _showError(e.toString());
     } finally {
@@ -92,7 +93,7 @@ class _RoomSettingsSheetState extends State<RoomSettingsSheet> {
         await _mgmt.saveAnnouncement(widget.room.id, text);
       }
       if (mounted) {
-        _showSuccess(widget.isArabic ? 'تم تحديث الإعلان' : 'Announcement updated');
+        _showSuccess(context.isArabic ? 'تم تحديث الإعلان' : 'Announcement updated');
       }
     } catch (e) {
       if (mounted) _showError(e.toString());
@@ -128,7 +129,7 @@ class _RoomSettingsSheetState extends State<RoomSettingsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
     final textDir = isArabic ? TextDirection.rtl : TextDirection.ltr;
     final maxH = MediaQuery.sizeOf(context).height * 0.88;
 
@@ -328,7 +329,7 @@ class _RoomSettingsSheetState extends State<RoomSettingsSheet> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          widget.isArabic
+          context.isArabic
               ? '$feature - قريباً'
               : '$feature — coming soon',
         ),
@@ -461,7 +462,7 @@ class _EditableSettingsTileState extends State<_EditableSettingsTile> {
                 Text(
                   widget.controller.text.isNotEmpty
                       ? widget.controller.text
-                      : (widget.isArabic ? 'لا يوجد' : 'Not set'),
+                      : (context.isArabic ? 'لا يوجد' : 'Not set'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -481,7 +482,7 @@ class _EditableSettingsTileState extends State<_EditableSettingsTile> {
         if (_expanded) ...[
           TextField(
             controller: widget.controller,
-            textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+            textDirection: context.isArabic ? TextDirection.rtl : TextDirection.ltr,
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
               filled: true,
@@ -511,7 +512,7 @@ class _EditableSettingsTileState extends State<_EditableSettingsTile> {
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white),
                     )
-                  : Text(widget.isArabic ? 'حفظ' : 'Save'),
+                  : Text(context.isArabic ? 'حفظ' : 'Save'),
             ),
           ),
           const SizedBox(height: 8),
@@ -606,10 +607,10 @@ class _MultilineEditableSettingsTileState
           TextField(
             controller: widget.controller,
             maxLines: 3,
-            textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+            textDirection: context.isArabic ? TextDirection.rtl : TextDirection.ltr,
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
-              hintText: widget.isArabic
+              hintText: context.isArabic
                   ? 'اكتب إعلاناً للغرفة…'
                   : 'Write a room announcement…',
               hintStyle:
@@ -641,7 +642,7 @@ class _MultilineEditableSettingsTileState
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white),
                     )
-                  : Text(widget.isArabic ? 'حفظ الإعلان' : 'Save Announcement'),
+                  : Text(context.isArabic ? 'حفظ الإعلان' : 'Save Announcement'),
             ),
           ),
           const SizedBox(height: 8),

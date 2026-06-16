@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/supabase/supabase_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class RoomScheduleScreen extends StatefulWidget {
   const RoomScheduleScreen({required this.isArabic, super.key});
@@ -178,7 +179,7 @@ class _RoomScheduleScreenState extends State<RoomScheduleScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(widget.isArabic ? 'تم تسجيل التذكير' : 'Reminder set!'),
+          content: Text(context.isArabic ? 'تم تسجيل التذكير' : 'Reminder set!'),
           backgroundColor: const Color(0xFF1A3A28),
           duration: const Duration(seconds: 2),
         ),
@@ -199,7 +200,7 @@ class _RoomScheduleScreenState extends State<RoomScheduleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
     return Scaffold(
       backgroundColor: const Color(0xFF08060F),
       body: Container(

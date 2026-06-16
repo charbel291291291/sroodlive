@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/room_music_service.dart';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// RoomMiniPlayer — compact music bar shown when music is active in the room.
-// Sits above the bottom action bar. Tapping it opens the full MusicPanel.
-// ─────────────────────────────────────────────────────────────────────────────
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class RoomMiniPlayer extends StatefulWidget {
   const RoomMiniPlayer({
@@ -21,14 +17,7 @@ class RoomMiniPlayer extends StatefulWidget {
   final RoomMusicService musicService;
   final bool isArabic;
   final VoidCallback onTap;
-
-  /// Called when the stop button is pressed.
-  /// If null, falls back to [musicService.stop()] (local only).
-  /// Hosts should pass [_syncedMusic.stopForRoom] here.
   final VoidCallback? onStop;
-
-  /// Whether this user can control music for everyone (host/owner).
-  /// Only affects the stop button tooltip; controls are always shown.
   final bool canManage;
 
   @override
@@ -66,6 +55,7 @@ class _RoomMiniPlayerState extends State<RoomMiniPlayer>
         final total = svc.duration?.inMilliseconds ?? 1;
         final pos = svc.position.inMilliseconds;
         final progress = (pos / total).clamp(0.0, 1.0);
+        final isRtl = context.isArabic;
 
         return GestureDetector(
           onTap: () {
@@ -75,20 +65,20 @@ class _RoomMiniPlayerState extends State<RoomMiniPlayer>
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(16),
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [Color(0xFF2A1555), Color(0xFF1A0D33)],
               ),
               border: Border.all(
-                color: const Color(0xFF8B26D9).withValues(alpha: 0.45),
+                color: const Color(0xFF8B26D9).withValues(alpha: 0.50),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF8B26D9).withValues(alpha: 0.25),
-                  blurRadius: 16,
-                  spreadRadius: -4,
+                  color: const Color(0xFF8B26D9).withValues(alpha: 0.30),
+                  blurRadius: 14,
+                  spreadRadius: -2,
                 ),
               ],
             ),
@@ -96,19 +86,16 @@ class _RoomMiniPlayerState extends State<RoomMiniPlayer>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                   child: Row(
-                    textDirection: widget.isArabic
-                        ? TextDirection.rtl
-                        : TextDirection.ltr,
+                    textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
                     children: [
-                      // Animated icon
+                      // Animated music icon
                       AnimatedBuilder(
                         animation: _wave,
                         builder: (_, _) => Container(
-                          width: 32,
-                          height: 32,
+                          width: 34,
+                          height: 34,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: const Color(0xFF8B26D9).withValues(
@@ -123,16 +110,18 @@ class _RoomMiniPlayerState extends State<RoomMiniPlayer>
                                 ? Icons.music_note_rounded
                                 : Icons.music_note_outlined,
                             color: const Color(0xFFC875FF),
-                            size: 16,
+                            size: 17,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 9),
 
                       // Song info
                       Expanded(
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: isRtl
+                              ? CrossAxisAlignment.end
+                              : CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
@@ -145,18 +134,20 @@ class _RoomMiniPlayerState extends State<RoomMiniPlayer>
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            Text(
-                              song.artist,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.5),
-                                fontSize: 10,
+                            if (song.artist.isNotEmpty)
+                              Text(
+                                song.artist,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.50),
+                                  fontSize: 10,
+                                ),
                               ),
-                            ),
                           ],
                         ),
                       ),
+                      const SizedBox(width: 8),
 
                       // Play / Pause
                       GestureDetector(
@@ -165,24 +156,24 @@ class _RoomMiniPlayerState extends State<RoomMiniPlayer>
                           svc.playPause();
                         },
                         child: Container(
-                          width: 34,
-                          height: 34,
+                          width: 36,
+                          height: 36,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: const Color(0xFF8B26D9).withValues(alpha: 0.3),
+                            color: const Color(0xFF8B26D9).withValues(alpha: 0.35),
                           ),
                           child: Icon(
                             svc.isPlaying
                                 ? Icons.pause_rounded
                                 : Icons.play_arrow_rounded,
                             color: Colors.white,
-                            size: 18,
+                            size: 20,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
 
-                      // Stop (host: stops for all; member: mutes locally)
+                      // ✕ Close — host: stops for all; member: mutes locally
                       GestureDetector(
                         onTap: () {
                           HapticFeedback.mediumImpact();
@@ -193,16 +184,19 @@ class _RoomMiniPlayerState extends State<RoomMiniPlayer>
                           }
                         },
                         child: Container(
-                          width: 30,
-                          height: 30,
+                          width: 32,
+                          height: 32,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Colors.white.withValues(alpha: 0.07),
+                            color: Colors.white.withValues(alpha: 0.10),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.22),
+                            ),
                           ),
-                          child: Icon(
-                            Icons.stop_rounded,
-                            color: Colors.white.withValues(alpha: 0.6),
-                            size: 16,
+                          child: const Icon(
+                            Icons.close_rounded,
+                            color: Colors.white,
+                            size: 17,
                           ),
                         ),
                       ),
@@ -213,7 +207,7 @@ class _RoomMiniPlayerState extends State<RoomMiniPlayer>
                 // Progress bar
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(18)),
+                      bottom: Radius.circular(16)),
                   child: LinearProgressIndicator(
                     value: progress,
                     minHeight: 2,

@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../models/pk_session.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PK colours.
@@ -87,7 +88,7 @@ class _PkBannerState extends State<PkBanner> {
           children: [
             // Team A
             _TeamScoreChip(
-              label: widget.isArabic ? 'فريق أ' : 'Team A',
+              label: context.isArabic ? 'فريق أ' : 'Team A',
               score: session.teamAScore,
               color: kPkRed,
               leading: session.leadingTeam == 'a',
@@ -121,7 +122,7 @@ class _PkBannerState extends State<PkBanner> {
             const Spacer(),
             // Team B
             _TeamScoreChip(
-              label: widget.isArabic ? 'فريق ب' : 'Team B',
+              label: context.isArabic ? 'فريق ب' : 'Team B',
               score: session.teamBScore,
               color: kPkBlue,
               leading: session.leadingTeam == 'b',
@@ -132,7 +133,7 @@ class _PkBannerState extends State<PkBanner> {
         // Battle bar
         PkBattleBar(
           teamAFraction: session.teamAFraction,
-          isArabic: widget.isArabic,
+          isArabic: context.isArabic,
         ),
       ],
     );
@@ -274,7 +275,7 @@ class _PkResultBannerState extends State<PkResultBanner>
     super.dispose();
   }
 
-  String _t(String ar, String en) => widget.isArabic ? ar : en;
+  String _t(String ar, String en) => context.isArabic ? ar : en;
 
   @override
   Widget build(BuildContext context) {

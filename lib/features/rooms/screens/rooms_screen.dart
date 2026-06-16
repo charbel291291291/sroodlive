@@ -13,6 +13,7 @@ import '../models/room.dart';
 import '../services/rooms_service.dart';
 import 'room_details_screen.dart';
 import 'room_schedule_screen.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class RoomsScreen extends StatefulWidget {
   const RoomsScreen({required this.isArabic, super.key});
@@ -67,6 +68,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
   Future<void> _createRoom() async {
     // Prevent double-tap
     if (_creating) return;
+    final isArabic = context.isArabic;
 
     final nameController = TextEditingController();
     final descriptionController = TextEditingController();
@@ -74,26 +76,26 @@ class _RoomsScreenState extends State<RoomsScreen> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(widget.isArabic ? 'إنشاء غرفة' : 'Create room'),
+        title: Text(context.isArabic ? 'إنشاء غرفة' : 'Create room'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameController,
               textDirection:
-                  widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+                  context.isArabic ? TextDirection.rtl : TextDirection.ltr,
               decoration: InputDecoration(
-                labelText: widget.isArabic ? 'اسم الغرفة' : 'Room name',
+                labelText: context.isArabic ? 'اسم الغرفة' : 'Room name',
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: descriptionController,
               textDirection:
-                  widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+                  context.isArabic ? TextDirection.rtl : TextDirection.ltr,
               decoration: InputDecoration(
                 labelText:
-                    widget.isArabic ? 'وصف قصير' : 'Short description',
+                    context.isArabic ? 'وصف قصير' : 'Short description',
               ),
             ),
           ],
@@ -101,11 +103,11 @@ class _RoomsScreenState extends State<RoomsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(widget.isArabic ? 'إلغاء' : 'Cancel'),
+            child: Text(context.isArabic ? 'إلغاء' : 'Cancel'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(widget.isArabic ? 'إنشاء' : 'Create'),
+            child: Text(context.isArabic ? 'إنشاء' : 'Create'),
           ),
         ],
       ),
@@ -126,7 +128,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
       final (:room, :alreadyExisted) = await _roomsService.getOrCreateRoom(
         name: name,
         description: description.isEmpty ? null : description,
-        language: widget.isArabic ? 'ar' : 'en',
+        language: isArabic ? 'ar' : 'en',
         maxSeats: 12,
       );
 
@@ -136,7 +138,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              widget.isArabic
+              context.isArabic
                   ? 'لديك غرفة مفتوحة بالفعل'
                   : 'You already have an active room',
             ),
@@ -149,7 +151,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
         context,
         MaterialPageRoute(
           builder: (_) =>
-              RoomDetailsScreen(room: room, isArabic: widget.isArabic),
+              RoomDetailsScreen(room: room, isArabic: context.isArabic),
         ),
       );
 
@@ -172,7 +174,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
         context,
         MaterialPageRoute(
           builder: (_) =>
-              RoomDetailsScreen(room: room, isArabic: widget.isArabic),
+              RoomDetailsScreen(room: room, isArabic: context.isArabic),
         ),
       );
 
@@ -181,11 +183,11 @@ class _RoomsScreenState extends State<RoomsScreen> {
       if (!mounted) return;
 
       final message = error is LockedRoomException
-          ? (widget.isArabic
+          ? (context.isArabic
                 ? '\u0627\u0644\u063a\u0631\u0641\u0629 \u0645\u0642\u0641\u0644\u0629 \u0645\u0646 \u0627\u0644\u0645\u0636\u064a\u0641.'
                 : 'This room is locked by the host.')
           : error is ClosedRoomException
-          ? (widget.isArabic
+          ? (context.isArabic
                 ? '\u062a\u0645 \u0625\u063a\u0644\u0627\u0642 \u0647\u0630\u0647 \u0627\u0644\u063a\u0631\u0641\u0629.'
                 : 'This room is closed.')
           : error.toString();
@@ -198,8 +200,8 @@ class _RoomsScreenState extends State<RoomsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final textAlign = widget.isArabic ? TextAlign.right : TextAlign.left;
-    final crossAxisAlignment = widget.isArabic
+    final textAlign = context.isArabic ? TextAlign.right : TextAlign.left;
+    final crossAxisAlignment = context.isArabic
         ? CrossAxisAlignment.end
         : CrossAxisAlignment.start;
     final screenW = MediaQuery.of(context).size.width;
@@ -228,7 +230,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      widget.isArabic
+                      context.isArabic
                           ? (isCompact
                                 ? '\u063a\u0631\u0641'
                                 : '\u063a\u0631\u0641 \u0645\u0628\u0627\u0634\u0631\u0629')
@@ -246,7 +248,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
                   IconButton(
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => SearchScreen(isArabic: widget.isArabic),
+                        builder: (_) => SearchScreen(isArabic: context.isArabic),
                       ),
                     ),
                     padding: EdgeInsets.zero,
@@ -264,7 +266,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) =>
-                            LeaderboardScreen(isArabic: widget.isArabic),
+                            LeaderboardScreen(isArabic: context.isArabic),
                       ),
                     ),
                     padding: EdgeInsets.zero,
@@ -292,14 +294,14 @@ class _RoomsScreenState extends State<RoomsScreen> {
                           Navigator.of(context).push(
                             MaterialPageRoute<void>(
                               builder: (_) =>
-                                  RoomScheduleScreen(isArabic: widget.isArabic),
+                                  RoomScheduleScreen(isArabic: context.isArabic),
                             ),
                           );
                         } else if (v == 'notifications') {
                           Navigator.of(context).push(
                             MaterialPageRoute<void>(
                               builder: (_) =>
-                                  NotificationsScreen(isArabic: widget.isArabic),
+                                  NotificationsScreen(isArabic: context.isArabic),
                             ),
                           );
                         }
@@ -313,7 +315,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
                                   color: Color(0xFFBCAED6), size: 18),
                               const SizedBox(width: 8),
                               Text(
-                                widget.isArabic ? '\u0627\u0644\u062c\u062f\u0648\u0644' : 'Schedule',
+                                context.isArabic ? '\u0627\u0644\u062c\u062f\u0648\u0644' : 'Schedule',
                                 style: const TextStyle(color: Color(0xFFE8DFFF)),
                               ),
                             ],
@@ -327,7 +329,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
                                   color: Color(0xFFBCAED6), size: 18),
                               const SizedBox(width: 8),
                               Text(
-                                widget.isArabic ? '\u0627\u0644\u0625\u0634\u0639\u0627\u0631\u0627\u062a' : 'Notifications',
+                                context.isArabic ? '\u0627\u0644\u0625\u0634\u0639\u0627\u0631\u0627\u062a' : 'Notifications',
                                 style: const TextStyle(color: Color(0xFFE8DFFF)),
                               ),
                             ],
@@ -340,7 +342,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
                           builder: (_) =>
-                              RoomScheduleScreen(isArabic: widget.isArabic),
+                              RoomScheduleScreen(isArabic: context.isArabic),
                         ),
                       ),
                       padding: EdgeInsets.zero,
@@ -358,7 +360,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
                           builder: (_) =>
-                              NotificationsScreen(isArabic: widget.isArabic),
+                              NotificationsScreen(isArabic: context.isArabic),
                         ),
                       ),
                       padding: EdgeInsets.zero,
@@ -406,7 +408,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                widget.isArabic
+                context.isArabic
                     ? '\u0627\u062f\u062e\u0644 \u063a\u0631\u0641\u0629 \u0635\u0648\u062a\u064a\u0629\u060c \u0627\u0633\u0645\u0639\u060c \u0634\u0627\u0631\u0643\u060c \u0623\u0648 \u0627\u0628\u062f\u0623 \u0633\u0647\u0631\u0629 \u062c\u062f\u064a\u062f\u0629.'
                     : 'Join a voice room, listen, talk, or start a new SrOOd.',
                 textAlign: textAlign,
@@ -419,28 +421,28 @@ class _RoomsScreenState extends State<RoomsScreen> {
               ),
               const SizedBox(height: 22),
               _RoomsHeroBanner(
-                isArabic: widget.isArabic,
+                isArabic: context.isArabic,
                 onCta: (route) {
                   switch (route) {
                     case 'discovery':
                       Navigator.of(context).push(
                         MaterialPageRoute<void>(
                           builder: (_) =>
-                              DiscoveryScreen(isArabic: widget.isArabic),
+                              DiscoveryScreen(isArabic: context.isArabic),
                         ),
                       );
                     case 'gifts':
                       Navigator.of(context).push(
                         MaterialPageRoute<void>(
                           builder: (_) =>
-                              GiftCatalogScreen(isArabic: widget.isArabic),
+                              GiftCatalogScreen(isArabic: context.isArabic),
                         ),
                       );
                     case 'vip':
                       Navigator.of(context).push(
                         MaterialPageRoute<void>(
                           builder: (_) =>
-                              VipCenterScreen(isArabic: widget.isArabic),
+                              VipCenterScreen(isArabic: context.isArabic),
                         ),
                       );
                   }
@@ -456,7 +458,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
                 )
               else if (_error != null)
                 _RoomsMessageCard(
-                  title: widget.isArabic
+                  title: context.isArabic
                       ? '\u0635\u0627\u0631 \u062e\u0637\u0623'
                       : 'Something went wrong',
                   message: _error!,
@@ -466,10 +468,10 @@ class _RoomsScreenState extends State<RoomsScreen> {
                 )
               else if (_rooms.isEmpty)
                 _RoomsMessageCard(
-                  title: widget.isArabic
+                  title: context.isArabic
                       ? '\u0644\u0627 \u062a\u0648\u062c\u062f \u063a\u0631\u0641 \u0628\u0639\u062f'
                       : 'No rooms yet',
-                  message: widget.isArabic
+                  message: context.isArabic
                       ? '\u0627\u0636\u063a\u0637 \u0639\u0644\u0649 \u0632\u0631 + \u0644\u0625\u0646\u0634\u0627\u0621 \u0623\u0648\u0644 \u063a\u0631\u0641\u0629.'
                       : 'Tap + to create the first room.',
                   icon: Icons.meeting_room_outlined,
@@ -483,7 +485,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
                     child: _RoomCard(
                       room: room,
                       activeCount: _activeCounts[room.id] ?? 0,
-                      isArabic: widget.isArabic,
+                      isArabic: context.isArabic,
                       onJoin: () => _joinRoom(room),
                     ),
                   ),
@@ -702,7 +704,7 @@ class _RoomsHeroBannerState extends State<_RoomsHeroBanner> {
             onPageChanged: (i) => setState(() => _page = i),
             itemBuilder: (_, i) => _BannerSlide(
               slide: _slides[i],
-              isArabic: widget.isArabic,
+              isArabic: context.isArabic,
               onCta: () => widget.onCta(_slides[i].targetRoute),
             ),
           ),

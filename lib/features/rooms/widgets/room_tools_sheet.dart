@@ -16,6 +16,7 @@ import '../models/room_member.dart';
 import 'pk_start_sheet.dart';
 import 'room_settings_sheet.dart';
 import '../models/room.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RoomToolsSheet — premium tools bottom sheet for live rooms.
@@ -115,7 +116,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
     await prefs.setBool(_kVisualKey, next);
   }
 
-  String _t(String ar, String en) => widget.isArabic ? ar : en;
+  String _t(String ar, String en) => context.isArabic ? ar : en;
 
   // ── Permission check ──────────────────────────────────────────────────────
 
@@ -162,8 +163,8 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => _ComingSoonSheet(
-        featureName: widget.isArabic ? featureAr : featureEn,
-        isArabic: widget.isArabic,
+        featureName: context.isArabic ? featureAr : featureEn,
+        isArabic: context.isArabic,
       ),
     );
   }
@@ -179,7 +180,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
       backgroundColor: Colors.transparent,
       builder: (_) => RoomSettingsSheet(
         room: widget.room,
-        isArabic: widget.isArabic,
+        isArabic: context.isArabic,
         isOwner: widget.isOwner,
         moderatorCount: widget.moderatorCount,
         isLocked: widget.isLocked,
@@ -195,7 +196,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _GameCenterSheet(isArabic: widget.isArabic),
+      builder: (_) => _GameCenterSheet(isArabic: context.isArabic),
     );
   }
 
@@ -207,7 +208,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _KickRecordSheet(bans: bans, isArabic: widget.isArabic),
+      builder: (_) => _KickRecordSheet(bans: bans, isArabic: context.isArabic),
     );
   }
 
@@ -287,7 +288,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (_) => _PkActiveOptionsSheet(
-          isArabic: widget.isArabic,
+          isArabic: context.isArabic,
           onCancel: () {
             Navigator.of(context).pop();
             Navigator.of(context).pop();
@@ -304,7 +305,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
     if (micMembers.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(widget.isArabic
+          content: Text(context.isArabic
               ? 'لا يوجد أحد على المايك'
               : 'No one is on mic'),
           backgroundColor: const Color(0xFF231440),
@@ -320,7 +321,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
       builder: (_) => PkStartSheet(
         roomId: widget.room.id,
         micMembers: micMembers,
-        isArabic: widget.isArabic,
+        isArabic: context.isArabic,
       ),
     ).then((started) {
       if (!mounted) return;
@@ -338,7 +339,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _MicModeSheet(
-        isArabic: widget.isArabic,
+        isArabic: context.isArabic,
         roomId: widget.room.id,
         currentSeats: widget.room.maxSeats,
         onSeatsChanged: widget.onMaxSeatsChanged,
@@ -353,7 +354,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _BackgroundSheet(
-        isArabic: widget.isArabic,
+        isArabic: context.isArabic,
         roomId: widget.room.id,
         currentBackgroundUrl: widget.room.backgroundUrl,
         onBackgroundChanged: widget.onBackgroundChanged,
@@ -376,7 +377,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final isArabic = widget.isArabic;
+    final isArabic = context.isArabic;
     final textDir = isArabic ? TextDirection.rtl : TextDirection.ltr;
     // Read nav-bar inset without SafeArea wrapper so we control padding exactly.
     final bottomInset = MediaQuery.of(context).padding.bottom;
@@ -941,7 +942,7 @@ class _MicModeSheetState extends State<_MicModeSheet> {
     _selected = widget.currentSeats;
   }
 
-  String _t(String ar, String en) => widget.isArabic ? ar : en;
+  String _t(String ar, String en) => context.isArabic ? ar : en;
 
   Future<void> _pick(int seats) async {
     if (_saving || seats == _selected) return;
@@ -1135,7 +1136,7 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
     });
   }
 
-  String _t(String ar, String en) => widget.isArabic ? ar : en;
+  String _t(String ar, String en) => context.isArabic ? ar : en;
 
   Future<void> _pickTheme(int index) async {
     setState(() => _selectedTheme = index);

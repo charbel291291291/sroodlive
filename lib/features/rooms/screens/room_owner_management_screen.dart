@@ -7,6 +7,7 @@ import '../models/room_ban.dart';
 import '../models/room_moderator.dart';
 import '../services/room_management_service.dart';
 import '../services/rooms_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Entry point: called only when _iAmRoomOwner == true
@@ -69,7 +70,7 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
   List<Map<String, dynamic>> _giftSummary = [];
 
   String get _roomId => widget.room.id;
-  bool get _isArabic => widget.isArabic;
+  bool get _isArabic => context.isArabic;
 
   // ── i18n helper ─────────────────────────────────────────────────────────
   String _t(String ar, String en) => _isArabic ? ar : en;

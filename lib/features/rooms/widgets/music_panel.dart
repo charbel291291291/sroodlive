@@ -7,6 +7,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../models/room_music.dart';
 import '../services/room_music_service.dart';
 import '../services/room_music_upload_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MusicPanel — Room Music bottom sheet.
@@ -51,10 +52,11 @@ class _MusicPanelState extends State<MusicPanel> {
   static const _gold = Color(0xFFF0C15A);
 
   RoomMusicService get _svc => widget.musicService;
-  bool get _isArabic => widget.isArabic;
+  bool get _isArabic => context.isArabic;
   String _t(String ar, String en) => _isArabic ? ar : en;
 
   List<RoomSong> _savedTracks = [];
+  List<RoomSong> _userLibrary = [];
   bool _loadingTracks = false;
   bool _uploading = false;
   double _uploadProgress = 0;
@@ -71,8 +73,20 @@ class _MusicPanelState extends State<MusicPanel> {
   Future<void> _loadTracks() async {
     if (widget.uploadService == null || widget.roomId == null) return;
     setState(() => _loadingTracks = true);
-    final tracks = await widget.uploadService!.fetchTracks(widget.roomId!);
-    if (mounted) setState(() { _savedTracks = tracks; _loadingTracks = false; });
+    final results = await Future.wait([
+      widget.uploadService!.fetchTracks(widget.roomId!),
+      widget.uploadService!.fetchUserTracks(),
+    ]);
+    if (!mounted) return;
+    final roomTracks = results[0];
+    final userTracks = results[1];
+    // Personal library = user's tracks NOT already in this room
+    final roomIds = roomTracks.map((s) => s.id).toSet();
+    setState(() {
+      _savedTracks = roomTracks;
+      _userLibrary = userTracks.where((s) => !roomIds.contains(s.id)).toList();
+      _loadingTracks = false;
+    });
   }
 
   void _playTrack(RoomSong song) {
@@ -348,8 +362,13 @@ class _MusicPanelState extends State<MusicPanel> {
                       _sectionHeader(_t('إضافة موسيقى', 'Add Music')),
                       _addMusicButtons(),
                       const SizedBox(height: 4),
-                      _sectionHeader(_t('المقاطع المحفوظة', 'Saved Tracks')),
+                      _sectionHeader(_t('مقاطع الغرفة', 'Room Tracks')),
                       _savedTracksList(),
+                      if (_userLibrary.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        _sectionHeader(_t('مكتبتي', 'My Library')),
+                        _userLibraryList(),
+                      ],
                     ] else ...[
                       // MEMBER: volume/mute only
                       _memberControls(),
@@ -549,6 +568,29 @@ class _MusicPanelState extends State<MusicPanel> {
         canDelete: _savedTracks.any((t) => t.id == track.id),
         onPlay: () => _playTrack(track),
         onDelete: () => _deleteTrack(track),
+      )).toList(),
+    );
+  }
+
+  Widget _userLibraryList() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: _userLibrary.map((track) => _TrackRow(
+        track: track,
+        isCurrent: _svc.currentSong?.id == track.id,
+        isPlaying: _svc.currentSong?.id == track.id && _svc.isPlaying,
+        canDelete: false,
+        onPlay: () {
+          _playTrack(track);
+          // Also insert into this room's list so it appears in Room Tracks
+          if (!_savedTracks.any((t) => t.id == track.id)) {
+            setState(() {
+              _savedTracks.insert(0, track);
+              _userLibrary.removeWhere((t) => t.id == track.id);
+            });
+          }
+        },
+        onDelete: () {},
       )).toList(),
     );
   }
@@ -1031,7 +1073,7 @@ class _QrScannerSheetState extends State<_QrScannerSheet> {
   bool _scanned = false;
   String? _error;
 
-  String _t(String ar, String en) => widget.isArabic ? ar : en;
+  String _t(String ar, String en) => context.isArabic ? ar : en;
 
   @override
   void initState() {

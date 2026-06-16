@@ -39,6 +39,23 @@ class RoomMusicUploadService {
     }
   }
 
+  // ── Fetch all tracks uploaded by the current user (personal library) ───────
+
+  Future<List<RoomSong>> fetchUserTracks({int limit = 100}) async {
+    try {
+      final rows = await _db.rpc(
+        'get_user_music_tracks',
+        params: {'p_limit': limit},
+      );
+      return (rows as List<dynamic>)
+          .map((r) => RoomSong.fromJson(r as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      if (kDebugMode) debugPrint('[MusicUpload] fetchUserTracks error: $e');
+      return [];
+    }
+  }
+
   // ── Upload an audio file from the device ──────────────────────────────────
 
   /// Picks a file (if [file] is null), uploads it to the room_music bucket,

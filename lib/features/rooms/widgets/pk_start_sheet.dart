@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../models/room_member.dart';
 import '../services/team_pk_service.dart';
+import 'package:srood_live/core/extensions/locale_extension.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PkStartSheet — host configures and launches a Team PK battle.
@@ -43,7 +44,7 @@ class _PkStartSheetState extends State<PkStartSheet> {
   bool _loading = false;
   String? _error;
 
-  String _t(String ar, String en) => widget.isArabic ? ar : en;
+  String _t(String ar, String en) => context.isArabic ? ar : en;
 
   @override
   void initState() {
@@ -201,7 +202,7 @@ class _PkStartSheetState extends State<PkStartSheet> {
                   color: _kRed,
                   members: _teamA,
                   onTap: _toggleTeam,
-                  isArabic: widget.isArabic,
+                  isArabic: context.isArabic,
                 ),
               ),
               // VS divider
@@ -236,7 +237,7 @@ class _PkStartSheetState extends State<PkStartSheet> {
                   color: _kBlue,
                   members: _teamB,
                   onTap: _toggleTeam,
-                  isArabic: widget.isArabic,
+                  isArabic: context.isArabic,
                 ),
               ),
             ],
