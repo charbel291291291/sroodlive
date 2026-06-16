@@ -23,6 +23,7 @@ import '../games/screens/srood_loto_screen.dart';
 import 'models/avatar_frame.dart';
 import 'screens/follow_list_screen.dart';
 import 'services/follow_service.dart';
+import 'widgets/country_picker_sheet.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -96,6 +97,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final bioController = TextEditingController();
   final countryController = TextEditingController();
   final genderController = TextEditingController();
+  Country? _selectedCountry;
   final FollowService _followService = const FollowService();
   final WalletService _walletService = const WalletService();
 
@@ -178,6 +180,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       birthDateController.text = data['date_of_birth']?.toString() ?? '';
       bioController.text = data['bio']?.toString() ?? '';
       countryController.text = data['country']?.toString() ?? '';
+      _selectedCountry = countryFromStored(countryController.text);
       genderController.text = data['gender']?.toString() ?? '';
 
       int followers = 0;
@@ -475,10 +478,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         readOnly: true,
                         onTap: _pickBirthDate,
                       ),
-                      _ProfileInput(
-                        controller: countryController,
-                        label: context.isArabic ? 'الدولة' : 'Country',
+                      // Country selector label
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(
+                          context.isArabic ? 'الدولة' : 'Country',
+                          textAlign: context.isArabic
+                              ? TextAlign.right
+                              : TextAlign.left,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.55),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      CountrySelector(
+                        selected: _selectedCountry,
                         isArabic: context.isArabic,
+                        onSelected: (c) {
+                          setSheetState(() {
+                            _selectedCountry = c;
+                            countryController.text = c.name;
+                          });
+                        },
                       ),
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),
@@ -1343,24 +1366,10 @@ class _PremiumProfileHero extends StatelessWidget {
   }
 
   String _countryFlag(String value) {
-    final c = value.trim().toLowerCase();
-    if (c.isEmpty) return '';
-    if (c.contains('leban') || c.contains('لبن')) return '🇱🇧 Lebanon';
-    if (c.contains('saudi') || c.contains('سعو')) return '🇸🇦 KSA';
-    if (c.contains('emir') || c.contains('uae') || c.contains('إمار')) {
-      return '🇦🇪 UAE';
-    }
-    if (c.contains('kuwait') || c.contains('كويت')) return '🇰🇼 Kuwait';
-    if (c.contains('qatar') || c.contains('قطر')) return '🇶🇦 Qatar';
-    if (c.contains('bahrain') || c.contains('بحرين')) return '🇧🇭 Bahrain';
-    if (c.contains('oman') || c.contains('عُمان')) return '🇴🇲 Oman';
-    if (c.contains('jordan') || c.contains('الأردن')) return '🇯🇴 Jordan';
-    if (c.contains('syria') || c.contains('سوري')) return '🇸🇾 Syria';
-    if (c.contains('iraq') || c.contains('عراق')) return '🇮🇶 Iraq';
-    if (c.contains('egypt') || c.contains('مصر')) return '🇪🇬 Egypt';
-    if (c.contains('morocco') || c.contains('المغرب')) return '🇲🇦 Morocco';
-    if (c.contains('tunisia') || c.contains('تونس')) return '🇹🇳 Tunisia';
-    if (c.contains('algeria') || c.contains('الجزائر')) return '🇩🇿 Algeria';
+    if (value.trim().isEmpty) return '';
+    final match = countryFromStored(value);
+    if (match != null) return '${match.flag} ${match.name}';
+    // Fall back to displaying the raw value for any legacy free-text entries.
     return value;
   }
 }
