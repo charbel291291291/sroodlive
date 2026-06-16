@@ -906,6 +906,30 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     });
   }
 
+  /// Stops music locally right away and propagates the stop to all room
+  /// participants via the Supabase RPC.  Shows a snackbar on failure.
+  Future<void> _stopMusicForRoom() async {
+    // 1. Stop local player immediately so this device feels instant.
+    await _musicService.stop();
+    // 2. Push stop to Supabase → Realtime will propagate to all participants.
+    try {
+      await _syncedMusic.stopForRoom();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.isArabic
+                ? 'تعذّر إيقاف الموسيقى. حاول مرة أخرى.'
+                : 'Could not stop music. Please try again.',
+          ),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
   void _openMusicPanel() {
     final canManage = _iAmRoomOwner || _iAmHost;
     showModalBottomSheet<void>(
@@ -2720,7 +2744,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                       onTap: _openMusicPanel,
                       canManage: _iAmRoomOwner || _iAmHost,
                       onStop: (_iAmRoomOwner || _iAmHost)
-                          ? () => unawaited(_syncedMusic.stopForRoom())
+                          ? () => unawaited(_stopMusicForRoom())
                           : null,
                     )
                   : const SizedBox.shrink(),

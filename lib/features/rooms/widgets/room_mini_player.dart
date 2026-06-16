@@ -170,40 +170,39 @@ class _RoomMiniPlayerState extends State<RoomMiniPlayer>
                         ),
                       ),
 
-                      // ✕ Close — 28 px visible, 44 px tap target
-                      GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () {
-                          HapticFeedback.mediumImpact();
-                          if (widget.onStop != null) {
+                      // ✕ Close — only visible for host/owner (onStop != null).
+                      // Calling onStop stops the local player immediately and
+                      // propagates the stop to all participants via Supabase.
+                      if (widget.onStop != null)
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            HapticFeedback.mediumImpact();
                             widget.onStop!();
-                          } else {
-                            svc.stop();
-                          }
-                        },
-                        child: SizedBox(
-                          width: 44,
-                          height: 44,
-                          child: Center(
-                            child: Container(
-                              width: 28,
-                              height: 28,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.white.withValues(alpha: 0.10),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.22),
+                          },
+                          child: SizedBox(
+                            width: 44,
+                            height: 44,
+                            child: Center(
+                              child: Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white.withValues(alpha: 0.10),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.22),
+                                  ),
                                 ),
-                              ),
-                              child: const Icon(
-                                Icons.close_rounded,
-                                color: Colors.white,
-                                size: 15,
+                                child: const Icon(
+                                  Icons.close_rounded,
+                                  color: Colors.white,
+                                  size: 15,
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 ),
