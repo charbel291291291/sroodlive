@@ -60,7 +60,7 @@ CREATE POLICY "Admins manage vip_levels"
   ON public.vip_levels FOR ALL
   USING (
     EXISTS (
-      SELECT 1 FROM public.admin_roles ar
+      SELECT 1 FROM public.admin_users ar
       WHERE ar.user_id = auth.uid()
         AND ar.role IN ('super_admin', 'content_admin')
         AND ar.is_active = true
@@ -101,7 +101,7 @@ CREATE POLICY "Admins manage subscriptions"
   ON public.user_vip_subscriptions FOR ALL
   USING (
     EXISTS (
-      SELECT 1 FROM public.admin_roles ar
+      SELECT 1 FROM public.admin_users ar
       WHERE ar.user_id = auth.uid()
         AND ar.role IN ('super_admin', 'support_admin')
         AND ar.is_active = true
@@ -118,7 +118,7 @@ SET search_path = public
 STABLE
 AS $$
   SELECT EXISTS (
-    SELECT 1 FROM public.admin_roles ar
+    SELECT 1 FROM public.admin_users ar
     WHERE ar.user_id = auth.uid()
       AND ar.role IN ('super_admin', 'support_admin')
       AND ar.is_active = true

@@ -1452,12 +1452,19 @@ class _RedEnvelopeCreateSheetState extends State<_RedEnvelopeCreateSheet> {
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
+      debugPrint('[RedEnvelope] send error — roomId=${widget.roomId} coins=$coins count=$count error=$e');
       final msg = e.toString();
-      String friendly;
+      final String friendly;
       if (msg.contains('insufficient_balance')) {
         friendly = _t('رصيدك غير كافٍ', 'Insufficient balance');
       } else if (msg.contains('min_coins_10')) {
         friendly = _t('أقل قيمة ١٠ عملات', 'Minimum 10 coins');
+      } else if (msg.contains('count_exceeds_coins')) {
+        friendly = _t('عدد المظاريف أكبر من العملات', 'Count exceeds coins');
+      } else if (msg.contains('not_room_member')) {
+        friendly = _t('يجب أن تكون في الغرفة', 'You must be in the room');
+      } else if (msg.contains('room_not_found')) {
+        friendly = _t('الغرفة غير موجودة', 'Room not found');
       } else {
         friendly = _t('حدث خطأ، حاول مرة أخرى', 'An error occurred, try again');
       }
