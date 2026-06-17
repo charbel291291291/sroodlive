@@ -25,6 +25,7 @@ import '../services/livekit_room_service.dart';
 import '../services/rooms_service.dart';
 import '../services/room_management_service.dart';
 import '../services/room_messages_service.dart';
+import '../services/room_chat_image_upload_service.dart';
 import '../models/pk_session.dart';
 import '../services/team_pk_service.dart';
 import '../utils/vip_room_features.dart';
@@ -133,6 +134,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   final List<RoomMessage> _chatMessages = [];
   RealtimeChannel? _messagesChannel;
   bool _isSendingMessage = false;
+  bool _uploadingChatImage = false;
 
   // -- Emoji reactions (keyed by seat number 1-based) --
   final Map<int, RoomReaction> _seatReactions = {};
@@ -1034,6 +1036,49 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       }
     } finally {
       if (mounted) setState(() => _isSendingMessage = false);
+    }
+  }
+
+  Future<void> _sendChatImageMessage() async {
+    final myVipLevel = _myMember?.effectiveVipLevel ?? 0;
+    if (myVipLevel < 7) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Image sending is available for VIP7+ users.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _uploadingChatImage = true);
+    try {
+      final userId = _currentUserId;
+      if (userId == null) return;
+
+      final result = await const RoomChatImageUploadService()
+          .pickAndUpload(userId: userId);
+      if (result == null) return; // user cancelled
+
+      await _msgService.sendImageMessage(
+        roomId: widget.room.id,
+        imageUrl: result.url,
+        imagePath: result.path,
+        senderRole: _myMember?.role ?? 'listener',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e is ArgumentError
+          ? e.message.toString()
+          : 'Failed to send image. Please try again.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _uploadingChatImage = false);
     }
   }
 
@@ -2820,12 +2865,15 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
               isOnMic: _isCurrentUserOnMic,
               leaving: _leaving,
               isSendingMessage: _isSendingMessage,
+              myVipLevel: _myMember?.effectiveVipLevel ?? 0,
+              isUploadingImage: _uploadingChatImage,
               onToggleMic: _toggleMic,
               onLeaveRoom: _leaveRoom,
               onGiftTap: _openGiftSheet,
               onMoreTap: _openToolsSheet,
               onReactionTap: _openReactionPicker,
               onSendMessage: _sendChatMessage,
+              onSendImage: _sendChatImageMessage,
               bottomPad: bottomPad,
             ),
           ),
@@ -5292,14 +5340,17 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
             ],
           ),
           const SizedBox(height: 2),
-          Text(
-            msg.message,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              height: 1.25,
+          if (msg.isImage && msg.imageUrl != null)
+            _ChatImageThumbnail(imageUrl: msg.imageUrl!)
+          else
+            Text(
+              msg.message,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                height: 1.25,
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -7102,12 +7153,15 @@ class _LiveBottomActionBar extends StatefulWidget {
     required this.isOnMic,
     required this.leaving,
     required this.isSendingMessage,
+    required this.myVipLevel,
+    required this.isUploadingImage,
     required this.onToggleMic,
     required this.onLeaveRoom,
     required this.onGiftTap,
     required this.onMoreTap,
     required this.onReactionTap,
     required this.onSendMessage,
+    required this.onSendImage,
     this.bottomPad = 0,
   });
 
@@ -7117,12 +7171,15 @@ class _LiveBottomActionBar extends StatefulWidget {
   final bool isOnMic;
   final bool leaving;
   final bool isSendingMessage;
+  final int myVipLevel;
+  final bool isUploadingImage;
   final VoidCallback onToggleMic;
   final VoidCallback onLeaveRoom;
   final VoidCallback onGiftTap;
   final VoidCallback onMoreTap;
   final VoidCallback onReactionTap;
   final Future<void> Function(String) onSendMessage;
+  final Future<void> Function() onSendImage;
   final double bottomPad;
 
   @override
@@ -7289,6 +7346,29 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
                             onSubmitted: (_) => _submit(),
                           ),
                         ),
+                        // Image send button — only visible for VIP7+
+                        if (widget.myVipLevel >= 7) ...[
+                          const SizedBox(width: 6),
+                          GestureDetector(
+                            onTap: widget.isUploadingImage
+                                ? null
+                                : widget.onSendImage,
+                            child: widget.isUploadingImage
+                                ? SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 1.8,
+                                      color: Colors.white.withValues(alpha: 0.55),
+                                    ),
+                                  )
+                                : Icon(
+                                    Icons.image_outlined,
+                                    size: 18,
+                                    color: Colors.white.withValues(alpha: 0.55),
+                                  ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -8652,3 +8732,98 @@ class _LuckyBagWinOverlayState extends State<_LuckyBagWinOverlay>
 }
 
 // =============================================================================
+
+// ── Chat image thumbnail + full-screen preview ────────────────────────────────
+
+class _ChatImageThumbnail extends StatelessWidget {
+  const _ChatImageThumbnail({required this.imageUrl});
+  final String imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _showPreview(context),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.network(
+          imageUrl,
+          width: 160,
+          height: 120,
+          fit: BoxFit.cover,
+          loadingBuilder: (_, child, progress) => progress == null
+              ? child
+              : Container(
+                  width: 160,
+                  height: 120,
+                  color: Colors.white.withValues(alpha: 0.08),
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      value: progress.expectedTotalBytes != null
+                          ? progress.cumulativeBytesLoaded /
+                              progress.expectedTotalBytes!
+                          : null,
+                      color: Colors.white54,
+                    ),
+                  ),
+                ),
+          errorBuilder: (ctx, err, stack) => Container(
+            width: 160,
+            height: 120,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.broken_image_rounded,
+                color: Colors.white38, size: 32),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPreview(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.88),
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: Stack(
+          alignment: Alignment.topRight,
+          children: [
+            InteractiveViewer(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.contain,
+                  errorBuilder: (ctx, err, stack) => const Icon(
+                      Icons.broken_image_rounded,
+                      color: Colors.white38,
+                      size: 64),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    shape: BoxShape.circle,
+                  ),
+                  padding: const EdgeInsets.all(6),
+                  child: const Icon(Icons.close_rounded,
+                      color: Colors.white, size: 20),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

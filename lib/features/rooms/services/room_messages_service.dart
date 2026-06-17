@@ -16,6 +16,8 @@ class RoomMessage {
     required this.message,
     required this.messageType,
     required this.createdAt,
+    this.imageUrl,
+    this.imagePath,
   });
 
   final String id;
@@ -26,10 +28,13 @@ class RoomMessage {
   final int senderVipLevel;
   final String senderRole;
   final String message;
-  final String messageType; // 'text' | 'system'
+  final String messageType; // 'text' | 'system' | 'image'
   final DateTime createdAt;
+  final String? imageUrl;
+  final String? imagePath;
 
   bool get isSystem => messageType == 'system';
+  bool get isImage  => messageType == 'image';
 
   factory RoomMessage.fromJson(Map<String, dynamic> json) {
     final profile = json['profiles'] as Map<String, dynamic>?;
@@ -45,9 +50,11 @@ class RoomMessage {
       senderRole: (json['metadata'] as Map<String, dynamic>?)?['role']
               as String? ??
           'listener',
-      message: json['message'] as String,
+      message: json['message'] as String? ?? '',
       messageType: json['message_type'] as String? ?? 'text',
       createdAt: DateTime.parse(json['created_at'] as String),
+      imageUrl:  json['image_url']  as String?,
+      imagePath: json['image_path'] as String?,
     );
   }
 
@@ -90,7 +97,9 @@ class RoomMessagesService {
           .select('*, profiles(display_name, username, avatar_url, vip_level)')
           .eq('room_id', roomId)
           .order('created_at', ascending: false)
-          .limit(_recentCount);
+          .limit(_recentCount)
+          // image_url and image_path are returned automatically by select(*)
+          ;
 
       return (rows as List)
           .map((r) => RoomMessage.fromJson(r as Map<String, dynamic>))
@@ -124,6 +133,24 @@ class RoomMessagesService {
       'message': trimmed,
       'message_type': 'text',
       'metadata': {'role': senderRole},
+    });
+  }
+
+  /// Send an image message via the backend RPC (validates VIP7+ server-side).
+  Future<void> sendImageMessage({
+    required String roomId,
+    required String imageUrl,
+    required String imagePath,
+    required String senderRole,
+  }) async {
+    final client = SupabaseService.requiredClient;
+    if (client.auth.currentUser == null) throw StateError('Not authenticated');
+
+    await client.rpc('send_room_image_message', params: {
+      'p_room_id':    roomId,
+      'p_image_url':  imageUrl,
+      'p_image_path': imagePath,
+      'p_sender_role': senderRole,
     });
   }
 }
