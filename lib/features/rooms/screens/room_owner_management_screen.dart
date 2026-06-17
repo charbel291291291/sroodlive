@@ -267,6 +267,38 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
   }
 
   Future<void> _removeModerator(RoomModerator mod) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF160B24),
+        title: Text(
+          _t('إزالة المشرف', 'Remove Moderator'),
+          style: const TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          _t(
+            'هل تريد إزالة ${mod.displayName ?? mod.userId.substring(0, 8)} من المشرفين؟',
+            'Remove ${mod.displayName ?? mod.userId.substring(0, 8)} as moderator?',
+          ),
+          style: const TextStyle(color: Color(0xFF9E8AB8)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              _t('إلغاء', 'Cancel'),
+              style: const TextStyle(color: Color(0xFF9E8AB8)),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red[800]),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(_t('إزالة', 'Remove')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
     try {
       await _svc.removeModerator(mod.id);
       await _loadModerators();
@@ -1014,18 +1046,39 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
             ],
           ),
         ),
-        _ComingSoonBanner(
-          label: _t(
-            'سيتم قريباً: ضبط الصلاحيات التفصيلية',
-            'Coming soon: granular permission controls',
-          ),
-        ),
         Expanded(
           child: _moderators.isEmpty
               ? Center(
-                  child: Text(
-                    _t('لا يوجد مشرفون', 'No moderators yet'),
-                    style: const TextStyle(color: Color(0xFF9E8AB8)),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 64, height: 64,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(0xFF1A0D33),
+                        ),
+                        child: const Icon(
+                          Icons.admin_panel_settings_rounded,
+                          color: Color(0xFF6E3AA8),
+                          size: 32,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        _t('لا يوجد مشرفون', 'No moderators yet'),
+                        style: const TextStyle(
+                          color: Color(0xFF9E8AB8),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _t('عيّن مشرفاً من تبويب الأعضاء', 'Promote a member from the Members tab'),
+                        style: const TextStyle(color: Color(0xFF5A4A72), fontSize: 12),
+                      ),
+                    ],
                   ),
                 )
               : RefreshIndicator(
@@ -1659,40 +1712,6 @@ class _ComingSoonRow extends StatelessWidget {
   }
 }
 
-class _ComingSoonBanner extends StatelessWidget {
-  const _ComingSoonBanner({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A0E2B),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF3A2460)),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.schedule_rounded,
-            size: 14,
-            color: Color(0xFF6E3AA8),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(color: Color(0xFF9E8AB8), fontSize: 12),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Appearance image card
