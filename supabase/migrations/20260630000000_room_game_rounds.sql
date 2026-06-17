@@ -1,23 +1,23 @@
--- ─────────────────────────────────────────────────────────────────────────────
+-- Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 -- Room-scoped server-authoritative game rounds
 --
 -- All users inside the same room see the same round, the same result, at the
 -- same time.  The server is the ONLY source of truth.  Flutter clients:
---   • subscribe to room_game_rounds via Realtime
---   • display animations driven by backend timestamps (started_at, reveal_at)
---   • never generate the final result — they only display it
+--   Ã¢â‚¬Â¢ subscribe to room_game_rounds via Realtime
+--   Ã¢â‚¬Â¢ display animations driven by backend timestamps (started_at, reveal_at)
+--   Ã¢â‚¬Â¢ never generate the final result Ã¢â‚¬â€ they only display it
 --
 -- Security model
---   • result_json is NULL until status = 'revealed' (crash_multiplier hidden)
---   • crash_multiplier lives only in room_game_round_secrets (no client RLS)
---   • all state transitions happen inside SECURITY DEFINER functions
---   • clients can place bets and cashout, nothing else
--- ─────────────────────────────────────────────────────────────────────────────
+--   Ã¢â‚¬Â¢ result_json is NULL until status = 'revealed' (crash_multiplier hidden)
+--   Ã¢â‚¬Â¢ crash_multiplier lives only in room_game_round_secrets (no client RLS)
+--   Ã¢â‚¬Â¢ all state transitions happen inside SECURITY DEFINER functions
+--   Ã¢â‚¬Â¢ clients can place bets and cashout, nothing else
+-- Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
--- ── 0. pgcrypto (needed for gen_random_bytes, digest) ────────────────────────
+-- Ã¢â€â‚¬Ã¢â€â‚¬ 0. pgcrypto (needed for gen_random_bytes, digest) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 create extension if not exists pgcrypto;
 
--- ── 1. room_game_rounds ──────────────────────────────────────────────────────
+-- Ã¢â€â‚¬Ã¢â€â‚¬ 1. room_game_rounds Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 create table if not exists public.room_game_rounds (
   id                uuid        primary key default gen_random_uuid(),
@@ -32,7 +32,7 @@ create table if not exists public.room_game_rounds (
   -- Provably-fair: seed hidden until finished, hash shown from creation
   seed_hash         text        not null,
   seed              text,       -- revealed only after finished
-  -- Result — NULL until status = 'revealed'
+  -- Result Ã¢â‚¬â€ NULL until status = 'revealed'
   result_json       jsonb,
   -- Timestamps that clients use to drive animations
   betting_opens_at  timestamptz,
@@ -54,7 +54,7 @@ create index if not exists rgr_active_idx
 
 alter table public.room_game_rounds enable row level security;
 
--- Active room members can read rounds (result_json is null until revealed — safe)
+-- Active room members can read rounds (result_json is null until revealed Ã¢â‚¬â€ safe)
 drop policy if exists "room_game_rounds_read" on public.room_game_rounds;
 create policy "room_game_rounds_read"
   on public.room_game_rounds for select to authenticated
@@ -67,9 +67,9 @@ create policy "room_game_rounds_read"
     )
   );
 
--- No insert/update/delete policies — only SECURITY DEFINER RPCs modify this table
+-- No insert/update/delete policies Ã¢â‚¬â€ only SECURITY DEFINER RPCs modify this table
 
--- ── 2. room_game_round_secrets ───────────────────────────────────────────────
+-- Ã¢â€â‚¬Ã¢â€â‚¬ 2. room_game_round_secrets Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 -- Crash multiplier lives here and is NEVER readable by clients (no RLS policy
 -- = default deny; SECURITY DEFINER RPCs access it directly via Postgres).
 
@@ -81,11 +81,11 @@ create table if not exists public.room_game_round_secrets (
   winning_food_id  text            -- for hungry_cat rounds (pre-computed at creation)
 );
 
--- No policies intentionally — SECURITY DEFINER functions bypass RLS anyway,
+-- No policies intentionally Ã¢â‚¬â€ SECURITY DEFINER functions bypass RLS anyway,
 -- but this protects against accidental direct-read grants.
 alter table public.room_game_round_secrets enable row level security;
 
--- ── 3. room_game_bets ────────────────────────────────────────────────────────
+-- Ã¢â€â‚¬Ã¢â€â‚¬ 3. room_game_bets Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 create table if not exists public.room_game_bets (
   id                 uuid        primary key default gen_random_uuid(),
@@ -145,7 +145,7 @@ create policy "rgb_round_read"
     )
   );
 
--- ── 4. Extend wallet_transactions type constraint ────────────────────────────
+-- Ã¢â€â‚¬Ã¢â€â‚¬ 4. Extend wallet_transactions type constraint Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 alter table public.wallet_transactions
   drop constraint if exists wallet_transactions_type_check;
@@ -156,6 +156,7 @@ alter table public.wallet_transactions
       'recharge_request','admin_adjustment','gift_sent','gift_received',
       'agency_recharge','refund','system','withdrawal','withdrawal_refund',
       'agency_commission',
+      'red_envelope_sent','red_envelope_claimed',
       'hungry_cat_bet','hungry_cat_reward','hungry_cat_refund',
       'gold_ladder_entry','gold_ladder_win','gold_ladder_safe_payout',
       'crash_rocket_bet','crash_rocket_win','crash_rocket_refund',
@@ -165,7 +166,7 @@ alter table public.wallet_transactions
     )
   );
 
--- ── 5. Realtime publication ───────────────────────────────────────────────────
+-- Ã¢â€â‚¬Ã¢â€â‚¬ 5. Realtime publication Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 do $$
 begin
@@ -189,7 +190,7 @@ begin
   end if;
 end $$;
 
--- ── 6. Helper: derive crash multiplier from seed (provably-fair) ─────────────
+-- Ã¢â€â‚¬Ã¢â€â‚¬ 6. Helper: derive crash multiplier from seed (provably-fair) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 -- Used at creation (to compute reveal_at) and at reveal (for result_json).
 
 create or replace function public._derive_crash_multiplier(p_seed text, p_round_id uuid)
@@ -220,7 +221,7 @@ begin
 end;
 $$;
 
--- ── 7. RPC: create_room_game_round ───────────────────────────────────────────
+-- Ã¢â€â‚¬Ã¢â€â‚¬ 7. RPC: create_room_game_round Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 -- Only the room owner/host can start a round.
 -- For crash_rocket: pre-commits crash_multiplier into secrets table.
 -- For hungry_cat:   pre-commits winning_food_id into secrets table.
@@ -293,7 +294,7 @@ begin
 
   v_betting_closes := v_betting_opens + (p_betting_seconds || ' seconds')::interval;
 
-  -- ── Game-specific secret pre-commitment ──────────────────────────────────
+  -- Ã¢â€â‚¬Ã¢â€â‚¬ Game-specific secret pre-commitment Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
   if p_game_code = 'crash_rocket' then
     -- Check for forced multiplier (test / owner override)
@@ -355,7 +356,7 @@ begin
     values (v_round_id, v_seed, v_winning_food_id);
   end if;
 
-  -- Create the round record (result_json is null — hidden from clients)
+  -- Create the round record (result_json is null Ã¢â‚¬â€ hidden from clients)
   insert into public.room_game_rounds (
     id, room_id, game_code, round_number, status,
     seed_hash, seed,
@@ -382,7 +383,7 @@ $$;
 
 grant execute on function public.create_room_game_round(uuid, text, integer) to authenticated;
 
--- ── 8. RPC: place_room_game_bet ──────────────────────────────────────────────
+-- Ã¢â€â‚¬Ã¢â€â‚¬ 8. RPC: place_room_game_bet Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 -- Any active room member may place a bet while status = 'betting_open'.
 -- Deducts coins atomically; idempotent on (round_id, user_id, food_id).
 
@@ -441,7 +442,7 @@ begin
     (user_id, type, direction, coins_delta, diamonds_delta, note, metadata)
   values
     (v_uid, 'room_game_bet', 'debit', -p_bet_amount, 0,
-     'Room game bet — ' || v_round.game_code,
+     'Room game bet Ã¢â‚¬â€ ' || v_round.game_code,
      jsonb_build_object('round_id', p_round_id, 'bet_id', v_bet_id,
                         'room_id', v_round.room_id, 'bet_json', p_bet_json));
 
@@ -459,10 +460,10 @@ $$;
 
 grant execute on function public.place_room_game_bet(uuid, bigint, jsonb) to authenticated;
 
--- ── 9. RPC: lock_room_game_round ─────────────────────────────────────────────
+-- Ã¢â€â‚¬Ã¢â€â‚¬ 9. RPC: lock_room_game_round Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 -- Host calls this when betting_closes_at has passed.
--- Hungry cat → immediately reveals + settles.
--- Crash rocket → transitions to 'running' (rocket launches).
+-- Hungry cat Ã¢â€ â€™ immediately reveals + settles.
+-- Crash rocket Ã¢â€ â€™ transitions to 'running' (rocket launches).
 
 create or replace function public.lock_room_game_round(p_round_id uuid)
 returns jsonb
@@ -507,7 +508,7 @@ begin
 
   if not found then raise exception 'secret_not_found'; end if;
 
-  -- ── Hungry Cat: reveal + settle immediately ───────────────────────────────
+  -- Ã¢â€â‚¬Ã¢â€â‚¬ Hungry Cat: reveal + settle immediately Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   if v_round.game_code = 'hungry_cat' then
     select * into v_food
     from public.hungry_cat_config
@@ -543,7 +544,7 @@ begin
           (user_id, type, direction, coins_delta, diamonds_delta, note, metadata)
         values
           (v_bet.user_id, 'room_game_win', 'credit', v_win, 0,
-           'Room Hungry Cat win — ' || v_food.name || ' ×' || v_food.multiplier,
+           'Room Hungry Cat win Ã¢â‚¬â€ ' || v_food.name || ' Ãƒâ€”' || v_food.multiplier,
            jsonb_build_object('round_id', p_round_id, 'bet_id', v_bet.id,
                               'food_id', v_food.food_id, 'multiplier', v_food.multiplier));
       else
@@ -566,7 +567,7 @@ begin
     return jsonb_build_object('status', 'finished', 'result', v_result);
   end if;
 
-  -- ── Crash Rocket: transition to 'running' (rocket launches) ──────────────
+  -- Ã¢â€â‚¬Ã¢â€â‚¬ Crash Rocket: transition to 'running' (rocket launches) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   if v_round.game_code = 'crash_rocket' then
     -- Mark all pending bets as running
     update public.room_game_bets
@@ -588,7 +589,7 @@ $$;
 
 grant execute on function public.lock_room_game_round(uuid) to authenticated;
 
--- ── 10. RPC: reveal_room_crash_round ─────────────────────────────────────────
+-- Ã¢â€â‚¬Ã¢â€â‚¬ 10. RPC: reveal_room_crash_round Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 -- Called when the crash moment arrives (host Flutter timer fires at reveal_at).
 -- Reads crash_multiplier from secrets, settles all bets, reveals result_json.
 
@@ -671,7 +672,7 @@ begin
           (user_id, type, direction, coins_delta, diamonds_delta, note, metadata)
         values
           (v_bet.user_id, 'room_game_win', 'credit', v_auto_win, 0,
-           'Room Crash auto-cashout at ' || v_auto_m || '×',
+           'Room Crash auto-cashout at ' || v_auto_m || 'Ãƒâ€”',
            jsonb_build_object('round_id', p_round_id, 'bet_id', v_bet.id,
                               'auto_multiplier', v_auto_m, 'crash_at', v_crash_m));
       else
@@ -703,7 +704,7 @@ $$;
 
 grant execute on function public.reveal_room_crash_round(uuid) to authenticated;
 
--- ── 11. RPC: cashout_room_crash_bet ──────────────────────────────────────────
+-- Ã¢â€â‚¬Ã¢â€â‚¬ 11. RPC: cashout_room_crash_bet Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 -- Player manually cashes out during 'running' state.
 -- Server validates: round is still running, multiplier hasn't exceeded crash.
 
@@ -756,7 +757,7 @@ begin
   from public.room_game_round_secrets where round_id = v_bet.round_id;
 
   if v_current_m >= v_secret.crash_multiplier then
-    -- Already crashed — mark as lost
+    -- Already crashed Ã¢â‚¬â€ mark as lost
     update public.room_game_bets
     set status = 'lost', payout_amount = 0, settled_at = now()
     where id = p_bet_id;
@@ -786,7 +787,7 @@ begin
     (user_id, type, direction, coins_delta, diamonds_delta, note, metadata)
   values
     (v_uid, 'room_game_win', 'credit', v_win, 0,
-     'Room Crash cashout at ' || v_safe_m || '×',
+     'Room Crash cashout at ' || v_safe_m || 'Ãƒâ€”',
      jsonb_build_object('round_id', v_bet.round_id, 'bet_id', p_bet_id,
                         'multiplier', v_safe_m));
 
@@ -801,7 +802,7 @@ $$;
 
 grant execute on function public.cashout_room_crash_bet(uuid, numeric) to authenticated;
 
--- ── 12. RPC: cancel_room_game_round ──────────────────────────────────────────
+-- Ã¢â€â‚¬Ã¢â€â‚¬ 12. RPC: cancel_room_game_round Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 -- Host cancels round and refunds all placed bets.
 
 create or replace function public.cancel_room_game_round(
@@ -858,7 +859,7 @@ begin
       (user_id, type, direction, coins_delta, diamonds_delta, note, metadata)
     values
       (v_bet.user_id, 'room_game_refund', 'credit', v_bet.bet_amount, 0,
-       'Room game refund — ' || p_reason,
+       'Room game refund Ã¢â‚¬â€ ' || p_reason,
        jsonb_build_object('round_id', p_round_id, 'bet_id', v_bet.id));
 
     v_refunded_bets  := v_refunded_bets + 1;
@@ -882,7 +883,7 @@ $$;
 
 grant execute on function public.cancel_room_game_round(uuid, text) to authenticated;
 
--- ── 13. RPC: get_active_room_game_round ──────────────────────────────────────
+-- Ã¢â€â‚¬Ã¢â€â‚¬ 13. RPC: get_active_room_game_round Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 -- Late joiners call this to sync to the current round state.
 -- Returns the round + calling user's own bets. result_json only if revealed.
 
@@ -958,7 +959,7 @@ $$;
 
 grant execute on function public.get_active_room_game_round(uuid, text) to authenticated;
 
--- ── 14. auto-updated_at trigger ──────────────────────────────────────────────
+-- Ã¢â€â‚¬Ã¢â€â‚¬ 14. auto-updated_at trigger Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 create or replace function public._set_updated_at()
 returns trigger language plpgsql as $$

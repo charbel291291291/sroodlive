@@ -1,4 +1,4 @@
-﻿drop function if exists public.admin_list_reports(integer, text, text);
+drop function if exists public.admin_list_reports(integer, text, text);
 drop function if exists public.admin_list_reports(text, text, integer);
 
 create or replace function public.admin_list_reports(
