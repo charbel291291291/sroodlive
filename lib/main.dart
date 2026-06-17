@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -12,10 +12,12 @@ import 'features/admin/screens/admin_dashboard_screen.dart';
 import 'features/splash/splash_screen.dart';
 import 'shared/widgets/app_viewport.dart';
 
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Explicitly register the WebView platform — skipped on web where dart:io
+  // Explicitly register the WebView platform â€” skipped on web where dart:io
   // Platform is unavailable and WebView runs natively in the browser.
   if (!kIsWeb) {
     if (defaultTargetPlatform == TargetPlatform.android) {
@@ -67,6 +69,7 @@ class _SrOOdLiveAppState extends State<SrOOdLiveApp> {
       locale: locale,
       setLocale: setLocale,
       child: MaterialApp(
+        navigatorKey: rootNavigatorKey,
         title: 'SrOOd Live',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
@@ -133,3 +136,4 @@ class AppLanguageController extends InheritedWidget {
     return oldWidget.locale != locale;
   }
 }
+
