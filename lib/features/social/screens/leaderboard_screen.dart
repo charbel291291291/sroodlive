@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../../profile/screens/user_profile_screen.dart';
+import '../../vip/services/vip_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class LeaderboardScreen extends StatefulWidget {
@@ -78,17 +79,39 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         score: r['score'] as int? ?? 0,
       );
 
+      final earners = (earnersRaw as List)
+          .map((r) => toEntry(r as Map<String, dynamic>))
+          .toList();
+      final gifters = (giftersRaw as List)
+          .map((r) => toEntry(r as Map<String, dynamic>))
+          .toList();
+      final streamers = (streamersRaw as List)
+          .map((r) => toEntry(r as Map<String, dynamic>))
+          .toList();
+
+      // Batch-fetch expiry-safe VIP levels for all entries in one round-trip.
+      final allIds = {...earners, ...gifters, ...streamers}
+          .map((e) => e.userId)
+          .toSet()
+          .toList();
+      final vipMap = await VipService().getUsersVip(allIds);
+
+      _LeaderboardEntry applyVip(_LeaderboardEntry e) {
+        final effective = vipMap[e.userId]?.effectiveVipLevel ?? 0;
+        return _LeaderboardEntry(
+          userId: e.userId,
+          displayName: e.displayName,
+          avatarUrl: e.avatarUrl,
+          vipLevel: effective,
+          score: e.score,
+        );
+      }
+
       if (!mounted) return;
       setState(() {
-        _earners = (earnersRaw as List)
-            .map((r) => toEntry(r as Map<String, dynamic>))
-            .toList();
-        _gifters = (giftersRaw as List)
-            .map((r) => toEntry(r as Map<String, dynamic>))
-            .toList();
-        _streamers = (streamersRaw as List)
-            .map((r) => toEntry(r as Map<String, dynamic>))
-            .toList();
+        _earners = earners.map(applyVip).toList();
+        _gifters = gifters.map(applyVip).toList();
+        _streamers = streamers.map(applyVip).toList();
         _loading = false;
       });
     } catch (e) {

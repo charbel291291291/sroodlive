@@ -50,7 +50,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         SupabaseService.requiredClient
             .from('profiles')
             .select(
-              'id, username, public_user_id, display_name, bio, avatar_url, vip_level, followers_count, following_count, gifts_received_count, visitors_count',
+              'id, username, public_user_id, display_name, bio, avatar_url, vip_level, vip_expires_at, followers_count, following_count, gifts_received_count, visitors_count',
             )
             .eq('id', widget.userId)
             .maybeSingle(),
@@ -69,6 +69,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           'bio': '',
           'avatar_url': null,
           'vip_level': 0,
+          'vip_expires_at': null,
           'followers_count': 0,
           'following_count': 0,
           'gifts_received_count': 0,
@@ -192,7 +193,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               : fallbackSroodId.toUpperCase());
     final bio = p['bio'] as String? ?? '';
     final avatarUrl = p['avatar_url'] as String?;
-    final vipLevel = p['vip_level'] as int? ?? 0;
+    final rawVipLevel = p['vip_level'] as int? ?? 0;
+    final vipExpiresAt = p['vip_expires_at'] != null
+        ? DateTime.tryParse(p['vip_expires_at'].toString())
+        : null;
+    final vipLevel = (rawVipLevel > 0 &&
+            (vipExpiresAt == null || vipExpiresAt.isAfter(DateTime.now())))
+        ? rawVipLevel
+        : 0;
     final followers = p['followers_count'] as int? ?? 0;
     final following = p['following_count'] as int? ?? 0;
     final gifts = p['gifts_received_count'] as int? ?? 0;

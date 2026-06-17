@@ -170,7 +170,7 @@ class PrivateMessageService {
       final profileData = await client
           .from('profiles')
           .select(
-            'id, display_name, username, avatar_url, selected_avatar_frame_key, vip_level',
+            'id, display_name, username, avatar_url, selected_avatar_frame_key, vip_level, vip_expires_at',
           )
           .inFilter('id', otherIds);
 
@@ -209,7 +209,7 @@ class PrivateMessageService {
         otherNickname: nickname,
         otherAvatarUrl: profile?['avatar_url']?.toString(),
         otherFrameId: profile?['selected_avatar_frame_key']?.toString(),
-        otherVipLevel: profile?['vip_level'] as int?,
+        otherVipLevel: _effectiveVipLevel(profile),
         lastMessage: row['last_message']?.toString(),
         lastMessageAt: DateTime.tryParse(
           row['last_message_at']?.toString() ?? '',
@@ -246,6 +246,19 @@ class PrivateMessageService {
         .filter('read_at', 'is', null);
 
     return (data as List<dynamic>).length;
+  }
+
+  /// Returns the VIP level only when active (non-zero and not expired).
+  /// Null is returned for non-VIP or expired VIP — matches the nullable
+  /// field type on [PrivateConversationPreview.otherVipLevel].
+  int? _effectiveVipLevel(Map<String, dynamic>? profile) {
+    final level = profile?['vip_level'] as int? ?? 0;
+    if (level <= 0) return null;
+    final expiresRaw = profile?['vip_expires_at']?.toString();
+    if (expiresRaw == null) return level;
+    final expires = DateTime.tryParse(expiresRaw);
+    if (expires == null) return level;
+    return expires.isAfter(DateTime.now()) ? level : null;
   }
 
   String _safeDisplayName(Map<String, dynamic>? profile) {
