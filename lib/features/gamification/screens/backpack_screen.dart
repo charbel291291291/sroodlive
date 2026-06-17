@@ -82,6 +82,15 @@ class _BackpackScreenState extends State<BackpackScreen> {
   int _count(String type) =>
       type == 'all' ? _all.length : _all.where((i) => i.itemType == type).length;
 
+  // Safe metadata VIP level parsing — handles num, int, and String from jsonb.
+  static int _metaVipLevel(BackpackItem bp) {
+    final v = bp.item.metadata['vip_level'];
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? 0;
+    return 0;
+  }
+
   Future<void> _equip(BackpackItem bp) async {
     try {
       await _service.equipBackpackItem(bp.id);
@@ -267,7 +276,7 @@ class _BackpackScreenState extends State<BackpackScreen> {
           itemBuilder: (_, i) {
             final bp = _filtered[i];
             final requiredVip =
-                (bp.item.metadata['vip_level'] as num?)?.toInt() ?? 0;
+                _metaVipLevel(bp);
             final isVipLocked =
                 requiredVip > 0 && _userVipLevel < requiredVip;
             return _EntranceBannerCard(
@@ -300,7 +309,7 @@ class _BackpackScreenState extends State<BackpackScreen> {
           itemBuilder: (_, i) {
             final bp = _filtered[i];
             final requiredVip =
-                (bp.item.metadata['vip_level'] as num?)?.toInt() ?? 0;
+                _metaVipLevel(bp);
             final isVipLocked =
                 requiredVip > 0 && _userVipLevel < requiredVip;
             return _BadgeCard(
@@ -326,8 +335,7 @@ class _BackpackScreenState extends State<BackpackScreen> {
         separatorBuilder: (_, _) => const SizedBox(height: 10),
         itemBuilder: (_, i) {
           final bp = _filtered[i];
-          final requiredVip =
-              (bp.item.metadata['vip_level'] as num?)?.toInt() ?? 0;
+          final requiredVip = _metaVipLevel(bp);
           final isVipLocked = requiredVip > 0 && _userVipLevel < requiredVip;
           if (bp.isFrame) {
             return _FrameCard(
@@ -414,11 +422,15 @@ class _BackpackScreenState extends State<BackpackScreen> {
         : 'Your backpack is empty';
 
     final String subtitle = context.isArabic
-        ? isBadges
+        ? isFrames
+              ? 'احصل على إطارات حصرية من المتجر ومكافآت VIP.'
+              : isBadges
               ? 'اجمع الشارات من الفعاليات ومكافآت VIP وعروض المتجر.'
               : isBanners
               ? 'افتح تأثيرات الدخول من مكافآت VIP والفعاليات وعروض المتجر.'
               : 'تفضل بزيارة المتجر للحصول على المزيد'
+        : isFrames
+        ? 'Get exclusive avatar frames from the store and VIP rewards.'
         : isBadges
         ? 'Collect badges from events, VIP rewards, and store offers.'
         : isBanners
@@ -758,7 +770,7 @@ class _BadgeCard extends StatelessWidget {
     final borderColor = bp.equipped
         ? const Color(0xFFF0C15A)
         : isVipLocked && tierColors != null
-        ? tierColors.border.withValues(alpha: 0.55)
+        ? tierColors.border.withValues(alpha: 0.6)
         : const Color(0xFF4A3470);
 
     return Container(
@@ -802,29 +814,7 @@ class _BadgeCard extends StatelessWidget {
             else if (isVipLocked)
               _VipLockRow(isArabic: isArabic, requiredLevel: requiredVipLevel)
             else
-              SizedBox(
-                width: double.infinity,
-                height: 32,
-                child: ElevatedButton(
-                  onPressed: onEquip,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4B168C),
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Text(
-                    isArabic ? 'تفعيل' : 'Equip',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ),
+              _FullWidthEquipButton(isArabic: isArabic, onEquip: onEquip),
           ],
         ),
       ),
@@ -839,7 +829,7 @@ class _BadgePreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = bp.item.metadata['image_url'] as String?;
+    final imageUrl = (bp.item.metadata['image_url'] as String?)?.trim();
 
     return SizedBox(
       width: 64,
@@ -1030,22 +1020,9 @@ class _EntranceBannerCard extends StatelessWidget {
                   ),
                 ),
 
-                // Rarity / type chip if present
-                Builder(
-                  builder: (_) {
-                    final rarity =
-                        bp.item.metadata['rarity'] as String?;
-                    final category =
-                        bp.item.metadata['category'] as String?;
-                    final label = (rarity ?? category ?? '').trim();
-                    if (label.isEmpty) return const SizedBox(height: 10);
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: _BadgeMetaChip(bp: bp, isArabic: isArabic),
-                    );
-                  },
-                ),
-
+                // Rarity / type chip if present (returns SizedBox.shrink when empty)
+                const SizedBox(height: 6),
+                _BadgeMetaChip(bp: bp, isArabic: isArabic),
                 const SizedBox(height: 10),
 
                 // Action row
@@ -1055,29 +1032,7 @@ class _EntranceBannerCard extends StatelessWidget {
                     requiredLevel: requiredVipLevel,
                   )
                 else if (!bp.equipped)
-                  SizedBox(
-                    width: double.infinity,
-                    height: 36,
-                    child: ElevatedButton(
-                      onPressed: onEquip,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4B168C),
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.zero,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: Text(
-                        isArabic ? 'تفعيل' : 'Equip',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  ),
+                  _FullWidthEquipButton(isArabic: isArabic, onEquip: onEquip),
               ],
             ),
           ),
@@ -1097,7 +1052,7 @@ class _EntranceBannerPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = bp.item.metadata['image_url'] as String?;
+    final imageUrl = (bp.item.metadata['image_url'] as String?)?.trim();
 
     return SizedBox(
       height: 120,
@@ -1192,6 +1147,40 @@ class _BannerGradientBg extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
+// Full-width equip button — used by grid/banner cards where width fills the card
+// ---------------------------------------------------------------------------
+
+class _FullWidthEquipButton extends StatelessWidget {
+  const _FullWidthEquipButton({required this.isArabic, required this.onEquip});
+  final bool isArabic;
+  final VoidCallback onEquip;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 34,
+      child: ElevatedButton(
+        onPressed: onEquip,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF4B168C),
+          foregroundColor: Colors.white,
+          padding: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          elevation: 0,
+        ),
+        child: Text(
+          isArabic ? 'تفعيل' : 'Equip',
+          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Generic backpack item card (non-frame/non-badge types + All-tab fallback)
 // ---------------------------------------------------------------------------
 
@@ -1263,6 +1252,8 @@ class _BackpackItemCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         bp.item.localName(isArabic),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 15,
