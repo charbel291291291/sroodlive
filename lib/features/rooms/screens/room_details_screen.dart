@@ -508,7 +508,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       final coins = await SupabaseService.requiredClient
           .rpc('claim_red_envelope', params: {'p_envelope_id': envelopeId}) as int;
       if (!mounted) return;
-      setState(() => _luckyBagWinCoins = coins);
+      setState(() {
+        _luckyBagWinCoins = coins;
+        // Optimistic credit so toolbar balance updates instantly.
+        _walletCoins += coins;
+      });
+      unawaited(_loadWalletBalance());
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
           context.isArabic ? '🎁 حصلت على $coins عملة!' : '🎁 You got \$coins coins!',
@@ -1193,10 +1198,15 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         onMusicTap: _openMusicPanel,
         onRedEnvelopeCreated: (envelope) {
           if (!mounted) return;
+          final spent = (envelope['total_coins'] as num?)?.toInt() ?? 0;
           setState(() {
             _activeRedEnvelope = envelope;
             _showLuckyBagEntrance = true;
+            // Optimistic decrement so toolbar balance updates instantly.
+            if (spent > 0) _walletCoins = (_walletCoins - spent).clamp(0, _walletCoins);
           });
+          // Background sync to confirm real server balance.
+          unawaited(_loadWalletBalance());
         },
         onSoundChanged: (v) => setState(() => _soundEnabled = v),
         onVisualChanged: (v) => setState(() => _visualEnabled = v),
