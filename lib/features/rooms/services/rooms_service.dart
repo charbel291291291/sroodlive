@@ -184,7 +184,7 @@ class RoomsService {
     final inserted = await client.from('rooms').insert({
       'owner_id': user.id,
       'name': name,
-      if (description != null) 'description': description,
+      'description': ?description,
       'language': language,
       'max_seats': maxSeats,
       'livekit_room_name': lkName,
