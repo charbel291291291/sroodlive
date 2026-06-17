@@ -174,6 +174,11 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
             expiresAt: widget.vipExpiresAt,
             isArabic: context.isArabic,
           ),
+          const SizedBox(height: 12),
+          _VipProgressSection(
+            vipLevel: widget.currentVipLevel,
+            isArabic: context.isArabic,
+          ),
           const SizedBox(height: 10),
           _VipSettingsButton(
             vipLevel: widget.currentVipLevel,
@@ -275,22 +280,43 @@ class _CurrentStatusCard extends StatelessWidget {
   final DateTime? expiresAt;
   final bool isArabic;
 
+  // State helpers
+  bool get _hasVip => vipLevel > 0;
+  bool get _isExpired =>
+      expiresAt != null && expiresAt!.isBefore(DateTime.now());
+  bool get _isActive => _hasVip && !_isExpired;
+  bool get _isMax => vipLevel >= 9;
+
+  int get _remainingDays {
+    if (expiresAt == null) return 0;
+    return expiresAt!.difference(DateTime.now()).inDays.clamp(0, 9999);
+  }
+
+  String _fmtDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/'
+      '${d.month.toString().padLeft(2, '0')}/'
+      '${d.year}';
+
   @override
   Widget build(BuildContext context) {
+    final tier = _isActive ? VipTierColors.of(vipLevel) : null;
     final spec = VipSpecResolver.resolve(vipLevel);
-    final isActive = vipLevel > 0;
-    final expired = expiresAt != null && expiresAt!.isBefore(DateTime.now());
-    final reallyActive = isActive && !expired;
+
+    final borderColor = _isActive
+        ? tier!.border.withValues(alpha: 0.55)
+        : _kCardBorder;
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: reallyActive
+        gradient: _isActive
             ? LinearGradient(
                 colors: [
-                  spec.glowColor.withValues(alpha: 0.3),
-                  const Color(0xFF1B102A),
+                  tier!.start.withValues(alpha: 0.22),
+                  tier.end.withValues(alpha: 0.08),
+                  const Color(0xFF12091D),
                 ],
+                stops: const [0.0, 0.45, 1.0],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               )
@@ -298,17 +324,23 @@ class _CurrentStatusCard extends StatelessWidget {
                 colors: [Color(0xFF1B102A), Color(0xFF12091D)],
               ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: reallyActive
-              ? spec.glowColor.withValues(alpha: 0.5)
-              : _kCardBorder,
-          width: reallyActive ? 1.5 : 1,
-        ),
+        border: Border.all(color: borderColor, width: _isActive ? 1.5 : 1),
+        boxShadow: _isActive
+            ? [
+                BoxShadow(
+                  color: spec.glowColor.withValues(alpha: 0.18),
+                  blurRadius: 20,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
       ),
       child: Row(
         textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          VipFramedAvatar(size: 64, vipLevel: reallyActive ? vipLevel : null),
+          VipFramedAvatar(size: 68, vipLevel: _isActive ? vipLevel : null),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -316,30 +348,81 @@ class _CurrentStatusCard extends StatelessWidget {
                   ? CrossAxisAlignment.end
                   : CrossAxisAlignment.start,
               children: [
+                // Status badge row
+                Row(
+                  textDirection:
+                      isArabic ? TextDirection.rtl : TextDirection.ltr,
+                  children: [
+                    if (_isActive)
+                      _StatusPill(
+                        label: isArabic ? 'نشط' : 'Active',
+                        color: const Color(0xFF22C55E),
+                      )
+                    else if (_isExpired)
+                      _StatusPill(
+                        label: isArabic ? 'منتهي' : 'Expired',
+                        color: _kRed,
+                      )
+                    else
+                      _StatusPill(
+                        label: isArabic ? 'غير مفعّل' : 'No VIP',
+                        color: _kSubtext,
+                      ),
+                    if (_isActive && _isMax) ...[
+                      const SizedBox(width: 6),
+                      _StatusPill(
+                        label: isArabic ? 'الحد الأقصى' : 'MAX',
+                        color: tier!.start,
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // Level label
                 Text(
-                  reallyActive
-                      ? (isArabic ? 'VIP $vipLevel نشط' : 'VIP $vipLevel Active')
+                  _isActive
+                      ? 'VIP $_vipLabel'
                       : (isArabic ? 'لا يوجد VIP نشط' : 'No Active VIP'),
                   style: TextStyle(
-                    color: reallyActive ? _kGold : _kSubtext,
-                    fontSize: 16,
+                    color: _isActive ? (tier?.border ?? _kGold) : _kSubtext,
+                    fontSize: 18,
                     fontWeight: FontWeight.w900,
+                    height: 1.1,
                   ),
                 ),
-                const SizedBox(height: 4),
-                if (reallyActive && expiresAt != null)
-                  Text(
-                    isArabic
+                const SizedBox(height: 8),
+                // Expiry info
+                if (_isActive && expiresAt != null) ...[
+                  _InfoRow(
+                    icon: Icons.calendar_today_rounded,
+                    text: isArabic
                         ? 'ينتهي: ${_fmtDate(expiresAt!)}'
                         : 'Expires: ${_fmtDate(expiresAt!)}',
-                    style: const TextStyle(color: _kText, fontSize: 12),
+                    color: _kText,
+                  ),
+                  const SizedBox(height: 4),
+                  _InfoRow(
+                    icon: Icons.timer_rounded,
+                    text: isArabic
+                        ? 'المتبقي: $_remainingDays يوم'
+                        : 'Remaining: $_remainingDays day${_remainingDays == 1 ? '' : 's'}',
+                    color: _remainingDaysColor,
+                  ),
+                ] else if (_isExpired && expiresAt != null)
+                  _InfoRow(
+                    icon: Icons.timer_off_rounded,
+                    text: isArabic
+                        ? 'انتهى في: ${_fmtDate(expiresAt!)}'
+                        : 'Expired on: ${_fmtDate(expiresAt!)}',
+                    color: _kRed,
                   )
-                else
-                  Text(
-                    isArabic
+                else if (!_hasVip)
+                  _InfoRow(
+                    icon: Icons.info_outline_rounded,
+                    text: isArabic
                         ? 'تواصل مع الإدارة للحصول على VIP'
                         : 'Contact admin to get VIP',
-                    style: const TextStyle(color: _kSubtext, fontSize: 12),
+                    color: _kSubtext,
                   ),
               ],
             ),
@@ -349,7 +432,179 @@ class _CurrentStatusCard extends StatelessWidget {
     );
   }
 
-  String _fmtDate(DateTime d) => '${d.day}/${d.month}/${d.year}';
+  String get _vipLabel => '$vipLevel';
+
+  Color get _remainingDaysColor {
+    if (_remainingDays <= 7) return _kRed;
+    if (_remainingDays <= 30) return const Color(0xFFF59E0B);
+    return const Color(0xFF22C55E);
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.label, required this.color});
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.14),
+      borderRadius: BorderRadius.circular(99),
+      border: Border.all(color: color.withValues(alpha: 0.45)),
+    ),
+    child: Text(
+      label,
+      style: TextStyle(
+        color: color,
+        fontSize: 10,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.4,
+      ),
+    ),
+  );
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.icon, required this.text, required this.color});
+  final IconData icon;
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, size: 12, color: color.withValues(alpha: 0.7)),
+      const SizedBox(width: 5),
+      Flexible(
+        child: Text(
+          text,
+          style: TextStyle(color: color, fontSize: 12, height: 1.3),
+        ),
+      ),
+    ],
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VIP Level Progress section
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _VipProgressSection extends StatelessWidget {
+  const _VipProgressSection({required this.vipLevel, required this.isArabic});
+  final int vipLevel;
+  final bool isArabic;
+
+  bool get _isMax => vipLevel >= 9;
+
+  String _goalLabel(bool isArabic) {
+    if (vipLevel <= 0) {
+      return isArabic ? 'ابدأ رحلة VIP الخاصة بك' : 'Start your VIP journey';
+    }
+    if (_isMax) {
+      return isArabic ? 'أعلى مستوى VIP تم الوصول إليه' : 'Highest VIP level reached';
+    }
+    final next = vipLevel + 1;
+    return isArabic ? 'الهدف التالي: VIP$next' : 'Next Goal: VIP$next';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      decoration: BoxDecoration(
+        color: _kCard,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _kCardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment:
+            isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+            children: [
+              const Icon(
+                Icons.trending_up_rounded,
+                color: _kGold,
+                size: 16,
+              ),
+              const SizedBox(width: 7),
+              Text(
+                isArabic ? 'مستوى VIP' : 'VIP Level Progress',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                vipLevel > 0 ? 'VIP $vipLevel / 9' : '0 / 9',
+                style: const TextStyle(
+                  color: _kSubtext,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // 9-segment bar
+          Row(
+            children: List.generate(9, (i) {
+              final segLevel = i + 1;
+              final filled = segLevel <= vipLevel;
+              final isCurrent = segLevel == vipLevel;
+              final tier = VipTierColors.of(segLevel);
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(right: i < 8 ? 3 : 0),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    height: isCurrent ? 10 : 7,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(99),
+                      gradient: filled
+                          ? LinearGradient(
+                              colors: [tier.start, tier.end],
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                            )
+                          : null,
+                      color: filled ? null : _kCardBorder,
+                      boxShadow: isCurrent
+                          ? [
+                              BoxShadow(
+                                color: tier.shadow,
+                                blurRadius: 6,
+                                spreadRadius: 0,
+                              ),
+                            ]
+                          : null,
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 10),
+          // Goal label
+          Text(
+            _goalLabel(isArabic),
+            style: TextStyle(
+              color: _isMax ? _kGold : _kSubtext,
+              fontSize: 12,
+              fontWeight: _isMax ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
