@@ -46,7 +46,7 @@ class RoomMessage {
           profile?['username'] as String? ??
           'User',
       senderAvatarUrl: profile?['avatar_url'] as String?,
-      senderVipLevel: (profile?['vip_level'] as int?) ?? 0,
+      senderVipLevel: _effectiveSenderVipLevel(profile),
       senderRole: (json['metadata'] as Map<String, dynamic>?)?['role']
               as String? ??
           'listener',
@@ -56,6 +56,16 @@ class RoomMessage {
       imageUrl:  json['image_url']  as String?,
       imagePath: json['image_path'] as String?,
     );
+  }
+
+  static int _effectiveSenderVipLevel(Map<String, dynamic>? profile) {
+    final level = (profile?['vip_level'] as int?) ?? 0;
+    if (level <= 0) return 0;
+    final expiresRaw = profile?['vip_expires_at']?.toString();
+    if (expiresRaw == null) return level;
+    final expires = DateTime.tryParse(expiresRaw);
+    if (expires == null) return level;
+    return expires.isAfter(DateTime.now()) ? level : 0;
   }
 
   /// Create a local-only system message (not persisted).
@@ -94,7 +104,7 @@ class RoomMessagesService {
     try {
       final rows = await SupabaseService.requiredClient
           .from('room_messages')
-          .select('*, profiles(display_name, username, avatar_url, vip_level)')
+          .select('*, profiles(display_name, username, avatar_url, vip_level, vip_expires_at)')
           .eq('room_id', roomId)
           .order('created_at', ascending: false)
           .limit(_recentCount)

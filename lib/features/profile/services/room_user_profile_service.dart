@@ -33,6 +33,9 @@ class RoomUserProfileService {
       bio: data?['bio']?.toString(),
       country: data?['country']?.toString(),
       vipLevel: data?['vip_level'] as int? ?? 0,
+      vipExpiresAt: data?['vip_expires_at'] != null
+          ? DateTime.tryParse(data!['vip_expires_at'].toString())
+          : null,
       followersCount: followers,
       followingCount: following,
       giftReceivedCount: gifts,
