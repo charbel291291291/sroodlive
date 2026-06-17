@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:just_audio/just_audio.dart';
 import 'dart:math' as math;
 import 'dart:ui';
@@ -996,7 +996,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   }
 
   Future<void> _sendChatMessage(String text) async {
-    if (text.trim().isEmpty) return;
+    
+    FocusManager.instance.primaryFocus?.unfocus();if (text.trim().isEmpty) return;
     setState(() => _isSendingMessage = true);
 
     // Optimistic insert using current user profile.
@@ -7155,7 +7156,8 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
   Future<void> _submit() async {
     final text = _ctrl.text.trim();
     if (text.isEmpty || widget.isSendingMessage) return;
-    _ctrl.clear();
+    
+    FocusManager.instance.primaryFocus?.unfocus();_ctrl.clear();
     setState(() => _isTyping = false);
     _focus.requestFocus();
     try {
