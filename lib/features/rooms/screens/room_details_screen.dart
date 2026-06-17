@@ -8282,17 +8282,22 @@ class _LuckyBagEntranceOverlayState extends State<_LuckyBagEntranceOverlay>
       if (mounted) widget.onDone();
     });
 
-    if (widget.soundEnabled) _tryPlaySound();
+    unawaited(_tryPlaySound());
   }
 
   Future<void> _tryPlaySound() async {
-    // TODO: add assets/sounds/lucky_bag_open.mp3 to play entrance sound
+    if (!widget.soundEnabled) return;
+    final player = AudioPlayer();
     try {
-      final player = AudioPlayer();
       await player.setAsset('assets/sounds/lucky_bag_open.mp3');
       await player.play();
-      unawaited(player.dispose());
-    } catch (_) {/* asset not yet added */}
+      await player.processingStateStream
+          .firstWhere((s) => s == ProcessingState.completed);
+    } catch (_) {
+      // TODO: add assets/sounds/lucky_bag_open.mp3 when sound assets are ready.
+    } finally {
+      await player.dispose();
+    }
   }
 
   @override
@@ -8531,17 +8536,22 @@ class _LuckyBagWinOverlayState extends State<_LuckyBagWinOverlay>
       if (mounted) widget.onDone();
     });
 
-    if (widget.soundEnabled) _tryPlayWinSound();
+    unawaited(_tryPlayWinSound());
   }
 
   Future<void> _tryPlayWinSound() async {
-    // TODO: add assets/sounds/lucky_bag_win.mp3 and assets/sounds/coin_rain.mp3
+    if (!widget.soundEnabled) return;
+    final player = AudioPlayer();
     try {
-      final player = AudioPlayer();
       await player.setAsset('assets/sounds/lucky_bag_win.mp3');
       await player.play();
-      unawaited(player.dispose());
-    } catch (_) {/* asset not yet added */}
+      await player.processingStateStream
+          .firstWhere((s) => s == ProcessingState.completed);
+    } catch (_) {
+      // TODO: add assets/sounds/lucky_bag_win.mp3 when sound assets are ready.
+    } finally {
+      await player.dispose();
+    }
   }
 
   @override
