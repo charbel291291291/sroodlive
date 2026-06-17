@@ -184,6 +184,15 @@ class AdminUserSummary {
     this.username,
     this.avatarUrl,
     this.vipLevel = 0,
+    this.isGoldenId = false,
+    this.goldenIdExpiresAt,
+    this.goldenIdStyle = 'gold',
+    this.goldenIdFrame = 'classic',
+    this.country,
+    this.countryCode,
+    this.countryFlagStyle = 'normal',
+    this.countryFlagFrame = 'classic',
+    this.countryFlagExpiresAt,
     this.createdAt,
   });
 
@@ -193,6 +202,15 @@ class AdminUserSummary {
   final String? username;
   final String? avatarUrl;
   final int vipLevel;
+  final bool isGoldenId;
+  final DateTime? goldenIdExpiresAt;
+  final String goldenIdStyle;
+  final String goldenIdFrame;
+  final String? country;
+  final String? countryCode;
+  final String countryFlagStyle;
+  final String countryFlagFrame;
+  final DateTime? countryFlagExpiresAt;
   final int coinsBalance;
   final int diamondsBalance;
   final List<String> roles;
@@ -215,6 +233,15 @@ class AdminUserSummary {
       username: json['username']?.toString(),
       avatarUrl: json['avatar_url']?.toString(),
       vipLevel: _intValue(json['vip_level']),
+      isGoldenId: json['is_golden_id'] == true,
+      goldenIdExpiresAt: _dateValue(json['golden_id_expires_at']),
+      goldenIdStyle: json['golden_id_style']?.toString() ?? 'gold',
+      goldenIdFrame: json['golden_id_frame']?.toString() ?? 'classic',
+      country: json['country']?.toString(),
+      countryCode: json['country_code']?.toString(),
+      countryFlagStyle: json['country_flag_style']?.toString() ?? 'normal',
+      countryFlagFrame: json['country_flag_frame']?.toString() ?? 'classic',
+      countryFlagExpiresAt: _dateValue(json['country_flag_expires_at']),
       coinsBalance: _intValue(json['coins_balance']),
       diamondsBalance: _intValue(json['diamonds_balance']),
       roles: rawRoles is List

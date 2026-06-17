@@ -7,6 +7,7 @@ import '../../../features/admin/models/admin_models.dart';
 import '../../../features/admin/services/admin_access_service.dart';
 import '../../../features/admin/services/admin_service.dart';
 import '../../../shared/theme/vip_tier_colors.dart';
+import '../../../shared/widgets/premium_country_flag.dart';
 import '../../../shared/widgets/vip_framed_avatar.dart';
 import '../../vip/models/user_vip.dart';
 import '../../vip/screens/vip_settings_screen.dart';
@@ -1721,7 +1722,17 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
 
   // ── Golden ID ─────────────────────────────────────────────────────────────
   bool _goldenEnabled = true;
+  final _goldenIdController      = TextEditingController();
   final _goldenDurationController = TextEditingController();
+  String _goldenStyle = 'gold';
+  String _goldenFrame = 'classic';
+
+  // ── Country Flag Style ────────────────────────────────────────────────────
+  final _countryCodeController     = TextEditingController();
+  final _countryNameController     = TextEditingController();
+  final _flagDurationController    = TextEditingController();
+  String _flagStyle = 'normal';
+  String _flagFrame = 'classic';
 
   // ── Shared ────────────────────────────────────────────────────────────────
   bool _busy = false;
@@ -1737,7 +1748,11 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
   void dispose() {
     _searchController.dispose();
     _durationController.dispose();
+    _goldenIdController.dispose();
     _goldenDurationController.dispose();
+    _countryCodeController.dispose();
+    _countryNameController.dispose();
+    _flagDurationController.dispose();
     super.dispose();
   }
 
@@ -1775,6 +1790,16 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
       _searchResults = [];
       _result = null;
       _searchController.text = user.title;
+      // Pre-fill Golden ID fields from the selected user's current data.
+      _goldenIdController.text = user.publicUserId ?? '';
+      _goldenEnabled = user.isGoldenId;
+      _goldenStyle = user.goldenIdStyle;
+      _goldenFrame = user.goldenIdFrame;
+      // Pre-fill Country Flag fields.
+      _countryCodeController.text = user.countryCode ?? '';
+      _countryNameController.text = user.country ?? '';
+      _flagStyle = user.countryFlagStyle;
+      _flagFrame = user.countryFlagFrame;
     });
   }
 
@@ -1836,18 +1861,84 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
       _setResult(isArabic ? 'اختر مستخدماً أولاً' : 'Select a valid user first', error: true);
       return;
     }
+    if (_goldenEnabled && _goldenIdController.text.trim().isEmpty) {
+      _setResult(
+        isArabic ? 'أدخل رقم Golden ID' : 'Enter a Golden ID number',
+        error: true,
+      );
+      return;
+    }
+    final publicId = _goldenIdController.text.trim();
     final daysText = _goldenDurationController.text.trim();
     final days = daysText.isEmpty ? null : int.tryParse(daysText);
     setState(() { _busy = true; _result = null; });
     try {
-      await VipService().setGoldenId(userId: user.userId, enabled: _goldenEnabled, durationDays: days);
+      await VipService().setCustomGoldenId(
+        userId: user.userId,
+        publicUserId: publicId,
+        enabled: _goldenEnabled,
+        durationDays: days,
+        style: _goldenStyle,
+        frame: _goldenFrame,
+      );
       _setResult(
         _goldenEnabled
-            ? (isArabic ? 'تم تفعيل Golden ID لـ${user.title}' : 'Golden ID activated for ${user.title}')
+            ? (isArabic
+                ? 'تم تحديث Golden ID إلى $publicId'
+                : 'Golden ID updated to $publicId')
             : (isArabic ? 'تم إلغاء Golden ID لـ${user.title}' : 'Golden ID removed for ${user.title}'),
       );
     } catch (e) {
-      _setResult(e.toString(), error: true);
+      final msg = e.toString();
+      if (msg.contains('golden_id_taken')) {
+        _setResult(isArabic ? 'هذا الـ Golden ID مستخدم بالفعل.' : 'This Golden ID is already used.', error: true);
+      } else if (msg.contains('invalid_golden_id_style') || msg.contains('invalid_golden_id_frame')) {
+        _setResult(isArabic ? 'نمط Golden ID غير صالح.' : 'Invalid Golden ID style.', error: true);
+      } else {
+        _setResult(msg, error: true);
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _applyCountryFlagStyle() async {
+    final user = _selectedUser;
+    if (user == null) {
+      _setResult(isArabic ? 'اختر مستخدماً أولاً' : 'Select a valid user first', error: true);
+      return;
+    }
+    final code    = _countryCodeController.text.trim();
+    final name    = _countryNameController.text.trim();
+    final daysStr = _flagDurationController.text.trim();
+    final days    = daysStr.isEmpty ? null : int.tryParse(daysStr);
+    setState(() { _busy = true; _result = null; });
+    try {
+      await _adminService.setUserCountryFlagStyle(
+        userId:      user.userId,
+        countryCode: code.isEmpty ? null : code,
+        countryName: name.isEmpty ? null : name,
+        style:       _flagStyle,
+        frame:       _flagFrame,
+        durationDays: days,
+      );
+      _setResult(
+        isArabic
+            ? 'تم تحديث نمط العلم لـ${user.title}'
+            : 'Country flag style updated for ${user.title}',
+      );
+    } catch (e) {
+      final msg = e.toString();
+      if (msg.contains('invalid_country_code')) {
+        _setResult(
+          isArabic
+              ? 'رمز البلد غير صالح. استخدم حرفين مثل LB، AO، AE.'
+              : 'Invalid country code. Use two letters like LB, AO, AE.',
+          error: true,
+        );
+      } else {
+        _setResult(msg, error: true);
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -2062,6 +2153,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           _SubLabel(label: 'Golden ID', isArabic: isArabic),
           const SizedBox(height: 8),
 
+          // Enable switch + duration
           Row(
             textDirection: dir,
             children: [
@@ -2072,21 +2164,48 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
                 activeThumbColor: _kGold,
                 inactiveTrackColor: _kCardBorder,
               ),
-              if (_goldenEnabled) ...[
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _AdminField(
-                    controller: _goldenDurationController,
-                    label: isArabic ? 'أيام (فارغ = دائم)' : 'Days (blank = permanent)',
-                    isArabic: isArabic,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _AdminField(
+                  controller: _goldenDurationController,
+                  label: isArabic ? 'أيام (فارغ = دائم)' : 'Days (blank = permanent)',
+                  isArabic: isArabic,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 ),
-              ],
+              ),
             ],
           ),
-          const SizedBox(height: 10),
+          if (_goldenEnabled) ...[
+            const SizedBox(height: 8),
+            // Golden ID number field
+            _AdminField(
+              controller: _goldenIdController,
+              label: isArabic ? 'رقم / نص الـ Golden ID' : 'Golden ID number or text',
+              isArabic: isArabic,
+            ),
+            const SizedBox(height: 12),
+
+            // Style selector
+            _SubLabel(label: isArabic ? 'النمط' : 'Style', isArabic: isArabic),
+            const SizedBox(height: 6),
+            _GoldenChipRow(
+              options: const ['gold', 'diamond', 'royal', 'neon', 'fire', 'purple'],
+              selected: _goldenStyle,
+              onSelect: (v) => setState(() => _goldenStyle = v),
+            ),
+            const SizedBox(height: 10),
+
+            // Frame selector
+            _SubLabel(label: isArabic ? 'الإطار' : 'Frame', isArabic: isArabic),
+            const SizedBox(height: 6),
+            _GoldenChipRow(
+              options: const ['classic', 'crown', 'wings', 'glow', 'shield', 'luxury'],
+              selected: _goldenFrame,
+              onSelect: (v) => setState(() => _goldenFrame = v),
+            ),
+            const SizedBox(height: 10),
+          ],
 
           SizedBox(
             width: double.infinity,
@@ -2096,6 +2215,76 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
               icon: Icons.star_rounded,
               busy: _busy,
               onTap: _hasUser ? _applyGoldenId : _noUserResult,
+            ),
+          ),
+
+          const SizedBox(height: 20),
+          Divider(color: _kCardBorder, height: 1),
+          const SizedBox(height: 16),
+
+          // ── Country Flag Style ──────────────────────────────────────────
+          _SubLabel(
+            label: isArabic ? 'نمط علم البلد' : 'Country Flag Style',
+            isArabic: isArabic,
+          ),
+          const SizedBox(height: 8),
+
+          Row(
+            textDirection: dir,
+            children: [
+              Expanded(
+                child: _AdminField(
+                  controller: _countryCodeController,
+                  label: isArabic ? 'رمز البلد (LB، AO، AE)' : 'Country code (LB, AO, AE)',
+                  isArabic: isArabic,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _AdminField(
+                  controller: _countryNameController,
+                  label: isArabic ? 'اسم البلد' : 'Country name',
+                  isArabic: isArabic,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _AdminField(
+            controller: _flagDurationController,
+            label: isArabic ? 'أيام (فارغ = دائم)' : 'Days (blank = permanent)',
+            isArabic: isArabic,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          ),
+          const SizedBox(height: 10),
+
+          _SubLabel(label: isArabic ? 'النمط' : 'Style', isArabic: isArabic),
+          const SizedBox(height: 6),
+          _GoldenChipRow(
+            options: const ['normal', 'gold', 'diamond', 'royal', 'neon', 'fire', 'purple'],
+            selected: _flagStyle,
+            onSelect: (v) => setState(() => _flagStyle = v),
+          ),
+          const SizedBox(height: 10),
+
+          _SubLabel(label: isArabic ? 'الإطار' : 'Frame', isArabic: isArabic),
+          const SizedBox(height: 6),
+          _GoldenChipRow(
+            options: const ['classic', 'crown', 'glow', 'shield', 'luxury'],
+            selected: _flagFrame,
+            onSelect: (v) => setState(() => _flagFrame = v),
+          ),
+          const SizedBox(height: 10),
+
+          SizedBox(
+            width: double.infinity,
+            child: _AdminButton(
+              label: isArabic ? 'تطبيق نمط العلم' : 'Apply Country Flag Style',
+              color: _hasUser ? const Color(0xFF4DB6AC) : _kSubtext,
+              icon: Icons.flag_rounded,
+              busy: _busy,
+              onTap: _hasUser ? _applyCountryFlagStyle : _noUserResult,
             ),
           ),
 
@@ -2179,6 +2368,17 @@ class _UserResultCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
+            if (user.countryCode != null || user.country != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: PremiumCountryFlag(
+                  countryCode: user.countryCode,
+                  countryName: user.country,
+                  style: user.countryFlagStyle,
+                  frame: user.countryFlagFrame,
+                  compact: true,
+                ),
+              ),
             if (user.vipLevel > 0)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
@@ -2265,6 +2465,16 @@ class _SelectedUserCard extends StatelessWidget {
                     ].join('  '),
                     style: const TextStyle(color: _kSubtext, fontSize: 11),
                   ),
+                if (user.countryCode != null || user.country != null) ...[
+                  const SizedBox(height: 4),
+                  PremiumCountryFlag(
+                    countryCode: user.countryCode,
+                    countryName: user.country,
+                    style: user.countryFlagStyle,
+                    frame: user.countryFlagFrame,
+                    compact: true,
+                  ),
+                ],
               ],
             ),
           ),
@@ -2275,6 +2485,76 @@ class _SelectedUserCard extends StatelessWidget {
 }
 
 // ── Admin panel helpers ───────────────────────────────────────────────────────
+
+/// Horizontal scrolling row of option chips (used for style and frame selectors).
+class _GoldenChipRow extends StatelessWidget {
+  const _GoldenChipRow({
+    required this.options,
+    required this.selected,
+    required this.onSelect,
+  });
+  final List<String> options;
+  final String selected;
+  final ValueChanged<String> onSelect;
+
+  static const _styleColors = <String, Color>{
+    'normal':  Color(0xFF9E9E9E),
+    'gold':    Color(0xFFF0C15A),
+    'diamond': Color(0xFF8ECFEE),
+    'royal':   Color(0xFFAB6FE8),
+    'neon':    Color(0xFF00FFCC),
+    'fire':    Color(0xFFFF6A00),
+    'purple':  Color(0xFF8B5CF6),
+    'classic': Color(0xFFF0C15A),
+    'crown':   Color(0xFFFFC107),
+    'wings':   Color(0xFF64B5F6),
+    'glow':    Color(0xFFE040FB),
+    'shield':  Color(0xFF66BB6A),
+    'luxury':  Color(0xFFFFD700),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 34,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: options.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 6),
+        itemBuilder: (_, i) {
+          final opt = options[i];
+          final sel = opt == selected;
+          final color = _styleColors[opt] ?? _kGold;
+          return GestureDetector(
+            onTap: () => onSelect(opt),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: sel ? color.withValues(alpha: 0.2) : _kCard,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: sel ? color : _kCardBorder,
+                  width: sel ? 1.5 : 1,
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  opt,
+                  style: TextStyle(
+                    color: sel ? color : _kSubtext,
+                    fontSize: 11,
+                    fontWeight: sel ? FontWeight.w900 : FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
 
 class _SubLabel extends StatelessWidget {
   const _SubLabel({required this.label, required this.isArabic});

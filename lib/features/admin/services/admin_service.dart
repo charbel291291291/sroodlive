@@ -171,18 +171,55 @@ class AdminService {
     return (data as List<dynamic>).map((item) {
       final m = item as Map<String, dynamic>;
       return AdminUserSummary(
-        userId:         m['user_id']?.toString()      ?? '',
-        publicUserId:   m['golden_id']?.toString(),
-        displayName:    m['display_name']?.toString(),
-        username:       m['username']?.toString(),
-        avatarUrl:      m['avatar_url']?.toString(),
-        vipLevel:       (m['vip_level'] as int?)      ?? 0,
-        coinsBalance:   0,
-        diamondsBalance: 0,
-        roles:          const [],
+        userId:              m['user_id']?.toString()           ?? '',
+        publicUserId:        m['golden_id']?.toString(),
+        displayName:         m['display_name']?.toString(),
+        username:            m['username']?.toString(),
+        avatarUrl:           m['avatar_url']?.toString(),
+        vipLevel:            (m['vip_level'] as int?)           ?? 0,
+        isGoldenId:          m['is_golden_id'] == true,
+        goldenIdExpiresAt:   m['golden_id_expires_at'] != null
+            ? DateTime.tryParse(m['golden_id_expires_at'].toString())
+            : null,
+        goldenIdStyle:         m['golden_id_style']?.toString()          ?? 'gold',
+        goldenIdFrame:         m['golden_id_frame']?.toString()          ?? 'classic',
+        country:               m['country']?.toString(),
+        countryCode:           m['country_code']?.toString(),
+        countryFlagStyle:      m['country_flag_style']?.toString()       ?? 'normal',
+        countryFlagFrame:      m['country_flag_frame']?.toString()       ?? 'classic',
+        countryFlagExpiresAt:  m['country_flag_expires_at'] != null
+            ? DateTime.tryParse(m['country_flag_expires_at'].toString())
+            : null,
+        coinsBalance:          0,
+        diamondsBalance:     0,
+        roles:               const [],
       );
     }).toList();
   }
+
+  Future<Map<String, dynamic>> setUserCountryFlagStyle({
+    required String userId,
+    String? countryCode,
+    String? countryName,
+    required String style,
+    required String frame,
+    int? durationDays,
+  }) async {
+    final params = <String, dynamic>{
+      'p_user_id': userId,
+      'p_style':   style,
+      'p_frame':   frame,
+    };
+    if (countryCode != null && countryCode.isNotEmpty) params['p_country_code'] = countryCode;
+    if (countryName != null && countryName.isNotEmpty) params['p_country_name'] = countryName;
+    if (durationDays != null) params['p_duration_days'] = durationDays;
+    final raw = await SupabaseService.requiredClient.rpc(
+      'set_user_country_flag_style',
+      params: params,
+    );
+    return Map<String, dynamic>.from(raw as Map);
+  }
+
 
   Future<void> assignUserRole({
     required String userId,

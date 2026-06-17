@@ -1040,8 +1040,29 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   }
 
   Future<void> _sendChatImageMessage() async {
-    final myVipLevel = _myMember?.effectiveVipLevel ?? 0;
-    if (myVipLevel < 7) {
+    // Fast path: local cached VIP level is already enough.
+    final localVipLevel = _myMember?.effectiveVipLevel ?? 0;
+    bool canSend = localVipLevel >= 7;
+
+    // Slow path: local data may be stale (e.g. VIP was just granted).
+    // Call the backend gate which reads profiles directly.
+    if (!canSend) {
+      try {
+        final uid = SupabaseService.requiredClient.auth.currentUser?.id;
+        if (uid != null) {
+          final result = await SupabaseService.requiredClient.rpc(
+            'can_user_send_chat_image',
+            params: {'p_user_id': uid},
+          );
+          canSend = result == true;
+        }
+      } catch (e) {
+        debugPrint('[chat-image] backend VIP check failed, using local: $e');
+      }
+    }
+
+    if (!canSend) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
