@@ -25,6 +25,9 @@ enum VipPrivilegeKey {
   doNotDisturb,
   antiKick,
   invisibility,
+
+  // ── VIP 7 — content creation ──────────────────────────────────────────────
+  sendRoomChatImage,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -202,6 +205,16 @@ class VipPrivileges {
       descriptionAr: 'تعطيل الإشعارات من المستخدمين الآخرين.',
       minVipLevel: 7,
       isUserSettable: true,
+    ),
+
+    // ── VIP 7 — image sharing in room chat ───────────────────────────────────
+    VipPrivilegeKey.sendRoomChatImage: const VipPrivilegeSpec(
+      key: VipPrivilegeKey.sendRoomChatImage,
+      label: 'Send Images in Chat',
+      labelAr: 'إرسال صور في الدردشة',
+      description: 'Send image messages directly in live room chat.',
+      descriptionAr: 'أرسل صور مباشرةً في دردشة الغرفة المباشرة.',
+      minVipLevel: 7,
     ),
 
     // ── VIP 8 — premium protection + invisibility ─────────────────────────

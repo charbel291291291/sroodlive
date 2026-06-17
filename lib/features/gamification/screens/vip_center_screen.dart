@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../core/vip/vip_privileges.dart';
 import '../../../core/vip/vip_spec.dart';
 import '../../../features/admin/services/admin_access_service.dart';
+import '../../../shared/theme/vip_tier_colors.dart';
 import '../../../shared/widgets/vip_framed_avatar.dart';
 import '../../vip/screens/vip_settings_screen.dart';
 import '../../vip/services/vip_service.dart';
@@ -403,7 +404,7 @@ class _VipSettingsButton extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tier selector — horizontal scroll VIP 1..9
+// Tier selector — horizontal scroll VIP 1..9 (premium tier cards)
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _TierSelector extends StatelessWidget {
@@ -419,80 +420,124 @@ class _TierSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 68,
+      height: 80,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.zero,
         itemCount: 9,
         separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (_, i) {
-          final level = i + 1;
-          final spec = VipSpecResolver.resolve(level);
-          final isSelected = level == selected;
-          final isCurrent = level == currentLevel;
+        itemBuilder: (_, i) => _VipTierCard(
+          level: i + 1,
+          isSelected: (i + 1) == selected,
+          isCurrent: (i + 1) == currentLevel,
+          onTap: () => onSelect(i + 1),
+        ),
+      ),
+    );
+  }
+}
 
-          return GestureDetector(
-            onTap: () => onSelect(level),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              width: 56,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
-                gradient: isSelected
-                    ? LinearGradient(
-                        colors: [
-                          spec.glowColor.withValues(alpha: 0.7),
-                          spec.glowColor.withValues(alpha: 0.3),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      )
-                    : null,
-                color: isSelected ? null : _kCard,
-                border: Border.all(
-                  color: isSelected
-                      ? spec.glowColor
-                      : isCurrent
-                          ? _kGold.withValues(alpha: 0.5)
-                          : _kCardBorder,
-                  width: isSelected ? 2 : 1,
+class _VipTierCard extends StatelessWidget {
+  const _VipTierCard({
+    required this.level,
+    required this.isSelected,
+    required this.isCurrent,
+    required this.onTap,
+  });
+
+  final int level;
+  final bool isSelected;
+  final bool isCurrent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tier = VipTierColors.of(level);
+    final spec = VipSpecResolver.resolve(level);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        width: 62,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: isSelected
+              ? LinearGradient(
+                  colors: [tier.start, tier.end],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : LinearGradient(
+                  colors: [
+                    tier.start.withValues(alpha: 0.12),
+                    tier.end.withValues(alpha: 0.06),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: spec.glowColor.withValues(alpha: 0.35),
-                          blurRadius: 12,
-                          spreadRadius: 1,
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    '$level',
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : _kSubtext,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                    ),
+          border: Border.all(
+            color: isSelected
+                ? tier.border
+                : isCurrent
+                    ? tier.border.withValues(alpha: 0.55)
+                    : tier.start.withValues(alpha: 0.25),
+            width: isSelected ? 1.8 : 1,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: spec.glowColor.withValues(alpha: 0.45),
+                    blurRadius: 14,
+                    spreadRadius: 0,
+                    offset: const Offset(0, 3),
                   ),
-                  if (isCurrent)
-                    Container(
-                      margin: const EdgeInsets.only(top: 3),
-                      width: 5,
-                      height: 5,
-                      decoration: const BoxDecoration(
-                        color: _kGold,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                ],
+                ]
+              : null,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Label
+            Text(
+              'VIP',
+              style: TextStyle(
+                color: isSelected
+                    ? tier.text.withValues(alpha: 0.75)
+                    : tier.border.withValues(alpha: 0.55),
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
               ),
             ),
-          );
-        },
+            const SizedBox(height: 1),
+            Text(
+              '$level',
+              style: TextStyle(
+                color: isSelected ? tier.text : tier.border,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                height: 1.0,
+              ),
+            ),
+            const SizedBox(height: 4),
+            // Indicator row: dot = current level, line = selected-only accent
+            if (isCurrent)
+              Container(
+                width: 20,
+                height: 3,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(99),
+                  color: isSelected
+                      ? tier.text.withValues(alpha: 0.8)
+                      : tier.border,
+                ),
+              )
+            else
+              const SizedBox(height: 3),
+          ],
+        ),
       ),
     );
   }
