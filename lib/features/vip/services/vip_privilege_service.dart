@@ -1,4 +1,5 @@
 import '../../../core/supabase/supabase_service.dart';
+import '../../../core/vip/vip_privileges.dart';
 import '../../rooms/utils/vip_room_features.dart';
 
 // ---------------------------------------------------------------------------
@@ -6,20 +7,23 @@ import '../../rooms/utils/vip_room_features.dart';
 // ---------------------------------------------------------------------------
 
 enum VipPrivilege {
-  notBeingFollowed('not_being_followed', 5),
-  antiEnteringRoom('anti_entering_room', 6),
-  privateBrowsing('private_browsing', 6),
-  doNotDisturb('do_not_disturb', 7),
-  invisibility('invisibility', 8),
-  antiKick('anti_kick', 8);
+  notBeingFollowed('not_being_followed', VipPrivilegeKey.notBeingFollowed),
+  antiEnteringRoom('anti_entering_room', VipPrivilegeKey.antiEnteringRoom),
+  privateBrowsing('private_browsing', VipPrivilegeKey.privateBrowsing),
+  doNotDisturb('do_not_disturb', VipPrivilegeKey.doNotDisturb),
+  invisibility('invisibility', VipPrivilegeKey.invisibility),
+  antiKick('anti_kick', VipPrivilegeKey.antiKick);
 
-  const VipPrivilege(this.columnName, this.minVipLevel);
+  const VipPrivilege(this.columnName, this.privilegeKey);
 
   /// Column name in user_vip_settings table.
   final String columnName;
 
-  /// Minimum VIP level required to use this privilege.
-  final int minVipLevel;
+  /// Corresponding canonical privilege key in VipPrivileges.
+  final VipPrivilegeKey privilegeKey;
+
+  /// Minimum VIP level required — delegated to the central config.
+  int get minVipLevel => VipPrivileges.spec(privilegeKey).minVipLevel;
 }
 
 // ---------------------------------------------------------------------------
@@ -82,8 +86,9 @@ class VipPrivilegeService {
   // ── Privilege checks ───────────────────────────────────────────────────
 
   /// Whether a VIP level is high enough to use a privilege.
+  /// Delegates to the central VipPrivileges config.
   static bool canUsePrivilege(int effectiveVipLevel, VipPrivilege privilege) {
-    return effectiveVipLevel >= privilege.minVipLevel;
+    return VipPrivileges.canUse(effectiveVipLevel, privilege.privilegeKey);
   }
 
   /// Whether the target user has anti-follow enabled (blocks new followers).

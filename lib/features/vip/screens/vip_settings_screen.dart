@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/vip/vip_privileges.dart';
 import '../../../shared/widgets/vip_badge.dart';
 import '../services/vip_privilege_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
@@ -43,9 +44,9 @@ class _VipSettingsScreenState extends State<VipSettingsScreen> {
   }
 
   Future<void> _toggle(VipPrivilege privilege, bool newValue) async {
-    final canUse = VipPrivilegeService.canUsePrivilege(
+    final canUse = VipPrivileges.canUse(
       widget.effectiveVipLevel,
-      privilege,
+      privilege.privilegeKey,
     );
 
     if (!canUse) {
@@ -88,6 +89,36 @@ class _VipSettingsScreenState extends State<VipSettingsScreen> {
         ),
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       ));
+  }
+
+  static const _privilegeIcons = <VipPrivilege, IconData>{
+    VipPrivilege.notBeingFollowed: Icons.person_off_rounded,
+    VipPrivilege.antiEnteringRoom: Icons.meeting_room_rounded,
+    VipPrivilege.privateBrowsing: Icons.visibility_off_rounded,
+    VipPrivilege.doNotDisturb: Icons.notifications_off_rounded,
+    VipPrivilege.invisibility: Icons.blur_on_rounded,
+    VipPrivilege.antiKick: Icons.shield_rounded,
+  };
+
+  List<Widget> _buildPrivilegeCards(bool isArabic) {
+    final cards = <Widget>[];
+    for (final privilege in VipPrivilege.values) {
+      if (cards.isNotEmpty) cards.add(const SizedBox(height: 10));
+      final pSpec = VipPrivileges.spec(privilege.privilegeKey);
+      cards.add(
+        _PrivilegeCard(
+          privilege: privilege,
+          label: isArabic ? pSpec.labelAr : pSpec.label,
+          description: isArabic ? pSpec.descriptionAr : pSpec.description,
+          icon: _privilegeIcons[privilege] ?? Icons.lock_rounded,
+          isEnabled: _settings[privilege] ?? false,
+          userVipLevel: widget.effectiveVipLevel,
+          isArabic: isArabic,
+          onChanged: (v) => _toggle(privilege, v),
+        ),
+      );
+    }
+    return cards;
   }
 
   void _showError() {
@@ -164,65 +195,7 @@ class _VipSettingsScreenState extends State<VipSettingsScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 6, 16, 32),
                     sliver: SliverList(
                       delegate: SliverChildListDelegate([
-                        _PrivilegeCard(
-                          privilege: VipPrivilege.notBeingFollowed,
-                          label: _t('منع المتابعة', 'Not being Followed'),
-                          icon: Icons.person_off_rounded,
-                          isEnabled: _settings[VipPrivilege.notBeingFollowed] ?? false,
-                          userVipLevel: widget.effectiveVipLevel,
-                          isArabic: isArabic,
-                          onChanged: (v) => _toggle(VipPrivilege.notBeingFollowed, v),
-                        ),
-                        const SizedBox(height: 10),
-                        _PrivilegeCard(
-                          privilege: VipPrivilege.antiEnteringRoom,
-                          label: _t('منع دخول الغرفة', 'Anti-Entering Room'),
-                          icon: Icons.meeting_room_rounded,
-                          isEnabled: _settings[VipPrivilege.antiEnteringRoom] ?? false,
-                          userVipLevel: widget.effectiveVipLevel,
-                          isArabic: isArabic,
-                          onChanged: (v) => _toggle(VipPrivilege.antiEnteringRoom, v),
-                        ),
-                        const SizedBox(height: 10),
-                        _PrivilegeCard(
-                          privilege: VipPrivilege.privateBrowsing,
-                          label: _t('التصفح الخاص', 'Private Browsing'),
-                          icon: Icons.visibility_off_rounded,
-                          isEnabled: _settings[VipPrivilege.privateBrowsing] ?? false,
-                          userVipLevel: widget.effectiveVipLevel,
-                          isArabic: isArabic,
-                          onChanged: (v) => _toggle(VipPrivilege.privateBrowsing, v),
-                        ),
-                        const SizedBox(height: 10),
-                        _PrivilegeCard(
-                          privilege: VipPrivilege.doNotDisturb,
-                          label: _t('عدم الإزعاج', 'Do Not Disturb'),
-                          icon: Icons.notifications_off_rounded,
-                          isEnabled: _settings[VipPrivilege.doNotDisturb] ?? false,
-                          userVipLevel: widget.effectiveVipLevel,
-                          isArabic: isArabic,
-                          onChanged: (v) => _toggle(VipPrivilege.doNotDisturb, v),
-                        ),
-                        const SizedBox(height: 10),
-                        _PrivilegeCard(
-                          privilege: VipPrivilege.invisibility,
-                          label: _t('التخفي', 'Invisibility'),
-                          icon: Icons.blur_on_rounded,
-                          isEnabled: _settings[VipPrivilege.invisibility] ?? false,
-                          userVipLevel: widget.effectiveVipLevel,
-                          isArabic: isArabic,
-                          onChanged: (v) => _toggle(VipPrivilege.invisibility, v),
-                        ),
-                        const SizedBox(height: 10),
-                        _PrivilegeCard(
-                          privilege: VipPrivilege.antiKick,
-                          label: _t('منع الطرد', 'Anti-Kick'),
-                          icon: Icons.shield_rounded,
-                          isEnabled: _settings[VipPrivilege.antiKick] ?? false,
-                          userVipLevel: widget.effectiveVipLevel,
-                          isArabic: isArabic,
-                          onChanged: (v) => _toggle(VipPrivilege.antiKick, v),
-                        ),
+                        ..._buildPrivilegeCards(isArabic),
                       ]),
                     ),
                   ),
@@ -314,6 +287,7 @@ class _PrivilegeCard extends StatelessWidget {
   const _PrivilegeCard({
     required this.privilege,
     required this.label,
+    required this.description,
     required this.icon,
     required this.isEnabled,
     required this.userVipLevel,
@@ -323,6 +297,7 @@ class _PrivilegeCard extends StatelessWidget {
 
   final VipPrivilege privilege;
   final String label;
+  final String description;
   final IconData icon;
   final bool isEnabled;
   final int userVipLevel;
@@ -330,7 +305,7 @@ class _PrivilegeCard extends StatelessWidget {
   final ValueChanged<bool> onChanged;
 
   bool get _unlocked =>
-      VipPrivilegeService.canUsePrivilege(userVipLevel, privilege);
+      VipPrivileges.canUse(userVipLevel, privilege.privilegeKey);
 
   @override
   Widget build(BuildContext context) {
@@ -388,6 +363,17 @@ class _PrivilegeCard extends StatelessWidget {
                           color: _unlocked ? Colors.white : Colors.white54,
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        description,
+                        style: TextStyle(
+                          color: _unlocked
+                              ? Colors.white.withValues(alpha: 0.50)
+                              : Colors.white.withValues(alpha: 0.28),
+                          fontSize: 11,
+                          height: 1.3,
                         ),
                       ),
                       const SizedBox(height: 6),

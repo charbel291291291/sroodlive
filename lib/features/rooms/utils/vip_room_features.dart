@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/vip_visuals.dart';
+import '../../../core/vip/vip_privileges.dart';
 
 enum VipLevel {
   none(0),
@@ -69,6 +70,12 @@ class VipFeatures {
   }
 
   static bool canUseVipFrame(String frameId, int effectiveVipLevel) {
+    // Base check: user must have VIP frame privilege at all.
+    if (!VipPrivileges.canUse(effectiveVipLevel, VipPrivilegeKey.vipFrame)) {
+      return false;
+    }
+    // Per-frame level check: each VIP frame requires the matching tier.
+    // TODO Phase 4: enforce VIP frame catalog rules on backend.
     final requiredLevel = switch (frameId) {
       'vip_bronze_star' || 'vip_1' => 1,
       'vip_silver_flame' || 'vip_2' => 2,
@@ -81,33 +88,28 @@ class VipFeatures {
       'vip_celestial' || 'vip_9' => 9,
       _ => 0,
     };
-
     return effectiveVipLevel >= requiredLevel;
   }
 
-  static bool hasSilentEntry(int effectiveVipLevel) {
-    return effectiveVipLevel >= 6;
-  }
+  static bool hasSilentEntry(int effectiveVipLevel) =>
+      VipPrivileges.canUse(effectiveVipLevel, VipPrivilegeKey.silentEntry);
 
-  static bool hasKickProtection(int effectiveVipLevel) {
-    return effectiveVipLevel >= 3;
-  }
+  static bool hasKickProtection(int effectiveVipLevel) =>
+      VipPrivileges.canUse(effectiveVipLevel, VipPrivilegeKey.kickProtection);
 
-  static bool hasStrongKickProtection(int effectiveVipLevel) {
-    return effectiveVipLevel >= 5;
-  }
+  static bool hasStrongKickProtection(int effectiveVipLevel) =>
+      VipPrivileges.canUse(effectiveVipLevel, VipPrivilegeKey.strongAntiKick);
 
-  static bool requiresKickConfirmation(int effectiveVipLevel) {
-    return effectiveVipLevel >= 4 && effectiveVipLevel < 6;
-  }
+  static bool requiresKickConfirmation(int effectiveVipLevel) =>
+      VipPrivileges.canUse(effectiveVipLevel, VipPrivilegeKey.kickConfirmation) &&
+      !VipPrivileges.canUse(effectiveVipLevel, VipPrivilegeKey.silentEntry);
 
-  static bool hasProfileGlow(int effectiveVipLevel) {
-    return effectiveVipLevel > 0;
-  }
+  static bool hasProfileGlow(int effectiveVipLevel) =>
+      VipPrivileges.canUse(effectiveVipLevel, VipPrivilegeKey.profileGlow);
 
-  static bool hasEntryBanner(int effectiveVipLevel) {
-    return effectiveVipLevel > 0 && !hasSilentEntry(effectiveVipLevel);
-  }
+  static bool hasEntryBanner(int effectiveVipLevel) =>
+      VipPrivileges.canUse(effectiveVipLevel, VipPrivilegeKey.entranceEffect) &&
+      !VipPrivileges.canUse(effectiveVipLevel, VipPrivilegeKey.silentEntry);
 
   static int visualPriorityScore(int effectiveVipLevel) {
     return effectiveVipLevel * 100;
