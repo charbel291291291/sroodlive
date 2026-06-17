@@ -1043,8 +1043,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     final myVipLevel = _myMember?.effectiveVipLevel ?? 0;
     if (myVipLevel < 7) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Image sending is available for VIP7+ users.'),
+        SnackBar(
+          content: Text(
+            context.isArabic
+                ? 'رسائل الصور تُفتح من VIP 7'
+                : 'Image messages unlock at VIP 7',
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -7346,29 +7350,50 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
                             onSubmitted: (_) => _submit(),
                           ),
                         ),
-                        // Image send button — only visible for VIP7+
-                        if (widget.myVipLevel >= 7) ...[
-                          const SizedBox(width: 6),
-                          GestureDetector(
-                            onTap: widget.isUploadingImage
-                                ? null
-                                : widget.onSendImage,
-                            child: widget.isUploadingImage
-                                ? SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 1.8,
-                                      color: Colors.white.withValues(alpha: 0.55),
-                                    ),
-                                  )
-                                : Icon(
-                                    Icons.image_outlined,
-                                    size: 18,
-                                    color: Colors.white.withValues(alpha: 0.55),
+                        // Image send button — locked (dimmed) below VIP7,
+                        // active for VIP7+. Always visible so users know
+                        // the feature exists.
+                        const SizedBox(width: 6),
+                        GestureDetector(
+                          onTap: widget.myVipLevel >= 7
+                              ? (widget.isUploadingImage
+                                  ? null
+                                  : widget.onSendImage)
+                              : widget.onSendImage,
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              if (widget.isUploadingImage &&
+                                  widget.myVipLevel >= 7)
+                                const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 1.8,
+                                    color: Color(0x8DFFFFFF),
                                   ),
+                                )
+                              else
+                                Icon(
+                                  Icons.image_outlined,
+                                  size: 18,
+                                  color: Colors.white.withValues(
+                                    alpha: widget.myVipLevel >= 7 ? 0.55 : 0.22,
+                                  ),
+                                ),
+                              if (widget.myVipLevel < 7)
+                                Positioned(
+                                  right: -3,
+                                  bottom: -3,
+                                  child: Icon(
+                                    Icons.lock,
+                                    size: 9,
+                                    color: Colors.white.withValues(alpha: 0.45),
+                                  ),
+                                ),
+                            ],
                           ),
-                        ],
+                        ),
                       ],
                     ),
                   ),
