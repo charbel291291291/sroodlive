@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 
 import '../../../core/vip/vip_privileges.dart';
 import '../../../core/vip/vip_spec.dart';
+import '../../../features/admin/models/admin_models.dart';
 import '../../../features/admin/services/admin_access_service.dart';
+import '../../../features/admin/services/admin_service.dart';
 import '../../../shared/theme/vip_tier_colors.dart';
 import '../../../shared/widgets/vip_framed_avatar.dart';
 import '../../vip/models/user_vip.dart';
@@ -223,7 +225,7 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
           ),
           const SizedBox(height: 20),
           _ContactAdminButton(isArabic: context.isArabic),
-          if (!_adminLoading && _adminRole.hasPermission(kPermVipGrant)) ...[
+          if (!_adminLoading && (_adminRole.hasPermission(kPermVipGrant) || _adminRole.isOSuperAdmin || _adminRole.isPSuperAdmin || _adminRole.isSuperAdmin)) ...[
             const SizedBox(height: 24),
             _AdminVipPanel(isArabic: context.isArabic),
           ],
@@ -1707,44 +1709,100 @@ class _AdminVipPanel extends StatefulWidget {
 }
 
 class _AdminVipPanelState extends State<_AdminVipPanel> {
-  final _uidController      = TextEditingController();
+  // ── Search ────────────────────────────────────────────────────────────────
+  final _searchController = TextEditingController();
+  List<AdminUserSummary> _searchResults = [];
+  AdminUserSummary? _selectedUser;
+  bool _searching = false;
+
+  // ── Grant / Revoke ────────────────────────────────────────────────────────
   final _durationController = TextEditingController(text: '30');
   int _grantLevel = 1;
+
+  // ── Golden ID ─────────────────────────────────────────────────────────────
+  bool _goldenEnabled = true;
+  final _goldenDurationController = TextEditingController();
+
+  // ── Shared ────────────────────────────────────────────────────────────────
   bool _busy = false;
   String? _result;
   bool _resultIsError = false;
 
-  bool _goldenEnabled = true;
-  final _goldenDurationController = TextEditingController();
-
   bool get isArabic => widget.isArabic;
+  bool get _hasUser => _selectedUser != null;
+
+  static const _adminService = AdminService();
 
   @override
   void dispose() {
-    _uidController.dispose();
+    _searchController.dispose();
     _durationController.dispose();
     _goldenDurationController.dispose();
     super.dispose();
   }
 
+  // ── Search ────────────────────────────────────────────────────────────────
+
+  Future<void> _searchUser() async {
+    final q = _searchController.text.trim();
+    if (q.isEmpty) return;
+    setState(() {
+      _searching = true;
+      _searchResults = [];
+      _selectedUser = null;
+      _result = null;
+    });
+    try {
+      final results = await _adminService.findUsersForGrants(q);
+      if (!mounted) return;
+      setState(() => _searchResults = results);
+      if (results.isEmpty) {
+        _setResult(
+          isArabic ? 'لم يُعثر على مستخدم بهذا البحث' : 'No user found',
+          error: true,
+        );
+      }
+    } catch (e) {
+      _setResult(isArabic ? 'فشل البحث: $e' : 'Search failed: $e', error: true);
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+  }
+
+  void _selectUser(AdminUserSummary user) {
+    setState(() {
+      _selectedUser = user;
+      _searchResults = [];
+      _result = null;
+      _searchController.text = user.title;
+    });
+  }
+
+  void _clearSelection() {
+    setState(() {
+      _selectedUser = null;
+      _searchResults = [];
+      _searchController.clear();
+      _result = null;
+    });
+  }
+
+  // ── Actions ───────────────────────────────────────────────────────────────
+
   Future<void> _grantVip() async {
-    final uid = _uidController.text.trim();
-    if (uid.isEmpty) {
-      _setResult(isArabic ? 'أدخل معرّف المستخدم' : 'Enter a user ID', error: true);
+    final user = _selectedUser;
+    if (user == null) {
+      _setResult(isArabic ? 'اختر مستخدماً أولاً' : 'Select a valid user first', error: true);
       return;
     }
     final days = int.tryParse(_durationController.text.trim()) ?? 30;
     setState(() { _busy = true; _result = null; });
     try {
-      await VipService().grantVip(
-        userId: uid,
-        vipLevel: _grantLevel,
-        durationDays: days,
-      );
+      await VipService().grantVip(userId: user.userId, vipLevel: _grantLevel, durationDays: days);
       _setResult(
         isArabic
-            ? 'تم منح VIP $_grantLevel لمدة $days يوم'
-            : 'Granted VIP $_grantLevel for $days days',
+            ? 'تم منح VIP $_grantLevel لـ${user.title} لمدة $days يوم'
+            : 'Granted VIP $_grantLevel to ${user.title} for $days days',
       );
     } catch (e) {
       _setResult(e.toString(), error: true);
@@ -1754,15 +1812,17 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
   }
 
   Future<void> _revokeVip() async {
-    final uid = _uidController.text.trim();
-    if (uid.isEmpty) {
-      _setResult(isArabic ? 'أدخل معرّف المستخدم' : 'Enter a user ID', error: true);
+    final user = _selectedUser;
+    if (user == null) {
+      _setResult(isArabic ? 'اختر مستخدماً أولاً' : 'Select a valid user first', error: true);
       return;
     }
     setState(() { _busy = true; _result = null; });
     try {
-      await VipService().revokeVip(uid);
-      _setResult(isArabic ? 'تم إلغاء VIP' : 'VIP revoked');
+      await VipService().revokeVip(user.userId);
+      _setResult(
+        isArabic ? 'تم إلغاء VIP لـ${user.title}' : 'VIP revoked for ${user.title}',
+      );
     } catch (e) {
       _setResult(e.toString(), error: true);
     } finally {
@@ -1771,24 +1831,20 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
   }
 
   Future<void> _applyGoldenId() async {
-    final uid = _uidController.text.trim();
-    if (uid.isEmpty) {
-      _setResult(isArabic ? 'أدخل معرّف المستخدم' : 'Enter a user ID', error: true);
+    final user = _selectedUser;
+    if (user == null) {
+      _setResult(isArabic ? 'اختر مستخدماً أولاً' : 'Select a valid user first', error: true);
       return;
     }
     final daysText = _goldenDurationController.text.trim();
     final days = daysText.isEmpty ? null : int.tryParse(daysText);
     setState(() { _busy = true; _result = null; });
     try {
-      await VipService().setGoldenId(
-        userId: uid,
-        enabled: _goldenEnabled,
-        durationDays: days,
-      );
+      await VipService().setGoldenId(userId: user.userId, enabled: _goldenEnabled, durationDays: days);
       _setResult(
         _goldenEnabled
-            ? (isArabic ? 'تم تفعيل Golden ID' : 'Golden ID activated')
-            : (isArabic ? 'تم إلغاء Golden ID' : 'Golden ID removed'),
+            ? (isArabic ? 'تم تفعيل Golden ID لـ${user.title}' : 'Golden ID activated for ${user.title}')
+            : (isArabic ? 'تم إلغاء Golden ID لـ${user.title}' : 'Golden ID removed for ${user.title}'),
       );
     } catch (e) {
       _setResult(e.toString(), error: true);
@@ -1799,14 +1855,19 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
 
   void _setResult(String msg, {bool error = false}) {
     if (!mounted) return;
-    setState(() {
-      _result = msg;
-      _resultIsError = error;
-    });
+    setState(() { _result = msg; _resultIsError = error; });
   }
+
+  void _noUserResult() => _setResult(
+    isArabic ? 'اختر مستخدماً أولاً' : 'Select a valid user first',
+    error: true,
+  );
+
+  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
+    final dir = isArabic ? TextDirection.rtl : TextDirection.ltr;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1815,12 +1876,11 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
         border: Border.all(color: const Color(0xFF3D0C6B)),
       ),
       child: Column(
-        crossAxisAlignment: isArabic
-            ? CrossAxisAlignment.end
-            : CrossAxisAlignment.start,
+        crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
+          // ── Header ─────────────────────────────────────────────────────
           Row(
-            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+            textDirection: dir,
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
@@ -1833,36 +1893,92 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
               const SizedBox(width: 10),
               Text(
                 isArabic ? 'لوحة إدارة VIP' : 'VIP Admin Panel',
-                style: const TextStyle(
-                  color: _kGold,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                ),
+                style: const TextStyle(color: _kGold, fontSize: 15, fontWeight: FontWeight.w900),
               ),
             ],
           ),
           const SizedBox(height: 16),
 
-          _AdminField(
-            controller: _uidController,
-            label: isArabic ? 'معرّف المستخدم (UUID)' : 'User ID (UUID)',
-            isArabic: isArabic,
-          ),
-          const SizedBox(height: 16),
-
+          // ── User search ─────────────────────────────────────────────────
           _SubLabel(
-            label: isArabic ? 'منح / إلغاء VIP' : 'Grant / Revoke VIP',
+            label: isArabic
+                ? 'بحث عن المستخدم'
+                : 'Search user by ID, Golden ID, username, or name',
             isArabic: isArabic,
           ),
           const SizedBox(height: 8),
+          Row(
+            textDirection: dir,
+            children: [
+              Expanded(
+                child: _AdminField(
+                  controller: _searchController,
+                  label: isArabic ? 'UUID أو معرّف ذهبي أو اسم مستخدم' : 'UUID / Golden ID / username / name',
+                  isArabic: isArabic,
+                ),
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: _searching ? null : _searchUser,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _kPurpleDeep.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _kCardBorder),
+                  ),
+                  child: _searching
+                      ? const SizedBox(
+                          width: 18, height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: _kGold),
+                        )
+                      : const Icon(Icons.search_rounded, color: _kGold, size: 18),
+                ),
+              ),
+              if (_selectedUser != null) ...[
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: _clearSelection,
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: _kRed.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _kRed.withValues(alpha: 0.3)),
+                    ),
+                    child: const Icon(Icons.close_rounded, color: _kRed, size: 18),
+                  ),
+                ),
+              ],
+            ],
+          ),
+
+          // ── Search results ──────────────────────────────────────────────
+          if (_searchResults.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            ...(_searchResults.map((u) => _UserResultCard(
+                  user: u, isArabic: isArabic, onTap: () => _selectUser(u)))),
+          ],
+
+          // ── Selected user ───────────────────────────────────────────────
+          if (_selectedUser != null) ...[
+            const SizedBox(height: 8),
+            _SelectedUserCard(user: _selectedUser!, isArabic: isArabic),
+          ],
+
+          const SizedBox(height: 16),
+          Divider(color: _kCardBorder, height: 1),
+          const SizedBox(height: 16),
+
+          // ── Grant / Revoke ──────────────────────────────────────────────
+          _SubLabel(label: isArabic ? 'منح / إلغاء VIP' : 'Grant / Revoke VIP', isArabic: isArabic),
+          const SizedBox(height: 8),
 
           Row(
-            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+            textDirection: dir,
             children: [
-              Text(
-                isArabic ? 'المستوى:' : 'Level:',
-                style: const TextStyle(color: _kText, fontSize: 13),
-              ),
+              Text(isArabic ? 'المستوى:' : 'Level:', style: const TextStyle(color: _kText, fontSize: 13)),
               const SizedBox(width: 10),
               Expanded(
                 child: SizedBox(
@@ -1882,9 +1998,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
                           decoration: BoxDecoration(
                             color: sel ? _kGold : _kCard,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: sel ? _kGold : _kCardBorder,
-                            ),
+                            border: Border.all(color: sel ? _kGold : _kCardBorder),
                           ),
                           child: Center(
                             child: Text(
@@ -1916,25 +2030,25 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           const SizedBox(height: 12),
 
           Row(
-            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+            textDirection: dir,
             children: [
               Expanded(
                 child: _AdminButton(
                   label: isArabic ? 'منح VIP' : 'Grant VIP',
-                  color: _kGreen,
+                  color: _hasUser ? _kGreen : _kSubtext,
                   icon: Icons.workspace_premium_rounded,
                   busy: _busy,
-                  onTap: _grantVip,
+                  onTap: _hasUser ? _grantVip : _noUserResult,
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: _AdminButton(
                   label: isArabic ? 'إلغاء VIP' : 'Revoke VIP',
-                  color: _kRed,
+                  color: _hasUser ? _kRed : _kSubtext,
                   icon: Icons.remove_circle_outline_rounded,
                   busy: _busy,
-                  onTap: _revokeVip,
+                  onTap: _hasUser ? _revokeVip : _noUserResult,
                 ),
               ),
             ],
@@ -1944,16 +2058,14 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           Divider(color: _kCardBorder, height: 1),
           const SizedBox(height: 16),
 
+          // ── Golden ID ───────────────────────────────────────────────────
           _SubLabel(label: 'Golden ID', isArabic: isArabic),
           const SizedBox(height: 8),
 
           Row(
-            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+            textDirection: dir,
             children: [
-              Text(
-                isArabic ? 'تفعيل' : 'Enable',
-                style: const TextStyle(color: _kText, fontSize: 13),
-              ),
+              Text(isArabic ? 'تفعيل' : 'Enable', style: const TextStyle(color: _kText, fontSize: 13)),
               Switch(
                 value: _goldenEnabled,
                 onChanged: (v) => setState(() => _goldenEnabled = v),
@@ -1965,9 +2077,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
                 Expanded(
                   child: _AdminField(
                     controller: _goldenDurationController,
-                    label: isArabic
-                        ? 'أيام (فارغ = دائم)'
-                        : 'Days (blank = permanent)',
+                    label: isArabic ? 'أيام (فارغ = دائم)' : 'Days (blank = permanent)',
                     isArabic: isArabic,
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -1982,13 +2092,14 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
             width: double.infinity,
             child: _AdminButton(
               label: isArabic ? 'تطبيق Golden ID' : 'Apply Golden ID',
-              color: _kGold,
+              color: _hasUser ? _kGold : _kSubtext,
               icon: Icons.star_rounded,
               busy: _busy,
-              onTap: _applyGoldenId,
+              onTap: _hasUser ? _applyGoldenId : _noUserResult,
             ),
           ),
 
+          // ── Result banner ───────────────────────────────────────────────
           if (_result != null) ...[
             const SizedBox(height: 12),
             Container(
@@ -2012,6 +2123,151 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── Search result card ────────────────────────────────────────────────────────
+
+class _UserResultCard extends StatelessWidget {
+  const _UserResultCard({required this.user, required this.isArabic, required this.onTap});
+  final AdminUserSummary user;
+  final bool isArabic;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: _kCard,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _kCardBorder),
+        ),
+        child: Row(
+          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: _kPurpleDeep,
+              backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
+              child: user.avatarUrl == null
+                  ? const Icon(Icons.person_rounded, color: Colors.white, size: 18)
+                  : null,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                children: [
+                  Text(user.title,
+                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+                  if (user.publicUserId != null || user.username != null)
+                    Text(
+                      [
+                        if (user.publicUserId != null) 'ID: ${user.publicUserId}',
+                        if (user.username != null) '@${user.username}',
+                      ].join('  '),
+                      style: const TextStyle(color: _kSubtext, fontSize: 11),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            if (user.vipLevel > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _kGold.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: _kGold.withValues(alpha: 0.4)),
+                ),
+                child: Text('VIP ${user.vipLevel}',
+                    style: const TextStyle(color: _kGold, fontSize: 10, fontWeight: FontWeight.w900)),
+              ),
+            const SizedBox(width: 6),
+            const Icon(Icons.chevron_right_rounded, color: _kSubtext, size: 16),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Selected user card ────────────────────────────────────────────────────────
+
+class _SelectedUserCard extends StatelessWidget {
+  const _SelectedUserCard({required this.user, required this.isArabic});
+  final AdminUserSummary user;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: _kGold.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _kGold.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        children: [
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: _kPurpleDeep,
+            backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
+            child: user.avatarUrl == null
+                ? const Icon(Icons.person_rounded, color: Colors.white, size: 20)
+                : null,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                Row(
+                  textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+                  children: [
+                    const Icon(Icons.check_circle_rounded, color: _kGreen, size: 14),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(user.title,
+                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900),
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                    if (user.vipLevel > 0) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: _kGold.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(5),
+                          border: Border.all(color: _kGold.withValues(alpha: 0.4)),
+                        ),
+                        child: Text('VIP ${user.vipLevel}',
+                            style: const TextStyle(color: _kGold, fontSize: 10, fontWeight: FontWeight.w900)),
+                      ),
+                    ],
+                  ],
+                ),
+                if (user.publicUserId != null || user.username != null)
+                  Text(
+                    [
+                      if (user.publicUserId != null) 'ID: ${user.publicUserId}',
+                      if (user.username != null) '@${user.username}',
+                    ].join('  '),
+                    style: const TextStyle(color: _kSubtext, fontSize: 11),
+                  ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -2141,4 +2397,5 @@ class _AdminButton extends StatelessWidget {
     );
   }
 }
+
 
