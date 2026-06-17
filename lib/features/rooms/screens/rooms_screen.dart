@@ -115,6 +115,46 @@ class _RoomsScreenState extends State<RoomsScreen> {
     }
   }
 
+  Future<void> _openVipCenter() async {
+    // Fetch the current user's VIP fields from their profile row so the VIP
+    // Center receives accurate level + expiry data, same as the profile screen.
+    int vipLevel = 0;
+    DateTime? vipExpiresAt;
+    try {
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      if (uid != null) {
+        final row = await Supabase.instance.client
+            .from('profiles')
+            .select('vip_level, vip_expires_at')
+            .eq('id', uid)
+            .maybeSingle();
+        if (row != null) {
+          vipLevel = (row['vip_level'] as int?) ?? 0;
+          final expiresRaw = row['vip_expires_at'];
+          if (expiresRaw != null) {
+            vipExpiresAt = DateTime.tryParse(expiresRaw.toString());
+          }
+          // Treat expired VIP as level 0
+          if (vipExpiresAt != null && vipExpiresAt.isBefore(DateTime.now())) {
+            vipLevel = 0;
+          }
+        }
+      }
+    } catch (_) {
+      // On error, open with VIP0 — better than crashing.
+    }
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => VipCenterScreen(
+          isArabic: context.isArabic,
+          currentVipLevel: vipLevel,
+          vipExpiresAt: vipExpiresAt,
+        ),
+      ),
+    );
+  }
+
   Future<void> _joinRoom(Room room) async {
     // If the room is locked, ask for a PIN via the vault sheet first.
     String? password;
@@ -420,12 +460,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
                         ),
                       );
                     case 'vip':
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) =>
-                              VipCenterScreen(isArabic: context.isArabic),
-                        ),
-                      );
+                      _openVipCenter();
                   }
                 },
               ),

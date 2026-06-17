@@ -383,6 +383,8 @@ class _CurrentStatusCard extends StatelessWidget {
                   _isActive
                       ? 'VIP $_vipLabel'
                       : (isArabic ? 'لا يوجد VIP نشط' : 'No Active VIP'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: _isActive ? (tier?.border ?? _kGold) : _kSubtext,
                     fontSize: 18,
@@ -595,6 +597,8 @@ class _VipProgressSection extends StatelessWidget {
           // Goal label
           Text(
             _goalLabel(isArabic),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: _isMax ? _kGold : _kSubtext,
               fontSize: 12,
@@ -1226,6 +1230,8 @@ class _BenefitRow extends StatelessWidget {
                 children: [
                   Text(
                     label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: unlocked ? Colors.white : _kSubtext,
                       fontSize: 13,
