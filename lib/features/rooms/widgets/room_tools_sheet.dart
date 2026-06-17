@@ -36,8 +36,6 @@ class RoomToolsSheet extends StatefulWidget {
     required this.isOwner,
     required this.isHost,
     required this.moderatorCount,
-    required this.isLocked,
-    required this.onToggleLock,
     required this.onClearChat,
     this.onMaxSeatsChanged,
     this.onSoundChanged,
@@ -57,8 +55,6 @@ class RoomToolsSheet extends StatefulWidget {
   final bool isOwner;
   final bool isHost;
   final int moderatorCount;
-  final bool isLocked;
-  final Future<void> Function() onToggleLock;
   final VoidCallback onClearChat;
   final void Function(int newSeats)? onMaxSeatsChanged;
   final void Function(bool)? onSoundChanged;
@@ -81,7 +77,6 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
   final _mgmt = const RoomManagementService();
   bool _soundOn = true;
   bool _visualOn = true;
-  bool _lockBusy = false;
 
   static const _kSoundKey = 'room_pref_sound';
   static const _kVisualKey = 'room_pref_visual';
@@ -189,8 +184,6 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
         isArabic: context.isArabic,
         isOwner: widget.isOwner,
         moderatorCount: widget.moderatorCount,
-        isLocked: widget.isLocked,
-        onToggleLock: widget.onToggleLock,
       ),
     );
   }
@@ -248,6 +241,11 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
     if (envelope != null) {
       widget.onRedEnvelopeCreated?.call(envelope);
     }
+
+    if (!mounted) return;
+
+    // Close the tools sheet now that the lucky bag was sent successfully.
+    Navigator.of(context).pop();
 
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
@@ -399,16 +397,6 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
     );
   }
 
-  Future<void> _handleToggleLock() async {
-    HapticFeedback.mediumImpact();
-    setState(() => _lockBusy = true);
-    Navigator.of(context).pop();
-    try {
-      await widget.onToggleLock();
-    } finally {
-      // sheet is already dismissed
-    }
-  }
 
   // â”€â”€ Build â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -514,23 +502,6 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                               _showComingSoon('Ù…Ø¤Ø«Ø± ØµÙˆØªÙŠ', 'Voice Effect'),
                         ),
                         _ToolDef(
-                          icon: widget.isLocked
-                              ? Icons.lock_rounded
-                              : Icons.lock_open_rounded,
-                          labelAr:
-                              widget.isLocked ? 'ÙØªØ­' : 'Ù‚ÙÙ„',
-                          labelEn: widget.isLocked ? 'Unlock' : 'Lock',
-                          accent: widget.isLocked
-                              ? const Color(0xFFE63946)
-                              : null,
-                          isToggled: widget.isLocked,
-                          busy: _lockBusy,
-                          onTap: _canManage
-                              ? _handleToggleLock
-                              : () => _requirePermission(() {}),
-                          disabled: !_canManage,
-                        ),
-                        _ToolDef(
                           icon: Icons.mic_rounded,
                           labelAr: 'Ù…ÙŠÙƒØ±ÙˆÙÙˆÙ†',
                           labelEn: 'Mic Mode',
@@ -615,7 +586,6 @@ class _ToolDef {
     this.accent,
     this.isToggled = false,
     this.disabled = false,
-    this.busy = false,
   });
 
   final IconData icon;
@@ -625,7 +595,6 @@ class _ToolDef {
   final Color? accent;
   final bool isToggled;
   final bool disabled;
-  final bool busy;
 }
 
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -721,7 +690,7 @@ class _ToolTileState extends State<_ToolTile>
       onTapDown: active ? _onTapDown : null,
       onTapUp: active ? _onTapUp : null,
       onTapCancel: active ? _onTapCancel : null,
-      onTap: def.busy ? null : def.onTap,
+      onTap: def.onTap,
       child: AnimatedBuilder(
         animation: _scale,
         builder: (_, child) =>
@@ -770,22 +739,11 @@ class _ToolTileState extends State<_ToolTile>
                         ]
                       : null,
                 ),
-                child: def.busy
-                    ? Center(
-                        child: SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: accent,
-                          ),
-                        ),
-                      )
-                    : Icon(
-                        def.icon,
-                        size: 22,
-                        color: isActive ? accent : const Color(0xFFCBC4E0),
-                      ),
+                child: Icon(
+                  def.icon,
+                  size: 22,
+                  color: isActive ? accent : const Color(0xFFCBC4E0),
+                ),
               ),
               const SizedBox(height: 5),
               // Label â€” always 1 line, ellipsis
@@ -1567,7 +1525,11 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
                   ],
                 ),
                 child: const Center(
-                  child: Text('🎁', style: TextStyle(fontSize: 38)),
+                  child: Icon(
+                    Icons.card_giftcard_rounded,
+                    size: 40,
+                    color: Colors.white,
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -1763,8 +1725,11 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Text('🎁',
-                                  style: TextStyle(fontSize: 20)),
+                              const Icon(
+                                Icons.card_giftcard_rounded,
+                                size: 20,
+                                color: Colors.white,
+                              ),
                               const SizedBox(width: 8),
                               Text(
                                 _t(
@@ -1784,13 +1749,24 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
                                       .withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: Text(
-                                  '$_selectedCoins 🪙',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      '$_selectedCoins',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 3),
+                                    const Icon(
+                                      Icons.monetization_on_rounded,
+                                      size: 12,
+                                      color: Colors.white,
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],

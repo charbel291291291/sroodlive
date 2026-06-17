@@ -14,8 +14,6 @@ class RoomSettingsSheet extends StatefulWidget {
     required this.isArabic,
     required this.isOwner,
     required this.moderatorCount,
-    required this.isLocked,
-    required this.onToggleLock,
     super.key,
   });
 
@@ -23,8 +21,6 @@ class RoomSettingsSheet extends StatefulWidget {
   final bool isArabic;
   final bool isOwner;
   final int moderatorCount;
-  final bool isLocked;
-  final Future<void> Function() onToggleLock;
 
   @override
   State<RoomSettingsSheet> createState() => _RoomSettingsSheetState();
@@ -37,7 +33,6 @@ class _RoomSettingsSheetState extends State<RoomSettingsSheet> {
   late final TextEditingController _announcementCtrl;
   bool _savingName = false;
   bool _savingAnnouncement = false;
-  bool _lockBusy = false;
   bool _loadingAnnouncement = true;
 
   @override
@@ -99,15 +94,6 @@ class _RoomSettingsSheetState extends State<RoomSettingsSheet> {
       if (mounted) _showError(e.toString());
     } finally {
       if (mounted) setState(() => _savingAnnouncement = false);
-    }
-  }
-
-  Future<void> _toggleLock() async {
-    setState(() => _lockBusy = true);
-    try {
-      await widget.onToggleLock();
-    } finally {
-      if (mounted) setState(() => _lockBusy = false);
     }
   }
 
@@ -271,30 +257,6 @@ class _RoomSettingsSheetState extends State<RoomSettingsSheet> {
                           ],
                         ),
                         onTap: () => Navigator.of(context).pop('open_admin'),
-                      ),
-                      const _SettingsDivider(),
-
-                      // ── Lock Room ─────────────────────────────────────────
-                      _SettingsTile(
-                        icon: widget.isLocked
-                            ? Icons.lock_rounded
-                            : Icons.lock_open_rounded,
-                        label: isArabic
-                            ? (widget.isLocked ? 'فتح الغرفة' : 'قفل الغرفة')
-                            : (widget.isLocked ? 'Unlock Room' : 'Lock Room'),
-                        trailing: _lockBusy
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : Switch(
-                                value: widget.isLocked,
-                                onChanged: widget.isOwner
-                                    ? (_) => _toggleLock()
-                                    : null,
-                                activeThumbColor: const Color(0xFF8B26D9),
-                              ),
                       ),
                       const _SettingsDivider(),
 

@@ -38,7 +38,6 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
 
   // Overview
   Map<String, int> _stats = {};
-  bool _isLocked = false;
   final _nameCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   bool _savingMeta = false;
@@ -79,7 +78,6 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
   void initState() {
     super.initState();
     _tabs = TabController(length: 6, vsync: this);
-    _isLocked = widget.room.isLocked;
     _nameCtrl.text = widget.room.name;
     _descCtrl.text = widget.room.description ?? '';
     _roomCoverUrl = widget.room.coverUrl;
@@ -174,66 +172,8 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
 
   // ── Actions ──────────────────────────────────────────────────────────────
 
-  /// Prompts for a password and returns it, or null if cancelled / empty.
-  Future<String?> _askForPassword() async {
-    final ctrl = TextEditingController();
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A0D33),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          _t('تعيين كلمة مرور للغرفة', 'Set room password'),
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
-        ),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          obscureText: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(
-            hintText: _t('3 أحرف على الأقل', 'Minimum 3 characters'),
-            hintStyle: const TextStyle(color: Color(0xFF7A6A94)),
-            filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.07),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-            prefixIcon: const Icon(Icons.lock_rounded, color: Color(0xFF8B26D9)),
-          ),
-          onSubmitted: (_) => Navigator.of(ctx).pop(ctrl.text.trim()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(_t('إلغاء', 'Cancel'),
-                style: const TextStyle(color: Color(0xFF9E8AB8))),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFF8B26D9)),
-            onPressed: () {
-              if (ctrl.text.trim().length < 3) return;
-              Navigator.of(ctx).pop(ctrl.text.trim());
-            },
-            child: Text(_t('قفل', 'Lock')),
-          ),
-        ],
-      ),
-    );
-    ctrl.dispose();
-    if (result == null || result.trim().length < 3) return null;
-    return result.trim();
-  }
-
   String _friendlyError(dynamic e) {
     final s = e.toString();
-    if (e is RoomPasswordRequiredException || s.contains('room_password_required')) {
-      return _t(
-        'يرجى إدخال كلمة مرور لقفل الغرفة',
-        'Please set a password to lock the room',
-      );
-    }
     if (s.contains('wrong_room_password')) {
       return _t('كلمة المرور غير صحيحة', 'Incorrect room password');
     }
@@ -244,30 +184,6 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
       return _t('الغرفة مغلقة', 'Room is closed');
     }
     return _t('حدث خطأ، يرجى المحاولة مجدداً', 'Something went wrong, please try again');
-  }
-
-  Future<void> _toggleLock() async {
-    final enabling = !_isLocked;
-
-    String? password;
-    if (enabling) {
-      password = await _askForPassword();
-      if (password == null) return; // user cancelled
-    }
-
-    try {
-      await _roomSvc.setRoomLocked(
-        roomId: _roomId,
-        isLocked: enabling,
-        password: password,
-      );
-      setState(() => _isLocked = enabling);
-      _snack(enabling
-          ? _t('تم قفل الغرفة', 'Room locked')
-          : _t('تم فتح الغرفة', 'Room unlocked'));
-    } catch (e) {
-      _snack(_friendlyError(e), error: true);
-    }
   }
 
   Future<void> _saveMeta() async {
@@ -715,74 +631,6 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
                     : null,
               ),
             ],
-          ),
-          const SizedBox(height: 20),
-          _SectionHeader(label: _t('قفل الغرفة', 'Room Lock')),
-          const SizedBox(height: 8),
-          _GlassCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: _isLocked
-                            ? const Color(0xFFF0C15A).withValues(alpha: 0.16)
-                            : Colors.white.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        _isLocked ? Icons.lock_rounded : Icons.lock_open_rounded,
-                        color: _isLocked
-                            ? const Color(0xFFF0C15A)
-                            : const Color(0xFF9E8AB8),
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _isLocked
-                                ? _t('الغرفة مقفلة', 'Room is locked')
-                                : _t('الغرفة مفتوحة', 'Room is open'),
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _isLocked
-                                ? _t(
-                                    'يحتاج الانضمام إلى كلمة مرور',
-                                    'Joining requires a password',
-                                  )
-                                : _t(
-                                    'يمكن لأي شخص الانضمام',
-                                    'Anyone can join freely',
-                                  ),
-                            style: const TextStyle(
-                                color: Color(0xFF9E8AB8), fontSize: 11),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Switch(
-                      value: _isLocked,
-                      activeThumbColor: const Color(0xFF8B26D9),
-                      onChanged: (_) => _toggleLock(),
-                    ),
-                  ],
-                ),
-              ],
-            ),
           ),
           const SizedBox(height: 20),
           _SectionHeader(label: _t('تعديل معلومات الغرفة', 'Edit Room Info')),
