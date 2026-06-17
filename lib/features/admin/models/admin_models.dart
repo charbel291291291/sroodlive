@@ -1113,3 +1113,69 @@ DateTime? _dateValue(dynamic value) {
   }
   return DateTime.tryParse(value.toString());
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AdminReport — user_reports table
+// ─────────────────────────────────────────────────────────────────────────────
+
+class AdminReport {
+  const AdminReport({
+    required this.id,
+    required this.reporterId,
+    required this.targetType,
+    required this.targetId,
+    required this.reason,
+    required this.status,
+    this.reporterPublicUserId,
+    this.reporterName,
+    this.details,
+    this.resolvedBy,
+    this.resolvedByName,
+    this.resolvedAt,
+    this.resolutionNote,
+    this.createdAt,
+  });
+
+  final String id;
+  final String reporterId;
+  final String? reporterPublicUserId;
+  final String? reporterName;
+  final String targetType;
+  final String targetId;
+  final String reason;
+  final String? details;
+  final String status;
+  final String? resolvedBy;
+  final String? resolvedByName;
+  final DateTime? resolvedAt;
+  final String? resolutionNote;
+  final DateTime? createdAt;
+
+  bool get isPending   => status == 'pending';
+  bool get isResolved  => status == 'resolved';
+  bool get isRejected  => status == 'rejected';
+
+  factory AdminReport.fromJson(Map<String, dynamic> json) {
+    return AdminReport(
+      id:                    json['id']?.toString() ?? '',
+      reporterId:            json['reporter_id']?.toString() ?? '',
+      reporterPublicUserId:  json['reporter_public_user_id']?.toString(),
+      reporterName:          json['reporter_name']?.toString(),
+      targetType:            json['target_type']?.toString() ?? 'other',
+      targetId:              json['target_id']?.toString() ?? '',
+      reason:                json['reason']?.toString() ?? '',
+      details:               json['details']?.toString(),
+      status:                json['status']?.toString() ?? 'pending',
+      resolvedBy:            json['resolved_by']?.toString(),
+      resolvedByName:        json['resolved_by_name']?.toString(),
+      resolvedAt:            _dateValue(json['resolved_at']),
+      resolutionNote:        json['resolution_note']?.toString(),
+      createdAt:             _dateValue(json['created_at']),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AdminWithdrawalHistoryEntry — resolved withdrawal requests
+// Reuses AdminWithdrawalRequest — no extra model needed.
+// ─────────────────────────────────────────────────────────────────────────────

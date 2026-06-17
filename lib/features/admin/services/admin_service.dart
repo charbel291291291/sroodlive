@@ -750,6 +750,110 @@ class AdminService {
         .eq('id', id);
   }
 
+  // ── Withdrawal history ─────────────────────────────────────────────────────
+
+  Future<List<AdminWithdrawalRequest>> fetchWithdrawalHistory({
+    int limit = 100,
+  }) async {
+    final data = await SupabaseService.requiredClient
+        .from('withdrawal_requests')
+        .select(
+          'id, user_id, diamonds, gross_usd, host_share_usd, agency_share_usd, platform_share_usd, method, account_details, notes, status, created_at, profiles(public_user_id, display_name)',
+        )
+        .inFilter('status', ['approved', 'rejected'])
+        .order('created_at', ascending: false)
+        .limit(limit);
+    return (data as List<dynamic>).map((item) {
+      final m = Map<String, dynamic>.from(item as Map);
+      final profile = m['profiles'] as Map<String, dynamic>?;
+      m['public_user_id'] = profile?['public_user_id'];
+      m['display_name'] = profile?['display_name'];
+      return AdminWithdrawalRequest.fromJson(m);
+    }).toList();
+  }
+
+  // ── Audit log search ───────────────────────────────────────────────────────
+
+  Future<List<AdminAuditLog>> searchAuditLogs({
+    String? actorId,
+    String? action,
+    String? targetType,
+    DateTime? from,
+    DateTime? to,
+    int limit = 100,
+  }) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_search_audit_logs',
+      params: {
+        'p_actor_id':    actorId,
+        'p_action':      action,
+        'p_target_type': targetType,
+        'p_from':        from?.toUtc().toIso8601String(),
+        'p_to':          to?.toUtc().toIso8601String(),
+        'p_limit':       limit,
+      },
+    );
+    return (data as List<dynamic>)
+        .map((item) => AdminAuditLog.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  // ── Agency update ──────────────────────────────────────────────────────────
+
+  Future<void> updateAgency({
+    required String agencyId,
+    String? name,
+    String? whatsapp,
+    String? country,
+    double? commissionRate,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_update_recharge_agency',
+      params: {
+        'p_agency_id':       agencyId,
+        'p_name':            name,
+        'p_whatsapp':        whatsapp,
+        'p_country':         country,
+        'p_commission_rate': commissionRate,
+      },
+    );
+  }
+
+  // ── Reports ────────────────────────────────────────────────────────────────
+
+  Future<List<AdminReport>> fetchReports({
+    String? status,
+    String? targetType,
+    int limit = 100,
+  }) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_list_reports',
+      params: {
+        'p_status':      status,
+        'p_target_type': targetType,
+        'p_limit':       limit,
+      },
+    );
+    return (data as List<dynamic>)
+        .map((item) => AdminReport.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> updateReportStatus({
+    required String reportId,
+    required String status,
+    String? resolutionNote,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_update_report_status',
+      params: {
+        'p_report_id':       reportId,
+        'p_status':          status,
+        'p_resolution_note': resolutionNote,
+      },
+    );
+  }
+
   // ── Asset upload (Supabase Storage → admin-assets bucket) ─────────────────
 
   Future<String> uploadAdminAsset({

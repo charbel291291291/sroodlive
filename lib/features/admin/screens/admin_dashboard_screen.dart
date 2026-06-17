@@ -28,6 +28,7 @@ enum _AdminModule {
   games,
   vip,
   charisma,
+  reports,
 }
 
 // ─────────────────────────────────────────────
@@ -101,6 +102,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   List<AdminGiftCategory> _giftCategories = const [];
   List<AdminPromoBanner> _promoBanners = const [];
   AdminWalletSummary? _walletLookup;
+
+  // ── Phase 2 additions ──────────────────────────────────────────────────────
+
+  // Finance date range (null = today)
+  DateTime? _financeFrom;
+  DateTime? _financeTo;
+  bool _financeReloading = false;
+
+  // Withdrawal history tab
+  List<AdminWithdrawalRequest> _withdrawalHistory = const [];
+
+  // Audit log filters
+  String? _auditFilterAction;
+  String? _auditFilterTargetType;
+  DateTime? _auditFilterFrom;
+  DateTime? _auditFilterTo;
+  bool _auditFiltering = false;
+
+  // Reports
+  List<AdminReport> _reports = const [];
+  String? _reportsStatusFilter;
 
   // Hidden 7-tap trigger for owner panel
   int _ownerTapCount = 0;
@@ -215,6 +237,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         status: 'pending',
       );
       final pendingWithdrawals = await _adminService.fetchWithdrawalRequests();
+      final withdrawalHistory  = await _adminService.fetchWithdrawalHistory();
       final walletTransactions = await _adminService.fetchWalletTransactions();
       final giftTransactions = await _adminService.fetchGiftTransactions();
       final agencies = await _adminService.fetchAgencies();
@@ -223,13 +246,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final rooms = await _adminService.fetchRooms();
       final gifts = await _adminService.fetchGifts();
       final auditLogs = await _adminService.fetchAuditLogs();
-      final financeReport = await _adminService.fetchFinanceReport();
+      final financeReport = await _adminService.fetchFinanceReport(
+        from: _financeFrom,
+        to: _financeTo,
+      );
       final bdReport = await _adminService.fetchBdReport();
       final avatarFrames = await _adminService.fetchAvatarFrames();
       final vipPackages = await _adminService.fetchVipPackages();
       final entranceBanners = await _adminService.fetchEntranceBanners();
       final giftCategories = await _adminService.fetchGiftCategories();
       final promoBanners = await _adminService.fetchPromoBanners();
+      final reports = await _adminService.fetchReports(
+        status: _reportsStatusFilter,
+      );
 
       if (!mounted) return;
       setState(() {
@@ -239,6 +268,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _overview  = overview;
         _pending = pending;
         _pendingWithdrawals = pendingWithdrawals;
+        _withdrawalHistory = withdrawalHistory;
         _walletTransactions = walletTransactions;
         _giftTransactions = giftTransactions;
         _agencies = agencies;
@@ -254,6 +284,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _entranceBanners = entranceBanners;
         _giftCategories = giftCategories;
         _promoBanners = promoBanners;
+        _reports = reports;
         _isLoading = false;
       });
     } catch (error) {
@@ -773,6 +804,175 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
+  // ── Finance date range ────────────────────────────────────────────────────
+
+  Future<void> _reloadFinanceReport() async {
+    if (_financeReloading) return;
+    setState(() => _financeReloading = true);
+    try {
+      final report = await _adminService.fetchFinanceReport(
+        from: _financeFrom,
+        to: _financeTo,
+      );
+      if (mounted) setState(() => _financeReport = report);
+    } catch (e) {
+      if (mounted) _showSnack('Finance report failed: $e');
+    } finally {
+      if (mounted) setState(() => _financeReloading = false);
+    }
+  }
+
+  Future<void> _pickFinanceDate({required bool isFrom}) async {
+    final initial = (isFrom ? _financeFrom : _financeTo) ?? DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2024),
+      lastDate: DateTime.now(),
+      builder: (context, child) => Theme(
+        data: ThemeData.dark().copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: _kGold,
+            onPrimary: Colors.black,
+            surface: _kSurface,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked == null) return;
+    setState(() {
+      if (isFrom) {
+        _financeFrom = DateTime(picked.year, picked.month, picked.day);
+      } else {
+        _financeTo = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
+      }
+    });
+    await _reloadFinanceReport();
+  }
+
+  void _resetFinanceDates() {
+    setState(() { _financeFrom = null; _financeTo = null; });
+    _reloadFinanceReport();
+  }
+
+  // ── Audit log search ──────────────────────────────────────────────────────
+
+  Future<void> _searchAuditLogs() async {
+    if (_auditFiltering) return;
+    setState(() => _auditFiltering = true);
+    try {
+      final logs = await _adminService.searchAuditLogs(
+        action: _auditFilterAction?.trim().isEmpty == true ? null : _auditFilterAction?.trim(),
+        targetType: _auditFilterTargetType?.trim().isEmpty == true ? null : _auditFilterTargetType?.trim(),
+        from: _auditFilterFrom,
+        to: _auditFilterTo,
+      );
+      if (mounted) setState(() => _auditLogs = logs);
+    } catch (e) {
+      if (mounted) _showSnack('Audit search failed: $e');
+    } finally {
+      if (mounted) setState(() => _auditFiltering = false);
+    }
+  }
+
+  void _resetAuditFilters() {
+    setState(() {
+      _auditFilterAction = null;
+      _auditFilterTargetType = null;
+      _auditFilterFrom = null;
+      _auditFilterTo = null;
+    });
+    _searchAuditLogs();
+  }
+
+  Future<void> _pickAuditDate({required bool isFrom}) async {
+    final initial = (isFrom ? _auditFilterFrom : _auditFilterTo) ?? DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2024),
+      lastDate: DateTime.now(),
+      builder: (context, child) => Theme(
+        data: ThemeData.dark().copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: _kGold,
+            onPrimary: Colors.black,
+            surface: _kSurface,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked == null) return;
+    setState(() {
+      if (isFrom) {
+        _auditFilterFrom = DateTime(picked.year, picked.month, picked.day);
+      } else {
+        _auditFilterTo = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
+      }
+    });
+  }
+
+  // ── Agency update with commission ─────────────────────────────────────────
+
+  Future<void> _editAgency(AdminAgency agency) async {
+    final result = await showDialog<_AgencyEditResult>(
+      context: context,
+      builder: (context) => _AgencyEditDialog(agency: agency, canEditCommission: _adminRole.hasPermission(kPermWalletCredit)),
+    );
+    if (result == null) return;
+
+    try {
+      await _adminService.updateAgency(
+        agencyId: agency.id,
+        name: result.name.trim().isEmpty ? null : result.name.trim(),
+        whatsapp: result.whatsapp.trim().isEmpty ? null : result.whatsapp.trim(),
+        country: result.country.trim().isEmpty ? null : result.country.trim(),
+        commissionRate: result.commissionRate,
+      );
+      await _load();
+      if (!mounted) return;
+      _showSnack('Agency updated');
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack('Agency update failed: $e');
+    }
+  }
+
+  // ── Reports ───────────────────────────────────────────────────────────────
+
+  Future<void> _processReport(AdminReport report, String newStatus) async {
+    String? note;
+    if (newStatus == 'resolved' || newStatus == 'rejected' || newStatus == 'needs_more_info') {
+      note = await _askForText(
+        title: 'Resolution note (optional)',
+        label: 'Note for ${newStatus.replaceAll('_', ' ')}',
+      );
+    }
+
+    try {
+      await _adminService.updateReportStatus(
+        reportId: report.id,
+        status: newStatus,
+        resolutionNote: note?.trim().isEmpty == true ? null : note?.trim(),
+      );
+      final reports = await _adminService.fetchReports(status: _reportsStatusFilter);
+      if (!mounted) return;
+      setState(() => _reports = reports);
+      _showSnack('Report marked as ${newStatus.replaceAll('_', ' ')}');
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack('Report update failed: $e');
+    }
+  }
+
+  Future<void> _reloadReports() async {
+    final reports = await _adminService.fetchReports(status: _reportsStatusFilter);
+    if (!mounted) return;
+    setState(() => _reports = reports);
+  }
+
   Future<void> _closeRoom(AdminRoomSummary room) async {
     final confirmed = await _confirm(
       title: 'Close room',
@@ -1093,6 +1293,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       _AdminModule.games  => _buildGames(),
       _AdminModule.vip    => _buildVipPreview(),
       _AdminModule.charisma => _buildCharisma(),
+      _AdminModule.reports  => _buildReports(),
     };
   }
 
@@ -1163,6 +1364,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildFinance() {
+    // Quick-range label for the header subtitle
+    String rangeLabel;
+    if (_financeFrom == null && _financeTo == null) {
+      rangeLabel = 'Today';
+    } else {
+      String fmt(DateTime? d) => d == null
+          ? '?'
+          : '${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}';
+      rangeLabel = '${fmt(_financeFrom)} → ${fmt(_financeTo)}';
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1173,8 +1385,100 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           locked: !_canFinance,
         ),
         const SizedBox(height: 14),
+
+        // ── Date range selector ───────────────────────────────────────────
+        _AdminSectionCard(
+          title: 'Report period: $rangeLabel',
+          action: _financeReloading
+              ? const SizedBox(
+                  width: 16, height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: _kGold),
+                )
+              : IconButton(
+                  icon: const Icon(Icons.refresh_rounded),
+                  onPressed: _reloadFinanceReport,
+                  tooltip: 'Reload',
+                ),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _QuickRangeButton(
+                label: 'Today',
+                selected: _financeFrom == null && _financeTo == null,
+                onTap: _resetFinanceDates,
+              ),
+              _QuickRangeButton(
+                label: 'Yesterday',
+                selected: false,
+                onTap: () {
+                  final y = DateTime.now().subtract(const Duration(days: 1));
+                  setState(() {
+                    _financeFrom = DateTime(y.year, y.month, y.day);
+                    _financeTo   = DateTime(y.year, y.month, y.day, 23, 59, 59);
+                  });
+                  _reloadFinanceReport();
+                },
+              ),
+              _QuickRangeButton(
+                label: 'Last 7 days',
+                selected: false,
+                onTap: () {
+                  final now = DateTime.now();
+                  setState(() {
+                    _financeFrom = now.subtract(const Duration(days: 6));
+                    _financeTo   = null;
+                  });
+                  _reloadFinanceReport();
+                },
+              ),
+              _QuickRangeButton(
+                label: 'Last 30 days',
+                selected: false,
+                onTap: () {
+                  final now = DateTime.now();
+                  setState(() {
+                    _financeFrom = now.subtract(const Duration(days: 29));
+                    _financeTo   = null;
+                  });
+                  _reloadFinanceReport();
+                },
+              ),
+              OutlinedButton.icon(
+                onPressed: () => _pickFinanceDate(isFrom: true),
+                icon: const Icon(Icons.calendar_today_rounded, size: 14),
+                label: Text(_financeFrom == null
+                    ? 'From'
+                    : '${_financeFrom!.month}/${_financeFrom!.day}/${_financeFrom!.year}'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _kGold,
+                  side: const BorderSide(color: _kBorder),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => _pickFinanceDate(isFrom: false),
+                icon: const Icon(Icons.calendar_today_rounded, size: 14),
+                label: Text(_financeTo == null
+                    ? 'To'
+                    : '${_financeTo!.month}/${_financeTo!.day}/${_financeTo!.year}'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _kGold,
+                  side: const BorderSide(color: _kBorder),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
         _FinanceReportCard(report: _financeReport),
         const SizedBox(height: 14),
+
         _AdminSectionCard(
           title: 'Pending Recharge Requests',
           action: IconButton(
@@ -1201,34 +1505,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
         ),
         const SizedBox(height: 14),
-        _AdminSectionCard(
-          title: 'Pending Withdrawal Requests',
-          action: IconButton(
-            onPressed: _load,
-            icon: const Icon(Icons.refresh_rounded),
-          ),
-          child: _pendingWithdrawals.isEmpty
-              ? const _AdminEmptyState(
-                  icon: Icons.verified_rounded,
-                  title: 'All clear',
-                  subtitle: 'No pending withdrawal requests right now.',
-                )
-              : Column(
-                  children: _pendingWithdrawals
-                      .map(
-                        (w) => _WithdrawalRequestTile(
-                          request: w,
-                          canFinance: _canFinance,
-                          onApprove: () => _approveWithdrawal(w),
-                          onReject: () => _rejectWithdrawal(w),
-                        ),
-                      )
-                      .toList(),
-                ),
+
+        // ── Withdrawal section with Pending / History tabs ────────────────
+        _WithdrawalTabCard(
+          pendingList: _pendingWithdrawals,
+          historyList: _withdrawalHistory,
+          canFinance: _canFinance,
+          onApprove: (w) => _approveWithdrawal(w),
+          onReject:  (w) => _rejectWithdrawal(w),
+          onRefresh: _load,
         ),
         const SizedBox(height: 14),
+
         _AdminSectionCard(
-          title: 'BD Performance Today',
+          title: 'BD Performance — selected period',
           child: _bdReport.isEmpty
               ? const _AdminEmptyState(
                   icon: Icons.query_stats_rounded,
@@ -1238,6 +1528,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               : Column(children: _bdReport.map(_BdReportTile.new).toList()),
         ),
         const SizedBox(height: 14),
+
         _ResponsivePair(
           left: _WalletLookupCard(
             lookupController: _walletLookupController,
@@ -1336,6 +1627,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             canManage: _canBd,
             onCreateAgency: _createAgency,
             onToggleAgency: _toggleAgency,
+            onEditAgency: _canBd ? _editAgency : null,
           ),
           right: _AgentListCard(
             agents: _agents,
@@ -1828,6 +2120,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildAudit() {
+    final logs = _auditLogs;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1837,15 +2131,221 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           icon: Icons.fact_check_rounded,
         ),
         const SizedBox(height: 14),
+
+        // ── Filter panel ──────────────────────────────────────────────────
         _AdminSectionCard(
-          title: 'Recent Admin Actions',
-          child: _auditLogs.isEmpty
+          title: 'Filters',
+          action: TextButton.icon(
+            onPressed: _resetAuditFilters,
+            icon: const Icon(Icons.clear_rounded, size: 14),
+            label: const Text('Reset'),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.white54,
+              textStyle: const TextStyle(fontSize: 12),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 180,
+                    child: TextField(
+                      style: const TextStyle(color: _kTxt, fontSize: 13),
+                      decoration: InputDecoration(
+                        hintText: 'Action (e.g. ban_user)',
+                        hintStyle: const TextStyle(color: _kMuted, fontSize: 12),
+                        filled: true,
+                        fillColor: _kBg,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _kBorder)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _kBorder)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _kGold)),
+                      ),
+                      onChanged: (v) => setState(() => _auditFilterAction = v.trim().isEmpty ? null : v.trim()),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 150,
+                    child: DropdownButtonFormField<String?>(
+                      initialValue: _auditFilterTargetType,
+                      dropdownColor: _kSurface,
+                      style: const TextStyle(color: _kTxt, fontSize: 12),
+                      hint: const Text('Target type', style: TextStyle(color: _kMuted, fontSize: 12)),
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: _kBg,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _kBorder)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _kBorder)),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: null, child: Text('All types')),
+                        DropdownMenuItem(value: 'profiles', child: Text('profiles')),
+                        DropdownMenuItem(value: 'rooms', child: Text('rooms')),
+                        DropdownMenuItem(value: 'admin_user_restrictions', child: Text('restrictions')),
+                        DropdownMenuItem(value: 'recharge_agencies', child: Text('agencies')),
+                        DropdownMenuItem(value: 'user_reports', child: Text('user_reports')),
+                      ],
+                      onChanged: (v) => setState(() => _auditFilterTargetType = v),
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => _pickAuditDate(isFrom: true),
+                    icon: const Icon(Icons.calendar_today_rounded, size: 13),
+                    label: Text(_auditFilterFrom == null
+                        ? 'From'
+                        : '${_auditFilterFrom!.month}/${_auditFilterFrom!.day}'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _kGold,
+                      side: const BorderSide(color: _kBorder),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => _pickAuditDate(isFrom: false),
+                    icon: const Icon(Icons.calendar_today_rounded, size: 13),
+                    label: Text(_auditFilterTo == null
+                        ? 'To'
+                        : '${_auditFilterTo!.month}/${_auditFilterTo!.day}'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _kGold,
+                      side: const BorderSide(color: _kBorder),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  FilledButton.icon(
+                    onPressed: _auditFiltering ? null : _searchAuditLogs,
+                    icon: _auditFiltering
+                        ? const SizedBox(
+                            width: 13,
+                            height: 13,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.search_rounded, size: 14),
+                    label: const Text('Search'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _kGold,
+                      foregroundColor: Colors.black,
+                      textStyle: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w700),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 6),
+                    ),
+                  ),
+                ],
+              ),
+              if (logs.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  '${logs.length} result${logs.length == 1 ? '' : 's'}',
+                  style: const TextStyle(color: Colors.white38, fontSize: 11),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        _AdminSectionCard(
+          title: 'Admin Actions',
+          child: logs.isEmpty
               ? const _AdminEmptyState(
                   icon: Icons.history_edu_rounded,
-                  title: 'No audit logs yet',
-                  subtitle: 'Admin actions will be recorded here.',
+                  title: 'No audit logs',
+                  subtitle: 'Try different filters, or no filters to see all.',
                 )
-              : Column(children: _auditLogs.map(_AuditTile.new).toList()),
+              : Column(children: logs.map(_AuditTile.new).toList()),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReports() {
+    final statusFilters = [null, 'pending', 'reviewing', 'resolved', 'rejected', 'needs_more_info'];
+    final filtered = _reportsStatusFilter == null
+        ? _reports
+        : _reports.where((r) => r.status == _reportsStatusFilter).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _ModuleTitle(
+          title: 'Reports',
+          subtitle: 'User-submitted reports about content, rooms, and profiles.',
+          icon: Icons.flag_rounded,
+        ),
+        const SizedBox(height: 14),
+
+        // Status filter chips
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: statusFilters.map((s) {
+              final label = s == null
+                  ? 'All'
+                  : s == 'needs_more_info'
+                      ? 'Needs Info'
+                      : s[0].toUpperCase() + s.substring(1);
+              final selected = _reportsStatusFilter == s;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: FilterChip(
+                  label: Text(label),
+                  selected: selected,
+                  onSelected: (_) {
+                    setState(() => _reportsStatusFilter = s);
+                    _reloadReports();
+                  },
+                  backgroundColor: _kSurface,
+                  selectedColor: _kGold.withValues(alpha: 0.2),
+                  checkmarkColor: _kGold,
+                  labelStyle: TextStyle(
+                    color: selected ? _kGold : Colors.white54,
+                    fontSize: 12,
+                    fontWeight:
+                        selected ? FontWeight.w700 : FontWeight.w400,
+                  ),
+                  side: BorderSide(
+                      color: selected ? _kGold : _kBorder, width: 1),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20)),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        _AdminSectionCard(
+          title: 'Reports (${filtered.length})',
+          action: IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: _reloadReports,
+            tooltip: 'Refresh',
+          ),
+          child: filtered.isEmpty
+              ? const _AdminEmptyState(
+                  icon: Icons.flag_outlined,
+                  title: 'No reports',
+                  subtitle: 'User reports will appear here.',
+                )
+              : Column(
+                  children: filtered
+                      .map((r) => _ReportTile(
+                            report: r,
+                            onProcess: (status) => _processReport(r, status),
+                          ))
+                      .toList(),
+                ),
         ),
       ],
     );
@@ -4576,12 +5076,14 @@ class _AgencyListCard extends StatelessWidget {
     required this.canManage,
     required this.onCreateAgency,
     required this.onToggleAgency,
+    this.onEditAgency,
   });
 
   final List<AdminAgency> agencies;
   final bool canManage;
   final VoidCallback onCreateAgency;
   final ValueChanged<AdminAgency> onToggleAgency;
+  final ValueChanged<AdminAgency>? onEditAgency;
 
   @override
   Widget build(BuildContext context) {
@@ -4606,12 +5108,26 @@ class _AgencyListCard extends StatelessWidget {
                     (agency) => _AdminListTile(
                       icon: Icons.business_rounded,
                       title: '${agency.name} (${agency.code})',
-                      subtitle: agency.whatsapp ?? agency.country ?? '-',
-                      trailing: Switch(
-                        value: agency.isActive,
-                        onChanged: canManage
-                            ? (_) => onToggleAgency(agency)
-                            : null,
+                      subtitle: [
+                        if (agency.country != null) agency.country!,
+                        'Commission: ${(agency.commissionRate * 100).toStringAsFixed(1)}%',
+                      ].join(' · '),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (onEditAgency != null)
+                            IconButton(
+                              icon: const Icon(Icons.edit_rounded, size: 16, color: _kMuted),
+                              onPressed: () => onEditAgency!(agency),
+                              tooltip: 'Edit',
+                            ),
+                          Switch(
+                            value: agency.isActive,
+                            onChanged: canManage
+                                ? (_) => onToggleAgency(agency)
+                                : null,
+                          ),
+                        ],
                       ),
                     ),
                   )
@@ -5287,6 +5803,7 @@ IconData _moduleIcon(_AdminModule module) {
     _AdminModule.games    => Icons.sports_esports_rounded,
     _AdminModule.vip      => Icons.workspace_premium_rounded,
     _AdminModule.charisma => Icons.emoji_events_rounded,
+    _AdminModule.reports  => Icons.flag_rounded,
   };
 }
 
@@ -5303,6 +5820,7 @@ String _moduleLabel(_AdminModule module) {
     _AdminModule.games    => 'Games',
     _AdminModule.vip      => 'VIP',
     _AdminModule.charisma => 'Charisma',
+    _AdminModule.reports  => 'Reports',
   };
 }
 
@@ -5338,4 +5856,484 @@ const _mutedStyle = TextStyle(
   fontSize: 13,
   fontWeight: FontWeight.w500,
 );
+
+// ── New helpers for Phase 2 ────────────────────────────────────────────────
+
+class _QuickRangeButton extends StatelessWidget {
+  const _QuickRangeButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? _kGold.withValues(alpha: 0.18) : _kBg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: selected ? _kGold : _kBorder),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? _kGold : Colors.white54,
+            fontSize: 12,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Withdrawal tab card (Pending + History) ───────────────────────────────
+
+class _WithdrawalTabCard extends StatelessWidget {
+  const _WithdrawalTabCard({
+    required this.pendingList,
+    required this.historyList,
+    required this.canFinance,
+    required this.onApprove,
+    required this.onReject,
+    required this.onRefresh,
+  });
+
+  final List<AdminWithdrawalRequest> pendingList;
+  final List<AdminWithdrawalRequest> historyList;
+  final bool canFinance;
+  final void Function(AdminWithdrawalRequest) onApprove;
+  final void Function(AdminWithdrawalRequest) onReject;
+  final VoidCallback onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: _kSurface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _kBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Text(
+                      'Withdrawal Requests',
+                      style: TextStyle(
+                        color: _kTxt,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.refresh_rounded, color: _kMuted, size: 18),
+                      onPressed: onRefresh,
+                      tooltip: 'Refresh',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TabBar(
+                  indicatorColor: _kGold,
+                  labelColor: _kGold,
+                  unselectedLabelColor: _kMuted,
+                  labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                  unselectedLabelStyle: const TextStyle(fontSize: 13),
+                  tabs: [
+                    Tab(text: 'Pending (${pendingList.length})'),
+                    Tab(text: 'History (${historyList.length})'),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 320,
+                  child: TabBarView(
+                    children: [
+                      // Pending tab
+                      pendingList.isEmpty
+                          ? const _AdminEmptyState(
+                              icon: Icons.verified_rounded,
+                              title: 'All clear',
+                              subtitle: 'No pending withdrawal requests.',
+                            )
+                          : ListView(
+                              children: pendingList
+                                  .map((w) => _WithdrawalRequestTile(
+                                        request: w,
+                                        canFinance: canFinance,
+                                        onApprove: () => onApprove(w),
+                                        onReject: () => onReject(w),
+                                      ))
+                                  .toList(),
+                            ),
+                      // History tab
+                      historyList.isEmpty
+                          ? const _AdminEmptyState(
+                              icon: Icons.history_rounded,
+                              title: 'No history',
+                              subtitle: 'Approved and rejected withdrawals appear here.',
+                            )
+                          : ListView(
+                              children: historyList
+                                  .map((w) => _WithdrawalHistoryTile(request: w))
+                                  .toList(),
+                            ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WithdrawalHistoryTile extends StatelessWidget {
+  const _WithdrawalHistoryTile({required this.request});
+  final AdminWithdrawalRequest request;
+
+  @override
+  Widget build(BuildContext context) {
+    final isApproved = request.status == 'approved';
+    final statusColor = isApproved ? Colors.greenAccent : Colors.redAccent;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _kBg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _kBorder),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 6,
+            height: 40,
+            decoration: BoxDecoration(
+              color: statusColor,
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  request.displayName ?? request.userId,
+                  style: const TextStyle(
+                      color: _kTxt, fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${request.diamondsAmount} diamonds · ${request.status.toUpperCase()}',
+                  style: TextStyle(color: statusColor, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          if (request.createdAt != null)
+            Text(
+              _fmtDate(request.createdAt!),
+              style: const TextStyle(color: _kMuted, fontSize: 11),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _fmtDate(DateTime d) =>
+      '${d.month}/${d.day}/${d.year}';
+}
+
+// ── Agency edit dialog ─────────────────────────────────────────────────────
+
+class _AgencyEditResult {
+  const _AgencyEditResult({
+    required this.name,
+    required this.whatsapp,
+    required this.country,
+    this.commissionRate,
+  });
+  final String name;
+  final String whatsapp;
+  final String country;
+  final double? commissionRate;
+}
+
+class _AgencyEditDialog extends StatefulWidget {
+  const _AgencyEditDialog({
+    required this.agency,
+    required this.canEditCommission,
+  });
+  final AdminAgency agency;
+  final bool canEditCommission;
+
+  @override
+  State<_AgencyEditDialog> createState() => _AgencyEditDialogState();
+}
+
+class _AgencyEditDialogState extends State<_AgencyEditDialog> {
+  late final TextEditingController _name;
+  late final TextEditingController _whatsapp;
+  late final TextEditingController _country;
+  late final TextEditingController _commission;
+
+  @override
+  void initState() {
+    super.initState();
+    _name       = TextEditingController(text: widget.agency.name);
+    _whatsapp   = TextEditingController(text: widget.agency.whatsapp ?? '');
+    _country    = TextEditingController(text: widget.agency.country ?? '');
+    _commission = TextEditingController(
+        text: (widget.agency.commissionRate * 100).toStringAsFixed(2));
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _whatsapp.dispose();
+    _country.dispose();
+    _commission.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    double? rate;
+    if (widget.canEditCommission && _commission.text.trim().isNotEmpty) {
+      final pct = double.tryParse(_commission.text.trim());
+      if (pct == null || pct < 0 || pct > 100) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Commission must be 0–100')));
+        return;
+      }
+      rate = pct / 100;
+    }
+    Navigator.of(context).pop(_AgencyEditResult(
+      name: _name.text,
+      whatsapp: _whatsapp.text,
+      country: _country.text,
+      commissionRate: rate,
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: _kSurface,
+      title: const Text('Edit Agency',
+          style: TextStyle(color: _kTxt, fontWeight: FontWeight.w700)),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _field(_name, 'Name'),
+            const SizedBox(height: 12),
+            _field(_whatsapp, 'WhatsApp'),
+            const SizedBox(height: 12),
+            _field(_country, 'Country'),
+            if (widget.canEditCommission) ...[
+              const SizedBox(height: 12),
+              _field(_commission, 'Commission % (0–100)',
+                  type: TextInputType.number),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel', style: TextStyle(color: _kMuted)),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          style: FilledButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black),
+          child: const Text('Save'),
+        ),
+      ],
+    );
+  }
+
+  Widget _field(TextEditingController c, String label,
+      {TextInputType type = TextInputType.text}) {
+    return TextField(
+      controller: c,
+      keyboardType: type,
+      style: const TextStyle(color: _kTxt, fontSize: 14),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: _kMuted, fontSize: 13),
+        filled: true,
+        fillColor: _kBg,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: _kBorder)),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: _kBorder)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: _kGold)),
+      ),
+    );
+  }
+}
+
+// ── Report tile ────────────────────────────────────────────────────────────
+
+class _ReportTile extends StatelessWidget {
+  const _ReportTile({required this.report, required this.onProcess});
+  final AdminReport report;
+  final void Function(String status) onProcess;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = switch (report.status) {
+      'pending'         => Colors.orangeAccent,
+      'reviewing'       => Colors.blueAccent,
+      'resolved'        => Colors.greenAccent,
+      'rejected'        => Colors.redAccent,
+      'needs_more_info' => Colors.purpleAccent,
+      _                 => _kMuted,
+    };
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _kBg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _kBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.4)),
+                ),
+                child: Text(
+                  report.status.replaceAll('_', ' ').toUpperCase(),
+                  style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.w700),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _kSurface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  report.targetType,
+                  style: const TextStyle(color: _kMuted, fontSize: 10),
+                ),
+              ),
+              const Spacer(),
+              if (report.createdAt != null)
+                Text(
+                  '${report.createdAt!.month}/${report.createdAt!.day}/${report.createdAt!.year}',
+                  style: const TextStyle(color: _kMuted, fontSize: 11),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            report.reason,
+            style: const TextStyle(color: _kTxt, fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          if (report.details != null) ...[
+            const SizedBox(height: 4),
+            Text(report.details!, style: const TextStyle(color: _kMuted, fontSize: 12)),
+          ],
+          const SizedBox(height: 4),
+          Text(
+            'Reporter: ${report.reporterName ?? report.reporterId}',
+            style: const TextStyle(color: _kMuted, fontSize: 11),
+          ),
+          if (report.isPending || report.status == 'reviewing') ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              children: [
+                if (report.isPending)
+                  _ReportActionButton(
+                    label: 'Reviewing',
+                    color: Colors.blueAccent,
+                    onTap: () => onProcess('reviewing'),
+                  ),
+                _ReportActionButton(
+                  label: 'Resolve',
+                  color: Colors.greenAccent,
+                  onTap: () => onProcess('resolved'),
+                ),
+                _ReportActionButton(
+                  label: 'Reject',
+                  color: Colors.redAccent,
+                  onTap: () => onProcess('rejected'),
+                ),
+                _ReportActionButton(
+                  label: 'Needs Info',
+                  color: Colors.purpleAccent,
+                  onTap: () => onProcess('needs_more_info'),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ReportActionButton extends StatelessWidget {
+  const _ReportActionButton({
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: 0.4)),
+        ),
+        child: Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+      ),
+    );
+  }
+}
 
