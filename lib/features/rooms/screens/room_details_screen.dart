@@ -1,4 +1,5 @@
 ﻿import 'dart:async';
+import 'package:just_audio/just_audio.dart';
 import 'dart:math' as math;
 import 'dart:ui';
 
@@ -120,6 +121,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   bool _visualEnabled = true;
   Map<String, dynamic>? _activeRedEnvelope;
   bool _claimingEnvelope = false;
+  bool _showLuckyBagEntrance = false;
+  int? _luckyBagWinCoins;
   // _loadingGifts removed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gift loading state is not displayed in the overlay
   bool _isSendingGift = false;
   RoomMember? _selectedMicMoveMember;
@@ -505,6 +508,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       final coins = await SupabaseService.requiredClient
           .rpc('claim_red_envelope', params: {'p_envelope_id': envelopeId}) as int;
       if (!mounted) return;
+      setState(() => _luckyBagWinCoins = coins);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
           context.isArabic ? '🎁 حصلت على $coins عملة!' : '🎁 You got \$coins coins!',
@@ -1189,7 +1193,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         onMusicTap: _openMusicPanel,
         onRedEnvelopeCreated: (envelope) {
           if (!mounted) return;
-          setState(() => _activeRedEnvelope = envelope);
+          setState(() {
+            _activeRedEnvelope = envelope;
+            _showLuckyBagEntrance = true;
+          });
         },
         onSoundChanged: (v) => setState(() => _soundEnabled = v),
         onVisualChanged: (v) => setState(() => _visualEnabled = v),
@@ -2950,6 +2957,29 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                 loading: _claimingEnvelope,
                 onClaim: _claimRedEnvelope,
                 onDismiss: () => setState(() => _activeRedEnvelope = null),
+              ),
+            ),
+
+          // -- 6. Lucky Bag entrance overlay (sender sees this) --
+          if (_showLuckyBagEntrance)
+            Positioned.fill(
+              child: _LuckyBagEntranceOverlay(
+                soundEnabled: _soundEnabled,
+                onDone: () {
+                  if (mounted) setState(() => _showLuckyBagEntrance = false);
+                },
+              ),
+            ),
+
+          // -- 7. Lucky Bag win overlay (claimer sees this) --
+          if (_luckyBagWinCoins != null)
+            Positioned.fill(
+              child: _LuckyBagWinOverlay(
+                coins: _luckyBagWinCoins!,
+                soundEnabled: _soundEnabled,
+                onDone: () {
+                  if (mounted) setState(() => _luckyBagWinCoins = null);
+                },
               ),
             ),
 
@@ -8177,3 +8207,507 @@ class _ExitOption extends StatelessWidget {
   }
 }
 
+
+// =============================================================================
+// Lucky Bag Entrance Overlay
+// Shown full-screen when a Lucky Bag is sent. Auto-dismisses after ~2s.
+// =============================================================================
+
+class _LuckyBagEntranceOverlay extends StatefulWidget {
+  const _LuckyBagEntranceOverlay({
+    required this.onDone,
+    required this.soundEnabled,
+  });
+
+  final VoidCallback onDone;
+  final bool soundEnabled;
+
+  @override
+  State<_LuckyBagEntranceOverlay> createState() =>
+      _LuckyBagEntranceOverlayState();
+}
+
+class _LuckyBagEntranceOverlayState extends State<_LuckyBagEntranceOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _scale;
+  late final Animation<double> _masterFade;
+  late final Animation<double> _sparkle;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    );
+
+    _scale = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: 0.2, end: 1.18)
+            .chain(CurveTween(curve: Curves.easeOutBack)),
+        weight: 28,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 1.18, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 22,
+      ),
+      TweenSequenceItem(
+        tween: ConstantTween(1.0),
+        weight: 25,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 1.0, end: 0.7)
+            .chain(CurveTween(curve: Curves.easeIn)),
+        weight: 25,
+      ),
+    ]).animate(_ctrl);
+
+    _masterFade = TweenSequence<double>([
+      TweenSequenceItem(
+          tween: Tween(begin: 0.0, end: 1.0), weight: 20),
+      TweenSequenceItem(
+          tween: ConstantTween(1.0), weight: 55),
+      TweenSequenceItem(
+          tween: Tween(begin: 1.0, end: 0.0), weight: 25),
+    ]).animate(_ctrl);
+
+    _sparkle = CurvedAnimation(
+      parent: _ctrl,
+      curve: const Interval(0.15, 0.85, curve: Curves.easeInOut),
+    );
+
+    _ctrl.forward().whenComplete(() {
+      if (mounted) widget.onDone();
+    });
+
+    if (widget.soundEnabled) _tryPlaySound();
+  }
+
+  Future<void> _tryPlaySound() async {
+    // TODO: add assets/sounds/lucky_bag_open.mp3 to play entrance sound
+    try {
+      final player = AudioPlayer();
+      await player.setAsset('assets/sounds/lucky_bag_open.mp3');
+      await player.play();
+      unawaited(player.dispose());
+    } catch (_) {/* asset not yet added */}
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _ctrl,
+        builder: (context, _) {
+          final fade = _masterFade.value;
+          return Opacity(
+            opacity: fade.clamp(0.0, 1.0),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  colors: [
+                    const Color(0xFF6B0000).withValues(alpha: 0.85 * fade),
+                    Colors.black.withValues(alpha: 0.75 * fade),
+                  ],
+                  radius: 1.2,
+                ),
+              ),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Glowing bag icon with sparkle coins around it
+                    SizedBox(
+                      width: 200,
+                      height: 200,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // Outer glow ring
+                          Opacity(
+                            opacity: _sparkle.value,
+                            child: Container(
+                              width: 160,
+                              height: 160,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFFFFD700)
+                                        .withValues(alpha: 0.55),
+                                    blurRadius: 60,
+                                    spreadRadius: 20,
+                                  ),
+                                  BoxShadow(
+                                    color: const Color(0xFFE63946)
+                                        .withValues(alpha: 0.3),
+                                    blurRadius: 40,
+                                    spreadRadius: 5,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          // Main bag icon
+                          Transform.scale(
+                            scale: _scale.value,
+                            child: const Icon(
+                              Icons.card_giftcard_rounded,
+                              size: 110,
+                              color: Color(0xFFFFD700),
+                            ),
+                          ),
+                          // Orbiting coin sparkles
+                          ..._buildSparkles(_sparkle.value),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    // Title
+                    Transform.scale(
+                      scale: (_scale.value).clamp(0.5, 1.0),
+                      child: Column(
+                        children: [
+                          Text(
+                            'Lucky Bag!',
+                            style: TextStyle(
+                              color: const Color(0xFFFFD700),
+                              fontSize: 34,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.5,
+                              shadows: [
+                                Shadow(
+                                  color: const Color(0xFFE63946)
+                                      .withValues(alpha: 0.8),
+                                  blurRadius: 16,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Tap to win coins!',
+                            style: TextStyle(
+                              color:
+                                  Colors.white.withValues(alpha: 0.65),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  List<Widget> _buildSparkles(double t) {
+    // 8 coin icons in a circle, fading/drifting outward
+    const count = 8;
+    const radius = 72.0;
+    return List.generate(count, (i) {
+      final angle = (i / count) * 2 * math.pi;
+      final drift = t * 14;
+      final x = math.cos(angle) * (radius + drift);
+      final y = math.sin(angle) * (radius + drift);
+      final opacity = (math.sin(t * math.pi)).clamp(0.0, 1.0);
+      return Positioned(
+        left: 100 + x - 10,
+        top:  100 + y - 10,
+        child: Opacity(
+          opacity: opacity,
+          child: const Icon(
+            Icons.monetization_on_rounded,
+            size: 20,
+            color: Color(0xFFFFD700),
+          ),
+        ),
+      );
+    });
+  }
+}
+
+// =============================================================================
+// Lucky Bag Win Overlay
+// Shown when a claim succeeds. Shows coin rain + animated win text.
+// =============================================================================
+
+class _LuckyBagWinOverlay extends StatefulWidget {
+  const _LuckyBagWinOverlay({
+    required this.coins,
+    required this.onDone,
+    required this.soundEnabled,
+  });
+
+  final int coins;
+  final VoidCallback onDone;
+  final bool soundEnabled;
+
+  @override
+  State<_LuckyBagWinOverlay> createState() => _LuckyBagWinOverlayState();
+}
+
+class _LuckyBagWinOverlayState extends State<_LuckyBagWinOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _masterFade;
+  late final Animation<double> _textScale;
+  late final Animation<double> _textBounce;
+  late final Animation<int> _countUp;
+
+  // Pre-computed random-ish coin positions (deterministic, no dart:math Random seed needed)
+  static const _coinXFractions = [
+    0.05, 0.15, 0.25, 0.38, 0.50, 0.62, 0.75, 0.85, 0.92, 0.32,
+  ];
+  static const _coinDelayFractions = [
+    0.00, 0.08, 0.04, 0.12, 0.02, 0.10, 0.06, 0.14, 0.03, 0.09,
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2600),
+    );
+
+    _masterFade = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.0), weight: 12),
+      TweenSequenceItem(tween: ConstantTween(1.0), weight: 63),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 25),
+    ]).animate(_ctrl);
+
+    _textScale = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: 0.0, end: 1.12)
+            .chain(CurveTween(curve: Curves.easeOutBack)),
+        weight: 20,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 1.12, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 10,
+      ),
+      TweenSequenceItem(tween: ConstantTween(1.0), weight: 70),
+    ]).animate(_ctrl);
+
+    _textBounce = TweenSequence<double>([
+      TweenSequenceItem(tween: ConstantTween(0.0), weight: 20),
+      TweenSequenceItem(
+        tween: Tween(begin: 0.0, end: -12.0)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 10,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: -12.0, end: 0.0)
+            .chain(CurveTween(curve: Curves.bounceOut)),
+        weight: 20,
+      ),
+      TweenSequenceItem(tween: ConstantTween(0.0), weight: 50),
+    ]).animate(_ctrl);
+
+    _countUp = IntTween(begin: 0, end: widget.coins).animate(
+      CurvedAnimation(
+        parent: _ctrl,
+        curve: const Interval(0.15, 0.65, curve: Curves.easeOut),
+      ),
+    );
+
+    _ctrl.forward().whenComplete(() {
+      if (mounted) widget.onDone();
+    });
+
+    if (widget.soundEnabled) _tryPlayWinSound();
+  }
+
+  Future<void> _tryPlayWinSound() async {
+    // TODO: add assets/sounds/lucky_bag_win.mp3 and assets/sounds/coin_rain.mp3
+    try {
+      final player = AudioPlayer();
+      await player.setAsset('assets/sounds/lucky_bag_win.mp3');
+      await player.play();
+      unawaited(player.dispose());
+    } catch (_) {/* asset not yet added */}
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _ctrl,
+        builder: (context, _) {
+          final fade = _masterFade.value.clamp(0.0, 1.0);
+          return Opacity(
+            opacity: fade,
+            child: Stack(
+              children: [
+                // Subtle dark overlay
+                Container(
+                  color: Colors.black.withValues(alpha: 0.35 * fade),
+                ),
+
+                // Falling coins
+                ..._buildRain(screenWidth, screenHeight),
+
+                // Win text card in center
+                Center(
+                  child: Transform.translate(
+                    offset: Offset(0, _textBounce.value),
+                    child: Transform.scale(
+                      scale: _textScale.value,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 36, vertical: 24),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFF8B0000),
+                              Color(0xFFBF1B0B),
+                              Color(0xFF8B0000),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(28),
+                          border: Border.all(
+                            color: const Color(0xFFFFD700)
+                                .withValues(alpha: 0.6),
+                            width: 2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFFFD700)
+                                  .withValues(alpha: 0.35),
+                              blurRadius: 30,
+                              spreadRadius: 2,
+                            ),
+                            BoxShadow(
+                              color: const Color(0xFFE63946)
+                                  .withValues(alpha: 0.4),
+                              blurRadius: 20,
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.card_giftcard_rounded,
+                              size: 52,
+                              color: Color(0xFFFFD700),
+                            ),
+                            const SizedBox(height: 10),
+                            const Text(
+                              'You got',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.monetization_on_rounded,
+                                  color: Color(0xFFFFD700),
+                                  size: 32,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '${_countUp.value}',
+                                  style: const TextStyle(
+                                    color: Color(0xFFFFD700),
+                                    fontSize: 48,
+                                    fontWeight: FontWeight.w900,
+                                    height: 1.0,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'coins!',
+                              style: TextStyle(
+                                color: Color(0xFFFFD700),
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  List<Widget> _buildRain(double w, double h) {
+    return List.generate(10, (i) {
+      final xFrac = _coinXFractions[i];
+      final delay = _coinDelayFractions[i];
+      final coinProgress = CurvedAnimation(
+        parent: _ctrl,
+        curve: Interval(
+          delay,
+          (delay + 0.72).clamp(0.0, 1.0),
+          curve: Curves.easeIn,
+        ),
+      );
+      return AnimatedBuilder(
+        animation: coinProgress,
+        builder: (_, _) {
+          final p = coinProgress.value;
+          final y = -30.0 + p * (h + 40);
+          final opacity = p < 0.85 ? 1.0 : (1.0 - (p - 0.85) / 0.15);
+          return Positioned(
+            left: xFrac * w - 12,
+            top: y,
+            child: Opacity(
+              opacity: opacity.clamp(0.0, 1.0),
+              child: Transform.rotate(
+                angle: p * 2 * math.pi * (i.isEven ? 1 : -1),
+                child: Icon(
+                  Icons.monetization_on_rounded,
+                  size: 22 + (i % 3) * 4.0,
+                  color: const Color(0xFFFFD700),
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    });
+  }
+}
