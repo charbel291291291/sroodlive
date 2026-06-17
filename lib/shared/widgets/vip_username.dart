@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
-import '../../core/utils/vip_visuals.dart';
+import '../../core/vip/vip_spec.dart';
 
 /// Renders a username with the VIP visual style for its level.
 ///
-/// - Non-VIP (null / 0 / expired -> pass 0) renders plain white text.
-/// - VIP 1-5 use a solid escalating color (+ soft glow from VIP 5).
-/// - VIP 6-10 paint the name with the tier gradient and a stronger glow.
+/// - Non-VIP (null / 0 / expired → pass 0) renders plain white text.
+/// - VIP 1–5: solid escalating colour + soft glow from VIP 5.
+/// - VIP 6–9: gradient name paint with stronger glow.
 ///
-/// Display only - never grants or changes VIP.
+/// Display only — never grants or changes VIP.
 class VipUsername extends StatelessWidget {
   const VipUsername({
     required this.name,
@@ -31,14 +31,31 @@ class VipUsername extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = getVipVisualStyle(vipLevel);
+    final level = vipLevel ?? 0;
+    final spec  = VipSpecResolver.resolve(level);
+
+    // Level 0: plain text, no VIP styling.
+    if (!spec.hasBadge) {
+      return Text(
+        name,
+        maxLines: maxLines,
+        overflow: TextOverflow.ellipsis,
+        textAlign: textAlign,
+        style: TextStyle(
+          fontSize: fontSize,
+          height: 1.0,
+          fontWeight: fontWeight ?? FontWeight.w900,
+          color: normalColor,
+        ),
+      );
+    }
 
     final baseStyle = TextStyle(
       fontSize: fontSize,
       height: 1.0,
-      fontWeight: fontWeight ?? style?.fontWeight ?? FontWeight.w900,
-      color: style?.nameColor ?? normalColor,
-      shadows: style?.nameShadows(),
+      fontWeight: fontWeight ?? spec.nameFontWeight,
+      color: spec.nameColor,
+      shadows: spec.nameShadows(),
     );
 
     final text = Text(
@@ -49,14 +66,12 @@ class VipUsername extends StatelessWidget {
       style: baseStyle,
     );
 
-    if (style == null || !style.useNameGradient) {
-      return text;
-    }
+    if (!spec.useNameGradient) return text;
 
-    // Premium tiers: paint the glyphs with the tier gradient.
+    // Premium tiers: paint glyphs with the tier gradient.
     return ShaderMask(
       shaderCallback: (bounds) => LinearGradient(
-        colors: style.nameGradient,
+        colors: spec.nameGradient,
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ).createShader(bounds),
@@ -85,13 +100,12 @@ class GoldenIdBadge extends StatelessWidget {
     super.key,
   });
 
-  /// The fully-formatted id string to display, e.g. "ID:007". Not modified.
   final String idText;
   final VoidCallback? onTap;
   final bool compact;
   final bool showCopyIcon;
 
-  static const _gold = Color(0xFFF0C15A);
+  static const _gold       = Color(0xFFF0C15A);
   static const _goldBright = Color(0xFFFFE9A8);
 
   @override

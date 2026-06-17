@@ -2,8 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../core/vip/vip_spec.dart';
 import '../../features/rooms/utils/vip_room_features.dart';
-import 'vip_framed_avatar.dart';
 
 const Map<String, String> avatarFrameAssetPaths = {
   'luxury_ruby_royal': 'assets/avatar_frames/luxury_ruby_royal.png',
@@ -169,18 +169,20 @@ class AvatarWithFrame extends StatelessWidget {
   }
 
   double _frameScale(String? frameKey, {required bool compact}) {
-    // VIP PNG frames (vip_1 ... vip_9): the frame box is ~1.35× the avatar so the
-    // photo fills the wreath opening nicely (avatar ≈ 74% of the frame width)
-    // while the crown / wings / VIP label stay fully visible around it.
     if (frameKey != null && frameKey.startsWith('vip_')) {
-      return compact ? 1.32 : 1.35;
+      // Delegate to the shared helper for consistent scale across all widgets.
+      return vipFrameScale(
+        int.tryParse(frameKey.substring(4)) ?? 0,
+        compact: compact,
+      );
     }
     return switch (frameKey) {
       'custom_srood_live' ||
       'custom_super_admin' ||
       'custom_admin' ||
       'custom_luxury_gold' ||
-      'custom_luxury_diamond' => compact ? 1.18 : 1.45,
+      'custom_luxury_diamond' =>
+        vipFrameScale(0, compact: compact, custom: true),
       'luxury_ruby_royal' || 'luxury_ruby_royal_dark' => 1.42,
       _ => compact ? 1.08 : 1.18,
     };
@@ -188,10 +190,8 @@ class AvatarWithFrame extends StatelessWidget {
 
   String? _frameAssetPath(String? frameKey) {
     if (frameKey == null) return null;
-    // Static custom/luxury frames
     final staticPath = avatarFrameAssetPaths[frameKey];
     if (staticPath != null) return staticPath;
-    // Dynamic VIP PNG frames: key pattern 'vip_1' ... 'vip_9'
     if (frameKey.startsWith('vip_')) {
       final level = int.tryParse(frameKey.substring(4));
       if (level != null) return vipFrameAssetPath(level);

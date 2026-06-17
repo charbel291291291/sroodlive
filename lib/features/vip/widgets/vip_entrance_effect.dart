@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/vip/vip_prestige.dart';
+import '../../../core/vip/vip_spec.dart';
 import '../models/user_vip.dart';
 
 /// Displays a slide-in banner announcing a VIP user entering the room.
-/// Auto-dismisses after the prestige-defined duration.
+/// Auto-dismisses after the spec-defined duration.
 class VipEntranceEffect extends StatefulWidget {
   const VipEntranceEffect({
     required this.userVip,
@@ -28,12 +28,12 @@ class _VipEntranceEffectState extends State<VipEntranceEffect>
   late final AnimationController _ctrl;
   late final Animation<Offset> _slide;
   late final Animation<double> _fade;
-  late final VipPrestige _prestige;
+  late final VipSpec _spec;
 
   @override
   void initState() {
     super.initState();
-    _prestige = VipVisualResolver.resolve(widget.userVip.effectiveVipLevel);
+    _spec = VipSpecResolver.resolve(widget.userVip.effectiveVipLevel);
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 450),
@@ -45,8 +45,7 @@ class _VipEntranceEffectState extends State<VipEntranceEffect>
     _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
 
     _ctrl.forward();
-
-    Future.delayed(_prestige.entryBannerDuration, _dismiss);
+    Future.delayed(_spec.entranceDuration, _dismiss);
   }
 
   void _dismiss() {
@@ -77,12 +76,12 @@ class _VipEntranceEffectState extends State<VipEntranceEffect>
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: _prestige.gradientColors,
+                colors: _spec.bannerGradient,
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(16),
-              boxShadow: _prestige.buildGlowShadows(),
+              boxShadow: _spec.buildGlowShadows(),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -95,8 +94,8 @@ class _VipEntranceEffectState extends State<VipEntranceEffect>
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: _prestige.avatarRingColor,
-                        width: _prestige.avatarRingWidth,
+                        color: _spec.avatarRingColor,
+                        width: _spec.avatarRingWidth,
                       ),
                       image: DecorationImage(
                         image: NetworkImage(widget.avatarUrl!),
@@ -111,15 +110,15 @@ class _VipEntranceEffectState extends State<VipEntranceEffect>
                     Text(
                       widget.username,
                       style: TextStyle(
-                        color: _prestige.entryTextColor,
+                        color: _spec.entryTextColor,
                         fontWeight: FontWeight.w800,
                         fontSize: 13,
                       ),
                     ),
                     Text(
-                      _prestige.badgeLabel,
+                      _spec.badgeLabel,
                       style: TextStyle(
-                        color: _prestige.entryTextColor.withValues(alpha: 0.8),
+                        color: _spec.entryTextColor.withValues(alpha: 0.8),
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
