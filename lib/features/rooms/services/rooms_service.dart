@@ -236,6 +236,8 @@ class RoomsService {
   }
 
   Future<void> joinRoom(String roomId, {String? password}) async {
+    if (roomId.isEmpty) throw StateError('Room ID is missing.');
+
     final client = SupabaseService.requiredClient;
     final user = client.auth.currentUser;
 

@@ -36,9 +36,11 @@ class Room {
   final String? avatarUrl;
 
   factory Room.fromJson(Map<String, dynamic> json) {
+    final rawId = json['id'];
+    final rawOwnerId = json['owner_id'];
     return Room(
-      id: json['id'].toString(),
-      ownerId: json['owner_id'].toString(),
+      id: rawId != null ? rawId.toString() : '',
+      ownerId: rawOwnerId != null ? rawOwnerId.toString() : '',
       name: json['name']?.toString() ?? '',
       description: json['description']?.toString(),
       language: json['language']?.toString() ?? 'ar',

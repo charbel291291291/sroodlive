@@ -51,7 +51,12 @@ class _RoomsScreenState extends State<RoomsScreen> {
       unawaited(_roomsService.closeEmptyRooms());
 
       final rooms = await _roomsService.getRooms();
-      final activeCounts = await _roomsService.getActiveMemberCounts();
+
+      // Active counts are optional — a failure here must not hide the room list.
+      Map<String, int> activeCounts = {};
+      try {
+        activeCounts = await _roomsService.getActiveMemberCounts();
+      } catch (_) {}
 
       if (!mounted) return;
       setState(() {
@@ -77,6 +82,10 @@ class _RoomsScreenState extends State<RoomsScreen> {
       var room = await _roomsService.getOrCreateMyRoom();
 
       if (!mounted) return;
+
+      if (room.id.isEmpty) {
+        throw StateError('Could not load your room — please try again.');
+      }
 
       // If the personal room was closed by the owner, reopen it.
       if (room.isClosed) {
@@ -331,32 +340,49 @@ class _RoomsScreenState extends State<RoomsScreen> {
                     ),
                   ],
                   const SizedBox(width: 4),
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFFD978), Color(0xFFD99A2B)],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(
-                            0xFFF0C15A,
-                          ).withValues(alpha: 0.28),
-                          blurRadius: 22,
-                          offset: const Offset(0, 10),
+                  Tooltip(
+                    message: context.isArabic ? 'غرفتي' : 'My Room',
+                    child: GestureDetector(
+                      onTap: _openingMyRoom ? null : _openMyRoom,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          color: _openingMyRoom
+                              ? const Color(0xFF3A1A6A)
+                              : const Color(0xFF2A1050),
+                          border: Border.all(
+                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.55),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF8B26D9).withValues(
+                                alpha: _openingMyRoom ? 0.45 : 0.22,
+                              ),
+                              blurRadius: _openingMyRoom ? 18 : 10,
+                              spreadRadius: 0,
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: IconButton(
-                      onPressed: _openingMyRoom ? null : _openMyRoom,
-                      color: const Color(0xFF12061F),
-                      icon: _openingMyRoom
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.other_houses_rounded),
+                        child: Center(
+                          child: _openingMyRoom
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Color(0xFFF0C15A),
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.other_houses_rounded,
+                                  color: Color(0xFFF0C15A),
+                                  size: 22,
+                                ),
+                        ),
+                      ),
                     ),
                   ),
                 ],
