@@ -1,11 +1,9 @@
-import 'package:flutter/foundation.dart';
-
 import '../../../core/supabase/supabase_service.dart';
 import '../../../core/vip/vip_privileges.dart';
 import '../../rooms/utils/vip_room_features.dart';
 
 // ---------------------------------------------------------------------------
-// Privilege identifiers — match column names in user_vip_settings.
+// Privilege identifiers â€” match column names in user_vip_settings.
 // ---------------------------------------------------------------------------
 
 enum VipPrivilege {
@@ -24,7 +22,7 @@ enum VipPrivilege {
   /// Corresponding canonical privilege key in VipPrivileges.
   final VipPrivilegeKey privilegeKey;
 
-  /// Minimum VIP level required — delegated to the central config.
+  /// Minimum VIP level required â€” delegated to the central config.
   int get minVipLevel => VipPrivileges.spec(privilegeKey).minVipLevel;
 }
 
@@ -35,10 +33,10 @@ enum VipPrivilege {
 class VipPrivilegeService {
   const VipPrivilegeService();
 
-  // ── Read / write settings ──────────────────────────────────────────────
+  // â”€â”€ Read / write settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /// Load current user's VIP privilege settings.
-  /// Returns a map of [VipPrivilege] → enabled (bool).
+  /// Returns a map of [VipPrivilege] â†’ enabled (bool).
   Future<Map<VipPrivilege, bool>> loadSettings() async {
     final client = SupabaseService.requiredClient;
     final userId = client.auth.currentUser?.id;
@@ -78,25 +76,13 @@ class VipPrivilegeService {
     final client = SupabaseService.requiredClient;
     if (client.auth.currentUser == null) return;
 
-    debugPrint(
-      '[VipPrivilegeService] setSetting RPC:'
-      ' key=${privilege.columnName}'
-      ' enabled=$enabled'
-      ' effectiveVipLevel=$effectiveVipLevel',
-    );
-
-    await client.rpc('set_my_vip_setting', params: {
-      'p_key': privilege.columnName,
-      'p_enabled': enabled,
-    });
-
-    debugPrint(
-      '[VipPrivilegeService] setSetting RPC done:'
-      ' key=${privilege.columnName}',
+    await client.rpc(
+      'set_my_vip_setting',
+      params: {'p_key': privilege.columnName, 'p_enabled': enabled},
     );
   }
 
-  // ── Privilege checks ───────────────────────────────────────────────────
+  // â”€â”€ Privilege checks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /// Whether a VIP level is high enough to use a privilege.
   /// Delegates to the central VipPrivileges config.
@@ -106,7 +92,10 @@ class VipPrivilegeService {
 
   /// Whether the target user has anti-follow enabled (blocks new followers).
   Future<bool> isFollowBlocked(String targetUserId) async {
-    return _isPrivilegeActiveForUser(targetUserId, VipPrivilege.notBeingFollowed);
+    return _isPrivilegeActiveForUser(
+      targetUserId,
+      VipPrivilege.notBeingFollowed,
+    );
   }
 
   /// Whether a moderator can kick the target in a room.
@@ -130,7 +119,7 @@ class VipPrivilegeService {
     return _isPrivilegeActiveForUser(targetUserId, VipPrivilege.doNotDisturb);
   }
 
-  // ── Private helpers ────────────────────────────────────────────────────
+  // â”€â”€ Private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Future<bool> _isPrivilegeActiveForUser(
     String userId,

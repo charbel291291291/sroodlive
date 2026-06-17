@@ -41,13 +41,13 @@ class _VipSettingsScreenState extends State<VipSettingsScreen> {
   }
 
   Future<void> _load() async {
-    debugPrint('[VipSetting] loadSettings: vipLevel=${widget.effectiveVipLevel}');
     final settings = await _svc.loadSettings();
-    debugPrint(
-      '[VipSetting] loadSettings result: '
-      '${settings.map((k, v) => MapEntry(k.columnName, v))}',
-    );
-    if (mounted) setState(() { _settings = settings; _loading = false; });
+    if (mounted) {
+      setState(() {
+        _settings = settings;
+        _loading = false;
+      });
+    }
   }
 
   Future<void> _toggle(VipPrivilege privilege, bool newValue) async {
@@ -57,22 +57,15 @@ class _VipSettingsScreenState extends State<VipSettingsScreen> {
       privilege.privilegeKey,
     );
 
-    debugPrint(
-      '[VipSetting] toggle:'
-      ' key=${privilege.columnName}'
-      ' oldValue=$oldValue'
-      ' newValue=$newValue'
-      ' vipLevel=${widget.effectiveVipLevel}'
-      ' requiredLevel=${privilege.minVipLevel}'
-      ' canUse=$canUse',
-    );
-
     if (!canUse) {
       _showLockedSnack(privilege);
       return;
     }
 
-    setState(() { _settings[privilege] = newValue; _saving = true; });
+    setState(() {
+      _settings[privilege] = newValue;
+      _saving = true;
+    });
 
     try {
       await _svc.setSetting(
@@ -80,19 +73,8 @@ class _VipSettingsScreenState extends State<VipSettingsScreen> {
         enabled: newValue,
         effectiveVipLevel: widget.effectiveVipLevel,
       );
-      debugPrint(
-        '[VipSetting] RPC success:'
-        ' key=${privilege.columnName}'
-        ' enabled=$newValue',
-      );
       if (mounted) _showSuccessSnack(privilege, newValue);
     } catch (e) {
-      debugPrint(
-        '[VipSetting] RPC error:'
-        ' key=${privilege.columnName}'
-        ' error=$e'
-        ' reverting to oldValue=$oldValue',
-      );
       if (mounted) setState(() => _settings[privilege] = oldValue);
       if (mounted) _showError();
     } finally {
@@ -105,105 +87,105 @@ class _VipSettingsScreenState extends State<VipSettingsScreen> {
     final style = VipTierColors.of(minLevel);
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
-      ..showSnackBar(SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.lock_rounded, color: Colors.white54, size: 16),
-            const SizedBox(width: 8),
-            Text(
-              _t(
-                'متاحة من VIP$minLevel فما فوق',
-                'Available from VIP$minLevel and above',
+      ..showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.lock_rounded, color: Colors.white54, size: 16),
+              const SizedBox(width: 8),
+              Text(
+                _t(
+                  'Ù…ØªØ§Ø­Ø© Ù…Ù† VIP$minLevel ÙÙ…Ø§ ÙÙˆÙ‚',
+                  'Available from VIP$minLevel and above',
+                ),
+                style: const TextStyle(color: Colors.white),
               ),
-              style: const TextStyle(color: Colors.white),
-            ),
-          ],
+            ],
+          ),
+          backgroundColor: const Color(0xFF1A0D33),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: style.border.withValues(alpha: 0.6)),
+          ),
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         ),
-        backgroundColor: const Color(0xFF1A0D33),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: style.border.withValues(alpha: 0.6)),
-        ),
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      ));
+      );
   }
 
   void _showSuccessSnack(VipPrivilege privilege, bool enabled) {
     final pSpec = VipPrivileges.spec(privilege.privilegeKey);
     final label = context.isArabic ? pSpec.labelAr : pSpec.label;
     final msg = enabled
-        ? _t(
-            'تم تفعيل $label',
-            '$label enabled',
-          )
-        : _t(
-            'تم إيقاف $label',
-            '$label disabled',
-          );
+        ? _t('ØªÙ… ØªÙØ¹ÙŠÙ„ $label', '$label enabled')
+        : _t('ØªÙ… Ø¥ÙŠÙ‚Ø§Ù $label', '$label disabled');
 
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
-      ..showSnackBar(SnackBar(
-        content: Row(
-          children: [
-            const Icon(
-              Icons.check_circle_rounded,
-              color: Color(0xFF22C55E),
-              size: 16,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(msg, style: const TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-        backgroundColor: const Color(0xFF0D2A1A),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(
-            color: const Color(0xFF22C55E).withValues(alpha: 0.4),
+      ..showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(
+                Icons.check_circle_rounded,
+                color: Color(0xFF22C55E),
+                size: 16,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(msg, style: const TextStyle(color: Colors.white)),
+              ),
+            ],
           ),
+          backgroundColor: const Color(0xFF0D2A1A),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+              color: const Color(0xFF22C55E).withValues(alpha: 0.4),
+            ),
+          ),
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         ),
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      ));
+      );
   }
 
   void _showError() {
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
-      ..showSnackBar(SnackBar(
-        content: Row(
-          children: [
-            const Icon(
-              Icons.error_rounded,
-              color: Color(0xFFEF4444),
-              size: 16,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                _t(
-                  'حدث خطأ، يرجى المحاولة مجدداً',
-                  'Something went wrong. Setting reverted.',
-                ),
-                style: const TextStyle(color: Colors.white),
+      ..showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(
+                Icons.error_rounded,
+                color: Color(0xFFEF4444),
+                size: 16,
               ),
-            ),
-          ],
-        ),
-        backgroundColor: const Color(0xFF2A0F1A),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(
-            color: const Color(0xFFEF4444).withValues(alpha: 0.4),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _t(
+                    'Ø­Ø¯Ø« Ø®Ø·Ø£ØŒ ÙŠØ±Ø¬Ù‰ Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø© Ù…Ø¬Ø¯Ø¯Ø§Ù‹',
+                    'Something went wrong. Setting reverted.',
+                  ),
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
           ),
+          backgroundColor: const Color(0xFF2A0F1A),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+              color: const Color(0xFFEF4444).withValues(alpha: 0.4),
+            ),
+          ),
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         ),
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      ));
+      );
   }
 
   static const _privilegeIcons = <VipPrivilege, IconData>{
@@ -248,7 +230,7 @@ class _VipSettingsScreenState extends State<VipSettingsScreen> {
           elevation: 0,
           centerTitle: true,
           title: Text(
-            _t('إعدادات VIP', 'VIP Settings'),
+            _t('Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª VIP', 'VIP Settings'),
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w800,
@@ -294,10 +276,7 @@ class _VipSettingsScreenState extends State<VipSettingsScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
                     sliver: SliverToBoxAdapter(
                       child: Text(
-                        _t(
-                          'مزايا VIP',
-                          'VIP Privileges',
-                        ),
+                        _t('Ù…Ø²Ø§ÙŠØ§ VIP', 'VIP Privileges'),
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.55),
                           fontSize: 12,
@@ -323,7 +302,7 @@ class _VipSettingsScreenState extends State<VipSettingsScreen> {
 }
 
 // ---------------------------------------------------------------------------
-// VIP level banner at the top — tinted with real tier color
+// VIP level banner at the top â€” tinted with real tier color
 // ---------------------------------------------------------------------------
 
 class _VipLevelBanner extends StatelessWidget {
@@ -364,17 +343,14 @@ class _VipLevelBanner extends StatelessWidget {
             VipBadge(vipLevel: vipLevel, compact: false)
           else
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.15),
-                ),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
               ),
               child: Text(
-                isArabic ? 'بدون VIP' : 'No VIP',
+                isArabic ? 'Ø¨Ø¯ÙˆÙ† VIP' : 'No VIP',
                 style: const TextStyle(
                   color: Colors.white54,
                   fontSize: 13,
@@ -387,11 +363,11 @@ class _VipLevelBanner extends StatelessWidget {
             child: Text(
               hasVip
                   ? (isArabic
-                      ? 'فعّل أو أوقف المزايا المتاحة لمستواك'
-                      : 'Toggle the privileges available for your VIP level')
+                        ? 'ÙØ¹Ù‘Ù„ Ø£Ùˆ Ø£ÙˆÙ‚Ù Ø§Ù„Ù…Ø²Ø§ÙŠØ§ Ø§Ù„Ù…ØªØ§Ø­Ø© Ù„Ù…Ø³ØªÙˆØ§Ùƒ'
+                        : 'Toggle the privileges available for your VIP level')
                   : (isArabic
-                      ? 'احصل على VIP لتفعيل المزايا'
-                      : 'Get VIP to unlock privileges'),
+                        ? 'Ø§Ø­ØµÙ„ Ø¹Ù„Ù‰ VIP Ù„ØªÙØ¹ÙŠÙ„ Ø§Ù„Ù…Ø²Ø§ÙŠØ§'
+                        : 'Get VIP to unlock privileges'),
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.7),
                 fontSize: 12,
@@ -470,9 +446,7 @@ class _PrivilegeCard extends StatelessWidget {
                   child: Icon(
                     icon,
                     size: 20,
-                    color: _unlocked
-                        ? const Color(0xFF5DDCFF)
-                        : Colors.white38,
+                    color: _unlocked ? const Color(0xFF5DDCFF) : Colors.white38,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -537,7 +511,7 @@ class _PrivilegeCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// VIP requirement pill — real tier color for locked, green check for unlocked
+// VIP requirement pill â€” real tier color for locked, green check for unlocked
 // ---------------------------------------------------------------------------
 
 class _VipRequirementPill extends StatelessWidget {
@@ -566,7 +540,7 @@ class _VipRequirementPill extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           Text(
-            isArabic ? 'متاحة' : 'Unlocked',
+            isArabic ? 'Ù…ØªØ§Ø­Ø©' : 'Unlocked',
             style: const TextStyle(
               color: Color(0xFF22C55E),
               fontSize: 10,
@@ -581,7 +555,7 @@ class _VipRequirementPill extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          isArabic ? 'من ' : 'From ',
+          isArabic ? 'Ù…Ù† ' : 'From ',
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.35),
             fontSize: 9,

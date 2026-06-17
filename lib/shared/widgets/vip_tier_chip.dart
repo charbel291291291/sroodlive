@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../theme/vip_tier_colors.dart';
 
@@ -60,4 +60,3 @@ class VipTierChip extends StatelessWidget {
     );
   }
 }
-
