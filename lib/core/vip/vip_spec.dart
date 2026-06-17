@@ -207,6 +207,10 @@ double vipFrameScale(int level, {bool compact = false, bool custom = false}) {
   return 1.0;
 }
 
+// TODO Phase 5: decide whether VIP 10 is a reserved admin tier or whether
+//              the DB constraint should be clamped to 0–9 permanently.
+//              Flutter already clamps via .clamp(0, 9) everywhere.
+
 // ─────────────────────────────────────────────────────────────────────────────
 // VipSpecResolver — call resolve(level) from anywhere in the app
 // ─────────────────────────────────────────────────────────────────────────────

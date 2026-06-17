@@ -61,7 +61,11 @@ class VipPrivilegeService {
   }
 
   /// Save one privilege toggle for the current user.
-  /// Does nothing if the user's effective VIP level is too low.
+  ///
+  /// Uses the [set_my_vip_setting] RPC which enforces the VIP level requirement
+  /// server-side before writing to user_vip_settings.
+  /// Does nothing (client-side guard) if [effectiveVipLevel] is already too low.
+  /// Throws on backend error so the caller can revert optimistic UI updates.
   Future<void> setSetting({
     required VipPrivilege privilege,
     required bool enabled,
@@ -70,17 +74,15 @@ class VipPrivilegeService {
     if (!canUsePrivilege(effectiveVipLevel, privilege)) return;
 
     final client = SupabaseService.requiredClient;
-    final userId = client.auth.currentUser?.id;
-    if (userId == null) return;
+    if (client.auth.currentUser == null) return;
 
-    await client.from('user_vip_settings').upsert(
-      {
-        'user_id': userId,
-        privilege.columnName: enabled,
-        'updated_at': DateTime.now().toIso8601String(),
-      },
-      onConflict: 'user_id',
-    );
+    // Server-side enforcement via RPC — validates level before writing.
+    // TODO Phase 5: remove direct UPDATE RLS policy on user_vip_settings
+    //              once this RPC is confirmed stable in production.
+    await client.rpc('set_my_vip_setting', params: {
+      'p_key': privilege.columnName,
+      'p_enabled': enabled,
+    });
   }
 
   // ── Privilege checks ───────────────────────────────────────────────────

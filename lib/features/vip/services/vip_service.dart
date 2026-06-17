@@ -215,6 +215,33 @@ class VipService {
     await grantVip(userId: userId, vipLevel: 0, durationDays: 0);
   }
 
+  /// Admin: set or clear the Golden ID badge on a user's profile.
+  ///
+  /// [enabled] = true  → activates Golden ID.
+  ///   [durationDays] null = permanent; a positive number = expires after N days.
+  /// [enabled] = false → clears Golden ID and its expiry.
+  ///
+  /// Returns the updated profile fields or throws on permission denial.
+  Future<Map<String, dynamic>> setGoldenId({
+    required String userId,
+    required bool enabled,
+    int? durationDays,
+  }) async {
+    final params = <String, dynamic>{
+      'p_user_id': userId,
+      'p_enabled': enabled,
+    };
+    if (durationDays != null) params['p_duration_days'] = durationDays;
+
+    final raw = await SupabaseService.requiredClient.rpc(
+      'set_golden_id',
+      params: params,
+    );
+    // Invalidate cache so the next read reflects the change.
+    _cache.remove(userId);
+    return Map<String, dynamic>.from(raw as Map);
+  }
+
   /// Trigger expiry sweep on the server.
   Future<int> expireOldVips() async {
     final count = await SupabaseService.requiredClient.rpc('expire_old_vips');
