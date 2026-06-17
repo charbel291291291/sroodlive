@@ -1,10 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../../../core/vip/vip_privileges.dart';
 import '../../../core/vip/vip_spec.dart';
+import '../../../features/admin/services/admin_access_service.dart';
 import '../../../shared/widgets/vip_framed_avatar.dart';
 import '../../vip/screens/vip_settings_screen.dart';
+import '../../vip/services/vip_service.dart';
 import '../services/gamification_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
+
+// ── Palette ───────────────────────────────────────────────────────────────────
+
+const _kBg         = Color(0xFF07030D);
+const _kCard       = Color(0xFF12091D);
+const _kCardBorder = Color(0xFF2A1845);
+const _kGold       = Color(0xFFF0C15A);
+const _kSubtext    = Color(0xFF7A6890);
+const _kText       = Color(0xFFD8CFEA);
+const _kPurpleDeep = Color(0xFF4B168C);
+const _kPurpleMid  = Color(0xFF8B26D9);
+const _kGreen      = Color(0xFF2ECC71);
+const _kRed        = Color(0xFFFF5C7A);
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 class VipCenterScreen extends StatefulWidget {
   const VipCenterScreen({
@@ -24,14 +43,22 @@ class VipCenterScreen extends StatefulWidget {
 
 class _VipCenterScreenState extends State<VipCenterScreen> {
   final _service = const GamificationService();
+
   List<Map<String, dynamic>> _plans = [];
   bool _loading = true;
   String? _error;
 
+  late int _selectedTier;
+
+  AdminRole _adminRole = AdminRole.empty;
+  bool _adminLoading = true;
+
   @override
   void initState() {
     super.initState();
+    _selectedTier = widget.currentVipLevel.clamp(1, 9);
     _load();
+    _loadAdminRole();
   }
 
   Future<void> _load() async {
@@ -55,6 +82,32 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
     }
   }
 
+  Future<void> _loadAdminRole() async {
+    try {
+      final role = await const AdminAccessService().fetchCurrentAdminRole();
+      if (!mounted) return;
+      setState(() {
+        _adminRole = role;
+        _adminLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _adminLoading = false);
+    }
+  }
+
+  String _planNameForLevel(int level) {
+    for (final p in _plans) {
+      if ((p['level'] as int?) == level) {
+        final name = context.isArabic
+            ? (p['arabic_name'] ?? p['name'])
+            : p['name'];
+        return name?.toString() ?? 'VIP $level';
+      }
+    }
+    return 'VIP $level';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -64,7 +117,7 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF12061F), Color(0xFF07030D), Color(0xFF050208)],
+            colors: [Color(0xFF12061F), _kBg, Color(0xFF050208)],
           ),
         ),
         child: SafeArea(
@@ -103,72 +156,59 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
   Widget _buildBody() {
     if (_loading) {
       return const Center(
-        child: CircularProgressIndicator(
-          color: Color(0xFFF0C15A),
-          strokeWidth: 2.5,
-        ),
+        child: CircularProgressIndicator(color: _kGold, strokeWidth: 2.5),
       );
     }
     if (_error != null) return _buildError();
 
     return RefreshIndicator(
-      color: const Color(0xFFF0C15A),
+      color: _kGold,
       backgroundColor: const Color(0xFF1B102A),
       onRefresh: _load,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
           _CurrentStatusCard(
             vipLevel: widget.currentVipLevel,
             expiresAt: widget.vipExpiresAt,
             isArabic: context.isArabic,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           _VipSettingsButton(
             vipLevel: widget.currentVipLevel,
             isArabic: context.isArabic,
           ),
-          const SizedBox(height: 20),
-          Text(
-            context.isArabic ? 'خطط VIP' : 'VIP Plans',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-            ),
+          const SizedBox(height: 24),
+          _SectionLabel(
+            label: context.isArabic ? 'استكشاف مستويات VIP' : 'Explore VIP Tiers',
+            isArabic: context.isArabic,
           ),
           const SizedBox(height: 10),
-          ..._plans.map(
-            (plan) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _VipPlanCard(
-                plan: plan,
-                isCurrent:
-                    (plan['level'] as int?) == widget.currentVipLevel &&
-                    widget.currentVipLevel > 0,
-                isArabic: context.isArabic,
-                onTap: () => _showUpgradeInfo(plan),
-              ),
-            ),
+          _TierSelector(
+            selected: _selectedTier,
+            currentLevel: widget.currentVipLevel,
+            onSelect: (t) => setState(() => _selectedTier = t),
           ),
-          const SizedBox(height: 8),
-          _ContactSupportButton(isArabic: context.isArabic),
+          const SizedBox(height: 16),
+          _TierPreviewCard(
+            level: _selectedTier,
+            isArabic: context.isArabic,
+            planName: _planNameForLevel(_selectedTier),
+            isCurrent: _selectedTier == widget.currentVipLevel &&
+                widget.currentVipLevel > 0,
+          ),
+          const SizedBox(height: 16),
+          _BenefitsList(
+            level: _selectedTier,
+            isArabic: context.isArabic,
+          ),
+          const SizedBox(height: 20),
+          _ContactAdminButton(isArabic: context.isArabic),
+          if (!_adminLoading && _adminRole.hasPermission(kPermVipGrant)) ...[
+            const SizedBox(height: 24),
+            _AdminVipPanel(isArabic: context.isArabic),
+          ],
         ],
-      ),
-    );
-  }
-
-  void _showUpgradeInfo(Map<String, dynamic> plan) {
-    final level = (plan['level'] as int?) ?? 0;
-    final name = plan['name']?.toString() ?? 'VIP $level';
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => _UpgradeInfoSheet(
-        plan: plan,
-        planName: name,
-        isArabic: context.isArabic,
       ),
     );
   }
@@ -177,23 +217,19 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(
-          Icons.error_outline_rounded,
-          color: Color(0xFFFF5C7A),
-          size: 40,
-        ),
+        const Icon(Icons.error_outline_rounded, color: _kRed, size: 40),
         const SizedBox(height: 12),
         Text(
           _error!,
           textAlign: TextAlign.center,
-          style: const TextStyle(color: Color(0xFFD8CFEA), fontSize: 13),
+          style: const TextStyle(color: _kText, fontSize: 13),
         ),
         const SizedBox(height: 16),
         TextButton(
           onPressed: _load,
           child: Text(
             context.isArabic ? 'إعادة المحاولة' : 'Retry',
-            style: const TextStyle(color: Color(0xFFF0C15A)),
+            style: const TextStyle(color: _kGold),
           ),
         ),
       ],
@@ -201,9 +237,32 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
   );
 }
 
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
+// Section label
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel({required this.label, required this.isArabic});
+  final String label;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: isArabic ? Alignment.centerRight : Alignment.centerLeft,
+    child: Text(
+      label,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 15,
+        fontWeight: FontWeight.w900,
+      ),
+    ),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Current status card
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _CurrentStatusCard extends StatelessWidget {
   const _CurrentStatusCard({
@@ -241,7 +300,7 @@ class _CurrentStatusCard extends StatelessWidget {
         border: Border.all(
           color: reallyActive
               ? spec.glowColor.withValues(alpha: 0.5)
-              : const Color(0xFF4A3470),
+              : _kCardBorder,
           width: reallyActive ? 1.5 : 1,
         ),
       ),
@@ -258,42 +317,29 @@ class _CurrentStatusCard extends StatelessWidget {
               children: [
                 Text(
                   reallyActive
-                      ? (isArabic
-                            ? 'VIP $vipLevel نشط'
-                            : 'VIP $vipLevel Active')
+                      ? (isArabic ? 'VIP $vipLevel نشط' : 'VIP $vipLevel Active')
                       : (isArabic ? 'لا يوجد VIP نشط' : 'No Active VIP'),
                   style: TextStyle(
-                    color: reallyActive
-                        ? const Color(0xFFF0C15A)
-                        : const Color(0xFF7A6890),
+                    color: reallyActive ? _kGold : _kSubtext,
                     fontSize: 16,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                if (reallyActive && expiresAt != null) ...[
-                  const SizedBox(height: 4),
+                const SizedBox(height: 4),
+                if (reallyActive && expiresAt != null)
                   Text(
                     isArabic
                         ? 'ينتهي: ${_fmtDate(expiresAt!)}'
                         : 'Expires: ${_fmtDate(expiresAt!)}',
-                    style: const TextStyle(
-                      color: Color(0xFFD8CFEA),
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-                if (!reallyActive) ...[
-                  const SizedBox(height: 4),
+                    style: const TextStyle(color: _kText, fontSize: 12),
+                  )
+                else
                   Text(
                     isArabic
-                        ? 'تواصل مع الدعم للحصول على VIP'
-                        : 'Contact support to get VIP',
-                    style: const TextStyle(
-                      color: Color(0xFF7A6890),
-                      fontSize: 12,
-                    ),
+                        ? 'تواصل مع الإدارة للحصول على VIP'
+                        : 'Contact admin to get VIP',
+                    style: const TextStyle(color: _kSubtext, fontSize: 12),
                   ),
-                ],
               ],
             ),
           ),
@@ -305,544 +351,12 @@ class _CurrentStatusCard extends StatelessWidget {
   String _fmtDate(DateTime d) => '${d.day}/${d.month}/${d.year}';
 }
 
-// ---------------------------------------------------------------------------
-// VIP plan card
-// ---------------------------------------------------------------------------
-
-class _VipPlanCard extends StatelessWidget {
-  const _VipPlanCard({
-    required this.plan,
-    required this.isCurrent,
-    required this.isArabic,
-    required this.onTap,
-  });
-  final Map<String, dynamic> plan;
-  final bool isCurrent;
-  final bool isArabic;
-  final VoidCallback onTap;
-
-  String _fmt(int n) {
-    if (n >= 1000000) {
-      return '${(n / 1000000).toStringAsFixed(n % 1000000 == 0 ? 0 : 1)}M';
-    }
-    if (n >= 1000) {
-      return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}K';
-    }
-    return '$n';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final level = (plan['level'] as int?) ?? 0;
-    final name = plan['name']?.toString() ?? 'VIP $level';
-    final priceCoins = (plan['price_coins'] as num?)?.toInt() ?? 0;
-    final duration = (plan['duration_days'] as num?)?.toInt() ?? 30;
-    final benefits = (plan['benefits'] as List<dynamic>?) ?? [];
-    final spec = VipSpecResolver.resolve(level);
-
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF12091D),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isCurrent
-                ? const Color(0xFFF0C15A)
-                : (level > 0
-                      ? spec.glowColor.withValues(alpha: 0.3)
-                      : const Color(0xFF4A3470)),
-            width: isCurrent ? 1.5 : 1,
-          ),
-          boxShadow: isCurrent
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFFF0C15A).withValues(alpha: 0.1),
-                    blurRadius: 12,
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
-          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Level badge
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: level > 0
-                      ? [
-                          spec.glowColor,
-                          spec.glowColor.withValues(alpha: 0.5),
-                        ]
-                      : const [Color(0xFF4B168C), Color(0xFF8B26D9)],
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  '$level',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 14),
-
-            Expanded(
-              child: Column(
-                crossAxisAlignment: isArabic
-                    ? CrossAxisAlignment.end
-                    : CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    textDirection: isArabic
-                        ? TextDirection.rtl
-                        : TextDirection.ltr,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          name,
-                          style: TextStyle(
-                            color: level > 0 ? spec.nameColor : Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                      if (isCurrent)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(
-                              0xFFF0C15A,
-                            ).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(
-                              color: const Color(
-                                0xFFF0C15A,
-                              ).withValues(alpha: 0.5),
-                            ),
-                          ),
-                          child: Text(
-                            isArabic ? 'نشط' : 'Active',
-                            style: const TextStyle(
-                              color: Color(0xFFF0C15A),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    textDirection: isArabic
-                        ? TextDirection.rtl
-                        : TextDirection.ltr,
-                    children: [
-                      const Icon(
-                        Icons.monetization_on_rounded,
-                        color: Color(0xFFF0C15A),
-                        size: 14,
-                      ),
-                      const SizedBox(width: 3),
-                      Text(
-                        _fmt(priceCoins),
-                        style: const TextStyle(
-                          color: Color(0xFFF0C15A),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        isArabic ? '· $duration يوم' : '· $duration days',
-                        style: const TextStyle(
-                          color: Color(0xFF7A6890),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (benefits.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      children: benefits
-                          .take(3)
-                          .map(
-                            (b) => Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1B102A),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: const Color(0xFF3D2260),
-                                ),
-                              ),
-                              child: Text(
-                                b.toString(),
-                                style: const TextStyle(
-                                  color: Color(0xFFD8CFEA),
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: Color(0xFF4A3470),
-              size: 20,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Upgrade info sheet (VIP is admin-granted, no direct purchase)
-// ---------------------------------------------------------------------------
-
-class _UpgradeInfoSheet extends StatelessWidget {
-  const _UpgradeInfoSheet({
-    required this.plan,
-    required this.planName,
-    required this.isArabic,
-  });
-  final Map<String, dynamic> plan;
-  final String planName;
-  final bool isArabic;
-
-  String _fmt(int n) {
-    if (n >= 1000000) {
-      return '${(n / 1000000).toStringAsFixed(n % 1000000 == 0 ? 0 : 1)}M';
-    }
-    if (n >= 1000) {
-      return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}K';
-    }
-    return '$n';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final level = (plan['level'] as int?) ?? 0;
-    final priceCoins = (plan['price_coins'] as num?)?.toInt() ?? 0;
-    final duration = (plan['duration_days'] as num?)?.toInt() ?? 30;
-    final benefits = (plan['benefits'] as List<dynamic>?) ?? [];
-    final spec = VipSpecResolver.resolve(level);
-    final maxHeight = MediaQuery.of(context).size.height * 0.85;
-
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: maxHeight),
-      child: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF12091D),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Drag handle
-            Padding(
-              padding: const EdgeInsets.only(top: 12, bottom: 4),
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4A3470),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-
-            // Scrollable body
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                child: Column(
-                  children: [
-                    // VIP level circle
-                    Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          colors: level > 0
-                              ? [
-                                  spec.glowColor,
-                                  spec.glowColor.withValues(alpha: 0.5),
-                                ]
-                              : const [
-                                  Color(0xFF4B168C),
-                                  Color(0xFF8B26D9),
-                                ],
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          '$level',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 28,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      planName,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.monetization_on_rounded,
-                          color: Color(0xFFF0C15A),
-                          size: 18,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _fmt(priceCoins),
-                          style: const TextStyle(
-                            color: Color(0xFFF0C15A),
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          isArabic ? '/ $duration يوم' : '/ $duration days',
-                          style: const TextStyle(
-                            color: Color(0xFF7A6890),
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (benefits.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      ...benefits.map(
-                        (b) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(
-                            textDirection: isArabic
-                                ? TextDirection.rtl
-                                : TextDirection.ltr,
-                            children: [
-                              const Icon(
-                                Icons.check_circle_outline_rounded,
-                                color: Color(0xFF2ECC71),
-                                size: 16,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  b.toString(),
-                                  style: const TextStyle(
-                                    color: Color(0xFFD8CFEA),
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1B102A),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFF4A3470)),
-                      ),
-                      child: Row(
-                        textDirection: isArabic
-                            ? TextDirection.rtl
-                            : TextDirection.ltr,
-                        children: [
-                          const Icon(
-                            Icons.info_outline_rounded,
-                            color: Color(0xFFF0C15A),
-                            size: 20,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              isArabic
-                                  ? 'يتم منح VIP من قِبل الإدارة. تواصل مع وكيل الشحن أو الدعم للترقية.'
-                                  : 'VIP is granted by admins. Contact a recharge agent or support to upgrade.',
-                              style: const TextStyle(
-                                color: Color(0xFFD8CFEA),
-                                fontSize: 13,
-                                height: 1.4,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                ),
-              ),
-            ),
-
-            // Fixed CTA button — always visible, never pushed off screen
-            SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4B168C),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: Text(
-                      isArabic ? 'حسناً' : 'Got it',
-                      style: const TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Contact support button
-// ---------------------------------------------------------------------------
-
-class _ContactSupportButton extends StatelessWidget {
-  const _ContactSupportButton({required this.isArabic});
-  final bool isArabic;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF4B168C), Color(0xFF8B26D9)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF8B26D9).withValues(alpha: 0.3),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.support_agent_rounded,
-              color: Colors.white,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: isArabic
-                  ? CrossAxisAlignment.end
-                  : CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isArabic ? 'تواصل مع الدعم' : 'Contact Support',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                Text(
-                  isArabic
-                      ? 'للاستفسار عن VIP والشحن'
-                      : 'For VIP & recharge enquiries',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.75),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Icon(
-            Icons.chevron_right_rounded,
-            color: Colors.white,
-            size: 22,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// VIP Settings shortcut button
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
+// VIP settings shortcut
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _VipSettingsButton extends StatelessWidget {
   const _VipSettingsButton({required this.vipLevel, required this.isArabic});
-
   final int vipLevel;
   final bool isArabic;
 
@@ -862,7 +376,9 @@ class _VipSettingsButton extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           color: const Color(0xFF0D1A2A),
-          border: Border.all(color: const Color(0xFF1A8CB0).withValues(alpha: 0.4)),
+          border: Border.all(
+            color: const Color(0xFF1A8CB0).withValues(alpha: 0.4),
+          ),
         ),
         child: Row(
           textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
@@ -870,7 +386,7 @@ class _VipSettingsButton extends StatelessWidget {
             const Icon(Icons.settings_rounded, color: Color(0xFF5DDCFF), size: 20),
             const SizedBox(width: 12),
             Text(
-              isArabic ? 'إعدادات VIP' : 'VIP Setting',
+              isArabic ? 'إعدادات VIP' : 'VIP Settings',
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
@@ -881,6 +397,978 @@ class _VipSettingsButton extends StatelessWidget {
             const Icon(Icons.chevron_right_rounded, color: Colors.white54, size: 20),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tier selector — horizontal scroll VIP 1..9
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _TierSelector extends StatelessWidget {
+  const _TierSelector({
+    required this.selected,
+    required this.currentLevel,
+    required this.onSelect,
+  });
+  final int selected;
+  final int currentLevel;
+  final ValueChanged<int> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 68,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.zero,
+        itemCount: 9,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (_, i) {
+          final level = i + 1;
+          final spec = VipSpecResolver.resolve(level);
+          final isSelected = level == selected;
+          final isCurrent = level == currentLevel;
+
+          return GestureDetector(
+            onTap: () => onSelect(level),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 56,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                gradient: isSelected
+                    ? LinearGradient(
+                        colors: [
+                          spec.glowColor.withValues(alpha: 0.7),
+                          spec.glowColor.withValues(alpha: 0.3),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      )
+                    : null,
+                color: isSelected ? null : _kCard,
+                border: Border.all(
+                  color: isSelected
+                      ? spec.glowColor
+                      : isCurrent
+                          ? _kGold.withValues(alpha: 0.5)
+                          : _kCardBorder,
+                  width: isSelected ? 2 : 1,
+                ),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: spec.glowColor.withValues(alpha: 0.35),
+                          blurRadius: 12,
+                          spreadRadius: 1,
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    '$level',
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : _kSubtext,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  if (isCurrent)
+                    Container(
+                      margin: const EdgeInsets.only(top: 3),
+                      width: 5,
+                      height: 5,
+                      decoration: const BoxDecoration(
+                        color: _kGold,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tier preview card
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _TierPreviewCard extends StatelessWidget {
+  const _TierPreviewCard({
+    required this.level,
+    required this.isArabic,
+    required this.planName,
+    required this.isCurrent,
+  });
+  final int level;
+  final bool isArabic;
+  final String planName;
+  final bool isCurrent;
+
+  @override
+  Widget build(BuildContext context) {
+    final spec = VipSpecResolver.resolve(level);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [spec.glowColor.withValues(alpha: 0.18), _kCard],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: spec.glowColor.withValues(alpha: 0.45),
+          width: 1.5,
+        ),
+      ),
+      child: Row(
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              VipFramedAvatar(size: 72, vipLevel: level),
+              if (isCurrent)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _kGold,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    isArabic ? 'أنت' : 'You',
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: isArabic
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
+              children: [
+                Text(
+                  planName,
+                  style: TextStyle(
+                    color: spec.nameColor,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    _FeatureChip(
+                      icon: Icons.crop_portrait_rounded,
+                      label: isArabic ? 'إطار' : 'Frame',
+                      active: spec.hasFrame,
+                    ),
+                    _FeatureChip(
+                      icon: Icons.verified_rounded,
+                      label: isArabic ? 'شارة' : 'Badge',
+                      active: spec.hasBadge,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  textDirection:
+                      isArabic ? TextDirection.rtl : TextDirection.ltr,
+                  children: [
+                    _ColorDot(
+                      color: spec.glowColor,
+                      label: isArabic ? 'توهج' : 'Glow',
+                    ),
+                    const SizedBox(width: 10),
+                    _ColorDot(
+                      color: spec.nameColor,
+                      label: isArabic ? 'اسم' : 'Name',
+                    ),
+                    if (spec.bannerGradient.isNotEmpty) ...[
+                      const SizedBox(width: 10),
+                      _ColorDot(
+                        color: spec.bannerGradient.first,
+                        label: isArabic ? 'لافتة' : 'Banner',
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ColorDot extends StatelessWidget {
+  const _ColorDot({required this.color, required this.label});
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        width: 11,
+        height: 11,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      ),
+      const SizedBox(width: 4),
+      Text(label, style: const TextStyle(color: _kSubtext, fontSize: 11)),
+    ],
+  );
+}
+
+class _FeatureChip extends StatelessWidget {
+  const _FeatureChip({
+    required this.icon,
+    required this.label,
+    required this.active,
+  });
+  final IconData icon;
+  final String label;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: active ? _kGold.withValues(alpha: 0.12) : Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(
+        color: active ? _kGold.withValues(alpha: 0.4) : _kCardBorder,
+      ),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: active ? _kGold : _kSubtext),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            color: active ? _kGold : _kSubtext,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Benefits list
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _BenefitsList extends StatelessWidget {
+  const _BenefitsList({required this.level, required this.isArabic});
+  final int level;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    final unlocked = VipPrivileges.unlockedFor(level);
+    final locked   = VipPrivileges.lockedFor(level);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _kCard,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _kCardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: isArabic
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        children: [
+          Row(
+            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+            children: [
+              const Icon(Icons.star_rounded, color: _kGold, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                isArabic ? 'المزايا المتاحة' : 'Available Benefits',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _kGold.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(99),
+                  border: Border.all(color: _kGold.withValues(alpha: 0.35)),
+                ),
+                child: Text(
+                  '${unlocked.length}',
+                  style: const TextStyle(
+                    color: _kGold,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...unlocked.map(
+            (s) => _BenefitRow(spec: s, unlocked: true, isArabic: isArabic),
+          ),
+          if (locked.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Divider(color: _kCardBorder, height: 1),
+            const SizedBox(height: 10),
+            Row(
+              textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+              children: [
+                const Icon(
+                  Icons.lock_outline_rounded,
+                  color: _kSubtext,
+                  size: 14,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  isArabic ? 'مزايا أعلى مستوى' : 'Higher tier only',
+                  style: const TextStyle(color: _kSubtext, fontSize: 12),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ...locked.map(
+              (s) => _BenefitRow(spec: s, unlocked: false, isArabic: isArabic),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _BenefitRow extends StatelessWidget {
+  const _BenefitRow({
+    required this.spec,
+    required this.unlocked,
+    required this.isArabic,
+  });
+  final VipPrivilegeSpec spec;
+  final bool unlocked;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = isArabic ? spec.labelAr : spec.label;
+    final desc  = isArabic ? spec.descriptionAr : spec.description;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(
+              unlocked
+                  ? Icons.check_circle_rounded
+                  : Icons.lock_outline_rounded,
+              size: 16,
+              color: unlocked ? _kGreen : _kSubtext,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: isArabic
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: unlocked ? Colors.white : _kSubtext,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  desc,
+                  style: TextStyle(
+                    color: unlocked ? _kText : _kSubtext,
+                    fontSize: 11,
+                    height: 1.4,
+                  ),
+                ),
+                if (!unlocked)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      isArabic
+                          ? 'يتطلب VIP ${spec.minVipLevel}+'
+                          : 'Requires VIP ${spec.minVipLevel}+',
+                      style: const TextStyle(
+                        color: _kGold,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Contact admin CTA
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ContactAdminButton extends StatelessWidget {
+  const _ContactAdminButton({required this.isArabic});
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [_kPurpleDeep, _kPurpleMid],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: _kPurpleMid.withValues(alpha: 0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.admin_panel_settings_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: isArabic
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isArabic ? 'تواصل مع الإدارة' : 'Contact Admin',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(
+                  isArabic
+                      ? 'للترقية إلى VIP عبر وكيل الشحن'
+                      : 'Upgrade VIP through a recharge agent',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.75),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 22),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin VIP management panel
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _AdminVipPanel extends StatefulWidget {
+  const _AdminVipPanel({required this.isArabic});
+  final bool isArabic;
+
+  @override
+  State<_AdminVipPanel> createState() => _AdminVipPanelState();
+}
+
+class _AdminVipPanelState extends State<_AdminVipPanel> {
+  final _uidController      = TextEditingController();
+  final _durationController = TextEditingController(text: '30');
+  int _grantLevel = 1;
+  bool _busy = false;
+  String? _result;
+  bool _resultIsError = false;
+
+  bool _goldenEnabled = true;
+  final _goldenDurationController = TextEditingController();
+
+  bool get isArabic => widget.isArabic;
+
+  @override
+  void dispose() {
+    _uidController.dispose();
+    _durationController.dispose();
+    _goldenDurationController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _grantVip() async {
+    final uid = _uidController.text.trim();
+    if (uid.isEmpty) {
+      _setResult(isArabic ? 'أدخل معرّف المستخدم' : 'Enter a user ID', error: true);
+      return;
+    }
+    final days = int.tryParse(_durationController.text.trim()) ?? 30;
+    setState(() { _busy = true; _result = null; });
+    try {
+      await VipService().grantVip(
+        userId: uid,
+        vipLevel: _grantLevel,
+        durationDays: days,
+      );
+      _setResult(
+        isArabic
+            ? 'تم منح VIP $_grantLevel لمدة $days يوم'
+            : 'Granted VIP $_grantLevel for $days days',
+      );
+    } catch (e) {
+      _setResult(e.toString(), error: true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _revokeVip() async {
+    final uid = _uidController.text.trim();
+    if (uid.isEmpty) {
+      _setResult(isArabic ? 'أدخل معرّف المستخدم' : 'Enter a user ID', error: true);
+      return;
+    }
+    setState(() { _busy = true; _result = null; });
+    try {
+      await VipService().revokeVip(uid);
+      _setResult(isArabic ? 'تم إلغاء VIP' : 'VIP revoked');
+    } catch (e) {
+      _setResult(e.toString(), error: true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _applyGoldenId() async {
+    final uid = _uidController.text.trim();
+    if (uid.isEmpty) {
+      _setResult(isArabic ? 'أدخل معرّف المستخدم' : 'Enter a user ID', error: true);
+      return;
+    }
+    final daysText = _goldenDurationController.text.trim();
+    final days = daysText.isEmpty ? null : int.tryParse(daysText);
+    setState(() { _busy = true; _result = null; });
+    try {
+      await VipService().setGoldenId(
+        userId: uid,
+        enabled: _goldenEnabled,
+        durationDays: days,
+      );
+      _setResult(
+        _goldenEnabled
+            ? (isArabic ? 'تم تفعيل Golden ID' : 'Golden ID activated')
+            : (isArabic ? 'تم إلغاء Golden ID' : 'Golden ID removed'),
+      );
+    } catch (e) {
+      _setResult(e.toString(), error: true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _setResult(String msg, {bool error = false}) {
+    if (!mounted) return;
+    setState(() {
+      _result = msg;
+      _resultIsError = error;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D0820),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF3D0C6B)),
+      ),
+      child: Column(
+        crossAxisAlignment: isArabic
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        children: [
+          Row(
+            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _kPurpleDeep.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.shield_rounded, color: _kGold, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                isArabic ? 'لوحة إدارة VIP' : 'VIP Admin Panel',
+                style: const TextStyle(
+                  color: _kGold,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          _AdminField(
+            controller: _uidController,
+            label: isArabic ? 'معرّف المستخدم (UUID)' : 'User ID (UUID)',
+            isArabic: isArabic,
+          ),
+          const SizedBox(height: 16),
+
+          _SubLabel(
+            label: isArabic ? 'منح / إلغاء VIP' : 'Grant / Revoke VIP',
+            isArabic: isArabic,
+          ),
+          const SizedBox(height: 8),
+
+          Row(
+            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+            children: [
+              Text(
+                isArabic ? 'المستوى:' : 'Level:',
+                style: const TextStyle(color: _kText, fontSize: 13),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: SizedBox(
+                  height: 38,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: 9,
+                    separatorBuilder: (_, _) => const SizedBox(width: 6),
+                    itemBuilder: (_, i) {
+                      final lvl = i + 1;
+                      final sel = lvl == _grantLevel;
+                      return GestureDetector(
+                        onTap: () => setState(() => _grantLevel = lvl),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          width: 34,
+                          decoration: BoxDecoration(
+                            color: sel ? _kGold : _kCard,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: sel ? _kGold : _kCardBorder,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              '$lvl',
+                              style: TextStyle(
+                                color: sel ? Colors.black : _kSubtext,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          _AdminField(
+            controller: _durationController,
+            label: isArabic ? 'المدة (أيام)' : 'Duration (days)',
+            isArabic: isArabic,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          ),
+          const SizedBox(height: 12),
+
+          Row(
+            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+            children: [
+              Expanded(
+                child: _AdminButton(
+                  label: isArabic ? 'منح VIP' : 'Grant VIP',
+                  color: _kGreen,
+                  icon: Icons.workspace_premium_rounded,
+                  busy: _busy,
+                  onTap: _grantVip,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _AdminButton(
+                  label: isArabic ? 'إلغاء VIP' : 'Revoke VIP',
+                  color: _kRed,
+                  icon: Icons.remove_circle_outline_rounded,
+                  busy: _busy,
+                  onTap: _revokeVip,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          Divider(color: _kCardBorder, height: 1),
+          const SizedBox(height: 16),
+
+          _SubLabel(label: 'Golden ID', isArabic: isArabic),
+          const SizedBox(height: 8),
+
+          Row(
+            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+            children: [
+              Text(
+                isArabic ? 'تفعيل' : 'Enable',
+                style: const TextStyle(color: _kText, fontSize: 13),
+              ),
+              Switch(
+                value: _goldenEnabled,
+                onChanged: (v) => setState(() => _goldenEnabled = v),
+                activeThumbColor: _kGold,
+                inactiveTrackColor: _kCardBorder,
+              ),
+              if (_goldenEnabled) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _AdminField(
+                    controller: _goldenDurationController,
+                    label: isArabic
+                        ? 'أيام (فارغ = دائم)'
+                        : 'Days (blank = permanent)',
+                    isArabic: isArabic,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          SizedBox(
+            width: double.infinity,
+            child: _AdminButton(
+              label: isArabic ? 'تطبيق Golden ID' : 'Apply Golden ID',
+              color: _kGold,
+              icon: Icons.star_rounded,
+              busy: _busy,
+              onTap: _applyGoldenId,
+            ),
+          ),
+
+          if (_result != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: (_resultIsError ? _kRed : _kGreen).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: (_resultIsError ? _kRed : _kGreen).withValues(alpha: 0.4),
+                ),
+              ),
+              child: Text(
+                _result!,
+                textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                style: TextStyle(
+                  color: _resultIsError ? _kRed : _kGreen,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── Admin panel helpers ───────────────────────────────────────────────────────
+
+class _SubLabel extends StatelessWidget {
+  const _SubLabel({required this.label, required this.isArabic});
+  final String label;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: isArabic ? Alignment.centerRight : Alignment.centerLeft,
+    child: Text(
+      label,
+      style: const TextStyle(
+        color: _kText,
+        fontSize: 12,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 0.5,
+      ),
+    ),
+  );
+}
+
+class _AdminField extends StatelessWidget {
+  const _AdminField({
+    required this.controller,
+    required this.label,
+    required this.isArabic,
+    this.keyboardType,
+    this.inputFormatters,
+  });
+  final TextEditingController controller;
+  final String label;
+  final bool isArabic;
+  final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
+      textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+      style: const TextStyle(color: Colors.white, fontSize: 13),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: _kSubtext, fontSize: 12),
+        filled: true,
+        fillColor: _kCard,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: _kCardBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: _kCardBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: _kGold),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        isDense: true,
+      ),
+    );
+  }
+}
+
+class _AdminButton extends StatelessWidget {
+  const _AdminButton({
+    required this.label,
+    required this.color,
+    required this.icon,
+    required this.busy,
+    required this.onTap,
+  });
+  final String label;
+  final Color color;
+  final IconData icon;
+  final bool busy;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: busy ? null : onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.5)),
+        ),
+        child: busy
+            ? Center(
+                child: SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    color: color,
+                    strokeWidth: 2,
+                  ),
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, color: color, size: 15),
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
