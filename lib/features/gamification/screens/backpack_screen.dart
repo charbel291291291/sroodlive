@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../shared/theme/vip_tier_colors.dart';
 import '../../../shared/widgets/avatar_with_frame.dart';
+import '../../../shared/widgets/vip_tier_chip.dart';
 import '../models/backpack_item.dart';
 import '../services/gamification_service.dart';
+import 'store_screen.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class BackpackScreen extends StatefulWidget {
@@ -19,6 +23,7 @@ class _BackpackScreenState extends State<BackpackScreen> {
   bool _loading = true;
   String? _error;
   String _filter = 'all';
+  int _userVipLevel = 0;
 
   @override
   void initState() {
@@ -32,6 +37,28 @@ class _BackpackScreenState extends State<BackpackScreen> {
       _error = null;
     });
     try {
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      if (uid != null) {
+        try {
+          final row = await Supabase.instance.client
+              .from('profiles')
+              .select('vip_level, vip_expires_at')
+              .eq('id', uid)
+              .maybeSingle();
+          if (row != null) {
+            final level = (row['vip_level'] as int?) ?? 0;
+            final expiresAt = DateTime.tryParse(
+              row['vip_expires_at']?.toString() ?? '',
+            );
+            final expired =
+                expiresAt == null || expiresAt.isBefore(DateTime.now());
+            _userVipLevel = expired ? 0 : level;
+          }
+        } catch (_) {
+          _userVipLevel = 0;
+        }
+      }
+
       final items = await _service.getMyBackpack();
       if (!mounted) return;
       setState(() {
@@ -52,6 +79,9 @@ class _BackpackScreenState extends State<BackpackScreen> {
     return _all.where((i) => i.itemType == _filter).toList();
   }
 
+  int _count(String type) =>
+      type == 'all' ? _all.length : _all.where((i) => i.itemType == type).length;
+
   Future<void> _equip(BackpackItem bp) async {
     try {
       await _service.equipBackpackItem(bp.id);
@@ -59,9 +89,7 @@ class _BackpackScreenState extends State<BackpackScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            context.isArabic
-                ? '\u062a\u0645 \u0627\u0644\u062a\u0641\u0639\u064a\u0644!'
-                : 'Equipped!',
+            context.isArabic ? 'تم التفعيل!' : 'Equipped!',
           ),
           backgroundColor: const Color(0xFF2ECC71),
         ),
@@ -113,9 +141,7 @@ class _BackpackScreenState extends State<BackpackScreen> {
           icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
         ),
         Text(
-          context.isArabic
-              ? '\u0627\u0644\u062d\u0642\u064a\u0628\u0629'
-              : 'Backpack',
+          context.isArabic ? 'الحقيبة' : 'Backpack',
           style: const TextStyle(
             color: Colors.white,
             fontSize: 22,
@@ -128,19 +154,9 @@ class _BackpackScreenState extends State<BackpackScreen> {
 
   Widget _buildFilters() {
     final chips = [
-      ('all', context.isArabic ? '\u0627\u0644\u0643\u0644' : 'All'),
-      (
-        'avatar_frame',
-        context.isArabic
-            ? '\u0627\u0644\u0625\u0637\u0627\u0631\u0627\u062a'
-            : 'Frames',
-      ),
-      (
-        'badge',
-        context.isArabic
-            ? '\u0627\u0644\u0634\u0627\u0631\u0627\u062a'
-            : 'Badges',
-      ),
+      ('all', context.isArabic ? 'الكل' : 'All'),
+      ('avatar_frame', context.isArabic ? 'الإطارات' : 'Frames'),
+      ('badge', context.isArabic ? 'الشارات' : 'Badges'),
     ];
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
@@ -148,6 +164,7 @@ class _BackpackScreenState extends State<BackpackScreen> {
         textDirection: context.isArabic ? TextDirection.rtl : TextDirection.ltr,
         children: chips.map((c) {
           final selected = _filter == c.$1;
+          final count = _loading ? null : _count(c.$1);
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: GestureDetector(
@@ -169,15 +186,45 @@ class _BackpackScreenState extends State<BackpackScreen> {
                         : const Color(0xFF4A3470),
                   ),
                 ),
-                child: Text(
-                  c.$2,
-                  style: TextStyle(
-                    color: selected
-                        ? const Color(0xFF160B26)
-                        : const Color(0xFFD8CFEA),
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      c.$2,
+                      style: TextStyle(
+                        color: selected
+                            ? const Color(0xFF160B26)
+                            : const Color(0xFFD8CFEA),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                      ),
+                    ),
+                    if (count != null && count > 0) ...[
+                      const SizedBox(width: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? const Color(0xFF160B26).withValues(alpha: 0.25)
+                              : const Color(0xFF4A3470),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          '$count',
+                          style: TextStyle(
+                            color: selected
+                                ? const Color(0xFF160B26)
+                                : const Color(0xFFD8CFEA),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),
@@ -207,11 +254,27 @@ class _BackpackScreenState extends State<BackpackScreen> {
         padding: const EdgeInsets.all(16),
         itemCount: _filtered.length,
         separatorBuilder: (_, _) => const SizedBox(height: 10),
-        itemBuilder: (_, i) => _BackpackItemCard(
-          bp: _filtered[i],
-          isArabic: context.isArabic,
-          onEquip: () => _equip(_filtered[i]),
-        ),
+        itemBuilder: (_, i) {
+          final bp = _filtered[i];
+          if (bp.isFrame) {
+            final requiredVip =
+                (bp.item.metadata['vip_level'] as num?)?.toInt() ?? 0;
+            final isVipLocked =
+                requiredVip > 0 && _userVipLevel < requiredVip;
+            return _FrameCard(
+              bp: bp,
+              isArabic: context.isArabic,
+              isVipLocked: isVipLocked,
+              requiredVipLevel: requiredVip,
+              onEquip: () => _equip(bp),
+            );
+          }
+          return _BackpackItemCard(
+            bp: bp,
+            isArabic: context.isArabic,
+            onEquip: () => _equip(bp),
+          );
+        },
       ),
     );
   }
@@ -235,9 +298,7 @@ class _BackpackScreenState extends State<BackpackScreen> {
         TextButton(
           onPressed: _load,
           child: Text(
-            context.isArabic
-                ? '\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629'
-                : 'Retry',
+            context.isArabic ? 'إعادة المحاولة' : 'Retry',
             style: const TextStyle(color: Color(0xFFF0C15A)),
           ),
         ),
@@ -245,36 +306,334 @@ class _BackpackScreenState extends State<BackpackScreen> {
     ),
   );
 
-  Widget _buildEmpty() => Center(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.backpack_rounded, color: Color(0xFF4A3470), size: 56),
-        const SizedBox(height: 12),
-        Text(
-          context.isArabic
-              ? '\u062d\u0642\u064a\u0628\u062a\u0643 \u0641\u0627\u0631\u063a\u0629'
-              : 'Your backpack is empty',
-          style: const TextStyle(
-            color: Color(0xFF7A6890),
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
+  Widget _buildEmpty() {
+    final isFrames = _filter == 'avatar_frame';
+    final isBadges = _filter == 'badge';
+
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isFrames
+                ? Icons.filter_frames_rounded
+                : isBadges
+                ? Icons.workspace_premium_rounded
+                : Icons.backpack_rounded,
+            color: const Color(0xFF4A3470),
+            size: 56,
           ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          context.isArabic
-              ? '\u0627\u0634\u062a\u0631\u064a \u0648\u0641\u0639\u0651\u0644'
-              : 'Equipped',
-          style: const TextStyle(color: Color(0xFF4A3470), fontSize: 13),
-        ),
-      ],
-    ),
-  );
+          const SizedBox(height: 12),
+          Text(
+            context.isArabic
+                ? isFrames
+                      ? 'لا توجد إطارات'
+                      : isBadges
+                      ? 'لا توجد شارات'
+                      : 'حقيبتك فارغة'
+                : isFrames
+                ? 'No frames yet'
+                : isBadges
+                ? 'No badges yet'
+                : 'Your backpack is empty',
+            style: const TextStyle(
+              color: Color(0xFF7A6890),
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            context.isArabic
+                ? 'تفضل بزيارة المتجر للحصول على المزيد'
+                : 'Visit the store to get more items',
+            style: const TextStyle(color: Color(0xFF4A3470), fontSize: 13),
+          ),
+          const SizedBox(height: 20),
+          _GoToStoreButton(isArabic: context.isArabic),
+        ],
+      ),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
-// Backpack item card
+// Go to Store CTA
+// ---------------------------------------------------------------------------
+
+class _GoToStoreButton extends StatelessWidget {
+  const _GoToStoreButton({required this.isArabic});
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => StoreScreen(isArabic: isArabic)),
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF6B2FD4), Color(0xFF9B4DFF)],
+          ),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          isArabic ? 'الذهاب إلى المتجر' : 'Go to Store',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w900,
+            fontSize: 14,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Frame card — premium layout with VIP lock support
+// ---------------------------------------------------------------------------
+
+class _FrameCard extends StatelessWidget {
+  const _FrameCard({
+    required this.bp,
+    required this.isArabic,
+    required this.isVipLocked,
+    required this.requiredVipLevel,
+    required this.onEquip,
+  });
+  final BackpackItem bp;
+  final bool isArabic;
+  final bool isVipLocked;
+  final int requiredVipLevel;
+  final VoidCallback onEquip;
+
+  @override
+  Widget build(BuildContext context) {
+    final tierColors = requiredVipLevel > 0
+        ? VipTierColors.of(requiredVipLevel)
+        : null;
+
+    final borderColor = bp.equipped
+        ? const Color(0xFFF0C15A)
+        : isVipLocked && tierColors != null
+        ? tierColors.border.withValues(alpha: 0.6)
+        : const Color(0xFF4A3470);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF12091D),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: borderColor, width: bp.equipped ? 1.5 : 1),
+        gradient: bp.equipped
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF1A1030),
+                  const Color(0xFF0F0820).withValues(alpha: 0.95),
+                ],
+              )
+            : null,
+      ),
+      child: Row(
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Large avatar preview
+          _FramePreview(bp: bp, isVipLocked: isVipLocked),
+          const SizedBox(width: 16),
+
+          // Info column
+          Expanded(
+            child: Column(
+              crossAxisAlignment: isArabic
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
+              children: [
+                // Name + Equipped chip
+                Row(
+                  textDirection: isArabic
+                      ? TextDirection.rtl
+                      : TextDirection.ltr,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        bp.item.localName(isArabic),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: isVipLocked
+                              ? const Color(0xFF7A6890)
+                              : Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    if (bp.equipped) ...[
+                      const SizedBox(width: 8),
+                      _EquippedBadge(isArabic: isArabic),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 4),
+
+                // Description
+                Text(
+                  bp.item.localDescription(isArabic),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF7A6890),
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                // Bottom action row
+                if (isVipLocked)
+                  _VipLockRow(
+                    isArabic: isArabic,
+                    requiredLevel: requiredVipLevel,
+                  )
+                else if (!bp.equipped)
+                  _EquipButton(isArabic: isArabic, onEquip: onEquip),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FramePreview extends StatelessWidget {
+  const _FramePreview({required this.bp, required this.isVipLocked});
+  final BackpackItem bp;
+  final bool isVipLocked;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 88,
+      height: 88,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          AvatarWithFrame(
+            imageUrl: null,
+            radius: 36,
+            frameKey: bp.item.frameKey,
+            compact: false,
+          ),
+          if (isVipLocked)
+            Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.55),
+                borderRadius: BorderRadius.circular(44),
+              ),
+              child: const Icon(
+                Icons.lock_rounded,
+                color: Colors.white,
+                size: 28,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EquippedBadge extends StatelessWidget {
+  const _EquippedBadge({required this.isArabic});
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0C15A).withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: const Color(0xFFF0C15A).withValues(alpha: 0.5),
+        ),
+      ),
+      child: Text(
+        isArabic ? 'مفعّل' : 'Equipped',
+        style: const TextStyle(
+          color: Color(0xFFF0C15A),
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _EquipButton extends StatelessWidget {
+  const _EquipButton({required this.isArabic, required this.onEquip});
+  final bool isArabic;
+  final VoidCallback onEquip;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 34,
+      child: ElevatedButton(
+        onPressed: onEquip,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF4B168C),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          elevation: 0,
+        ),
+        child: Text(
+          isArabic ? 'تفعيل' : 'Equip',
+          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+        ),
+      ),
+    );
+  }
+}
+
+class _VipLockRow extends StatelessWidget {
+  const _VipLockRow({required this.isArabic, required this.requiredLevel});
+  final bool isArabic;
+  final int requiredLevel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+      children: [
+        VipTierChip(level: requiredLevel, compact: true),
+        const SizedBox(width: 6),
+        Text(
+          isArabic ? 'مطلوب' : 'Required',
+          style: const TextStyle(
+            color: Color(0xFF7A6890),
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Generic backpack item card (badges + any future types) — unchanged behavior
 // ---------------------------------------------------------------------------
 
 class _BackpackItemCard extends StatelessWidget {
@@ -370,9 +729,7 @@ class _BackpackItemCard extends StatelessWidget {
                           ),
                         ),
                         child: Text(
-                          isArabic
-                              ? '\u0645\u0641\u0639\u0651\u0644'
-                              : 'Equipped',
+                          isArabic ? 'مفعّل' : 'Equipped',
                           style: const TextStyle(
                             color: Color(0xFFF0C15A),
                             fontSize: 11,
@@ -408,7 +765,7 @@ class _BackpackItemCard extends StatelessWidget {
                         elevation: 0,
                       ),
                       child: Text(
-                        isArabic ? '\u062a\u0641\u0639\u064a\u0644' : 'Equip',
+                        isArabic ? 'تفعيل' : 'Equip',
                         style: const TextStyle(
                           fontWeight: FontWeight.w900,
                           fontSize: 12,
