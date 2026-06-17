@@ -63,7 +63,7 @@ class VipPrestige {
 
   String get badgeLabel => level <= 0 ? '' : 'VIP $level';
   bool get hasAnimation => animIntensity > 0;
-  bool get isElite => level >= 7;
+  bool get isElite => level >= 8;
   bool get isLegendary => level == 9;
 
   Color get entryTextColor =>
