@@ -16,6 +16,7 @@ class VipTierChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!VipTierColors.hasStyle(level)) return const SizedBox.shrink();
     final style = VipTierColors.of(level);
 
     return Container(

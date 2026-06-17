@@ -105,7 +105,19 @@ class VipTierColors {
     ),
   };
 
+  /// Whether [level] has a defined VIP tier style (1–9).
+  static bool hasStyle(int level) => level >= 1 && level <= 9;
+
+  /// Returns the [VipTierStyle] for [level] (must be 1–9).
+  /// Passing level <= 0 is a caller bug; guard with [hasStyle] or a
+  /// `level > 0` check before calling. Triggers an assertion in debug mode
+  /// so the bug is caught early.
   static VipTierStyle of(int level) {
-    return styles[level] ?? styles[1]!;
+    assert(
+      hasStyle(level),
+      'VipTierColors.of() called with invalid level $level — '
+      'call hasStyle(level) or check level > 0 before calling this method',
+    );
+    return styles[level.clamp(1, 9)]!;
   }
 }
