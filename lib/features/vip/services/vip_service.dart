@@ -237,7 +237,35 @@ class VipService {
       'set_golden_id',
       params: params,
     );
-    // Invalidate cache so the next read reflects the change.
+    _cache.remove(userId);
+    return Map<String, dynamic>.from(raw as Map);
+  }
+
+  /// Admin-only: set a custom Golden ID with full style and frame options.
+  ///
+  /// Calls [set_custom_golden_id] which validates uniqueness, format, style
+  /// and frame, then updates the profile atomically.
+  Future<Map<String, dynamic>> setCustomGoldenId({
+    required String userId,
+    required String publicUserId,
+    required bool enabled,
+    int? durationDays,
+    String style = 'gold',
+    String frame = 'classic',
+  }) async {
+    final params = <String, dynamic>{
+      'p_user_id':        userId,
+      'p_public_user_id': publicUserId,
+      'p_enabled':        enabled,
+      'p_style':          style,
+      'p_frame':          frame,
+    };
+    if (durationDays != null) params['p_duration_days'] = durationDays;
+
+    final raw = await SupabaseService.requiredClient.rpc(
+      'set_custom_golden_id',
+      params: params,
+    );
     _cache.remove(userId);
     return Map<String, dynamic>.from(raw as Map);
   }

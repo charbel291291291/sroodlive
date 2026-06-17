@@ -1092,7 +1092,10 @@ class _HeaderContent extends StatelessWidget {
                   if (vip > 0)
                     goldenActive
                         ? GoldenIdBadge(
-                            idText: profile.publicUserId, compact: true)
+                            idText: profile.publicUserId,
+                            goldenIdStyle: profile.goldenIdStyle,
+                            goldenIdFrame: profile.goldenIdFrame,
+                            compact: true)
                         : VipBadge(vipLevel: vip, compact: true),
                   // Noble
                   if (profile.nobleLevel > 0)

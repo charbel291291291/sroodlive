@@ -846,6 +846,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       profile?['is_golden_id'] == true,
       DateTime.tryParse(profile?['golden_id_expires_at']?.toString() ?? ''),
     );
+    final goldenIdStyle = profile?['golden_id_style']?.toString() ?? 'gold';
+    final goldenIdFrame = profile?['golden_id_frame']?.toString() ?? 'classic';
     final coins = wallet?.coinsBalance ?? 0;
     final diamonds = wallet?.diamondsBalance ?? 0;
     final level = _intFromProfile(profile ?? {}, 'level', fallback: 1);
@@ -891,6 +893,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       vipLevel: effectiveVipLevel,
                       level: level,
                       isGoldenId: isGoldenId,
+                      goldenIdStyle: goldenIdStyle,
+                      goldenIdFrame: goldenIdFrame,
                       country: country,
                       gender: gender,
                       bio: bio,
@@ -1046,6 +1050,8 @@ class _PremiumProfileHero extends StatelessWidget {
     required this.onEditTap,
     required this.onFrameTap,
     required this.onCopyId,
+    this.goldenIdStyle = 'gold',
+    this.goldenIdFrame = 'classic',
   });
 
   final String displayName;
@@ -1055,6 +1061,8 @@ class _PremiumProfileHero extends StatelessWidget {
   final int vipLevel;
   final int level;
   final bool isGoldenId;
+  final String goldenIdStyle;
+  final String goldenIdFrame;
   final String country;
   final String gender;
   final String bio;
@@ -1217,6 +1225,8 @@ class _PremiumProfileHero extends StatelessWidget {
                     if (isGoldenId)
                       GoldenIdBadge(
                         idText: 'ID:$publicUserId',
+                        goldenIdStyle: goldenIdStyle,
+                        goldenIdFrame: goldenIdFrame,
                         onTap: onCopyId,
                         showCopyIcon: true,
                       )

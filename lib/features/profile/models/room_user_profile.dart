@@ -16,6 +16,8 @@ class RoomUserProfile {
     this.vipExpiresAt,
     this.isGoldenId = false,
     this.goldenIdExpiresAt,
+    this.goldenIdStyle = 'gold',
+    this.goldenIdFrame = 'classic',
     this.followersCount = 0,
     this.followingCount = 0,
     this.friendsCount = 0,
@@ -40,6 +42,8 @@ class RoomUserProfile {
   final DateTime? vipExpiresAt;
   final bool isGoldenId;
   final DateTime? goldenIdExpiresAt;
+  final String goldenIdStyle;
+  final String goldenIdFrame;
   final int followersCount;
   final int followingCount;
   final int friendsCount;
@@ -95,6 +99,8 @@ class RoomUserProfile {
       vipExpiresAt: vipExpiresAt,
       isGoldenId: isGoldenId,
       goldenIdExpiresAt: goldenIdExpiresAt,
+      goldenIdStyle: goldenIdStyle,
+      goldenIdFrame: goldenIdFrame,
       followersCount: followersCount ?? this.followersCount,
       followingCount: followingCount,
       friendsCount: friendsCount,

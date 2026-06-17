@@ -34,7 +34,6 @@ class VipUsername extends StatelessWidget {
     final level = vipLevel ?? 0;
     final spec  = VipSpecResolver.resolve(level);
 
-    // Level 0: plain text, no VIP styling.
     if (!spec.hasBadge) {
       return Text(
         name,
@@ -68,7 +67,6 @@ class VipUsername extends StatelessWidget {
 
     if (!spec.useNameGradient) return text;
 
-    // Premium tiers: paint glyphs with the tier gradient.
     return ShaderMask(
       shaderCallback: (bounds) => LinearGradient(
         colors: spec.nameGradient,
@@ -87,13 +85,24 @@ class VipUsername extends StatelessWidget {
   }
 }
 
-/// A premium golden-style chip for a user's public ID.
+// ─────────────────────────────────────────────────────────────────────────────
+// Golden ID Badge
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A premium styled chip for a user's public ID.
 ///
-/// Use only when [isGoldenIdActive] returns true. Shows the *same* ID value
-/// (never altered) wrapped in a luxurious gold gradient, border and glow.
+/// When [isGoldenId] is false (default) renders a plain neutral chip.
+/// When true, applies the colour scheme dictated by [goldenIdStyle] and the
+/// icon/decoration from [goldenIdFrame].
+///
+/// Style values: gold | diamond | royal | neon | fire | purple
+/// Frame values: classic | crown | wings | glow | shield | luxury
 class GoldenIdBadge extends StatelessWidget {
   const GoldenIdBadge({
     required this.idText,
+    this.isGoldenId = true,
+    this.goldenIdStyle = 'gold',
+    this.goldenIdFrame = 'classic',
     this.onTap,
     this.compact = false,
     this.showCopyIcon = false,
@@ -101,42 +110,121 @@ class GoldenIdBadge extends StatelessWidget {
   });
 
   final String idText;
+  final bool isGoldenId;
+  final String goldenIdStyle;
+  final String goldenIdFrame;
   final VoidCallback? onTap;
   final bool compact;
   final bool showCopyIcon;
 
-  static const _gold       = Color(0xFFF0C15A);
-  static const _goldBright = Color(0xFFFFE9A8);
+  // ── Style palette ─────────────────────────────────────────────────────────
+
+  static const _styleData = <String, _StyleSpec>{
+    'gold': _StyleSpec(
+      gradient: [Color(0x33FFE9A8), Color(0x22C8952D)],
+      border:   Color(0xFFF0C15A),
+      text:     Color(0xFFFFE9A8),
+      glow:     Color(0x4DF0C15A),
+    ),
+    'diamond': _StyleSpec(
+      gradient: [Color(0x33B8E8FF), Color(0x228BB8D4)],
+      border:   Color(0xFF8ECFEE),
+      text:     Color(0xFFCBEEFF),
+      glow:     Color(0x4D8ECFEE),
+    ),
+    'royal': _StyleSpec(
+      gradient: [Color(0x44C084FC), Color(0x22C8952D)],
+      border:   Color(0xFFAB6FE8),
+      text:     Color(0xFFE8CEFF),
+      glow:     Color(0x4DAB6FE8),
+    ),
+    'neon': _StyleSpec(
+      gradient: [Color(0x3300FFCC), Color(0x22FF00CC)],
+      border:   Color(0xFF00FFCC),
+      text:     Color(0xFFAAFFEE),
+      glow:     Color(0x5500FFCC),
+    ),
+    'fire': _StyleSpec(
+      gradient: [Color(0x44FF8C00), Color(0x33FF2D00)],
+      border:   Color(0xFFFF6A00),
+      text:     Color(0xFFFFCCA0),
+      glow:     Color(0x55FF6A00),
+    ),
+    'purple': _StyleSpec(
+      gradient: [Color(0x448B5CF6), Color(0x226D28D9)],
+      border:   Color(0xFF8B5CF6),
+      text:     Color(0xFFD8B4FE),
+      glow:     Color(0x558B5CF6),
+    ),
+  };
+
+  // ── Frame icon/decoration ─────────────────────────────────────────────────
+
+  static IconData? _frameLeadingIcon(String frame) {
+    switch (frame) {
+      case 'crown':   return Icons.emoji_events_rounded;
+      case 'wings':   return Icons.air_rounded;
+      case 'glow':    return Icons.flare_rounded;
+      case 'shield':  return Icons.shield_rounded;
+      case 'luxury':  return Icons.auto_awesome_rounded;
+      case 'classic':
+      default:        return Icons.workspace_premium_rounded;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    // ── Non-golden: plain neutral chip ────────────────────────────────────
+    if (!isGoldenId) {
+      final content = Container(
+        height: compact ? 24 : 30,
+        padding: EdgeInsets.symmetric(horizontal: compact ? 7 : 10),
+        decoration: BoxDecoration(
+          color: const Color(0x1AFFFFFF),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: Colors.white24, width: 1),
+        ),
+        child: Center(
+          child: Text(
+            idText,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: compact ? 10 : 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      );
+      if (onTap == null) return content;
+      return InkWell(borderRadius: BorderRadius.circular(999), onTap: onTap, child: content);
+    }
+
+    // ── Golden styled chip ─────────────────────────────────────────────────
+    final spec  = _styleData[goldenIdStyle] ?? _styleData['gold']!;
+    final icon  = _frameLeadingIcon(goldenIdFrame);
+    final extra = goldenIdFrame == 'glow'
+        ? [BoxShadow(color: spec.glow, blurRadius: compact ? 10 : 16, spreadRadius: 1)]
+        : [BoxShadow(color: spec.glow, blurRadius: compact ? 7 : 11)];
+
     final content = Container(
       height: compact ? 26 : 32,
       padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 11),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0x33FFE9A8), Color(0x22C8952D)],
+        gradient: LinearGradient(
+          colors: spec.gradient,
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: _gold.withValues(alpha: 0.65), width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: _gold.withValues(alpha: 0.30),
-            blurRadius: compact ? 7 : 11,
-            spreadRadius: 0,
-          ),
-        ],
+        border: Border.all(color: spec.border.withValues(alpha: 0.65), width: 1.2),
+        boxShadow: extra,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.workspace_premium_rounded,
-            color: _goldBright,
-            size: compact ? 12 : 14,
-          ),
+          Icon(icon, color: spec.text, size: compact ? 12 : 14),
           SizedBox(width: compact ? 4 : 5),
           Flexible(
             child: Text(
@@ -144,33 +232,37 @@ class GoldenIdBadge extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: _goldBright,
+                color: spec.text,
                 fontSize: compact ? 11 : 12,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 0.2,
-                shadows: const [
-                  Shadow(color: Color(0x66F0C15A), blurRadius: 8),
-                ],
+                shadows: [Shadow(color: spec.glow, blurRadius: 8)],
               ),
             ),
           ),
           if (showCopyIcon) ...[
             SizedBox(width: compact ? 4 : 5),
-            Icon(
-              Icons.copy_rounded,
-              color: _gold.withValues(alpha: 0.75),
-              size: compact ? 12 : 14,
-            ),
+            Icon(Icons.copy_rounded, color: spec.border.withValues(alpha: 0.75), size: compact ? 12 : 14),
           ],
         ],
       ),
     );
 
     if (onTap == null) return content;
-    return InkWell(
-      borderRadius: BorderRadius.circular(999),
-      onTap: onTap,
-      child: content,
-    );
+    return InkWell(borderRadius: BorderRadius.circular(999), onTap: onTap, child: content);
   }
+}
+
+@immutable
+class _StyleSpec {
+  const _StyleSpec({
+    required this.gradient,
+    required this.border,
+    required this.text,
+    required this.glow,
+  });
+  final List<Color> gradient;
+  final Color border;
+  final Color text;
+  final Color glow;
 }

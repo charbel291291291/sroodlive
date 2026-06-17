@@ -36,6 +36,12 @@ class RoomUserProfileService {
       vipExpiresAt: data?['vip_expires_at'] != null
           ? DateTime.tryParse(data!['vip_expires_at'].toString())
           : null,
+      isGoldenId: data?['is_golden_id'] == true,
+      goldenIdExpiresAt: data?['golden_id_expires_at'] != null
+          ? DateTime.tryParse(data!['golden_id_expires_at'].toString())
+          : null,
+      goldenIdStyle: data?['golden_id_style']?.toString() ?? 'gold',
+      goldenIdFrame: data?['golden_id_frame']?.toString() ?? 'classic',
       followersCount: followers,
       followingCount: following,
       giftReceivedCount: gifts,
