@@ -66,14 +66,15 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_now            timestamptz := now();
-  v_new_lifetime   bigint;
-  v_new_monthly    bigint;
-  v_current_level  int;
-  v_current_exp    timestamptz;
-  v_earned_tier    int := 0;
-  v_maintain_exp   bigint;
-  v_new_expires    timestamptz;
+  v_now              timestamptz := now();
+  v_new_lifetime     bigint;
+  v_new_monthly      bigint;
+  v_monthly_before   bigint;   -- monthly EXP before this recharge (for threshold-crossing check)
+  v_current_level    int;
+  v_current_exp      timestamptz;
+  v_earned_tier      int := 0;
+  v_maintain_exp     bigint;
+  v_new_expires      timestamptz;
 BEGIN
   -- Guard: nothing to do for zero or negative coins
   IF p_recharged_coins <= 0 THEN
@@ -95,6 +96,9 @@ BEGIN
   IF NOT FOUND THEN
     RETURN;
   END IF;
+
+  -- Derive what monthly EXP was immediately before this recharge
+  v_monthly_before := v_new_monthly - p_recharged_coins;
 
   -- ── d  Find highest earned tier ───────────────────────────────────────────
   SELECT COALESCE(MAX(level), 0)
@@ -130,15 +134,23 @@ BEGIN
     WHERE id = p_user_id;
 
     -- Subscription audit row
+    -- ends_at mirrors expires_at (original NOT NULL column, kept in sync)
     INSERT INTO public.user_vip_subscriptions
-      (user_id, vip_level, started_at, expires_at, is_active, payment_source)
+      (user_id, vip_level, started_at, expires_at, ends_at, is_active, payment_source)
     VALUES
-      (p_user_id, v_earned_tier, v_now, v_new_expires, true, 'recharge_exp');
+      (p_user_id, v_earned_tier, v_now, v_new_expires, v_new_expires, true, 'recharge_exp');
 
     RETURN;
   END IF;
 
-  -- ── f  Renewal path (earned_tier = current level, monthly EXP sufficient) ─
+  -- ── f  Renewal path (earned_tier = current level, monthly EXP threshold
+  --       crossed by THIS recharge) ───────────────────────────────────────────
+  --
+  -- The threshold-crossing guard (v_monthly_before < v_maintain_exp AND
+  -- v_new_monthly >= v_maintain_exp) ensures renewal fires exactly ONCE per
+  -- cycle — the moment the user's monthly EXP crosses the maintain threshold.
+  -- Subsequent recharges in the same cycle leave the expiry unchanged until
+  -- Phase J resets vip_monthly_exp at the start of a new cycle.
   IF v_earned_tier = COALESCE(v_current_level, 0) THEN
 
     -- Look up the maintain threshold for this tier
@@ -149,7 +161,8 @@ BEGIN
       AND  is_active = true
     LIMIT  1;
 
-    IF v_new_monthly >= v_maintain_exp THEN
+    -- Only renew when this specific recharge crosses the threshold
+    IF v_monthly_before < v_maintain_exp AND v_new_monthly >= v_maintain_exp THEN
 
       -- Extend from max(current expiry, now) to avoid shrinking a long-running grant
       v_new_expires := GREATEST(COALESCE(v_current_exp, v_now), v_now)
@@ -168,10 +181,11 @@ BEGIN
         AND  vip_level = v_earned_tier;
 
       -- Subscription audit row
+      -- ends_at mirrors expires_at (original NOT NULL column, kept in sync)
       INSERT INTO public.user_vip_subscriptions
-        (user_id, vip_level, started_at, expires_at, is_active, payment_source)
+        (user_id, vip_level, started_at, expires_at, ends_at, is_active, payment_source)
       VALUES
-        (p_user_id, v_earned_tier, v_now, v_new_expires, true, 'recharge_exp');
+        (p_user_id, v_earned_tier, v_now, v_new_expires, v_new_expires, true, 'recharge_exp');
 
     END IF;
   END IF;
@@ -181,7 +195,19 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.apply_vip_recharge_exp(uuid, bigint) TO authenticated;
+-- ── Security: apply_vip_recharge_exp must NOT be callable by end-users ────────
+--
+-- This function modifies VIP EXP for any p_user_id without verifying the caller
+-- is that user.  Granting it to 'authenticated' would let any user call
+-- apply_vip_recharge_exp('victim-id', 500000000) via the Supabase client and
+-- award free VIP 9 to themselves or others.
+--
+-- The function is only meant to be called from within other SECURITY DEFINER
+-- RPCs (approve_recharge_request, approve_recharge_transaction).  Those run as
+-- the function owner (postgres / service role) and can call this function
+-- regardless of the authenticated role's grants.  No explicit GRANT needed.
+
+REVOKE EXECUTE ON FUNCTION public.apply_vip_recharge_exp(uuid, bigint) FROM authenticated;
 REVOKE EXECUTE ON FUNCTION public.apply_vip_recharge_exp(uuid, bigint) FROM anon;
 
 -- ── 2. approve_recharge_request — add EXP hook ───────────────────────────────
@@ -425,20 +451,32 @@ $$;
 GRANT EXECUTE ON FUNCTION public.approve_recharge_transaction(uuid, text, text) TO authenticated;
 
 -- =============================================================================
--- Phase G complete.
+-- Phase G complete (post-QA: 3 bugs fixed).
+--
+-- QA fixes applied in this file (migration not yet pushed):
+--   FIX-1: Added ends_at = v_new_expires to both user_vip_subscriptions INSERTs.
+--          (ends_at is NOT NULL without a default; omitting it would crash at runtime)
+--   FIX-2: Renewal now fires only when this recharge CROSSES the monthly threshold.
+--          Guard: v_monthly_before < v_maintain_exp AND v_new_monthly >= v_maintain_exp
+--          (Previously fired on every recharge once threshold was met, causing
+--           multiple 30-day extensions per cycle for multi-recharge users)
+--   FIX-3: Removed GRANT EXECUTE on apply_vip_recharge_exp TO authenticated.
+--          Replaced with REVOKE FROM authenticated + REVOKE FROM anon.
+--          (Previously any logged-in user could call the function directly from
+--           the Supabase client to award free VIP EXP to any user_id)
 --
 -- Functions created / replaced:
---   public.apply_vip_recharge_exp(uuid, bigint)   ← NEW
---   public.approve_recharge_request(uuid, text)   ← UPDATED (EXP hook added)
---   public.approve_recharge_transaction(uuid, text, text) ← UPDATED (EXP hook added)
+--   public.apply_vip_recharge_exp(uuid, bigint)           ← NEW (internal only)
+--   public.approve_recharge_request(uuid, text)           ← UPDATED (EXP hook)
+--   public.approve_recharge_transaction(uuid, text, text) ← UPDATED (EXP hook)
 --
 -- Recharge paths hooked:
 --   ✓ approve_recharge_request  (legacy: recharge_requests → wallets)
 --   ✓ approve_recharge_transaction (newer: recharge_transactions → user_wallets)
 --
--- Recharge paths deferred (not approval paths — no coins credited):
---   – create_recharge_transaction  (creates pending row only; no coin credit)
---   – request_recharge             (creates pending request only; no coin credit)
+-- Recharge paths deferred (pending-only, no coins credited):
+--   – create_recharge_transaction  (creates pending row only)
+--   – request_recharge             (creates pending request only)
 --
 -- Nothing changed:
 --   – grant_vip()          Admin grant path is unaffected.
