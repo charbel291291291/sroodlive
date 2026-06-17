@@ -957,7 +957,7 @@ class _EntranceBannerCard extends StatelessWidget {
     final borderColor = bp.equipped
         ? const Color(0xFFF0C15A)
         : isVipLocked && tierColors != null
-        ? tierColors.border.withValues(alpha: 0.55)
+        ? tierColors.border.withValues(alpha: 0.6)
         : const Color(0xFF4A3470);
 
     return Container(
