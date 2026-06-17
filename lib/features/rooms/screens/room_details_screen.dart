@@ -10,7 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../../core/supabase/supabase_service.dart';
-import '../../../core/vip/vip_prestige.dart' show VipMicWaveRing;
+import '../../vip/widgets/vip_mic_wave_ring.dart';
 import '../../../core/vip/vip_spec.dart';
 import '../../../shared/widgets/avatar_with_frame.dart';
 import '../../../shared/widgets/vip_badge.dart';

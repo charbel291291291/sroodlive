@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/vip/vip_prestige.dart';
+import '../../vip/widgets/vip_mic_wave_ring.dart';
 
 /// Admin/dev preview screen showing VIP 0–9 visual hierarchy.
 /// Displays chat frames, mic wave rings, entry banners, and badges side by side.

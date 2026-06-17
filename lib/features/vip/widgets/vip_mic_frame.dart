@@ -1,1 +1,1 @@
-export '../../../core/vip/vip_prestige.dart' show VipMicWaveRing;
+export 'vip_mic_wave_ring.dart';
