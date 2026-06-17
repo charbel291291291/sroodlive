@@ -71,22 +71,27 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
       _error = null;
     });
     try {
-      final results = await Future.wait([
-        _service.getVipPlans(),
-        VipService().getMyVip(),
-      ]);
+      final plans = await _service.getVipPlans();
       if (!mounted) return;
       setState(() {
-        _plans  = results[0] as List<Map<String, dynamic>>;
-        _userVip = results[1] as UserVip?;
+        _plans   = plans;
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error   = e.toString();
         _loading = false;
       });
+      return;
+    }
+    // VIP EXP data is supplementary — a failure here must not block the screen.
+    try {
+      final vip = await VipService().getMyVip();
+      if (!mounted) return;
+      setState(() => _userVip = vip);
+    } catch (_) {
+      // _userVip stays null; progress section shows empty-state gracefully.
     }
   }
 
@@ -885,9 +890,7 @@ class _ExpProgressBar extends StatelessWidget {
         if (!isMet && remaining != null && remaining! > 0) ...[
           const SizedBox(height: 3),
           Text(
-            isArabic
-                ? '${fmtExp(remaining!)} EXP $remainingLabel'
-                : '${fmtExp(remaining!)} EXP $remainingLabel',
+            '${fmtExp(remaining!)} EXP $remainingLabel',
             style: const TextStyle(
               color: _kSubtext,
               fontSize: 10,
