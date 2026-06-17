@@ -145,6 +145,8 @@ REVOKE EXECUTE ON FUNCTION public.set_custom_golden_id(uuid, text, boolean, inte
 -- ── 4. Updated: admin_find_user_for_grants ───────────────────────────────────
 -- Returns the same columns as before plus golden ID metadata.
 
+DROP FUNCTION IF EXISTS public.admin_find_user_for_grants(text, integer);
+
 CREATE OR REPLACE FUNCTION public.admin_find_user_for_grants(
   p_query  text,
   p_limit  integer DEFAULT 10
@@ -222,3 +224,4 @@ REVOKE EXECUTE ON FUNCTION public.admin_find_user_for_grants(text, integer) FROM
 -- =============================================================================
 -- End.
 -- =============================================================================
+

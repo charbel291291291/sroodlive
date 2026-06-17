@@ -118,6 +118,8 @@ REVOKE EXECUTE ON FUNCTION public.set_user_country_flag_style(uuid, text, text, 
 -- ── 3. Updated: admin_find_user_for_grants ───────────────────────────────────
 -- Adds country, country_code, and flag style columns to the result.
 
+DROP FUNCTION IF EXISTS public.admin_find_user_for_grants(text, integer);
+
 CREATE OR REPLACE FUNCTION public.admin_find_user_for_grants(
   p_query  text,
   p_limit  integer DEFAULT 10
@@ -205,3 +207,4 @@ REVOKE EXECUTE ON FUNCTION public.admin_find_user_for_grants(text, integer) FROM
 -- =============================================================================
 -- End.
 -- =============================================================================
+
