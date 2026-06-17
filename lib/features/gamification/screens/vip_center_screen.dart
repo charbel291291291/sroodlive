@@ -989,161 +989,298 @@ class _BenefitsList extends StatelessWidget {
   final int level;
   final bool isArabic;
 
+  // Icon mapping for known privilege keys
+  static const Map<VipPrivilegeKey, IconData> _icons = {
+    VipPrivilegeKey.profileGlow:       Icons.flare_rounded,
+    VipPrivilegeKey.vipBadge:          Icons.verified_rounded,
+    VipPrivilegeKey.vipFrame:          Icons.crop_portrait_rounded,
+    VipPrivilegeKey.micWave:           Icons.graphic_eq_rounded,
+    VipPrivilegeKey.entranceEffect:    Icons.auto_awesome_rounded,
+    VipPrivilegeKey.kickProtection:    Icons.shield_outlined,
+    VipPrivilegeKey.kickConfirmation:  Icons.gavel_rounded,
+    VipPrivilegeKey.strongAntiKick:    Icons.shield_rounded,
+    VipPrivilegeKey.notBeingFollowed:  Icons.person_off_rounded,
+    VipPrivilegeKey.antiEnteringRoom:  Icons.meeting_room_rounded,
+    VipPrivilegeKey.privateBrowsing:   Icons.visibility_off_rounded,
+    VipPrivilegeKey.doNotDisturb:      Icons.notifications_off_rounded,
+    VipPrivilegeKey.antiKick:          Icons.block_rounded,
+    VipPrivilegeKey.invisibility:      Icons.blur_on_rounded,
+    VipPrivilegeKey.sendRoomChatImage: Icons.image_rounded,
+    VipPrivilegeKey.silentEntry:       Icons.volume_off_rounded,
+  };
+
+  static IconData _iconFor(VipPrivilegeKey key) =>
+      _icons[key] ?? Icons.star_rounded;
+
   @override
   Widget build(BuildContext context) {
     final unlocked = VipPrivileges.unlockedFor(level);
     final locked   = VipPrivileges.lockedFor(level);
+    final total    = unlocked.length + locked.length;
+
+    // Tier color for the header counter — use the viewed tier, fall back to gold
+    final headerColor = level > 0
+        ? VipTierColors.of(level).border
+        : _kGold;
 
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: _kCard,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: _kCardBorder),
       ),
       child: Column(
-        crossAxisAlignment: isArabic
-            ? CrossAxisAlignment.end
-            : CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-            children: [
-              const Icon(Icons.star_rounded, color: _kGold, size: 18),
-              const SizedBox(width: 8),
-              Text(
-                isArabic ? 'المزايا المتاحة' : 'Available Benefits',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: _kGold.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(99),
-                  border: Border.all(color: _kGold.withValues(alpha: 0.35)),
-                ),
-                child: Text(
-                  '${unlocked.length}',
+          // ── Header ─────────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: Row(
+              textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+              children: [
+                Icon(Icons.workspace_premium_rounded,
+                    color: headerColor, size: 17),
+                const SizedBox(width: 8),
+                Text(
+                  isArabic ? 'المزايا' : 'Benefits',
                   style: const TextStyle(
-                    color: _kGold,
-                    fontSize: 11,
+                    color: Colors.white,
+                    fontSize: 14,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ...unlocked.map(
-            (s) => _BenefitRow(spec: s, unlocked: true, isArabic: isArabic),
-          ),
-          if (locked.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Divider(color: _kCardBorder, height: 1),
-            const SizedBox(height: 10),
-            Row(
-              textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-              children: [
-                const Icon(
-                  Icons.lock_outline_rounded,
-                  color: _kSubtext,
-                  size: 14,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  isArabic ? 'مزايا أعلى مستوى' : 'Higher tier only',
-                  style: const TextStyle(color: _kSubtext, fontSize: 12),
+                const SizedBox(width: 8),
+                // unlocked / total counter
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: headerColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(99),
+                    border:
+                        Border.all(color: headerColor.withValues(alpha: 0.35)),
+                  ),
+                  child: Text(
+                    '${unlocked.length} / $total',
+                    style: TextStyle(
+                      color: headerColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            ...locked.map(
-              (s) => _BenefitRow(spec: s, unlocked: false, isArabic: isArabic),
+          ),
+          const SizedBox(height: 10),
+
+          // ── Unlocked section ───────────────────────────────────────────────
+          if (unlocked.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              child: _BenefitSectionLabel(
+                icon: Icons.check_circle_rounded,
+                label: isArabic ? 'مفعّلة' : 'Unlocked',
+                color: const Color(0xFF22C55E),
+                isArabic: isArabic,
+              ),
+            ),
+            ...unlocked.map(
+              (s) => _BenefitRow(
+                spec: s,
+                icon: _iconFor(s.key),
+                unlocked: true,
+                isArabic: isArabic,
+              ),
             ),
           ],
+
+          // ── Divider + locked section ───────────────────────────────────────
+          if (locked.isNotEmpty) ...[
+            if (unlocked.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Divider(color: _kCardBorder, height: 20),
+              )
+            else
+              const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              child: _BenefitSectionLabel(
+                icon: Icons.lock_rounded,
+                label: isArabic ? 'مزايا أعلى' : 'Higher Tier',
+                color: _kSubtext,
+                isArabic: isArabic,
+              ),
+            ),
+            ...locked.map(
+              (s) => _BenefitRow(
+                spec: s,
+                icon: _iconFor(s.key),
+                unlocked: false,
+                isArabic: isArabic,
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 4),
         ],
       ),
     );
   }
 }
 
+class _BenefitSectionLabel extends StatelessWidget {
+  const _BenefitSectionLabel({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.isArabic,
+  });
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, size: 12, color: color),
+      const SizedBox(width: 5),
+      Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
+        ),
+      ),
+    ],
+  );
+}
+
 class _BenefitRow extends StatelessWidget {
   const _BenefitRow({
     required this.spec,
+    required this.icon,
     required this.unlocked,
     required this.isArabic,
   });
   final VipPrivilegeSpec spec;
+  final IconData icon;
   final bool unlocked;
   final bool isArabic;
 
   @override
   Widget build(BuildContext context) {
-    final label = isArabic ? spec.labelAr : spec.label;
-    final desc  = isArabic ? spec.descriptionAr : spec.description;
+    final label    = isArabic ? spec.labelAr : spec.label;
+    final desc     = isArabic ? spec.descriptionAr : spec.description;
+    final reqTier  = VipTierColors.of(spec.minVipLevel);
+
+    // Icon container color: tier-tinted when unlocked, plain grey when locked
+    final iconBg = unlocked
+        ? reqTier.start.withValues(alpha: 0.16)
+        : Colors.white.withValues(alpha: 0.05);
+    final iconColor = unlocked ? reqTier.border : _kSubtext;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 1),
-            child: Icon(
-              unlocked
-                  ? Icons.check_circle_rounded
-                  : Icons.lock_outline_rounded,
-              size: 16,
-              color: unlocked ? _kGreen : _kSubtext,
-            ),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 2),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: unlocked
+              ? reqTier.start.withValues(alpha: 0.06)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: unlocked
+                ? reqTier.border.withValues(alpha: 0.18)
+                : _kCardBorder.withValues(alpha: 0.5),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: isArabic
-                  ? CrossAxisAlignment.end
-                  : CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: unlocked ? Colors.white : _kSubtext,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  desc,
-                  style: TextStyle(
-                    color: unlocked ? _kText : _kSubtext,
-                    fontSize: 11,
-                    height: 1.4,
-                  ),
-                ),
-                if (!unlocked)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      isArabic
-                          ? 'يتطلب VIP ${spec.minVipLevel}+'
-                          : 'Requires VIP ${spec.minVipLevel}+',
-                      style: const TextStyle(
-                        color: _kGold,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                      ),
+        ),
+        child: Row(
+          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Icon box
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 18, color: iconColor),
+            ),
+            const SizedBox(width: 12),
+            // Text block
+            Expanded(
+              child: Column(
+                crossAxisAlignment: isArabic
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: unlocked ? Colors.white : _kSubtext,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
                     ),
                   ),
-              ],
+                  if (desc.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      desc,
+                      style: TextStyle(
+                        color: unlocked
+                            ? _kText.withValues(alpha: 0.75)
+                            : _kSubtext.withValues(alpha: 0.6),
+                        fontSize: 11,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: 10),
+            // Right-side indicator
+            if (unlocked)
+              Icon(
+                Icons.check_circle_rounded,
+                size: 18,
+                color: const Color(0xFF22C55E).withValues(alpha: 0.85),
+              )
+            else
+              // "Requires VIP X+" chip using that tier's color
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: reqTier.start.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(99),
+                  border: Border.all(
+                      color: reqTier.border.withValues(alpha: 0.45)),
+                ),
+                child: Text(
+                  isArabic
+                      ? 'VIP${spec.minVipLevel}+'
+                      : 'VIP${spec.minVipLevel}+',
+                  style: TextStyle(
+                    color: reqTier.border,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
