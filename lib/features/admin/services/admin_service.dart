@@ -158,6 +158,32 @@ class AdminService {
         .toList();
   }
 
+  /// Resolve a free-text query (UUID / Golden ID / username / name) to a list
+  /// of matching users, for use by VIP grant / revoke / Golden ID actions.
+  ///
+  /// Uses [admin_find_user_for_grants] which is safe against invalid UUID casts.
+  /// Limit is capped at 10 — this is a targeted lookup, not a bulk search.
+  Future<List<AdminUserSummary>> findUsersForGrants(String query) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_find_user_for_grants',
+      params: {'p_query': query.trim(), 'p_limit': 10},
+    );
+    return (data as List<dynamic>).map((item) {
+      final m = item as Map<String, dynamic>;
+      return AdminUserSummary(
+        userId:         m['user_id']?.toString()      ?? '',
+        publicUserId:   m['golden_id']?.toString(),
+        displayName:    m['display_name']?.toString(),
+        username:       m['username']?.toString(),
+        avatarUrl:      m['avatar_url']?.toString(),
+        vipLevel:       (m['vip_level'] as int?)      ?? 0,
+        coinsBalance:   0,
+        diamondsBalance: 0,
+        roles:          const [],
+      );
+    }).toList();
+  }
+
   Future<void> assignUserRole({
     required String userId,
     required String role,
