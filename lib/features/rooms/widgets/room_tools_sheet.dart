@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,15 +19,15 @@ import 'room_settings_sheet.dart';
 import '../models/room.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// RoomToolsSheet — premium tools bottom sheet for live rooms.
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// RoomToolsSheet â€” premium tools bottom sheet for live rooms.
 //
 // Overflow fix: SafeArea is NOT used as a wrapper. Instead we read
 // MediaQuery.viewPadding.bottom (device navigation bar inset) and add it
 // explicitly to the scroll content bottom padding. This avoids the 1.1 px
 // overflow that happens when SafeArea pads the sheet before the Column
 // computes its height.
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class RoomToolsSheet extends StatefulWidget {
   const RoomToolsSheet({
@@ -48,6 +48,7 @@ class RoomToolsSheet extends StatefulWidget {
     this.onPkStarted,
     this.onPkCancelRequested,
     this.onMusicTap,
+    this.onRedEnvelopeCreated,
     super.key,
   });
 
@@ -70,6 +71,7 @@ class RoomToolsSheet extends StatefulWidget {
   final VoidCallback? onPkCancelRequested;
   // Music
   final VoidCallback? onMusicTap;
+  final ValueChanged<Map<String, dynamic>>? onRedEnvelopeCreated;
 
   @override
   State<RoomToolsSheet> createState() => _RoomToolsSheetState();
@@ -122,21 +124,21 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
 
   String _t(String ar, String en) => context.isArabic ? ar : en;
 
-  // ── Permission check ──────────────────────────────────────────────────────
+  // â”€â”€ Permission check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   void _requirePermission(VoidCallback onGranted) {
     if (_canManage) {
       onGranted();
     } else {
       _snack(
-        _t('ليس لديك صلاحية لاستخدام هذه الأداة',
+        _t('Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ù„Ø§Ø³ØªØ®Ø¯Ø§Ù… Ù‡Ø°Ù‡ Ø§Ù„Ø£Ø¯Ø§Ø©',
             'You do not have permission to use this tool.'),
         isError: true,
       );
     }
   }
 
-  // ── Snack helper ──────────────────────────────────────────────────────────
+  // â”€â”€ Snack helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   void _snack(String msg, {bool isError = false}) {
     ScaffoldMessenger.of(context)
@@ -159,7 +161,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
       ));
   }
 
-  // ── Coming Soon mini-sheet ────────────────────────────────────────────────
+  // â”€â”€ Coming Soon mini-sheet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   void _showComingSoon(String featureAr, String featureEn) {
     HapticFeedback.lightImpact();
@@ -173,7 +175,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
     );
   }
 
-  // ── Navigation helpers ────────────────────────────────────────────────────
+  // â”€â”€ Navigation helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   void _openSettings() {
     HapticFeedback.lightImpact();
@@ -195,7 +197,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
 
   void _openGameCenter() {
     HapticFeedback.lightImpact();
-    // Capture isArabic before popping — context will be defunct afterwards.
+    // Capture isArabic before popping â€” context will be defunct afterwards.
     final isArabic = context.isArabic;
     Navigator.of(context).pop(); // close tools sheet
     // useRootNavigator: true so the sheet is anchored to the root navigator,
@@ -221,19 +223,51 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
     );
   }
 
-  void _openRedEnvelope() {
+  Future<void> _openRedEnvelope() async {
     HapticFeedback.lightImpact();
-    showModalBottomSheet<void>(
+
+    final result = await showModalBottomSheet<Object?>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _RedEnvelopeCreateSheet(
+      builder: (_) => _LuckyBagSheet(
         roomId: widget.room.id,
         isArabic: context.isArabic,
       ),
     );
-  }
 
+    if (!mounted || result == null) return;
+
+    Map<String, dynamic>? envelope;
+    if (result is Map) {
+      envelope = Map<String, dynamic>.from(result);
+    } else if (result is List && result.isNotEmpty && result.first is Map) {
+      envelope = Map<String, dynamic>.from(result.first as Map);
+    }
+
+    if (envelope != null) {
+      widget.onRedEnvelopeCreated?.call(envelope);
+    }
+
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            context.isArabic ? 'تم إرسال حقيبة الحظ' : 'Lucky Bag sent!',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          backgroundColor: const Color(0xFFD4380D),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+  }
   void _openMusic() {
     HapticFeedback.lightImpact();
     Navigator.of(context).pop();
@@ -248,19 +282,19 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
         backgroundColor: const Color(0xFF1A0D33),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
-          _t('مسح الدردشة', 'Clear Chat'),
+          _t('Ù…Ø³Ø­ Ø§Ù„Ø¯Ø±Ø¯Ø´Ø©', 'Clear Chat'),
           style: const TextStyle(
               color: Colors.white, fontWeight: FontWeight.w800),
         ),
         content: Text(
-          _t('هل أنت متأكد أنك تريد مسح جميع رسائل الدردشة؟',
+          _t('Ù‡Ù„ Ø£Ù†Øª Ù…ØªØ£ÙƒØ¯ Ø£Ù†Ùƒ ØªØ±ÙŠØ¯ Ù…Ø³Ø­ Ø¬Ù…ÙŠØ¹ Ø±Ø³Ø§Ø¦Ù„ Ø§Ù„Ø¯Ø±Ø¯Ø´Ø©ØŸ',
               'Are you sure you want to clear all chat messages?'),
           style: TextStyle(color: Colors.white.withValues(alpha: 0.75)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(_t('إلغاء', 'Cancel'),
+            child: Text(_t('Ø¥Ù„ØºØ§Ø¡', 'Cancel'),
                 style: const TextStyle(color: Color(0xFF9E91B8))),
           ),
           FilledButton(
@@ -274,7 +308,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
               Navigator.of(context).pop(); // close tools sheet
               widget.onClearChat();
             },
-            child: Text(_t('مسح', 'Clear')),
+            child: Text(_t('Ù…Ø³Ø­', 'Clear')),
           ),
         ],
       ),
@@ -309,7 +343,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(context.isArabic
-              ? 'لا يوجد أحد على المايك'
+              ? 'Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ø£Ø­Ø¯ Ø¹Ù„Ù‰ Ø§Ù„Ù…Ø§ÙŠÙƒ'
               : 'No one is on mic'),
           backgroundColor: const Color(0xFF231440),
         ),
@@ -376,7 +410,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
     }
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
+  // â”€â”€ Build â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   @override
   Widget build(BuildContext context) {
@@ -401,22 +435,22 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
           children: [
             // Drag handle
             _Handle(),
-            // Scrollable content — bottom padding includes nav-bar inset
+            // Scrollable content â€” bottom padding includes nav-bar inset
             Flexible(
               child: SingleChildScrollView(
                 padding: EdgeInsets.fromLTRB(16, 4, 16, 20 + bottomInset),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Section A – Interactive
-                    _SectionLabel(_t('ميزات تفاعلية', 'Interactive')),
+                    // Section A â€“ Interactive
+                    _SectionLabel(_t('Ù…ÙŠØ²Ø§Øª ØªÙØ§Ø¹Ù„ÙŠØ©', 'Interactive')),
                     const SizedBox(height: 10),
                     _ToolGrid(
                       isArabic: isArabic,
                       items: [
                         _ToolDef(
                           icon: Icons.groups_2_rounded,
-                          labelAr: 'بي كي',
+                          labelAr: 'Ø¨ÙŠ ÙƒÙŠ',
                           labelEn: 'Team PK',
                           onTap: _canManage
                               ? _openTeamPk
@@ -425,14 +459,14 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                         ),
                         _ToolDef(
                           icon: Icons.redeem_rounded,
-                          labelAr: 'مظروف',
-                          labelEn: 'Red',
+                          labelAr: 'حقيبة',
+                          labelEn: 'Lucky',
                           accent: const Color(0xFFE63946),
                           onTap: _openRedEnvelope,
                         ),
                         _ToolDef(
                           icon: Icons.sports_esports_rounded,
-                          labelAr: 'ألعاب',
+                          labelAr: 'Ø£Ù„Ø¹Ø§Ø¨',
                           labelEn: 'Game',
                           accent: const Color(0xFFF0C15A),
                           onTap: _openGameCenter,
@@ -441,15 +475,15 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Section B – Management
-                    _SectionLabel(_t('أدوات الإدارة', 'Management')),
+                    // Section B â€“ Management
+                    _SectionLabel(_t('Ø£Ø¯ÙˆØ§Øª Ø§Ù„Ø¥Ø¯Ø§Ø±Ø©', 'Management')),
                     const SizedBox(height: 10),
                     _ToolGrid(
                       isArabic: isArabic,
                       items: [
                         _ToolDef(
                           icon: Icons.cleaning_services_rounded,
-                          labelAr: 'مسح',
+                          labelAr: 'Ù…Ø³Ø­',
                           labelEn: 'Clean',
                           onTap: _canManage
                               ? _confirmClearChat
@@ -458,7 +492,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                         ),
                         _ToolDef(
                           icon: Icons.settings_rounded,
-                          labelAr: 'الإعدادات',
+                          labelAr: 'Ø§Ù„Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª',
                           labelEn: 'Settings',
                           onTap: _canManage
                               ? _openSettings
@@ -467,24 +501,24 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                         ),
                         _ToolDef(
                           icon: Icons.music_note_rounded,
-                          labelAr: 'موسيقى',
+                          labelAr: 'Ù…ÙˆØ³ÙŠÙ‚Ù‰',
                           labelEn: 'Music',
                           accent: const Color(0xFFC875FF),
                           onTap: _openMusic,
                         ),
                         _ToolDef(
                           icon: Icons.graphic_eq_rounded,
-                          labelAr: 'صوت',
+                          labelAr: 'ØµÙˆØª',
                           labelEn: 'Voice',
                           onTap: () =>
-                              _showComingSoon('مؤثر صوتي', 'Voice Effect'),
+                              _showComingSoon('Ù…Ø¤Ø«Ø± ØµÙˆØªÙŠ', 'Voice Effect'),
                         ),
                         _ToolDef(
                           icon: widget.isLocked
                               ? Icons.lock_rounded
                               : Icons.lock_open_rounded,
                           labelAr:
-                              widget.isLocked ? 'فتح' : 'قفل',
+                              widget.isLocked ? 'ÙØªØ­' : 'Ù‚ÙÙ„',
                           labelEn: widget.isLocked ? 'Unlock' : 'Lock',
                           accent: widget.isLocked
                               ? const Color(0xFFE63946)
@@ -498,7 +532,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                         ),
                         _ToolDef(
                           icon: Icons.mic_rounded,
-                          labelAr: 'ميكروفون',
+                          labelAr: 'Ù…ÙŠÙƒØ±ÙˆÙÙˆÙ†',
                           labelEn: 'Mic Mode',
                           onTap: _canManage
                               ? _openMicMode
@@ -507,13 +541,13 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                         ),
                         _ToolDef(
                           icon: Icons.wallpaper_rounded,
-                          labelAr: 'الخلفية',
+                          labelAr: 'Ø§Ù„Ø®Ù„ÙÙŠØ©',
                           labelEn: 'Background',
                           onTap: _openBackground,
                         ),
                         _ToolDef(
                           icon: Icons.person_off_rounded,
-                          labelAr: 'سجل الطرد',
+                          labelAr: 'Ø³Ø¬Ù„ Ø§Ù„Ø·Ø±Ø¯',
                           labelEn: 'Kicks',
                           accent: const Color(0xFFE63946),
                           onTap: _canManage
@@ -525,8 +559,8 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Section C – Other
-                    _SectionLabel(_t('أدوات أخرى', 'Other')),
+                    // Section C â€“ Other
+                    _SectionLabel(_t('Ø£Ø¯ÙˆØ§Øª Ø£Ø®Ø±Ù‰', 'Other')),
                     const SizedBox(height: 10),
                     _ToolGrid(
                       isArabic: isArabic,
@@ -535,7 +569,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                           icon: _soundOn
                               ? Icons.volume_up_rounded
                               : Icons.volume_off_rounded,
-                          labelAr: _soundOn ? 'الصوت' : 'كتم',
+                          labelAr: _soundOn ? 'Ø§Ù„ØµÙˆØª' : 'ÙƒØªÙ…',
                           labelEn: _soundOn ? 'Sound' : 'Muted',
                           accent: _soundOn
                               ? const Color(0xFF1A8CB0)
@@ -547,7 +581,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                           icon: _visualOn
                               ? Icons.auto_awesome_rounded
                               : Icons.auto_awesome_outlined,
-                          labelAr: _visualOn ? 'مؤثرات' : 'بدون مؤثرات',
+                          labelAr: _visualOn ? 'Ù…Ø¤Ø«Ø±Ø§Øª' : 'Ø¨Ø¯ÙˆÙ† Ù…Ø¤Ø«Ø±Ø§Øª',
                           labelEn: _visualOn ? 'Visual' : 'Visual Off',
                           accent: _visualOn
                               ? const Color(0xFF8B26D9)
@@ -568,9 +602,9 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Tool definition data class
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _ToolDef {
   const _ToolDef({
@@ -594,12 +628,12 @@ class _ToolDef {
   final bool busy;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Tool grid — uses Wrap instead of GridView to avoid aspect-ratio overflow.
-// Each tile has a fixed 56×56 icon box and a 1-line label below it.
-// Total tile height ≈ 56 + 5 + 15 = 76 px, so 5 columns at ~64 px wide each
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Tool grid â€” uses Wrap instead of GridView to avoid aspect-ratio overflow.
+// Each tile has a fixed 56Ã—56 icon box and a 1-line label below it.
+// Total tile height â‰ˆ 56 + 5 + 15 = 76 px, so 5 columns at ~64 px wide each
 // never overflows the grid cell.
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _ToolGrid extends StatelessWidget {
   const _ToolGrid({required this.items, required this.isArabic});
@@ -610,7 +644,7 @@ class _ToolGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
-      // 5 columns with 8 px gaps → each tile width
+      // 5 columns with 8 px gaps â†’ each tile width
       const cols = 5;
       const gap = 8.0;
       final tileW = (constraints.maxWidth - gap * (cols - 1)) / cols;
@@ -632,9 +666,9 @@ class _ToolGrid extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Individual tool tile — premium nav-footer style
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Individual tool tile â€” premium nav-footer style
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _ToolTile extends StatefulWidget {
   const _ToolTile({required this.def, required this.label});
@@ -754,7 +788,7 @@ class _ToolTileState extends State<_ToolTile>
                       ),
               ),
               const SizedBox(height: 5),
-              // Label — always 1 line, ellipsis
+              // Label â€” always 1 line, ellipsis
               Text(
                 widget.label,
                 textAlign: TextAlign.center,
@@ -778,9 +812,9 @@ class _ToolTileState extends State<_ToolTile>
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Helper sub-widgets
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _Handle extends StatelessWidget {
   @override
@@ -820,13 +854,13 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Coming Soon sheet
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Shown when a PK is already active and host opens the tool again.
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _PkActiveOptionsSheet extends StatelessWidget {
   const _PkActiveOptionsSheet({
@@ -856,7 +890,7 @@ class _PkActiveOptionsSheet extends StatelessWidget {
           _Handle(),
           const SizedBox(height: 14),
           Text(
-            t ? 'منافسة نشطة' : 'PK is Live',
+            t ? 'Ù…Ù†Ø§ÙØ³Ø© Ù†Ø´Ø·Ø©' : 'PK is Live',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 17,
@@ -865,7 +899,7 @@ class _PkActiveOptionsSheet extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            t ? 'المنافسة جارية الآن' : 'A battle is currently in progress.',
+            t ? 'Ø§Ù„Ù…Ù†Ø§ÙØ³Ø© Ø¬Ø§Ø±ÙŠØ© Ø§Ù„Ø¢Ù†' : 'A battle is currently in progress.',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.5),
               fontSize: 12,
@@ -883,7 +917,7 @@ class _PkActiveOptionsSheet extends StatelessWidget {
               ),
               onPressed: onCancel,
               child: Text(
-                t ? 'إلغاء المنافسة' : 'Cancel PK',
+                t ? 'Ø¥Ù„ØºØ§Ø¡ Ø§Ù„Ù…Ù†Ø§ÙØ³Ø©' : 'Cancel PK',
                 style: const TextStyle(fontWeight: FontWeight.w800),
               ),
             ),
@@ -892,7 +926,7 @@ class _PkActiveOptionsSheet extends StatelessWidget {
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: Text(
-              t ? 'رجوع' : 'Go Back',
+              t ? 'Ø±Ø¬ÙˆØ¹' : 'Go Back',
               style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
             ),
           ),
@@ -902,9 +936,9 @@ class _PkActiveOptionsSheet extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Mic Mode Sheet — picks 6 / 9 / 12 mic seats and updates rooms.max_seats
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Mic Mode Sheet â€” picks 6 / 9 / 12 mic seats and updates rooms.max_seats
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _MicModeSheet extends StatefulWidget {
   const _MicModeSheet({
@@ -924,9 +958,9 @@ class _MicModeSheet extends StatefulWidget {
 
 class _MicModeSheetState extends State<_MicModeSheet> {
   static const _options = [
-    (seats: 6,  ar: '٦ مقاعد',  en: '6 Seats',  descAr: 'مناسب للغرف الصغيرة',       descEn: 'Best for small rooms'),
-    (seats: 9,  ar: '٩ مقاعد',  en: '9 Seats',  descAr: 'توازن مثالي',                descEn: 'Balanced experience'),
-    (seats: 12, ar: '١٢ مقعد', en: '12 Seats', descAr: 'للغرف الكبيرة والحفلات',    descEn: 'Large rooms & events'),
+    (seats: 6,  ar: 'Ù¦ Ù…Ù‚Ø§Ø¹Ø¯',  en: '6 Seats',  descAr: 'Ù…Ù†Ø§Ø³Ø¨ Ù„Ù„ØºØ±Ù Ø§Ù„ØµØºÙŠØ±Ø©',       descEn: 'Best for small rooms'),
+    (seats: 9,  ar: 'Ù© Ù…Ù‚Ø§Ø¹Ø¯',  en: '9 Seats',  descAr: 'ØªÙˆØ§Ø²Ù† Ù…Ø«Ø§Ù„ÙŠ',                descEn: 'Balanced experience'),
+    (seats: 12, ar: 'Ù¡Ù¢ Ù…Ù‚Ø¹Ø¯', en: '12 Seats', descAr: 'Ù„Ù„ØºØ±Ù Ø§Ù„ÙƒØ¨ÙŠØ±Ø© ÙˆØ§Ù„Ø­ÙÙ„Ø§Øª',    descEn: 'Large rooms & events'),
   ];
 
   late int _selected;
@@ -958,7 +992,7 @@ class _MicModeSheetState extends State<_MicModeSheet> {
           _saving = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_t('فشل تحديث المقاعد', 'Failed to update seats')),
+          content: Text(_t('ÙØ´Ù„ ØªØ­Ø¯ÙŠØ« Ø§Ù„Ù…Ù‚Ø§Ø¹Ø¯', 'Failed to update seats')),
           backgroundColor: const Color(0xFF2A0F1A),
         ));
       }
@@ -984,13 +1018,13 @@ class _MicModeSheetState extends State<_MicModeSheet> {
           _Handle(),
           const SizedBox(height: 8),
           Text(
-            _t('عدد مقاعد الميكروفون', 'Mic Seats'),
+            _t('Ø¹Ø¯Ø¯ Ù…Ù‚Ø§Ø¹Ø¯ Ø§Ù„Ù…ÙŠÙƒØ±ÙˆÙÙˆÙ†', 'Mic Seats'),
             style: const TextStyle(
                 color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),
           Text(
-            _t('يؤثر على جميع المشاركين في الغرفة',
+            _t('ÙŠØ¤Ø«Ø± Ø¹Ù„Ù‰ Ø¬Ù…ÙŠØ¹ Ø§Ù„Ù…Ø´Ø§Ø±ÙƒÙŠÙ† ÙÙŠ Ø§Ù„ØºØ±ÙØ©',
                 'Affects all participants in the room'),
             style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.45), fontSize: 12),
@@ -1091,9 +1125,9 @@ class _MicModeSheetState extends State<_MicModeSheet> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Background Sheet — gradient presets (local) + custom image upload (global)
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Background Sheet â€” gradient presets (local) + custom image upload (global)
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _BackgroundSheet extends StatefulWidget {
   const _BackgroundSheet({
@@ -1115,10 +1149,10 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
   static const _kBgKey = 'room_pref_background';
 
   static const _themes = [
-    (ar: 'ليلي كلاسيكي', en: 'Classic Night', colors: [Color(0xFF231440), Color(0xFF160C2F), Color(0xFF0C0619)]),
-    (ar: 'شفق أرجواني', en: 'Purple Dusk',   colors: [Color(0xFF2D1B69), Color(0xFF11998e), Color(0xFF1A0D33)]),
-    (ar: 'نار ذهبية',   en: 'Golden Flame',  colors: [Color(0xFF3D1C02), Color(0xFF7B3F00), Color(0xFF1A0900)]),
-    (ar: 'سماء زرقاء', en: 'Deep Ocean',     colors: [Color(0xFF0A1628), Color(0xFF1A3A5C), Color(0xFF0D1F35)]),
+    (ar: 'Ù„ÙŠÙ„ÙŠ ÙƒÙ„Ø§Ø³ÙŠÙƒÙŠ', en: 'Classic Night', colors: [Color(0xFF231440), Color(0xFF160C2F), Color(0xFF0C0619)]),
+    (ar: 'Ø´ÙÙ‚ Ø£Ø±Ø¬ÙˆØ§Ù†ÙŠ', en: 'Purple Dusk',   colors: [Color(0xFF2D1B69), Color(0xFF11998e), Color(0xFF1A0D33)]),
+    (ar: 'Ù†Ø§Ø± Ø°Ù‡Ø¨ÙŠØ©',   en: 'Golden Flame',  colors: [Color(0xFF3D1C02), Color(0xFF7B3F00), Color(0xFF1A0900)]),
+    (ar: 'Ø³Ù…Ø§Ø¡ Ø²Ø±Ù‚Ø§Ø¡', en: 'Deep Ocean',     colors: [Color(0xFF0A1628), Color(0xFF1A3A5C), Color(0xFF0D1F35)]),
   ];
 
   int _selectedTheme = 0;
@@ -1168,7 +1202,7 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
         setState(() => _uploading = false);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
-              _t('فشل رفع الصورة', 'Failed to upload image')),
+              _t('ÙØ´Ù„ Ø±ÙØ¹ Ø§Ù„ØµÙˆØ±Ø©', 'Failed to upload image')),
           backgroundColor: const Color(0xFF2A0F1A),
         ));
       }
@@ -1206,23 +1240,23 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
           _Handle(),
           const SizedBox(height: 8),
           Text(
-            _t('خلفية الغرفة', 'Room Background'),
+            _t('Ø®Ù„ÙÙŠØ© Ø§Ù„ØºØ±ÙØ©', 'Room Background'),
             style: const TextStyle(
                 color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),
           Text(
-            _t('الخلفية المخصصة تظهر لجميع المشاركين',
+            _t('Ø§Ù„Ø®Ù„ÙÙŠØ© Ø§Ù„Ù…Ø®ØµØµØ© ØªØ¸Ù‡Ø± Ù„Ø¬Ù…ÙŠØ¹ Ø§Ù„Ù…Ø´Ø§Ø±ÙƒÙŠÙ†',
                 'Custom image is visible to all participants'),
             style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.45), fontSize: 12),
           ),
           const SizedBox(height: 20),
-          // ── Gradient presets ──
+          // â”€â”€ Gradient presets â”€â”€
           Align(
             alignment: AlignmentDirectional.centerStart,
             child: Text(
-              _t('ألوان', 'COLORS').toUpperCase(),
+              _t('Ø£Ù„ÙˆØ§Ù†', 'COLORS').toUpperCase(),
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.40),
                 fontSize: 10,
@@ -1295,11 +1329,11 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
             },
           ),
           const SizedBox(height: 20),
-          // ── Custom image upload ──
+          // â”€â”€ Custom image upload â”€â”€
           Align(
             alignment: AlignmentDirectional.centerStart,
             child: Text(
-              _t('صورة مخصصة', 'CUSTOM IMAGE').toUpperCase(),
+              _t('ØµÙˆØ±Ø© Ù…Ø®ØµØµØ©', 'CUSTOM IMAGE').toUpperCase(),
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.40),
                 fontSize: 10,
@@ -1353,7 +1387,7 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        _t('صورة مخصصة نشطة', 'Custom image active'),
+                        _t('ØµÙˆØ±Ø© Ù…Ø®ØµØµØ© Ù†Ø´Ø·Ø©', 'Custom image active'),
                         style: const TextStyle(
                             color: Color(0xFFF0C15A),
                             fontSize: 11,
@@ -1387,8 +1421,8 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
                     )
                   : const Icon(Icons.add_photo_alternate_rounded, size: 20),
               label: Text(_uploading
-                  ? _t('جاري الرفع...', 'Uploading...')
-                  : _t('رفع صورة مخصصة', 'Upload Custom Image')),
+                  ? _t('Ø¬Ø§Ø±ÙŠ Ø§Ù„Ø±ÙØ¹...', 'Uploading...')
+                  : _t('Ø±ÙØ¹ ØµÙˆØ±Ø© Ù…Ø®ØµØµØ©', 'Upload Custom Image')),
             ),
           ),
           const SizedBox(height: 4),
@@ -1398,69 +1432,77 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Red Envelope create sheet
 // ─────────────────────────────────────────────────────────────────────────────
+// Lucky Bag sheet — premium send UI (backed by red_envelopes table)
+// ─────────────────────────────────────────────────────────────────────────────
 
-class _RedEnvelopeCreateSheet extends StatefulWidget {
-  const _RedEnvelopeCreateSheet({required this.roomId, required this.isArabic});
+
+class _LuckyBagSheet extends StatefulWidget {
+  const _LuckyBagSheet({required this.roomId, required this.isArabic});
   final String roomId;
   final bool isArabic;
 
   @override
-  State<_RedEnvelopeCreateSheet> createState() =>
-      _RedEnvelopeCreateSheetState();
+  State<_LuckyBagSheet> createState() => _LuckyBagSheetState();
 }
 
-class _RedEnvelopeCreateSheetState extends State<_RedEnvelopeCreateSheet> {
-  final _coinsCtrl = TextEditingController(text: '100');
-  final _countCtrl = TextEditingController(text: '5');
+class _LuckyBagSheetState extends State<_LuckyBagSheet>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tab;
+
+  static const _coinPresetsNormal = [777, 999, 2999, 4999];
+  static const _coinPresetsSuper  = [9999, 19999, 49999, 99999];
+  static const _countPresets      = [9, 19, 29, 49];
+
+  int _selectedCoins = 777;
+  int _selectedCount = 9;
   bool _loading = false;
   String? _error;
 
   String _t(String ar, String en) => widget.isArabic ? ar : en;
 
   @override
+  void initState() {
+    super.initState();
+    _tab = TabController(length: 2, vsync: this);
+    _tab.addListener(() {
+      if (!_tab.indexIsChanging) return;
+      setState(() {
+        _selectedCoins = _tab.index == 0 ? 777 : 9999;
+        _error = null;
+      });
+    });
+  }
+
+  @override
   void dispose() {
-    _coinsCtrl.dispose();
-    _countCtrl.dispose();
+    _tab.dispose();
     super.dispose();
   }
 
+  List<int> get _coinPresets =>
+      _tab.index == 0 ? _coinPresetsNormal : _coinPresetsSuper;
+
   Future<void> _send() async {
-    final coins = int.tryParse(_coinsCtrl.text.trim()) ?? 0;
-    final count = int.tryParse(_countCtrl.text.trim()) ?? 0;
-    if (coins < 10) {
-      setState(() => _error = _t('أقل قيمة ١٠ عملات', 'Minimum 10 coins'));
-      return;
-    }
-    if (count < 1) {
-      setState(() => _error = _t('يجب أن يكون هناك مظروف واحد على الأقل', 'At least 1 envelope'));
-      return;
-    }
-    if (count > coins) {
-      setState(() => _error = _t('عدد المظاريف أكبر من العملات', 'Count exceeds coins'));
-      return;
-    }
     setState(() { _loading = true; _error = null; });
     try {
-      await Supabase.instance.client.rpc('create_red_envelope', params: {
+      final result = await Supabase.instance.client
+          .rpc('create_red_envelope', params: {
         'p_room_id': widget.roomId,
-        'p_total_coins': coins,
-        'p_count': count,
+        'p_total_coins': _selectedCoins,
+        'p_count': _selectedCount,
       });
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) Navigator.of(context).pop(result);
     } catch (e) {
       if (!mounted) return;
-      debugPrint('[RedEnvelope] send error — roomId=${widget.roomId} coins=$coins count=$count error=$e');
+      debugPrint('[LuckyBag] send — room=${widget.roomId} '
+          'coins=$_selectedCoins count=$_selectedCount err=$e');
       final msg = e.toString();
       final String friendly;
       if (msg.contains('insufficient_balance')) {
         friendly = _t('رصيدك غير كافٍ', 'Insufficient balance');
-      } else if (msg.contains('min_coins_10')) {
-        friendly = _t('أقل قيمة ١٠ عملات', 'Minimum 10 coins');
-      } else if (msg.contains('count_exceeds_coins')) {
-        friendly = _t('عدد المظاريف أكبر من العملات', 'Count exceeds coins');
       } else if (msg.contains('not_room_member')) {
         friendly = _t('يجب أن تكون في الغرفة', 'You must be in the room');
       } else if (msg.contains('room_not_found')) {
@@ -1474,148 +1516,381 @@ class _RedEnvelopeCreateSheetState extends State<_RedEnvelopeCreateSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).padding.bottom;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom +
+        MediaQuery.of(context).padding.bottom;
+    final coinPresets = _coinPresets;
+    final avg = (_selectedCoins / _selectedCount).round();
+
     return Directionality(
       textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
       child: Container(
-        padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomInset),
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF2D0A0A), Color(0xFF1A0D2E)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            colors: [Color(0xFF2D0808), Color(0xFF1C0505), Color(0xFF120316)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
           ),
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _Handle(),
-            const SizedBox(height: 8),
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFFE63946).withValues(alpha: 0.15),
-                border: Border.all(color: const Color(0xFFE63946).withValues(alpha: 0.5)),
-              ),
-              child: const Icon(Icons.redeem_rounded, color: Color(0xFFFF6B6B), size: 28),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              _t('إرسال مظروف أحمر', 'Send Red Envelope'),
-              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _t('سيحصل كل عضو في الغرفة على نصيبه', 'Room members will race to claim their share'),
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
-            ),
-            const SizedBox(height: 20),
-            _EnvelopeField(
-              controller: _coinsCtrl,
-              label: _t('إجمالي العملات', 'Total Coins'),
-              hint: '100',
-              icon: Icons.monetization_on_rounded,
-              accentColor: const Color(0xFFF0C15A),
-            ),
-            const SizedBox(height: 12),
-            _EnvelopeField(
-              controller: _countCtrl,
-              label: _t('عدد المظاريف', 'Number of Envelopes'),
-              hint: '5',
-              icon: Icons.inbox_rounded,
-              accentColor: const Color(0xFFFF6B6B),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 10),
-              Text(
-                _error!,
-                style: const TextStyle(color: Color(0xFFFF6B6B), fontSize: 12),
-              ),
-            ],
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFE63946),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + bottomInset),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Drag handle
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(vertical: 12),
+                  width: 44, height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-                onPressed: _loading ? null : _send,
+              ),
+
+              // Hero bag icon
+              Container(
+                width: 76, height: 76,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const RadialGradient(
+                    colors: [Color(0xFFFFE066), Color(0xFFC8850A)],
+                    radius: 0.75,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFFFD700).withValues(alpha: 0.5),
+                      blurRadius: 24,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Text('🎁', style: TextStyle(fontSize: 38)),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              Text(
+                _t('أرسل حقيبة الحظ', 'Send a Lucky Bag'),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _t(
+                  'اضغط على حقيبة الحظ لفرصة الفوز بعملات',
+                  'Tap the Lucky Bag for a chance to win Coins',
+                ),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.45),
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 18),
+
+              // Tab selector
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.07),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                padding: const EdgeInsets.all(3),
+                child: TabBar(
+                  controller: _tab,
+                  indicator: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFD4380D), Color(0xFFE63946)],
+                    ),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  dividerColor: Colors.transparent,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.white54,
+                  labelStyle: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 13),
+                  tabs: [
+                    Tab(text: _t('حقيبة الحظ', 'Lucky Bag')),
+                    Tab(text: _t('الكبرى', 'Super')),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Coins presets
+              _BagSectionLabel(
+                _t('عدد العملات', 'Coins'),
+                const Color(0xFFF0C15A),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: coinPresets.map((v) => Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: _BagPresetChip(
+                      label: _fmtN(v),
+                      selected: _selectedCoins == v,
+                      selectedColor: const Color(0xFFF0C15A),
+                      selectedBg: const Color(0xFF3D2200),
+                      onTap: () => setState(() {
+                        _selectedCoins = v;
+                        _error = null;
+                      }),
+                    ),
+                  ),
+                )).toList(),
+              ),
+              const SizedBox(height: 18),
+
+              // Quantity presets
+              _BagSectionLabel(
+                _t('عدد الحقائب', 'Quantity'),
+                const Color(0xFFE63946),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: _countPresets.map((v) => Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: _BagPresetChip(
+                      label: '$v',
+                      selected: _selectedCount == v,
+                      selectedColor: Colors.white,
+                      selectedBg: const Color(0xFFD4380D),
+                      onTap: () => setState(() {
+                        _selectedCount = v;
+                        _error = null;
+                      }),
+                    ),
+                  ),
+                )).toList(),
+              ),
+              const SizedBox(height: 12),
+
+              // Summary pill
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color:
+                        const Color(0xFFF0C15A).withValues(alpha: 0.2),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.monetization_on_rounded,
+                      color: Color(0xFFF0C15A),
+                      size: 16,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _t(
+                        '$_selectedCoins ÷ $_selectedCount ≈ $avg لكل حقيبة',
+                        '$_selectedCoins ÷ $_selectedCount ≈ $avg per bag',
+                      ),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.65),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              if (_error != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  _error!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      color: Color(0xFFFF6B6B), fontSize: 12),
+                ),
+              ],
+              const SizedBox(height: 20),
+
+              // Gold send button
+              SizedBox(
+                width: double.infinity,
+                height: 54,
                 child: _loading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    ? Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFFD700), Color(0xFFC8850A)],
+                          ),
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: const Center(
+                          child: SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2.5, color: Colors.white),
+                          ),
+                        ),
                       )
-                    : Text(
-                        _t('إرسال', 'Send'),
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                    : GestureDetector(
+                        onTap: _send,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color(0xFFFFD700),
+                                Color(0xFFC8850A)
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(18),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFFFD700)
+                                    .withValues(alpha: 0.35),
+                                blurRadius: 16,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text('🎁',
+                                  style: TextStyle(fontSize: 20)),
+                              const SizedBox(width: 8),
+                              Text(
+                                _t(
+                                    'إرسال حقيبة الحظ', 'Send Lucky Bag'),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.black
+                                      .withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '$_selectedCoins 🪙',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _fmtN(int n) {
+    if (n >= 1000) {
+      final k = n / 1000;
+      return k == k.truncateToDouble()
+          ? '${k.toInt()}k'
+          : '${k.toStringAsFixed(1)}k';
+    }
+    return '$n';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _BagSectionLabel extends StatelessWidget {
+  const _BagSectionLabel(this.text, this.color);
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: Text(
+          text,
+          style: TextStyle(
+            color: color,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+          ),
+        ),
+      );
+}
+
+class _BagPresetChip extends StatelessWidget {
+  const _BagPresetChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    required this.selectedColor,
+    required this.selectedBg,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final Color selectedColor;
+  final Color selectedBg;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        height: 44,
+        decoration: BoxDecoration(
+          color: selected
+              ? selectedBg
+              : Colors.white.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected
+                ? selectedColor.withValues(alpha: 0.8)
+                : Colors.white.withValues(alpha: 0.1),
+            width: selected ? 1.5 : 1.0,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? selectedColor : Colors.white54,
+              fontSize: 13,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _EnvelopeField extends StatelessWidget {
-  const _EnvelopeField({
-    required this.controller,
-    required this.label,
-    required this.hint,
-    required this.icon,
-    required this.accentColor,
-  });
-  final TextEditingController controller;
-  final String label;
-  final String hint;
-  final IconData icon;
-  final Color accentColor;
 
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 6),
-        TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
-            prefixIcon: Icon(icon, color: accentColor, size: 20),
-            filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.06),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: accentColor.withValues(alpha: 0.3)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: accentColor, width: 1.5),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 class _ComingSoonSheet extends StatelessWidget {
   const _ComingSoonSheet(
       {required this.featureName, required this.isArabic});
@@ -1659,7 +1934,7 @@ class _ComingSoonSheet extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             isArabic
-                ? 'هذه الميزة قيد التطوير وستكون متاحة قريباً.'
+                ? 'Ù‡Ø°Ù‡ Ø§Ù„Ù…ÙŠØ²Ø© Ù‚ÙŠØ¯ Ø§Ù„ØªØ·ÙˆÙŠØ± ÙˆØ³ØªÙƒÙˆÙ† Ù…ØªØ§Ø­Ø© Ù‚Ø±ÙŠØ¨Ø§Ù‹.'
                 : 'This feature is under development and will be available soon.',
             textAlign: TextAlign.center,
             style: TextStyle(
@@ -1679,7 +1954,7 @@ class _ComingSoonSheet extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
               onPressed: () => Navigator.of(context).pop(),
-              child: Text(isArabic ? 'حسناً' : 'Got it'),
+              child: Text(isArabic ? 'Ø­Ø³Ù†Ø§Ù‹' : 'Got it'),
             ),
           ),
         ],
@@ -1688,16 +1963,16 @@ class _ComingSoonSheet extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Game Center sheet
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _GameCenterSheet extends StatelessWidget {
   const _GameCenterSheet({required this.isArabic});
 
   final bool isArabic;
 
-  String get _title => isArabic ? 'مركز الألعاب' : 'Game Center';
+  String get _title => isArabic ? 'Ù…Ø±ÙƒØ² Ø§Ù„Ø£Ù„Ø¹Ø§Ø¨' : 'Game Center';
 
   @override
   Widget build(BuildContext context) {
@@ -1705,49 +1980,49 @@ class _GameCenterSheet extends StatelessWidget {
     final games = [
       _GameEntry(
         icon: Icons.rocket_launch_rounded,
-        labelAr: 'صاروخ',
+        labelAr: 'ØµØ§Ø±ÙˆØ®',
         labelEn: 'Rocket Crash',
         accent: const Color(0xFFE63946),
         screen: CrashGameScreen(isArabic: isArabic),
       ),
       _GameEntry(
         icon: Icons.casino_rounded,
-        labelAr: 'عجلة الحظ',
+        labelAr: 'Ø¹Ø¬Ù„Ø© Ø§Ù„Ø­Ø¸',
         labelEn: 'Spin Wheel',
         accent: const Color(0xFFF0C15A),
         screen: SpinWheelScreen(isArabic: isArabic),
       ),
       _GameEntry(
         icon: Icons.pets_rounded,
-        labelAr: 'القط الجائع',
+        labelAr: 'Ø§Ù„Ù‚Ø· Ø§Ù„Ø¬Ø§Ø¦Ø¹',
         labelEn: 'Hungry Cat',
         accent: const Color(0xFF4ADE80),
         screen: HungryCatWebviewScreen(isArabic: isArabic),
       ),
       _GameEntry(
         icon: Icons.stairs_rounded,
-        labelAr: 'السلم الذهبي',
+        labelAr: 'Ø§Ù„Ø³Ù„Ù… Ø§Ù„Ø°Ù‡Ø¨ÙŠ',
         labelEn: 'Gold Ladder',
         accent: const Color(0xFFFFD978),
         screen: GoldLadderQuizScreen(isArabic: isArabic),
       ),
       _GameEntry(
         icon: Icons.grain_rounded,
-        labelAr: 'سحب سرود',
+        labelAr: 'Ø³Ø­Ø¨ Ø³Ø±ÙˆØ¯',
         labelEn: 'Srood Draw',
         accent: const Color(0xFFF0C15A),
         screen: SroodLotoScreen(isArabic: isArabic),
       ),
       _GameEntry(
         icon: Icons.inventory_2_rounded,
-        labelAr: 'كنز سرود',
+        labelAr: 'ÙƒÙ†Ø² Ø³Ø±ÙˆØ¯',
         labelEn: 'Srood Treasure',
         accent: const Color(0xFFF0C15A),
         screen: SroodTreasureScreen(isArabic: isArabic),
       ),
       _GameEntry(
         icon: Icons.emoji_events_rounded,
-        labelAr: 'تحدي الكاريزما',
+        labelAr: 'ØªØ­Ø¯ÙŠ Ø§Ù„ÙƒØ§Ø±ÙŠØ²Ù…Ø§',
         labelEn: 'Charisma Challenge',
         accent: const Color(0xFFFFD700),
         screen: CharismaChallengeScreen(isArabic: isArabic),
@@ -1891,9 +2166,9 @@ class _GameRow extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Kick Record sub-sheet
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _KickRecordSheet extends StatelessWidget {
   const _KickRecordSheet({required this.bans, required this.isArabic});
@@ -1931,7 +2206,7 @@ class _KickRecordSheet extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
               child: Text(
-                isArabic ? 'سجل الطرد' : 'Kick Record',
+                isArabic ? 'Ø³Ø¬Ù„ Ø§Ù„Ø·Ø±Ø¯' : 'Kick Record',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 17,
@@ -1945,7 +2220,7 @@ class _KickRecordSheet extends StatelessWidget {
                       child: Padding(
                         padding: const EdgeInsets.all(32),
                         child: Text(
-                          isArabic ? 'لا يوجد مطرودون' : 'No bans yet',
+                          isArabic ? 'Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ù…Ø·Ø±ÙˆØ¯ÙˆÙ†' : 'No bans yet',
                           style: const TextStyle(
                               color: Color(0xFF9E91B8), fontSize: 14),
                         ),
@@ -1997,3 +2272,8 @@ class _KickRecordSheet extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
