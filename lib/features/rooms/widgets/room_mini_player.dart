@@ -2,23 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/room_music_service.dart';
-import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class RoomMiniPlayer extends StatefulWidget {
   const RoomMiniPlayer({
+    super.key,
     required this.musicService,
-    required this.isArabic,
-    required this.onTap,
+    this.onTap,
     this.onStop,
     this.canManage = false,
-    super.key,
+    this.isArabic = false,
   });
 
   final RoomMusicService musicService;
-  final bool isArabic;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final VoidCallback? onStop;
   final bool canManage;
+  final bool isArabic;
 
   @override
   State<RoomMiniPlayer> createState() => _RoomMiniPlayerState();
@@ -26,21 +25,42 @@ class RoomMiniPlayer extends StatefulWidget {
 
 class _RoomMiniPlayerState extends State<RoomMiniPlayer>
     with SingleTickerProviderStateMixin {
-  late AnimationController _wave;
+  Offset _dragOffset = Offset.zero;
+
+  late final AnimationController _pulse;
+
+  static const double _size = 66;
 
   @override
   void initState() {
     super.initState();
-    _wave = AnimationController(
+    _pulse = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 950),
+      lowerBound: 0.0,
+      upperBound: 1.0,
     )..repeat(reverse: true);
   }
 
   @override
   void dispose() {
-    _wave.dispose();
+    _pulse.dispose();
     super.dispose();
+  }
+
+  Offset _clampOffset(BuildContext context, Offset next) {
+    final size = MediaQuery.of(context).size;
+
+    final minDx = -(size.width - _size - 28);
+    const maxDx = 0.0;
+
+    final minDy = -(size.height * 0.55);
+    const maxDy = 0.0;
+
+    return Offset(
+      next.dx.clamp(minDx, maxDx),
+      next.dy.clamp(minDy, maxDy),
+    );
   }
 
   @override
@@ -50,176 +70,165 @@ class _RoomMiniPlayerState extends State<RoomMiniPlayer>
       builder: (context, _) {
         final svc = widget.musicService;
         final song = svc.currentSong;
+
         if (song == null) return const SizedBox.shrink();
 
-        final total = svc.duration?.inMilliseconds ?? 1;
-        final pos = svc.position.inMilliseconds;
-        final progress = (pos / total).clamp(0.0, 1.0);
-        final isRtl = context.isArabic;
+        return Transform.translate(
+          offset: _dragOffset,
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onPanUpdate: (details) {
+              setState(() {
+                _dragOffset = _clampOffset(context, _dragOffset + details.delta);
+              });
+            },
+            onTap: () {
+              HapticFeedback.selectionClick();
+              widget.onTap?.call();
+            },
+            child: SizedBox(
+              width: _size + 18,
+              height: _size + 18,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  AnimatedBuilder(
+                    animation: _pulse,
+                    builder: (context, child) {
+                      final glow = svc.isPlaying ? 0.22 + (_pulse.value * 0.16) : 0.14;
 
-        // Combine title + artist into one label to avoid a second text row.
-        final label = song.artist.isNotEmpty
-            ? '${song.title} · ${song.artist}'
-            : song.title;
-
-        return GestureDetector(
-          onTap: () {
-            HapticFeedback.lightImpact();
-            widget.onTap();
-          },
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF2A1555), Color(0xFF1A0D33)],
-              ),
-              border: Border.all(
-                color: const Color(0xFF8B26D9).withValues(alpha: 0.50),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF8B26D9).withValues(alpha: 0.28),
-                  blurRadius: 12,
-                  spreadRadius: -2,
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  child: Row(
-                    textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
-                    children: [
-                      // Animated music icon — compact 28 px
-                      AnimatedBuilder(
-                        animation: _wave,
-                        builder: (_, child) => Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFF8B26D9).withValues(
-                                alpha: 0.15 + _wave.value * 0.15),
-                            border: Border.all(
-                              color: const Color(0xFF8B26D9)
-                                  .withValues(alpha: 0.35 + _wave.value * 0.25),
+                      return Container(
+                        width: _size,
+                        height: _size,
+                        margin: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFF3A1375),
+                              Color(0xFF8B26D9),
+                              Color(0xFFE4B84A),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          border: Border.all(
+                            color: const Color(0xFFFFD76B).withValues(alpha: 0.56),
+                            width: 1.15,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF8B26D9).withValues(alpha: glow),
+                              blurRadius: 20,
+                              spreadRadius: 1,
                             ),
-                          ),
-                          child: Icon(
-                            svc.isPlaying
-                                ? Icons.music_note_rounded
-                                : Icons.music_note_outlined,
-                            color: const Color(0xFFC875FF),
-                            size: 14,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-
-                      // Single-line song label (title · artist)
-                      Expanded(
-                        child: Text(
-                          label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textDirection:
-                              isRtl ? TextDirection.rtl : TextDirection.ltr,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            height: 1.2,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-
-                      // Play / Pause — 32 px visible, 44 px tap target
-                      GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          svc.playPause();
-                        },
-                        child: SizedBox(
-                          width: 44,
-                          height: 44,
-                          child: Center(
-                            child: Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: const Color(0xFF8B26D9)
-                                    .withValues(alpha: 0.35),
-                              ),
-                              child: Icon(
-                                svc.isPlaying
-                                    ? Icons.pause_rounded
-                                    : Icons.play_arrow_rounded,
-                                color: Colors.white,
-                                size: 18,
-                              ),
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.30),
+                              blurRadius: 18,
+                              offset: const Offset(0, 8),
                             ),
-                          ),
+                          ],
                         ),
-                      ),
-
-                      // ✕ Close — only visible for host/owner (onStop != null).
-                      // Calling onStop stops the local player immediately and
-                      // propagates the stop to all participants via Supabase.
-                      if (widget.onStop != null)
+                        child: child,
+                      );
+                    },
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Icon(
+                          Icons.music_note_rounded,
+                          color: Colors.white.withValues(alpha: 0.18),
+                          size: 42,
+                        ),
                         GestureDetector(
                           behavior: HitTestBehavior.opaque,
                           onTap: () {
                             HapticFeedback.mediumImpact();
-                            widget.onStop!();
+                            svc.playPause();
                           },
-                          child: SizedBox(
-                            width: 44,
-                            height: 44,
-                            child: Center(
-                              child: Container(
-                                width: 28,
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.white.withValues(alpha: 0.10),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.22),
-                                  ),
-                                ),
-                                child: const Icon(
-                                  Icons.close_rounded,
-                                  color: Colors.white,
-                                  size: 15,
-                                ),
+                          child: Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.black.withValues(alpha: 0.20),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.18),
                               ),
+                            ),
+                            child: Icon(
+                              svc.isPlaying
+                                  ? Icons.pause_rounded
+                                  : Icons.play_arrow_rounded,
+                              color: Colors.white,
+                              size: 28,
                             ),
                           ),
                         ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
 
-                // Thin progress bar at the bottom edge
-                ClipRRect(
-                  borderRadius:
-                      const BorderRadius.vertical(bottom: Radius.circular(14)),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 2,
-                    backgroundColor: Colors.white.withValues(alpha: 0.08),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                        Color(0xFF8B26D9)),
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        widget.onStop?.call();
+                      },
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFF1D0B35).withValues(alpha: 0.94),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.22),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.25),
+                              blurRadius: 8,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.close_rounded,
+                          color: Colors.white70,
+                          size: 14,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ],
+
+                  Positioned(
+                    left: 4,
+                    bottom: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.45),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: const Color(0xFFFFD76B).withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Text(
+                        svc.isPlaying ? 'ON' : 'PAUSE',
+                        style: const TextStyle(
+                          color: Color(0xFFFFD76B),
+                          fontSize: 8,
+                          fontWeight: FontWeight.w900,
+                          decoration: TextDecoration.none,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
