@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:just_audio/just_audio.dart';
 import 'dart:math' as math;
 import 'dart:ui';
@@ -516,7 +516,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       unawaited(_loadWalletBalance());
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
-          context.isArabic ? '🎁 حصلت على $coins عملة!' : '🎁 You got \$coins coins!',
+          context.isArabic ? '?? ???? ??? $coins ????!' : '?? You got \$coins coins!',
           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
         ),
         backgroundColor: const Color(0xFFD4380D),
@@ -530,12 +530,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       final msg = e.toString();
       String friendly;
       if (msg.contains('already_claimed')) {
-        friendly = context.isArabic ? 'لقد فتحت هذه الحقيبة' : 'Already opened';
+        friendly = context.isArabic ? '??? ???? ??? ???????' : 'Already opened';
       } else if (msg.contains('envelope_full')) {
-        friendly = context.isArabic ? 'انتهت الحقائب' : 'All bags claimed';
+        friendly = context.isArabic ? '????? ???????' : 'All bags claimed';
         setState(() => _activeRedEnvelope = null);
       } else if (msg.contains('envelope_expired')) {
-        friendly = context.isArabic ? 'انتهت صلاحية الحقيبة' : 'Lucky Bag expired';
+        friendly = context.isArabic ? '????? ?????? ???????' : 'Lucky Bag expired';
         setState(() => _activeRedEnvelope = null);
       } else {
         friendly = context.isArabic ? 'Ø­Ø¯Ø« Ø®Ø·Ø£' : 'An error occurred';
@@ -6130,7 +6130,7 @@ class _RedEnvelopeBanner extends StatelessWidget {
                 ],
               ),
               child: const Center(
-                child: Text('🎁', style: TextStyle(fontSize: 26)),
+                child: Text('??', style: TextStyle(fontSize: 26)),
               ),
             ),
             const SizedBox(width: 10),
@@ -6143,7 +6143,7 @@ class _RedEnvelopeBanner extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        isArabic ? 'حقيبة الحظ! 🎉' : 'Lucky Bag! 🎉',
+                        isArabic ? '????? ????! ??' : 'Lucky Bag! ??',
                         style: const TextStyle(
                           color: Color(0xFFFFD700),
                           fontWeight: FontWeight.w900,
@@ -6155,7 +6155,7 @@ class _RedEnvelopeBanner extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     isArabic
-                        ? '$total عملة • $remaining متبقية'
+                        ? '$total ???? • $remaining ??????'
                         : '$total coins • $remaining left',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.75),
@@ -6196,7 +6196,7 @@ class _RedEnvelopeBanner extends StatelessWidget {
                     ],
                   ),
                   child: Text(
-                    isArabic ? 'افتح 🎁' : 'Open 🎁',
+                    isArabic ? '???? ??' : 'Open ??',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w900,
@@ -8553,12 +8553,12 @@ class _LuckyBagWinOverlayState extends State<_LuckyBagWinOverlay>
     if (!widget.soundEnabled) return;
     final player = AudioPlayer();
     try {
-      await player.setAsset('assets/sounds/lucky_bag_win.mp3');
+      await player.setAsset('assets/sounds/lucky_bag_win.wav');
       await player.play();
       await player.processingStateStream
           .firstWhere((s) => s == ProcessingState.completed);
     } catch (_) {
-      // TODO: add assets/sounds/lucky_bag_win.mp3 when sound assets are ready.
+      // TODO: add assets/sounds/lucky_bag_win.wav when sound assets are ready.
     } finally {
       await player.dispose();
     }
@@ -8731,3 +8731,4 @@ class _LuckyBagWinOverlayState extends State<_LuckyBagWinOverlay>
     });
   }
 }
+
