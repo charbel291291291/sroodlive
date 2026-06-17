@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/utils/vip_visuals.dart';
 import '../../../core/vip/vip_privileges.dart';
+import '../../../core/vip/vip_spec.dart';
 
 enum VipLevel {
   none(0),
@@ -134,18 +135,8 @@ class VipVisualStyle {
   }
 
   static List<Color> gradient(int level) {
-    return switch (level) {
-      1 => const [Color(0xFFFFE3A3), Color(0xFFD99A2B)],
-      2 => const [Color(0xFFFFCFB8), Color(0xFFFF6F7E)],
-      3 => const [Color(0xFFFFD978), Color(0xFF8B26D9)],
-      4 => const [Color(0xFFD8F6FF), Color(0xFF4CC9F0)],
-      5 => const [Color(0xFFFFD978), Color(0xFFE0002B), Color(0xFF7D2BFF)],
-      6 => const [Color(0xFFBFF6FF), Color(0xFF0099FF)],
-      7 => const [Color(0xFFFFD7FF), Color(0xFF7D2BFF)],
-      8 => const [Color(0xFFFFE1A3), Color(0xFFFF6F00)],
-      9 => const [Color(0xFFC8FFF5), Color(0xFF00BFA6)],
-      _ => const [Color(0xFF5A3A86), Color(0xFF241638)],
-    };
+    if (level <= 0) return const [Color(0xFF5A3A86), Color(0xFF241638)];
+    return VipSpecResolver.resolve(level).nameGradient;
   }
 
   static List<BoxShadow> glow(int level, {bool compact = false}) {
@@ -155,18 +146,7 @@ class VipVisualStyle {
 
     final blur = compact ? 10.0 : 18.0 + (level * 3);
     final alpha = compact ? 0.18 : 0.20 + (level * 0.035);
-    final color = switch (level) {
-      1 => const Color(0xFFFFD978),
-      2 => const Color(0xFFFFB0A6),
-      3 => const Color(0xFFE4B5FF),
-      4 => const Color(0xFF9BE8FF),
-      5 => const Color(0xFFFFD15C),
-      6 => const Color(0xFF5DDCFF),
-      7 => const Color(0xFFC875FF),
-      8 => const Color(0xFFFFB44C),
-      9 => const Color(0xFF75FFE8),
-      _ => Colors.transparent,
-    };
+    final color = VipSpecResolver.resolve(level).glowColor;
 
     return [
       BoxShadow(
