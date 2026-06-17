@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -17,18 +17,16 @@ import 'vip_visual_preview_screen.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
 enum _AdminModule {
-  overview,
-  finance,
-  users,
-  bd,
-  content,
-  rooms,
-  banners,
-  audit,
-  games,
-  vip,
-  charisma,
-  reports,
+  dashboard,   // Command Center – overview, quick alerts
+  users,       // Users & Roles
+  rooms,       // Rooms
+  finance,     // Finance & Payments
+  vip,         // VIP Management
+  gifts,       // Gifts & Store
+  agencies,    // Agencies & Agents (BD)
+  moderation,  // Moderation & Reports
+  marketing,   // Marketing & App Content
+  system,      // System & Audit
 }
 
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -72,7 +70,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   AdminRole _adminRole = AdminRole.empty;
 
-  _AdminModule _module = _AdminModule.overview;
+  _AdminModule _module = _AdminModule.dashboard;
   bool _isLoading = true;
   bool _canAccess = false;
   bool _actionInProgress = false;
@@ -155,6 +153,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   bool get _canRooms       => _adminRole.hasPermission(kPermRoomsClose);
   bool get _canUnban       => _adminRole.canUnban;
   bool get _canManageStaff => _adminRole.isOSuperAdmin;
+
+  // ── Pending counts for nav badges ──────────────────────────────────────────
+  int get _pendingRechargesCount   => _pending.length;
+  int get _pendingWithdrawalsCount => _pendingWithdrawals.length;
+  int get _pendingReportsCount     =>
+      _reports.where((r) => r.status == 'pending').length;
+  int get _financeBadgeCount       =>
+      _pendingRechargesCount + _pendingWithdrawalsCount;
+  Map<_AdminModule, int> get _navBadges => {
+    _AdminModule.finance:    _financeBadgeCount,
+    _AdminModule.moderation: _pendingReportsCount,
+  };
 
   @override
   void initState() {
@@ -1242,7 +1252,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         _AdminSideNav(
                           selected: _module,
                           roles: _roles,
-                          pendingCount: _pending.length,
+                          badges: _navBadges,
                           onSelected: (module) =>
                               setState(() => _module = module),
                           onBrandTap: _onBrandTap,
@@ -1256,7 +1266,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               onSignOut: _adminSignOut,
                               showTabs: narrow,
                               selected: _module,
-                              pendingCount: _pending.length,
+                              badges: _navBadges,
                               onSelected: (module) =>
                                   setState(() => _module = module),
                             ),
@@ -1289,85 +1299,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Widget _buildModule() {
     return switch (_module) {
-      _AdminModule.overview => _buildOverview(),
-      _AdminModule.finance => _buildFinance(),
-      _AdminModule.users => _buildUsers(),
-      _AdminModule.bd => _buildBd(),
-      _AdminModule.content => _buildContent(),
-      _AdminModule.rooms => _buildRooms(),
-      _AdminModule.banners => _buildBanners(),
-      _AdminModule.audit  => _buildAudit(),
-      _AdminModule.games  => _buildGames(),
-      _AdminModule.vip    => _buildVipPreview(),
-      _AdminModule.charisma => _buildCharisma(),
-      _AdminModule.reports  => _buildReports(),
+      _AdminModule.dashboard  => _buildDashboard(),
+      _AdminModule.users      => _buildUsers(),
+      _AdminModule.rooms      => _buildRooms(),
+      _AdminModule.finance    => _buildFinance(),
+      _AdminModule.vip        => _buildVipManagement(),
+      _AdminModule.gifts      => _buildGiftsStore(),
+      _AdminModule.agencies   => _buildAgenciesSection(),
+      _AdminModule.moderation => _buildModeration(),
+      _AdminModule.marketing  => _buildMarketing(),
+      _AdminModule.system     => _buildSystem(),
     };
-  }
-
-  Widget _buildOverview() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _ModuleTitle(
-          title: 'Command Center',
-          subtitle: 'Live finance, rooms, gifts, and operations overview.',
-          icon: Icons.dashboard_customize_rounded,
-        ),
-        const SizedBox(height: 14),
-        _OverviewGrid(overview: _overview),
-        const SizedBox(height: 14),
-        _ResponsivePair(
-          left: _AdminSectionCard(
-            title: 'Pending Recharge',
-            child: _pending.isEmpty
-                ? const _AdminEmptyState(
-                    icon: Icons.add_card_rounded,
-                    title: 'No pending requests',
-                    subtitle: 'Recharge approvals will appear here.',
-                  )
-                : Column(
-                    children: _pending
-                        .take(5)
-                        .map(
-                          (request) => _RechargeRequestTile(
-                            request: request,
-                            canFinance: _canFinance,
-                            onApprove: () => _approve(request),
-                            onReject: () => _reject(request),
-                          ),
-                        )
-                        .toList(),
-                  ),
-          ),
-          right: _AdminSectionCard(
-            title: 'Role Access',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _RoleChip(
-                  label: _adminRole.isAnyAdmin
-                      ? _adminRole.displayLabel
-                      : 'No role',
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  _adminRole.isOSuperAdmin
-                      ? 'Owner â€” full access including unban and staff management.'
-                      : _adminRole.isPSuperAdmin
-                          ? 'Partner â€” high-level access. Cannot unban users or manage admin roles.'
-                          : _adminRole.isSuperAdmin
-                              ? 'Operational admin â€” manages users, rooms, reports, agencies, and challenges.'
-                              : _adminRole.isAdmin
-                                  ? 'Basic moderator â€” view reports, close rooms, temp-ban users.'
-                                  : 'No admin access.',
-                  style: _mutedStyle,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
   }
 
   Widget _buildFinance() {
@@ -1617,221 +1559,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildBd() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _ModuleTitle(
-          title: 'BD & Recharge Network',
-          subtitle: 'Manage agencies, recharge agents, and network status.',
-          icon: Icons.handshake_rounded,
-          locked: !_canBd,
-        ),
-        const SizedBox(height: 14),
-        _ResponsivePair(
-          left: _AgencyListCard(
-            agencies: _agencies,
-            canManage: _canBd,
-            onCreateAgency: _createAgency,
-            onToggleAgency: _toggleAgency,
-            onEditAgency: _canBd ? _editAgency : null,
-          ),
-          right: _AgentListCard(
-            agents: _agents,
-            canManage: _canBd,
-            onCreateAgent: _createAgent,
-            onToggleAgent: _toggleAgent,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildContent() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _ModuleTitle(
-          title: 'Content & Gifts',
-          subtitle: 'Gift catalog, active state, and gift economy visibility.',
-          icon: Icons.card_giftcard_rounded,
-          locked: !_canContent,
-        ),
-        const SizedBox(height: 14),
-        _AdminSectionCard(
-          title: 'Gift Categories',
-          child: _giftCategories.isEmpty
-              ? const _AdminEmptyState(
-                  icon: Icons.category_rounded,
-                  title: 'No categories',
-                  subtitle: 'Gift categories will appear here.',
-                )
-              : Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _giftCategories
-                      .map(
-                        (category) => _CatalogChip(
-                          title: category.name,
-                          subtitle: category.categoryKey,
-                          active: category.isActive,
-                          onTap: _canContent
-                              ? () => _editGiftCategory(category)
-                              : null,
-                        ),
-                      )
-                      .toList(),
-                ),
-        ),
-        const SizedBox(height: 14),
-        _ResponsivePair(
-          left: _AdminSectionCard(
-            title: 'VIP Packages',
-            child: _vipPackages.isEmpty
-                ? const _AdminEmptyState(
-                    icon: Icons.workspace_premium_rounded,
-                    title: 'No VIP packages',
-                    subtitle: 'VIP package configuration appears here.',
-                  )
-                : Column(
-                    children: _vipPackages
-                        .map(
-                          (vip) => _AdminListTile(
-                            icon: Icons.workspace_premium_rounded,
-                            title: '${vip.name} - ${vip.priceCoins} coins',
-                            subtitle:
-                                '${vip.durationDays} days - ${vip.entranceBannerKey ?? '-'}',
-                            trailing: Wrap(
-                              spacing: 6,
-                              children: [
-                                _RoleChip(
-                                  label: vip.isActive ? 'active' : 'off',
-                                ),
-                                if (_canContent)
-                                  TextButton(
-                                    onPressed: () => _editVipPackage(vip),
-                                    child: const Text('Edit'),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-          ),
-          right: _AdminSectionCard(
-            title: 'Entrance Banners',
-            child: _entranceBanners.isEmpty
-                ? const _AdminEmptyState(
-                    icon: Icons.auto_awesome_rounded,
-                    title: 'No banners',
-                    subtitle: 'Entrance banners appear here.',
-                  )
-                : Column(
-                    children: _entranceBanners
-                        .map(
-                          (banner) => _AdminListTile(
-                            icon: Icons.auto_awesome_rounded,
-                            title: banner.name,
-                            subtitle:
-                                '${banner.bannerKey} - VIP ${banner.vipLevel ?? '-'}',
-                            trailing: Wrap(
-                              spacing: 6,
-                              children: [
-                                _RoleChip(
-                                  label: banner.isActive ? 'active' : 'off',
-                                ),
-                                if (_canContent)
-                                  TextButton(
-                                    onPressed: () =>
-                                        _editEntranceBanner(banner),
-                                    child: const Text('Edit'),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-          ),
-        ),
-        const SizedBox(height: 14),
-        _AdminSectionCard(
-          title: 'Avatar Frames',
-          child: _avatarFrames.isEmpty
-              ? const _AdminEmptyState(
-                  icon: Icons.account_circle_rounded,
-                  title: 'No frames',
-                  subtitle: 'Avatar frame catalog appears here.',
-                )
-              : Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: _avatarFrames
-                      .map(
-                        (frame) => _CatalogChip(
-                          title: frame.name,
-                          subtitle:
-                              '${frame.category} - used ${frame.usageCount}',
-                          active: frame.isActive,
-                          onTap: _canContent
-                              ? () => _editAvatarFrame(frame)
-                              : null,
-                        ),
-                      )
-                      .toList(),
-                ),
-        ),
-        const SizedBox(height: 14),
-        _AdminSectionCard(
-          title: 'Gift Catalog',
-          action: _canContent
-              ? TextButton.icon(
-                  onPressed: () => _editGift(),
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Gift'),
-                )
-              : null,
-          child: _gifts.isEmpty
-              ? const _AdminEmptyState(
-                  icon: Icons.card_giftcard_rounded,
-                  title: 'No gifts',
-                  subtitle: 'Gift definitions will appear here.',
-                )
-              : Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: _gifts
-                      .map(
-                        (gift) => _GiftAdminCard(
-                          gift: gift,
-                          canManage: _canContent,
-                          onToggle: () => _toggleGift(gift),
-                          onEdit: () => _editGift(gift),
-                        ),
-                      )
-                      .toList(),
-                ),
-        ),
-        const SizedBox(height: 14),
-        _AdminSectionCard(
-          title: 'Recent Gift Transactions',
-          child: _giftTransactions.isEmpty
-              ? const _AdminEmptyState(
-                  icon: Icons.history_rounded,
-                  title: 'No gift history',
-                  subtitle: 'Gift sends will appear here.',
-                )
-              : Column(
-                  children: _giftTransactions
-                      .take(15)
-                      .map(_GiftTransactionTile.new)
-                      .toList(),
-                ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildRooms() {
     return Column(
@@ -1869,68 +1596,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildBanners() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _ModuleTitle(
-          title: 'Promo Banners',
-          subtitle: 'Carousel slides shown at the top of the Rooms screen.',
-          icon: Icons.view_carousel_rounded,
-          locked: !_canContent,
-        ),
-        const SizedBox(height: 14),
-        _AdminSectionCard(
-          title: 'Banner Slides',
-          action: _canContent
-              ? TextButton.icon(
-                  onPressed: () => _editPromoBanner(),
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Banner'),
-                )
-              : null,
-          child: _promoBanners.isEmpty
-              ? const _AdminEmptyState(
-                  icon: Icons.view_carousel_rounded,
-                  title: 'No banners',
-                  subtitle: 'Add promotional carousel slides here.',
-                )
-              : Column(
-                  children: _promoBanners
-                      .map(
-                        (b) => _AdminListTile(
-                          icon: Icons.view_carousel_rounded,
-                          title: b.titleEn.isNotEmpty ? b.titleEn : b.slideKey,
-                          subtitle:
-                              '${b.slideKey} Â· order ${b.sortOrder}'
-                              '${b.targetRoute != null ? ' â†’ ${b.targetRoute}' : ''}',
-                          trailing: Wrap(
-                            spacing: 6,
-                            children: [
-                              _RoleChip(label: b.isActive ? 'active' : 'off'),
-                              if (_canContent) ...[
-                                TextButton(
-                                  onPressed: () => _editPromoBanner(b),
-                                  child: const Text('Edit'),
-                                ),
-                                TextButton(
-                                  onPressed: () => _deletePromoBanner(b),
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: _kRed,
-                                  ),
-                                  child: const Text('Delete'),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      )
-                      .toList(),
-                ),
-        ),
-      ],
-    );
-  }
 
   Future<void> _editPromoBanner([AdminPromoBanner? existing]) async {
     final result = await showDialog<AdminPromoBanner>(
@@ -2080,219 +1745,470 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildVipPreview() {
-    final viewportHeight = MediaQuery.sizeOf(context).height;
-    final panelHeight = viewportHeight < 860 ? 680.0 : viewportHeight - 220.0;
+
+
+
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // NEW SECTION BUILDERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ── 1. Dashboard (enhanced overview) ─────────────────────────────────────
+  Widget _buildDashboard() {
+    final hasPending = _financeBadgeCount > 0 || _pendingReportsCount > 0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _ModuleTitle(
-          title: 'VIP Visual System',
-          subtitle: 'Preview VIP 0â€“9 chat frames, mic waves, and entry banners.',
-          icon: Icons.workspace_premium_rounded,
-        ),
-        const SizedBox(height: 14),
-        SizedBox(
-          height: panelHeight,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(14),
-            child: const VipVisualPreviewScreen(),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCharisma() {
-    final viewportHeight = MediaQuery.sizeOf(context).height;
-    final panelHeight = viewportHeight < 860 ? 680.0 : viewportHeight - 220.0;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _ModuleTitle(
-          title: 'Charisma Challenge',
-          subtitle: 'Create, manage and crown winners for charisma challenges.',
-          icon: Icons.emoji_events_rounded,
-        ),
-        const SizedBox(height: 14),
-        SizedBox(
-          height: panelHeight,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(14),
-            child: CharismaAdminPanel(isArabic: context.isArabic),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAudit() {
-    final logs = _auditLogs;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _ModuleTitle(
-          title: 'Audit Log',
-          subtitle: 'Role, finance, BD, and content changes made by admins.',
-          icon: Icons.fact_check_rounded,
+        _ModuleTitle(
+          title: 'Command Center',
+          subtitle: 'Live overview of users, rooms, finance, and platform health.',
+          icon: Icons.dashboard_customize_rounded,
         ),
         const SizedBox(height: 14),
 
-        // â”€â”€ Filter panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        _AdminSectionCard(
-          title: 'Filters',
-          action: TextButton.icon(
-            onPressed: _resetAuditFilters,
-            icon: const Icon(Icons.clear_rounded, size: 14),
-            label: const Text('Reset'),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.white54,
-              textStyle: const TextStyle(fontSize: 12),
+        // ── Quick Alerts Banner ─────────────────────────────────────────────
+        if (hasPending)
+          Container(
+            margin: const EdgeInsets.only(bottom: 14),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: _kAmber.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _kAmber.withValues(alpha: 0.3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.notification_important_rounded, color: _kAmber, size: 18),
+                    SizedBox(width: 8),
+                    Text('Action Required', style: TextStyle(color: _kAmber, fontSize: 14, fontWeight: FontWeight.w700)),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 8,
+                  children: [
+                    if (_pendingRechargesCount > 0)
+                      _AlertChip(
+                        icon: Icons.add_card_rounded,
+                        label: '$_pendingRechargesCount pending recharge${_pendingRechargesCount == 1 ? '' : 's'}',
+                        color: _kAmber,
+                        onTap: () => setState(() => _module = _AdminModule.finance),
+                      ),
+                    if (_pendingWithdrawalsCount > 0)
+                      _AlertChip(
+                        icon: Icons.currency_exchange_rounded,
+                        label: '$_pendingWithdrawalsCount pending withdrawal${_pendingWithdrawalsCount == 1 ? '' : 's'}',
+                        color: _kAmber,
+                        onTap: () => setState(() => _module = _AdminModule.finance),
+                      ),
+                    if (_pendingReportsCount > 0)
+                      _AlertChip(
+                        icon: Icons.flag_rounded,
+                        label: '$_pendingReportsCount pending report${_pendingReportsCount == 1 ? '' : 's'}',
+                        color: _kRed,
+                        onTap: () => setState(() => _module = _AdminModule.moderation),
+                      ),
+                  ],
+                ),
+              ],
             ),
           ),
+
+        // ── KPI Grid ────────────────────────────────────────────────────────
+        _OverviewGrid(overview: _overview),
+        const SizedBox(height: 14),
+
+        // ── Role + Quick navigation ─────────────────────────────────────────
+        _ResponsivePair(
+          left: _AdminSectionCard(
+            title: 'Pending Recharges',
+            action: TextButton.icon(
+              onPressed: () => setState(() => _module = _AdminModule.finance),
+              icon: const Icon(Icons.open_in_new_rounded, size: 14),
+              label: const Text('View all'),
+            ),
+            child: _pending.isEmpty
+                ? const _AdminEmptyState(
+                    icon: Icons.verified_rounded,
+                    title: 'No pending recharges',
+                    subtitle: 'All recharge requests are handled.',
+                  )
+                : Column(
+                    children: _pending
+                        .take(5)
+                        .map(
+                          (request) => _RechargeRequestTile(
+                            request: request,
+                            canFinance: _canFinance,
+                            onApprove: () => _approve(request),
+                            onReject: () => _reject(request),
+                          ),
+                        )
+                        .toList(),
+                  ),
+          ),
+          right: _AdminSectionCard(
+            title: 'My Role & Access',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _RoleChip(
+                  label: _adminRole.isAnyAdmin
+                      ? _adminRole.displayLabel
+                      : 'No role',
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _adminRole.isOSuperAdmin
+                      ? 'Owner — full access including unban and staff management.'
+                      : _adminRole.isPSuperAdmin
+                          ? 'Partner — high-level access. Cannot unban or manage admin roles.'
+                          : _adminRole.isSuperAdmin
+                              ? 'Operational Admin — manages users, rooms, reports, agencies, and challenges.'
+                              : _adminRole.isAdmin
+                                  ? 'Moderator — view reports, close rooms, temporarily ban users.'
+                                  : 'No admin access.',
+                  style: _mutedStyle,
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _DashQuickLink(icon: Icons.people_rounded,           label: 'Users',       onTap: () => setState(() => _module = _AdminModule.users)),
+                    _DashQuickLink(icon: Icons.mic_external_on_rounded,  label: 'Rooms',       onTap: () => setState(() => _module = _AdminModule.rooms)),
+                    _DashQuickLink(icon: Icons.account_balance_wallet_rounded, label: 'Finance', onTap: () => setState(() => _module = _AdminModule.finance)),
+                    _DashQuickLink(icon: Icons.flag_rounded,             label: 'Reports',     onTap: () => setState(() => _module = _AdminModule.moderation)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── 2. VIP Management ────────────────────────────────────────────────────
+  Widget _buildVipManagement() {
+    final viewportHeight = MediaQuery.sizeOf(context).height;
+    final panelHeight = viewportHeight < 860 ? 680.0 : viewportHeight - 220.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _ModuleTitle(
+          title: 'VIP Management',
+          subtitle: 'Configure VIP packages, entrance banners, and preview the visual VIP system.',
+          icon: Icons.workspace_premium_rounded,
+          locked: !_canContent,
+        ),
+        const SizedBox(height: 14),
+
+        // ── VIP Feature Matrix ──────────────────────────────────────────────
+        const _VipFeatureMatrix(),
+        const SizedBox(height: 14),
+
+        // ── VIP Packages ────────────────────────────────────────────────────
+        _AdminSectionCard(
+          title: 'VIP Packages',
+          child: _vipPackages.isEmpty
+              ? const _AdminEmptyState(
+                  icon: Icons.workspace_premium_rounded,
+                  title: 'No VIP packages',
+                  subtitle: 'VIP package configuration appears here.',
+                )
+              : Column(
+                  children: _vipPackages
+                      .map(
+                        (vip) => _AdminListTile(
+                          icon: Icons.workspace_premium_rounded,
+                          title: 'VIP ${vip.vipLevel} — ${vip.name}',
+                          subtitle:
+                              '${_formatAdminCount(vip.priceCoins)} coins · ${vip.durationDays} days · banner: ${vip.entranceBannerKey ?? 'none'}',
+                          trailing: Wrap(
+                            spacing: 6,
+                            children: [
+                              _RoleChip(label: vip.isActive ? 'Active' : 'Inactive'),
+                              if (_canContent)
+                                TextButton(
+                                  onPressed: () => _editVipPackage(vip),
+                                  child: const Text('Edit'),
+                                ),
+                            ],
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+        ),
+        const SizedBox(height: 14),
+
+        // ── Entrance Banners ────────────────────────────────────────────────
+        _AdminSectionCard(
+          title: 'Entrance Banners',
+          child: _entranceBanners.isEmpty
+              ? const _AdminEmptyState(
+                  icon: Icons.auto_awesome_rounded,
+                  title: 'No entrance banners',
+                  subtitle: 'Entrance animations configured here.',
+                )
+              : Column(
+                  children: _entranceBanners
+                      .map(
+                        (banner) => _AdminListTile(
+                          icon: Icons.auto_awesome_rounded,
+                          title: banner.name,
+                          subtitle: '${banner.bannerKey} · Required VIP ${banner.vipLevel ?? '-'}',
+                          trailing: Wrap(
+                            spacing: 6,
+                            children: [
+                              _RoleChip(label: banner.isActive ? 'Active' : 'Inactive'),
+                              if (_canContent)
+                                TextButton(
+                                  onPressed: () => _editEntranceBanner(banner),
+                                  child: const Text('Edit'),
+                                ),
+                            ],
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+        ),
+        const SizedBox(height: 14),
+
+        // ── VIP Visual Preview ──────────────────────────────────────────────
+        _AdminSectionCard(
+          title: 'VIP Visual Preview',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 180,
-                    child: TextField(
-                      style: const TextStyle(color: _kTxt, fontSize: 13),
-                      decoration: InputDecoration(
-                        hintText: 'Action (e.g. ban_user)',
-                        hintStyle: const TextStyle(color: _kMuted, fontSize: 12),
-                        filled: true,
-                        fillColor: _kBg,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _kBorder)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _kBorder)),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _kGold)),
-                      ),
-                      onChanged: (v) => setState(() => _auditFilterAction = v.trim().isEmpty ? null : v.trim()),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 150,
-                    child: DropdownButtonFormField<String?>(
-                      initialValue: _auditFilterTargetType,
-                      dropdownColor: _kSurface,
-                      style: const TextStyle(color: _kTxt, fontSize: 12),
-                      hint: const Text('Target type', style: TextStyle(color: _kMuted, fontSize: 12)),
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: _kBg,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _kBorder)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _kBorder)),
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: null, child: Text('All types')),
-                        DropdownMenuItem(value: 'profiles', child: Text('profiles')),
-                        DropdownMenuItem(value: 'rooms', child: Text('rooms')),
-                        DropdownMenuItem(value: 'admin_user_restrictions', child: Text('restrictions')),
-                        DropdownMenuItem(value: 'recharge_agencies', child: Text('agencies')),
-                        DropdownMenuItem(value: 'user_reports', child: Text('user_reports')),
-                      ],
-                      onChanged: (v) => setState(() => _auditFilterTargetType = v),
-                    ),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () => _pickAuditDate(isFrom: true),
-                    icon: const Icon(Icons.calendar_today_rounded, size: 13),
-                    label: Text(_auditFilterFrom == null
-                        ? 'From'
-                        : '${_auditFilterFrom!.month}/${_auditFilterFrom!.day}'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: _kGold,
-                      side: const BorderSide(color: _kBorder),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      textStyle: const TextStyle(fontSize: 12),
-                    ),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () => _pickAuditDate(isFrom: false),
-                    icon: const Icon(Icons.calendar_today_rounded, size: 13),
-                    label: Text(_auditFilterTo == null
-                        ? 'To'
-                        : '${_auditFilterTo!.month}/${_auditFilterTo!.day}'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: _kGold,
-                      side: const BorderSide(color: _kBorder),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      textStyle: const TextStyle(fontSize: 12),
-                    ),
-                  ),
-                  FilledButton.icon(
-                    onPressed: _auditFiltering ? null : _searchAuditLogs,
-                    icon: _auditFiltering
-                        ? const SizedBox(
-                            width: 13,
-                            height: 13,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.search_rounded, size: 14),
-                    label: const Text('Search'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _kGold,
-                      foregroundColor: Colors.black,
-                      textStyle: const TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w700),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 6),
-                    ),
-                  ),
-                ],
+              const Text(
+                'Live preview of VIP 0–9 chat frames, mic waves, and entry banners.',
+                style: _mutedStyle,
               ),
-              if (logs.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  '${logs.length} result${logs.length == 1 ? '' : 's'}',
-                  style: const TextStyle(color: Colors.white38, fontSize: 11),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: panelHeight,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: const VipVisualPreviewScreen(),
                 ),
-              ],
+              ),
             ],
           ),
-        ),
-        const SizedBox(height: 14),
-
-        _AdminSectionCard(
-          title: 'Admin Actions',
-          child: logs.isEmpty
-              ? const _AdminEmptyState(
-                  icon: Icons.history_edu_rounded,
-                  title: 'No audit logs',
-                  subtitle: 'Try different filters, or no filters to see all.',
-                )
-              : Column(children: logs.map(_AuditTile.new).toList()),
         ),
       ],
     );
   }
 
-  Widget _buildReports() {
+  // ── 3. Gifts & Store ─────────────────────────────────────────────────────
+  Widget _buildGiftsStore() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _ModuleTitle(
+          title: 'Gifts & Store',
+          subtitle: 'Gift catalog, categories, avatar frames, and in-app economy.',
+          icon: Icons.card_giftcard_rounded,
+          locked: !_canContent,
+        ),
+        const SizedBox(height: 14),
+
+        // ── Gift Categories ──────────────────────────────────────────────────
+        _AdminSectionCard(
+          title: 'Gift Categories',
+          child: _giftCategories.isEmpty
+              ? const _AdminEmptyState(
+                  icon: Icons.category_rounded,
+                  title: 'No categories',
+                  subtitle: 'Gift categories will appear here.',
+                )
+              : Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _giftCategories
+                      .map(
+                        (cat) => _CatalogChip(
+                          title: cat.name,
+                          subtitle: cat.categoryKey,
+                          active: cat.isActive,
+                          onTap: _canContent ? () => _editGiftCategory(cat) : null,
+                        ),
+                      )
+                      .toList(),
+                ),
+        ),
+        const SizedBox(height: 14),
+
+        // ── Avatar Frames ────────────────────────────────────────────────────
+        _AdminSectionCard(
+          title: 'Avatar Frames',
+          child: _avatarFrames.isEmpty
+              ? const _AdminEmptyState(
+                  icon: Icons.account_circle_rounded,
+                  title: 'No frames',
+                  subtitle: 'Avatar frame catalog appears here.',
+                )
+              : Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: _avatarFrames
+                      .map(
+                        (frame) => _CatalogChip(
+                          title: frame.name,
+                          subtitle: '${frame.category} · ${frame.usageCount} users',
+                          active: frame.isActive,
+                          onTap: _canContent ? () => _editAvatarFrame(frame) : null,
+                        ),
+                      )
+                      .toList(),
+                ),
+        ),
+        const SizedBox(height: 14),
+
+        // ── Gift Catalog ─────────────────────────────────────────────────────
+        _AdminSectionCard(
+          title: 'Gift Catalog',
+          action: _canContent
+              ? TextButton.icon(
+                  onPressed: () => _editGift(),
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('New Gift'),
+                )
+              : null,
+          child: _gifts.isEmpty
+              ? const _AdminEmptyState(
+                  icon: Icons.card_giftcard_rounded,
+                  title: 'No gifts',
+                  subtitle: 'Gift definitions will appear here.',
+                )
+              : Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: _gifts
+                      .map(
+                        (gift) => _GiftAdminCard(
+                          gift: gift,
+                          canManage: _canContent,
+                          onToggle: () => _toggleGift(gift),
+                          onEdit: () => _editGift(gift),
+                        ),
+                      )
+                      .toList(),
+                ),
+        ),
+        const SizedBox(height: 14),
+
+        // ── Recent Gift Transactions ─────────────────────────────────────────
+        _AdminSectionCard(
+          title: 'Recent Gift Transactions',
+          child: _giftTransactions.isEmpty
+              ? const _AdminEmptyState(
+                  icon: Icons.history_rounded,
+                  title: 'No gift history',
+                  subtitle: 'Gift sends will appear here.',
+                )
+              : Column(
+                  children: _giftTransactions
+                      .take(15)
+                      .map(_GiftTransactionTile.new)
+                      .toList(),
+                ),
+        ),
+      ],
+    );
+  }
+
+  // ── 4. Agencies & Agents (was BD) ────────────────────────────────────────
+  Widget _buildAgenciesSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _ModuleTitle(
+          title: 'Agencies & Agents',
+          subtitle: 'Manage recharge agencies, agents, and review sales performance.',
+          icon: Icons.handshake_rounded,
+          locked: !_canBd,
+        ),
+        const SizedBox(height: 14),
+        _ResponsivePair(
+          left: _AgencyListCard(
+            agencies: _agencies,
+            canManage: _canBd,
+            onCreateAgency: _createAgency,
+            onToggleAgency: _toggleAgency,
+            onEditAgency: _canBd ? _editAgency : null,
+          ),
+          right: _AgentListCard(
+            agents: _agents,
+            canManage: _canBd,
+            onCreateAgent: _createAgent,
+            onToggleAgent: _toggleAgent,
+          ),
+        ),
+        const SizedBox(height: 14),
+        _AdminSectionCard(
+          title: 'BD Performance',
+          child: _bdReport.isEmpty
+              ? const _AdminEmptyState(
+                  icon: Icons.query_stats_rounded,
+                  title: 'No approved sales yet',
+                  subtitle: 'Agency and agent performance will appear here once recharges are approved.',
+                )
+              : Column(children: _bdReport.map(_BdReportTile.new).toList()),
+        ),
+      ],
+    );
+  }
+
+  // ── 5. Moderation (enhanced reports) ────────────────────────────────────
+  Widget _buildModeration() {
     final statusFilters = [null, 'pending', 'reviewing', 'resolved', 'rejected', 'needs_more_info'];
     final filtered = _reportsStatusFilter == null
         ? _reports
         : _reports.where((r) => r.status == _reportsStatusFilter).toList();
 
+    final pendingCount   = _reports.where((r) => r.status == 'pending').length;
+    final reviewingCount = _reports.where((r) => r.status == 'reviewing').length;
+    final resolvedCount  = _reports.where((r) => r.status == 'resolved').length;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const _ModuleTitle(
-          title: 'Reports',
-          subtitle: 'User-submitted reports about content, rooms, and profiles.',
-          icon: Icons.flag_rounded,
+          title: 'Moderation & Reports',
+          subtitle: 'Review user-submitted reports, take moderation actions, and track safety.',
+          icon: Icons.shield_rounded,
         ),
         const SizedBox(height: 14),
 
-        // Status filter chips
+        // ── Quick stats ──────────────────────────────────────────────────────
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final cols = constraints.maxWidth > 500 ? 3 : 2;
+            return GridView.count(
+              crossAxisCount: cols,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 2.0,
+              children: [
+                _AdminStatCard(label: 'Pending',   value: pendingCount,   icon: Icons.flag_rounded,         color: _kAmber),
+                _AdminStatCard(label: 'Reviewing', value: reviewingCount, icon: Icons.search_rounded,       color: _kBlue),
+                _AdminStatCard(label: 'Resolved',  value: resolvedCount,  icon: Icons.check_circle_rounded, color: _kGreen),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 14),
+
+        // ── Status filter chips ──────────────────────────────────────────────
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
@@ -2318,13 +2234,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   labelStyle: TextStyle(
                     color: selected ? _kGold : Colors.white54,
                     fontSize: 12,
-                    fontWeight:
-                        selected ? FontWeight.w700 : FontWeight.w400,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
                   ),
-                  side: BorderSide(
-                      color: selected ? _kGold : _kBorder, width: 1),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20)),
+                  side: BorderSide(color: selected ? _kGold : _kBorder, width: 1),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 ),
               );
             }).toList(),
@@ -2341,8 +2254,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
           child: filtered.isEmpty
               ? const _AdminEmptyState(
-                  icon: Icons.flag_outlined,
-                  title: 'No reports',
+                  icon: Icons.shield_outlined,
+                  title: 'No reports in this category',
                   subtitle: 'User reports will appear here.',
                 )
               : Column(
@@ -2354,6 +2267,229 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       .toList(),
                 ),
         ),
+      ],
+    );
+  }
+
+  // ── 6. Marketing & App Content ──────────────────────────────────────────
+  Widget _buildMarketing() {
+    final viewportHeight = MediaQuery.sizeOf(context).height;
+    final panelHeight = viewportHeight < 860 ? 680.0 : viewportHeight - 220.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _ModuleTitle(
+          title: 'Marketing & App Content',
+          subtitle: 'Promo banners, carousel slides, and Charisma Challenge management.',
+          icon: Icons.campaign_rounded,
+          locked: !_canContent,
+        ),
+        const SizedBox(height: 14),
+
+        // ── Promo Banners ────────────────────────────────────────────────────
+        _AdminSectionCard(
+          title: 'Promo Banners',
+          action: _canContent
+              ? TextButton.icon(
+                  onPressed: () => _editPromoBanner(),
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('New Banner'),
+                )
+              : null,
+          child: _promoBanners.isEmpty
+              ? const _AdminEmptyState(
+                  icon: Icons.view_carousel_rounded,
+                  title: 'No promo banners',
+                  subtitle: 'Add promotional carousel slides shown at the top of the Rooms screen.',
+                )
+              : Column(
+                  children: _promoBanners
+                      .map(
+                        (b) => _AdminListTile(
+                          icon: Icons.view_carousel_rounded,
+                          title: b.titleEn.isNotEmpty ? b.titleEn : b.slideKey,
+                          subtitle:
+                              '${b.slideKey} · order ${b.sortOrder}'
+                              '${b.targetRoute != null ? ' → ${b.targetRoute}' : ''}',
+                          trailing: Wrap(
+                            spacing: 6,
+                            children: [
+                              _RoleChip(label: b.isActive ? 'Active' : 'Inactive'),
+                              if (_canContent) ...[
+                                TextButton(
+                                  onPressed: () => _editPromoBanner(b),
+                                  child: const Text('Edit'),
+                                ),
+                                TextButton(
+                                  onPressed: () => _deletePromoBanner(b),
+                                  style: TextButton.styleFrom(foregroundColor: _kRed),
+                                  child: const Text('Delete'),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+        ),
+        const SizedBox(height: 14),
+
+        // ── Charisma Challenge ───────────────────────────────────────────────
+        _AdminSectionCard(
+          title: 'Charisma Challenge',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Create, manage, and crown winners for live charisma challenges.',
+                style: _mutedStyle,
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: panelHeight,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: CharismaAdminPanel(isArabic: context.isArabic),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── 7. System — Audit + Games ───────────────────────────────────────────
+  Widget _buildSystem() {
+    final logs = _auditLogs;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _ModuleTitle(
+          title: 'System & Audit',
+          subtitle: 'Admin activity logs, role changes, and game control panels.',
+          icon: Icons.settings_rounded,
+        ),
+        const SizedBox(height: 14),
+
+        // ── Audit Log ────────────────────────────────────────────────────────
+        _AdminSectionCard(
+          title: 'Audit Log Filters',
+          action: TextButton.icon(
+            onPressed: _resetAuditFilters,
+            icon: const Icon(Icons.clear_rounded, size: 14),
+            label: const Text('Reset'),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.white54,
+              textStyle: const TextStyle(fontSize: 12),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 180,
+                    child: TextField(
+                      style: const TextStyle(color: _kTxt, fontSize: 13),
+                      decoration: InputDecoration(
+                        hintText: 'Action type (e.g. ban_user)',
+                        hintStyle: const TextStyle(color: _kMuted, fontSize: 12),
+                        filled: true,
+                        fillColor: _kBg,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _kBorder)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _kBorder)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _kGold)),
+                      ),
+                      onChanged: (v) => setState(() => _auditFilterAction = v.trim().isEmpty ? null : v.trim()),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 160,
+                    child: DropdownButtonFormField<String?>(
+                      initialValue: _auditFilterTargetType,
+                      dropdownColor: _kSurface,
+                      style: const TextStyle(color: _kTxt, fontSize: 12),
+                      hint: const Text('Target type', style: TextStyle(color: _kMuted, fontSize: 12)),
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: _kBg,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _kBorder)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _kBorder)),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: null, child: Text('All types')),
+                        DropdownMenuItem(value: 'profiles', child: Text('Users')),
+                        DropdownMenuItem(value: 'rooms', child: Text('Rooms')),
+                        DropdownMenuItem(value: 'admin_user_restrictions', child: Text('Restrictions')),
+                        DropdownMenuItem(value: 'recharge_agencies', child: Text('Agencies')),
+                        DropdownMenuItem(value: 'user_reports', child: Text('Reports')),
+                      ],
+                      onChanged: (v) => setState(() => _auditFilterTargetType = v),
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => _pickAuditDate(isFrom: true),
+                    icon: const Icon(Icons.calendar_today_rounded, size: 13),
+                    label: Text(_auditFilterFrom == null ? 'From' : '${_auditFilterFrom!.month}/${_auditFilterFrom!.day}'),
+                    style: OutlinedButton.styleFrom(foregroundColor: _kGold, side: const BorderSide(color: _kBorder), padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), textStyle: const TextStyle(fontSize: 12)),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => _pickAuditDate(isFrom: false),
+                    icon: const Icon(Icons.calendar_today_rounded, size: 13),
+                    label: Text(_auditFilterTo == null ? 'To' : '${_auditFilterTo!.month}/${_auditFilterTo!.day}'),
+                    style: OutlinedButton.styleFrom(foregroundColor: _kGold, side: const BorderSide(color: _kBorder), padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), textStyle: const TextStyle(fontSize: 12)),
+                  ),
+                  FilledButton.icon(
+                    onPressed: _auditFiltering ? null : _searchAuditLogs,
+                    icon: _auditFiltering
+                        ? const SizedBox(width: 13, height: 13, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.search_rounded, size: 14),
+                    label: const Text('Search'),
+                    style: FilledButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black, textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6)),
+                  ),
+                ],
+              ),
+              if (logs.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text('${logs.length} result${logs.length == 1 ? '' : 's'}', style: const TextStyle(color: Colors.white38, fontSize: 11)),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        _AdminSectionCard(
+          title: 'Admin Action Log',
+          child: logs.isEmpty
+              ? const _AdminEmptyState(
+                  icon: Icons.history_edu_rounded,
+                  title: 'No audit logs',
+                  subtitle: 'Try different filters, or clear filters to see all.',
+                )
+              : Column(children: logs.map(_AuditTile.new).toList()),
+        ),
+        const SizedBox(height: 14),
+
+        // ── Game Controls ────────────────────────────────────────────────────
+        if (_adminRole.hasPermission(kPermDrawManage))
+          _buildGames()
+        else
+          const _AdminSectionCard(
+            title: 'Game Controls',
+            child: _AdminEmptyState(
+              icon: Icons.sports_esports_rounded,
+              title: 'Game controls not available',
+              subtitle: 'P-Super Admin or higher is required to access game controls.',
+            ),
+          ),
       ],
     );
   }
@@ -4004,14 +4140,14 @@ class _AdminSideNav extends StatelessWidget {
   const _AdminSideNav({
     required this.selected,
     required this.roles,
-    required this.pendingCount,
+    required this.badges,
     required this.onSelected,
     this.onBrandTap,
   });
 
   final _AdminModule selected;
   final List<String> roles;
-  final int pendingCount;
+  final Map<_AdminModule, int> badges;
   final ValueChanged<_AdminModule> onSelected;
   final VoidCallback? onBrandTap;
 
@@ -4045,9 +4181,7 @@ class _AdminSideNav extends StatelessWidget {
                     (module) => _NavItem(
                       module: module,
                       selected: selected == module,
-                      badge: module == _AdminModule.finance && pendingCount > 0
-                          ? pendingCount
-                          : 0,
+                      badge: badges[module] ?? 0,
                       onTap: () => onSelected(module),
                     ),
                   )
@@ -4094,7 +4228,7 @@ class _AdminTopBar extends StatelessWidget {
     required this.onSignOut,
     required this.showTabs,
     required this.selected,
-    required this.pendingCount,
+    required this.badges,
     required this.onSelected,
   });
 
@@ -4103,7 +4237,7 @@ class _AdminTopBar extends StatelessWidget {
   final VoidCallback onSignOut;
   final bool showTabs;
   final _AdminModule selected;
-  final int pendingCount;
+  final Map<_AdminModule, int> badges;
   final ValueChanged<_AdminModule> onSelected;
 
   @override
@@ -4130,9 +4264,9 @@ class _AdminTopBar extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  if (pendingCount > 0 && selected == _AdminModule.finance) ...[
+                  if ((badges[selected] ?? 0) > 0) ...[
                     const SizedBox(width: 8),
-                    _StatusBadge(label: '$pendingCount pending'),
+                    _StatusBadge(label: '${badges[selected]} pending'),
                   ],
                 ],
                 const Spacer(),
@@ -4167,8 +4301,7 @@ class _AdminTopBar extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
                 children: _AdminModule.values.map((module) {
                   final active = selected == module;
-                  final hasBadge =
-                      module == _AdminModule.finance && pendingCount > 0;
+                  final hasBadge = (badges[module] ?? 0) > 0;
                   return Padding(
                     padding: const EdgeInsets.only(right: 6),
                     child: GestureDetector(
@@ -5799,35 +5932,31 @@ class _AdminCard extends StatelessWidget {
 
 IconData _moduleIcon(_AdminModule module) {
   return switch (module) {
-    _AdminModule.overview => Icons.dashboard_customize_rounded,
-    _AdminModule.finance => Icons.account_balance_wallet_rounded,
-    _AdminModule.users => Icons.manage_accounts_rounded,
-    _AdminModule.bd => Icons.handshake_rounded,
-    _AdminModule.content => Icons.card_giftcard_rounded,
-    _AdminModule.rooms => Icons.mic_external_on_rounded,
-    _AdminModule.banners => Icons.view_carousel_rounded,
-    _AdminModule.audit  => Icons.fact_check_rounded,
-    _AdminModule.games    => Icons.sports_esports_rounded,
-    _AdminModule.vip      => Icons.workspace_premium_rounded,
-    _AdminModule.charisma => Icons.emoji_events_rounded,
-    _AdminModule.reports  => Icons.flag_rounded,
+    _AdminModule.dashboard  => Icons.dashboard_customize_rounded,
+    _AdminModule.users      => Icons.manage_accounts_rounded,
+    _AdminModule.rooms      => Icons.mic_external_on_rounded,
+    _AdminModule.finance    => Icons.account_balance_wallet_rounded,
+    _AdminModule.vip        => Icons.workspace_premium_rounded,
+    _AdminModule.gifts      => Icons.card_giftcard_rounded,
+    _AdminModule.agencies   => Icons.handshake_rounded,
+    _AdminModule.moderation => Icons.shield_rounded,
+    _AdminModule.marketing  => Icons.campaign_rounded,
+    _AdminModule.system     => Icons.settings_rounded,
   };
 }
 
 String _moduleLabel(_AdminModule module) {
   return switch (module) {
-    _AdminModule.overview => 'Overview',
-    _AdminModule.finance => 'Finance',
-    _AdminModule.users => 'Users',
-    _AdminModule.bd => 'BD',
-    _AdminModule.content => 'Content',
-    _AdminModule.rooms => 'Rooms',
-    _AdminModule.banners => 'Banners',
-    _AdminModule.audit  => 'Audit',
-    _AdminModule.games    => 'Games',
-    _AdminModule.vip      => 'VIP',
-    _AdminModule.charisma => 'Charisma',
-    _AdminModule.reports  => 'Reports',
+    _AdminModule.dashboard  => 'Dashboard',
+    _AdminModule.users      => 'Users',
+    _AdminModule.rooms      => 'Rooms',
+    _AdminModule.finance    => 'Finance',
+    _AdminModule.vip        => 'VIP',
+    _AdminModule.gifts      => 'Gifts & Store',
+    _AdminModule.agencies   => 'Agencies',
+    _AdminModule.moderation => 'Moderation',
+    _AdminModule.marketing  => 'Marketing',
+    _AdminModule.system     => 'System',
   };
 }
 
@@ -6344,3 +6473,187 @@ class _ReportActionButton extends StatelessWidget {
   }
 }
 
+
+// ── Alert chip for dashboard quick alerts panel ──────────────────────────────
+class _AlertChip extends StatelessWidget {
+  const _AlertChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 6),
+            Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+            const SizedBox(width: 6),
+            Icon(Icons.arrow_forward_ios_rounded, size: 10, color: color.withValues(alpha: 0.7)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Quick navigation chip on dashboard ──────────────────────────────────────
+class _DashQuickLink extends StatelessWidget {
+  const _DashQuickLink({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: _kNavActive,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: _kBorder),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: _kGold),
+            const SizedBox(width: 6),
+            Text(label, style: const TextStyle(color: _kTxt, fontSize: 12, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── VIP Feature Matrix ───────────────────────────────────────────────────────
+class _VipFeatureMatrix extends StatelessWidget {
+  const _VipFeatureMatrix();
+
+  static const _features = [
+    _VipFeature('Send images in room chat',   minLevel: 7),
+    _VipFeature('Gold entrance banner',       minLevel: 5),
+    _VipFeature('Diamond entrance banner',    minLevel: 7),
+    _VipFeature('Exclusive avatar frame',     minLevel: 3),
+    _VipFeature('Premium chat frame',         minLevel: 2),
+    _VipFeature('Mic wave animation',         minLevel: 4),
+    _VipFeature('Room creation (any type)',   minLevel: 1),
+    _VipFeature('VIP badge on profile',       minLevel: 1),
+    _VipFeature('Priority room mic seat',     minLevel: 6),
+    _VipFeature('Owner game controls',        minLevel: 9),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return _AdminSectionCard(
+      title: 'VIP Feature Access Matrix',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Which features unlock at each VIP level. Users at or above the required level have access.',
+            style: _mutedStyle,
+          ),
+          const SizedBox(height: 16),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Table(
+              defaultColumnWidth: const IntrinsicColumnWidth(),
+              border: TableBorder.all(color: _kBorder, width: 0.5),
+              children: [
+                // Header row
+                TableRow(
+                  decoration: const BoxDecoration(color: Color(0xFF1A2040)),
+                  children: [
+                    _MatrixCell('Feature', isHeader: true),
+                    for (int vip = 1; vip <= 9; vip++)
+                      _MatrixCell('VIP $vip', isHeader: true),
+                  ],
+                ),
+                // Feature rows
+                for (final feature in _features)
+                  TableRow(
+                    children: [
+                      _MatrixCell(feature.name),
+                      for (int vip = 1; vip <= 9; vip++)
+                        _MatrixCheckCell(unlocked: vip >= feature.minLevel),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VipFeature {
+  const _VipFeature(this.name, {required this.minLevel});
+  final String name;
+  final int minLevel;
+}
+
+class _MatrixCell extends StatelessWidget {
+  const _MatrixCell(this.text, {this.isHeader = false});
+  final String text;
+  final bool isHeader;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: isHeader ? _kGold : _kTxt,
+          fontSize: isHeader ? 11 : 12,
+          fontWeight: isHeader ? FontWeight.w700 : FontWeight.w500,
+        ),
+      ),
+    );
+  }
+}
+
+class _MatrixCheckCell extends StatelessWidget {
+  const _MatrixCheckCell({required this.unlocked});
+  final bool unlocked;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Center(
+        child: Icon(
+          unlocked ? Icons.check_circle_rounded : Icons.remove_rounded,
+          size: 16,
+          color: unlocked ? _kGreen : _kBorder,
+        ),
+      ),
+    );
+  }
+}
