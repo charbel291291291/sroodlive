@@ -6,6 +6,7 @@ import '../../../core/vip/vip_spec.dart';
 import '../../../features/admin/services/admin_access_service.dart';
 import '../../../shared/theme/vip_tier_colors.dart';
 import '../../../shared/widgets/vip_framed_avatar.dart';
+import '../../vip/models/user_vip.dart';
 import '../../vip/screens/vip_settings_screen.dart';
 import '../../vip/services/vip_service.dart';
 import '../services/gamification_service.dart';
@@ -54,6 +55,8 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
   AdminRole _adminRole = AdminRole.empty;
   bool _adminLoading = true;
 
+  UserVip? _userVip;
+
   @override
   void initState() {
     super.initState();
@@ -68,10 +71,14 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
       _error = null;
     });
     try {
-      final plans = await _service.getVipPlans();
+      final results = await Future.wait([
+        _service.getVipPlans(),
+        VipService().getMyVip(),
+      ]);
       if (!mounted) return;
       setState(() {
-        _plans = plans;
+        _plans  = results[0] as List<Map<String, dynamic>>;
+        _userVip = results[1] as UserVip?;
         _loading = false;
       });
     } catch (e) {
@@ -178,6 +185,7 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
           _VipProgressSection(
             vipLevel: widget.currentVipLevel,
             isArabic: context.isArabic,
+            userVip: _userVip,
           ),
           const SizedBox(height: 10),
           _VipSettingsButton(
@@ -495,25 +503,33 @@ class _InfoRow extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _VipProgressSection extends StatelessWidget {
-  const _VipProgressSection({required this.vipLevel, required this.isArabic});
+  const _VipProgressSection({
+    required this.vipLevel,
+    required this.isArabic,
+    this.userVip,
+  });
   final int vipLevel;
   final bool isArabic;
+  final UserVip? userVip;
 
   bool get _isMax => vipLevel >= 9;
 
-  String _goalLabel(bool isArabic) {
-    if (vipLevel <= 0) {
-      return isArabic ? 'ابدأ رحلة VIP الخاصة بك' : 'Start your VIP journey';
+  static String _fmtExp(int n) {
+    // Comma-separated: 1,234,567
+    final s = n.toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
     }
-    if (_isMax) {
-      return isArabic ? 'أعلى مستوى VIP تم الوصول إليه' : 'Highest VIP level reached';
-    }
-    final next = vipLevel + 1;
-    return isArabic ? 'الهدف التالي: VIP$next' : 'Next Goal: VIP$next';
+    return buf.toString();
   }
 
   @override
   Widget build(BuildContext context) {
+    final UserVip? vip = userVip;
+    final bool hasExp = vip != null && (vip.rechargeExp > 0 || vip.vipLevel > 0);
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
       decoration: BoxDecoration(
@@ -525,18 +541,14 @@ class _VipProgressSection extends StatelessWidget {
         crossAxisAlignment:
             isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
-          // Header
+          // ── Header ──────────────────────────────────────────────────────────
           Row(
             textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
             children: [
-              const Icon(
-                Icons.trending_up_rounded,
-                color: _kGold,
-                size: 16,
-              ),
+              const Icon(Icons.trending_up_rounded, color: _kGold, size: 16),
               const SizedBox(width: 7),
               Text(
-                isArabic ? 'مستوى VIP' : 'VIP Level Progress',
+                isArabic ? 'تقدم VIP' : 'VIP Progress',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 13,
@@ -555,7 +567,8 @@ class _VipProgressSection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          // 9-segment bar
+
+          // ── 9-segment tier bar ───────────────────────────────────────────────
           Row(
             children: List.generate(9, (i) {
               final segLevel = i + 1;
@@ -579,13 +592,7 @@ class _VipProgressSection extends StatelessWidget {
                           : null,
                       color: filled ? null : _kCardBorder,
                       boxShadow: isCurrent
-                          ? [
-                              BoxShadow(
-                                color: tier.shadow,
-                                blurRadius: 6,
-                                spreadRadius: 0,
-                              ),
-                            ]
+                          ? [BoxShadow(color: tier.shadow, blurRadius: 6)]
                           : null,
                     ),
                   ),
@@ -593,22 +600,337 @@ class _VipProgressSection extends StatelessWidget {
               );
             }),
           ),
-          const SizedBox(height: 10),
-          // Goal label
-          Text(
-            _goalLabel(isArabic),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: _isMax ? _kGold : _kSubtext,
-              fontSize: 12,
-              fontWeight: _isMax ? FontWeight.w700 : FontWeight.w500,
+          const SizedBox(height: 14),
+
+          // ── EXP stats ────────────────────────────────────────────────────────
+          if (vip != null && hasExp) ...[
+            // Promote to non-null inside builder via local
+            _VipExpBlock(
+              vip: vip,
+              vipLevel: vipLevel,
+              isArabic: isArabic,
+              isMax: _isMax,
+              fmtExp: _fmtExp,
             ),
-          ),
+          ] else ...[
+            // No EXP data yet — show journey start prompt
+            _ExpStatRow(
+              icon: Icons.rocket_launch_rounded,
+              text: vipLevel <= 0
+                  ? (isArabic ? 'ابدأ رحلة VIP بالشحن' : 'Start your VIP journey by recharging')
+                  : (isArabic ? 'استمر بالشحن للحفاظ على VIP' : 'Keep recharging to maintain your VIP'),
+              color: _kSubtext,
+              isArabic: isArabic,
+            ),
+          ],
         ],
       ),
     );
   }
+}
+
+// ── EXP helper widgets ────────────────────────────────────────────────────────
+
+// Separate stateless widget so Dart narrows vip to non-null via the constructor.
+class _VipExpBlock extends StatelessWidget {
+  const _VipExpBlock({
+    required this.vip,
+    required this.vipLevel,
+    required this.isArabic,
+    required this.isMax,
+    required this.fmtExp,
+  });
+  final UserVip vip;
+  final int vipLevel;
+  final bool isArabic;
+  final bool isMax;
+  final String Function(int) fmtExp;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment:
+        isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+    children: [
+      // Lifetime EXP + Monthly EXP stat row
+      Row(
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        children: [
+          Expanded(
+            child: _ExpStat(
+              label: isArabic ? 'إجمالي الشحن' : 'Total Recharge EXP',
+              value: fmtExp(vip.rechargeExp),
+              icon: Icons.bolt_rounded,
+              color: _kGold,
+              isArabic: isArabic,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _ExpStat(
+              label: isArabic ? 'EXP هذا الشهر' : 'Monthly EXP',
+              value: fmtExp(vip.monthlyExp),
+              icon: Icons.calendar_month_rounded,
+              color: _kPurpleMid,
+              isArabic: isArabic,
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+
+      // Next tier progress
+      if (!isMax) ...[
+        _ExpProgressBar(
+          label: isArabic
+              ? 'نحو VIP ${vipLevel + 1}'
+              : 'Progress to VIP ${vipLevel + 1}',
+          progress: vip.nextTierProgress ?? 0.0,
+          remaining: vip.expToNextTier,
+          remainingLabel: isArabic ? 'متبقي' : 'remaining',
+          gradientColors: const [_kPurpleDeep, _kPurpleMid],
+          isArabic: isArabic,
+          fmtExp: fmtExp,
+        ),
+        const SizedBox(height: 10),
+      ] else ...[
+        _ExpStatRow(
+          icon: Icons.emoji_events_rounded,
+          text: isArabic
+              ? 'وصلت إلى أعلى مستوى VIP!'
+              : 'Maximum VIP tier reached!',
+          color: _kGold,
+          isArabic: isArabic,
+        ),
+        const SizedBox(height: 10),
+      ],
+
+      // Monthly maintain progress (VIP > 0 only)
+      if (vipLevel > 0)
+        _ExpProgressBar(
+          label: isArabic ? 'تجديد الشهر الحالي' : 'Monthly Renewal',
+          progress: vip.monthlyMaintainProgress ?? 0.0,
+          remaining: vip.expToMaintain,
+          remainingLabel: isArabic ? 'للتجديد' : 'to renew',
+          gradientColors: vip.isMonthlyMaintainMet
+              ? const [Color(0xFF16A34A), Color(0xFF22C55E)]
+              : const [Color(0xFF9A3412), Color(0xFFF59E0B)],
+          isArabic: isArabic,
+          fmtExp: fmtExp,
+          metLabel: isArabic ? 'تجديد مضمون ✓' : 'Renewal secured ✓',
+          isMet: vip.isMonthlyMaintainMet,
+        ),
+    ],
+  );
+}
+
+class _ExpStat extends StatelessWidget {
+  const _ExpStat({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+    required this.isArabic,
+  });
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.07),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: color.withValues(alpha: 0.2)),
+    ),
+    child: Column(
+      crossAxisAlignment:
+          isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        Row(
+          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 11, color: color.withValues(alpha: 0.8)),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: color.withValues(alpha: 0.8),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w900,
+            height: 1.1,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _ExpProgressBar extends StatelessWidget {
+  const _ExpProgressBar({
+    required this.label,
+    required this.progress,
+    required this.remaining,
+    required this.remainingLabel,
+    required this.gradientColors,
+    required this.isArabic,
+    required this.fmtExp,
+    this.metLabel,
+    this.isMet = false,
+  });
+  final String label;
+  final double progress;
+  final int? remaining;
+  final String remainingLabel;
+  final List<Color> gradientColors;
+  final bool isArabic;
+  final String Function(int) fmtExp;
+  final String? metLabel;
+  final bool isMet;
+
+  @override
+  Widget build(BuildContext context) {
+    final clampedProgress = progress.clamp(0.0, 1.0);
+    final pctText = '${(clampedProgress * 100).toStringAsFixed(0)}%';
+
+    return Column(
+      crossAxisAlignment:
+          isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        // Label + percentage
+        Row(
+          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: _kText,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              isMet && metLabel != null ? metLabel! : pctText,
+              style: TextStyle(
+                color: isMet
+                    ? const Color(0xFF22C55E)
+                    : gradientColors.last,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 5),
+        // Bar
+        LayoutBuilder(
+          builder: (_, constraints) => Stack(
+            children: [
+              // Track
+              Container(
+                height: 7,
+                decoration: BoxDecoration(
+                  color: _kCardBorder,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+              // Fill
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 500),
+                curve: Curves.easeOut,
+                height: 7,
+                width: constraints.maxWidth * clampedProgress,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(99),
+                  gradient: LinearGradient(
+                    colors: gradientColors,
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: gradientColors.last.withValues(alpha: 0.4),
+                      blurRadius: 5,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Remaining EXP hint
+        if (!isMet && remaining != null && remaining! > 0) ...[
+          const SizedBox(height: 3),
+          Text(
+            isArabic
+                ? '${fmtExp(remaining!)} EXP $remainingLabel'
+                : '${fmtExp(remaining!)} EXP $remainingLabel',
+            style: const TextStyle(
+              color: _kSubtext,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _ExpStatRow extends StatelessWidget {
+  const _ExpStatRow({
+    required this.icon,
+    required this.text,
+    required this.color,
+    required this.isArabic,
+  });
+  final IconData icon;
+  final String text;
+  final Color color;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, size: 13, color: color.withValues(alpha: 0.8)),
+      const SizedBox(width: 6),
+      Flexible(
+        child: Text(
+          text,
+          style: TextStyle(
+            color: color,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    ],
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
