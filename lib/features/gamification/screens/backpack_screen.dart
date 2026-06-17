@@ -246,6 +246,40 @@ class _BackpackScreenState extends State<BackpackScreen> {
     if (_error != null) return _buildError();
     if (_filtered.isEmpty) return _buildEmpty();
 
+    // Badges tab uses a 2-column grid with premium _BadgeCard.
+    if (_filter == 'badge') {
+      return RefreshIndicator(
+        color: const Color(0xFFF0C15A),
+        backgroundColor: const Color(0xFF1B102A),
+        onRefresh: _load,
+        child: GridView.builder(
+          padding: const EdgeInsets.all(16),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.80,
+          ),
+          itemCount: _filtered.length,
+          itemBuilder: (_, i) {
+            final bp = _filtered[i];
+            final requiredVip =
+                (bp.item.metadata['vip_level'] as num?)?.toInt() ?? 0;
+            final isVipLocked =
+                requiredVip > 0 && _userVipLevel < requiredVip;
+            return _BadgeCard(
+              bp: bp,
+              isArabic: context.isArabic,
+              isVipLocked: isVipLocked,
+              requiredVipLevel: requiredVip,
+              onEquip: () => _equip(bp),
+            );
+          },
+        ),
+      );
+    }
+
+    // All other filters (all, avatar_frame) use a vertical list.
     return RefreshIndicator(
       color: const Color(0xFFF0C15A),
       backgroundColor: const Color(0xFF1B102A),
@@ -343,11 +377,21 @@ class _BackpackScreenState extends State<BackpackScreen> {
             ),
           ),
           const SizedBox(height: 6),
-          Text(
-            context.isArabic
-                ? 'تفضل بزيارة المتجر للحصول على المزيد'
-                : 'Visit the store to get more items',
-            style: const TextStyle(color: Color(0xFF4A3470), fontSize: 13),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              context.isArabic
+                  ? isBadges
+                        ? 'اجمع الشارات من الفعاليات ومكافآت VIP وعروض المتجر.'
+                        : isFrames
+                        ? 'تفضل بزيارة المتجر للحصول على المزيد'
+                        : 'تفضل بزيارة المتجر للحصول على المزيد'
+                  : isBadges
+                  ? 'Collect badges from events, VIP rewards, and store offers.'
+                  : 'Visit the store to get more items',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Color(0xFF4A3470), fontSize: 13),
+            ),
           ),
           const SizedBox(height: 20),
           _GoToStoreButton(isArabic: context.isArabic),
@@ -633,7 +677,216 @@ class _VipLockRow extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Generic backpack item card (badges + any future types) — unchanged behavior
+// Badge card — 2-column grid layout with VIP lock and equip support
+// ---------------------------------------------------------------------------
+
+class _BadgeCard extends StatelessWidget {
+  const _BadgeCard({
+    required this.bp,
+    required this.isArabic,
+    required this.isVipLocked,
+    required this.requiredVipLevel,
+    required this.onEquip,
+  });
+  final BackpackItem bp;
+  final bool isArabic;
+  final bool isVipLocked;
+  final int requiredVipLevel;
+  final VoidCallback onEquip;
+
+  @override
+  Widget build(BuildContext context) {
+    final tierColors = requiredVipLevel > 0
+        ? VipTierColors.of(requiredVipLevel)
+        : null;
+
+    final borderColor = bp.equipped
+        ? const Color(0xFFF0C15A)
+        : isVipLocked && tierColors != null
+        ? tierColors.border.withValues(alpha: 0.55)
+        : const Color(0xFF4A3470);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF12091D),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: borderColor, width: bp.equipped ? 1.5 : 1),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Badge preview
+            _BadgePreview(bp: bp, isVipLocked: isVipLocked),
+            const SizedBox(height: 10),
+
+            // Rarity / type chip
+            _BadgeMetaChip(bp: bp, isArabic: isArabic),
+            const SizedBox(height: 6),
+
+            // Name
+            Text(
+              bp.item.localName(isArabic),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: isVipLocked ? const Color(0xFF5A4870) : Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                height: 1.3,
+              ),
+            ),
+
+            const Spacer(),
+
+            // Bottom: equipped / locked / equip
+            if (bp.equipped)
+              _EquippedBadge(isArabic: isArabic)
+            else if (isVipLocked)
+              _VipLockRow(isArabic: isArabic, requiredLevel: requiredVipLevel)
+            else
+              SizedBox(
+                width: double.infinity,
+                height: 32,
+                child: ElevatedButton(
+                  onPressed: onEquip,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4B168C),
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    isArabic ? 'تفعيل' : 'Equip',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BadgePreview extends StatelessWidget {
+  const _BadgePreview({required this.bp, required this.isVipLocked});
+  final BackpackItem bp;
+  final bool isVipLocked;
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = bp.item.metadata['image_url'] as String?;
+
+    return SizedBox(
+      width: 64,
+      height: 64,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isVipLocked
+                    ? [const Color(0xFF1E1430), const Color(0xFF130D20)]
+                    : [const Color(0xFF4B168C), const Color(0xFF8B26D9)],
+              ),
+              border: Border.all(
+                color: isVipLocked
+                    ? const Color(0xFF2A1A40)
+                    : const Color(0xFF6B2FD4).withValues(alpha: 0.6),
+                width: 1.5,
+              ),
+            ),
+            child: imageUrl != null && imageUrl.isNotEmpty
+                ? ClipOval(
+                    child: Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context2, err, stack) => const Icon(
+                        Icons.workspace_premium_rounded,
+                        color: Color(0xFFF0C15A),
+                        size: 30,
+                      ),
+                    ),
+                  )
+                : Icon(
+                    Icons.workspace_premium_rounded,
+                    color: isVipLocked
+                        ? const Color(0xFF3A2850)
+                        : const Color(0xFFF0C15A),
+                    size: 30,
+                  ),
+          ),
+          if (isVipLocked)
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.black.withValues(alpha: 0.50),
+              ),
+              child: const Icon(
+                Icons.lock_rounded,
+                color: Colors.white,
+                size: 22,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BadgeMetaChip extends StatelessWidget {
+  const _BadgeMetaChip({required this.bp, required this.isArabic});
+  final BackpackItem bp;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    final rarity = bp.item.metadata['rarity'] as String?;
+    final category = bp.item.metadata['category'] as String?;
+    final label = (rarity ?? category ?? '').trim();
+    if (label.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: const Color(0xFF4B168C).withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: const Color(0xFF6B2FD4).withValues(alpha: 0.45),
+        ),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFFB98EFF),
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Generic backpack item card (non-frame/non-badge types + All-tab fallback)
 // ---------------------------------------------------------------------------
 
 class _BackpackItemCard extends StatelessWidget {
