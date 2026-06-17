@@ -10,7 +10,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../../core/supabase/supabase_service.dart';
-import '../../../core/vip/vip_prestige.dart';
+import '../../../core/vip/vip_prestige.dart' show VipMicWaveRing;
+import '../../../core/vip/vip_spec.dart';
 import '../../../shared/widgets/avatar_with_frame.dart';
 import '../../../shared/widgets/vip_badge.dart';
 import '../../../shared/widgets/vip_username.dart';
@@ -5130,7 +5131,7 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
     }
 
     final vipLevel = msg.senderVipLevel.clamp(0, 9);
-    final prestige = VipVisualResolver.resolve(vipLevel);
+    final prestige = VipSpecResolver.resolve(vipLevel);
     final nameColor = vipLevel > 0 ? prestige.nameColor : const Color(0xFF9BE8FF);
     final isHost = msg.senderRole == 'host';
 
@@ -5158,7 +5159,7 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
     );
   }
 
-  Widget _buildAvatar(VipPrestige prestige, RoomMessage msg, int vipLevel) {
+  Widget _buildAvatar(VipSpec prestige, RoomMessage msg, int vipLevel) {
     final hasRing = prestige.avatarRingWidth > 0;
     // Compact avatar: 26px for a lighter-feeling chat overlay.
     final avatar = _RoomAvatar(
@@ -5206,7 +5207,7 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
 
   Widget _buildBubble(
     BuildContext context,
-    VipPrestige prestige,
+    VipSpec prestige,
     RoomMessage msg,
     Color nameColor,
     bool isHost,
@@ -5455,7 +5456,7 @@ class _VipEntryRoomBannerState extends State<_VipEntryRoomBanner>
   @override
   void initState() {
     super.initState();
-    final prestige = VipVisualResolver.resolve(widget.member.effectiveVipLevel);
+    final prestige = VipSpecResolver.resolve(widget.member.effectiveVipLevel);
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
@@ -5474,7 +5475,7 @@ class _VipEntryRoomBannerState extends State<_VipEntryRoomBanner>
   @override
   Widget build(BuildContext context) {
     final level = widget.member.effectiveVipLevel;
-    final prestige = VipVisualResolver.resolve(level);
+    final prestige = VipSpecResolver.resolve(level);
     final isArabic = context.isArabic;
 
     final text = isArabic
@@ -5500,7 +5501,7 @@ class _VipEntryRoomBannerState extends State<_VipEntryRoomBanner>
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: prestige.gradientColors,
+              colors: prestige.bannerGradient,
             ),
             boxShadow: prestige.buildGlowShadows(pulseFactor: _aura.value),
             border: prestige.isElite
@@ -6051,8 +6052,8 @@ class _RedEnvelopeBanner extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     isArabic
-                        ? '$total Ø¹Ù…Ù„Ø© â€¢ $remaining Ù…ØªØ¨Ù‚'
-                        : '$total coins â€¢ $remaining left',
+                        ? '$total | $remaining'
+                        : '$total coins | $remaining left',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.75),
                       fontSize: 12,

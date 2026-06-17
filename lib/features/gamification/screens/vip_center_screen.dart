@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/utils/vip_visuals.dart';
+import '../../../core/vip/vip_spec.dart';
 import '../../../shared/widgets/vip_framed_avatar.dart';
 import '../../vip/screens/vip_settings_screen.dart';
 import '../services/gamification_service.dart';
@@ -217,7 +217,7 @@ class _CurrentStatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = getVipVisualStyle(vipLevel);
+    final spec = VipSpecResolver.resolve(vipLevel);
     final isActive = vipLevel > 0;
     final expired = expiresAt != null && expiresAt!.isBefore(DateTime.now());
     final reallyActive = isActive && !expired;
@@ -228,8 +228,7 @@ class _CurrentStatusCard extends StatelessWidget {
         gradient: reallyActive
             ? LinearGradient(
                 colors: [
-                  style?.glowColor.withValues(alpha: 0.3) ??
-                      const Color(0xFF4B168C),
+                  spec.glowColor.withValues(alpha: 0.3),
                   const Color(0xFF1B102A),
                 ],
                 begin: Alignment.topLeft,
@@ -241,8 +240,7 @@ class _CurrentStatusCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: reallyActive
-              ? style?.glowColor.withValues(alpha: 0.5) ??
-                    const Color(0xFFF0C15A)
+              ? spec.glowColor.withValues(alpha: 0.5)
               : const Color(0xFF4A3470),
           width: reallyActive ? 1.5 : 1,
         ),
@@ -340,7 +338,7 @@ class _VipPlanCard extends StatelessWidget {
     final priceCoins = (plan['price_coins'] as num?)?.toInt() ?? 0;
     final duration = (plan['duration_days'] as num?)?.toInt() ?? 30;
     final benefits = (plan['benefits'] as List<dynamic>?) ?? [];
-    final style = getVipVisualStyle(level);
+    final spec = VipSpecResolver.resolve(level);
 
     return GestureDetector(
       onTap: onTap,
@@ -353,8 +351,9 @@ class _VipPlanCard extends StatelessWidget {
           border: Border.all(
             color: isCurrent
                 ? const Color(0xFFF0C15A)
-                : style?.glowColor.withValues(alpha: 0.3) ??
-                      const Color(0xFF4A3470),
+                : (level > 0
+                      ? spec.glowColor.withValues(alpha: 0.3)
+                      : const Color(0xFF4A3470)),
             width: isCurrent ? 1.5 : 1,
           ),
           boxShadow: isCurrent
@@ -377,12 +376,12 @@ class _VipPlanCard extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
-                  colors: style != null
+                  colors: level > 0
                       ? [
-                          style.glowColor,
-                          style.glowColor.withValues(alpha: 0.5),
+                          spec.glowColor,
+                          spec.glowColor.withValues(alpha: 0.5),
                         ]
-                      : [const Color(0xFF4B168C), const Color(0xFF8B26D9)],
+                      : const [Color(0xFF4B168C), Color(0xFF8B26D9)],
                 ),
               ),
               child: Center(
@@ -413,7 +412,7 @@ class _VipPlanCard extends StatelessWidget {
                         child: Text(
                           name,
                           style: TextStyle(
-                            color: style?.nameColor ?? Colors.white,
+                            color: level > 0 ? spec.nameColor : Colors.white,
                             fontSize: 15,
                             fontWeight: FontWeight.w900,
                           ),
@@ -555,7 +554,7 @@ class _UpgradeInfoSheet extends StatelessWidget {
     final priceCoins = (plan['price_coins'] as num?)?.toInt() ?? 0;
     final duration = (plan['duration_days'] as num?)?.toInt() ?? 30;
     final benefits = (plan['benefits'] as List<dynamic>?) ?? [];
-    final style = getVipVisualStyle(level);
+    final spec = VipSpecResolver.resolve(level);
     final maxHeight = MediaQuery.of(context).size.height * 0.85;
 
     return ConstrainedBox(
@@ -594,14 +593,14 @@ class _UpgradeInfoSheet extends StatelessWidget {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: LinearGradient(
-                          colors: style != null
+                          colors: level > 0
                               ? [
-                                  style.glowColor,
-                                  style.glowColor.withValues(alpha: 0.5),
+                                  spec.glowColor,
+                                  spec.glowColor.withValues(alpha: 0.5),
                                 ]
-                              : [
-                                  const Color(0xFF4B168C),
-                                  const Color(0xFF8B26D9),
+                              : const [
+                                  Color(0xFF4B168C),
+                                  Color(0xFF8B26D9),
                                 ],
                         ),
                       ),

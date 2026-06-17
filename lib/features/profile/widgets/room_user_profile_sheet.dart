@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/utils/vip_visuals.dart';
-import '../../../core/vip/vip_prestige.dart';
+import '../../../core/vip/vip_spec.dart';
 import '../../../shared/widgets/avatar_with_frame.dart';
 import '../../../shared/widgets/vip_badge.dart';
 import '../../../shared/widgets/vip_username.dart';
@@ -420,7 +420,7 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
     final maxH = size.height * 0.88;
     final maxW = size.width >= 600 ? 460.0 : double.infinity;
     final vip = _profile?.effectiveVipLevel ?? 0;
-    final prestige = VipVisualResolver.resolve(vip);
+    final prestige = VipSpecResolver.resolve(vip);
 
     return SafeArea(
       bottom: false,
@@ -653,7 +653,7 @@ class _SheetBody extends StatelessWidget {
 
   final RoomUserProfile profile;
   final List<GiftWallItem> giftWall;
-  final VipPrestige prestige;
+  final VipSpec prestige;
   final Animation<double> glowAnim;
   final bool isArabic;
   final bool isMe;
@@ -711,7 +711,7 @@ class _SheetBody extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: vip >= 2
-                    ? prestige.gradientColors
+                    ? prestige.bannerGradient
                     : [
                         const Color(0xFF1E0E38),
                         const Color(0xFF130728),
@@ -959,7 +959,7 @@ class _HeaderContent extends StatelessWidget {
   });
 
   final RoomUserProfile profile;
-  final VipPrestige prestige;
+  final VipSpec prestige;
   final int vip;
   final bool goldenActive;
   final bool isArabic;
@@ -1223,7 +1223,7 @@ class _LevelCard extends StatelessWidget {
   final String title;
   final String value;
   final IconData icon;
-  final VipPrestige prestige;
+  final VipSpec prestige;
 
   @override
   Widget build(BuildContext context) {

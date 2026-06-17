@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../core/utils/vip_visuals.dart';
+import '../../../core/vip/vip_spec.dart';
 
 /// Lightweight, immutable snapshot of one user's current VIP status.
 /// Constructed from the JSON returned by get_my_vip() / get_user_vip() RPCs
@@ -43,6 +44,9 @@ class UserVip {
 
   /// VIP visual pack for the effective level (null for non-VIP users).
   VipVisuals? get visuals => getVipVisualStyle(effectiveVipLevel);
+
+  /// Unified VIP spec for the effective level.
+  VipSpec get spec => VipSpecResolver.resolve(effectiveVipLevel);
 
   /// Whether golden ID display is currently active.
   bool get isGoldenIdActive {
