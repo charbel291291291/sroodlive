@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../../../core/supabase/supabase_service.dart';
 import '../../../core/vip/vip_privileges.dart';
 import '../../rooms/utils/vip_room_features.dart';
@@ -76,13 +78,22 @@ class VipPrivilegeService {
     final client = SupabaseService.requiredClient;
     if (client.auth.currentUser == null) return;
 
-    // Server-side enforcement via RPC — validates level before writing.
-    // TODO Phase 5: remove direct UPDATE RLS policy on user_vip_settings
-    //              once this RPC is confirmed stable in production.
+    debugPrint(
+      '[VipPrivilegeService] setSetting RPC:'
+      ' key=${privilege.columnName}'
+      ' enabled=$enabled'
+      ' effectiveVipLevel=$effectiveVipLevel',
+    );
+
     await client.rpc('set_my_vip_setting', params: {
       'p_key': privilege.columnName,
       'p_enabled': enabled,
     });
+
+    debugPrint(
+      '[VipPrivilegeService] setSetting RPC done:'
+      ' key=${privilege.columnName}',
+    );
   }
 
   // ── Privilege checks ───────────────────────────────────────────────────
