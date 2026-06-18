@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/supabase/supabase_service.dart';
+
 import '../../../shared/branding/branding_assets.dart';
 import '../models/admin_models.dart';
 import '../services/admin_access_service.dart';
@@ -121,6 +123,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // Reports
   List<AdminReport> _reports = const [];
   String? _reportsStatusFilter;
+
+  // Auto-moderation events
+  List<_ModEvent> _modEvents = const [];
+  String? _modEventsStatusFilter;
+  bool _modEventsLoading = false;
 
   // Hidden 7-tap trigger for owner panel
   int _ownerTapCount = 0;
@@ -994,6 +1001,141 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     setState(() => _reports = reports);
   }
 
+  Future<void> _reloadModEvents() async {
+    setState(() => _modEventsLoading = true);
+    try {
+      final rows = await SupabaseService.requiredClient.rpc(
+        'admin_get_moderation_events',
+        params: {
+          'p_limit': 100,
+          'p_status': _modEventsStatusFilter,
+        },
+      );
+      if (!mounted) return;
+      setState(() {
+        _modEvents = (rows as List)
+            .map((r) => _ModEvent.fromJson(r as Map<String, dynamic>))
+            .toList();
+      });
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _modEventsLoading = false);
+    }
+  }
+
+  Future<void> _applyModerationAction({
+    required String targetUserId,
+    required String actionType,
+    required String reason,
+    String? roomId,
+    DateTime? expiresAt,
+    String? eventId,
+    String? reportId,
+  }) async {
+    try {
+      await SupabaseService.requiredClient.rpc('admin_apply_moderation_action', params: {
+        'p_target_user_id': targetUserId,
+        'p_action_type':    actionType,
+        'p_reason':         reason,
+        'p_room_id':        roomId,
+        'p_expires_at':     expiresAt?.toIso8601String(),
+        'p_event_id':       eventId,
+        'p_report_id':      reportId,
+      });
+      _showSnack('Action applied: ${actionType.replaceAll('_', ' ')}');
+      unawaited(_reloadModEvents());
+      unawaited(_reloadReports());
+    } catch (e) {
+      _showSnack('Action failed: $e');
+    }
+  }
+
+  Future<void> _showModerationActionDialog({
+    required String targetUserId,
+    String? targetName,
+    String? eventId,
+    String? reportId,
+    String? roomId,
+  }) async {
+    String selectedAction = 'chat_mute';
+    DateTime? expiresAt = DateTime.now().add(const Duration(hours: 1));
+    String reason = '';
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          backgroundColor: _kSurface,
+          title: Text('Moderate: ${targetName ?? targetUserId.substring(0, 8)}',
+              style: const TextStyle(color: _kTxt, fontSize: 16)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _DialogDropdown<String>(
+                label: 'Action',
+                value: selectedAction,
+                items: const [
+                  DropdownMenuItem(value: 'warning',     child: Text('Warning (no restriction)')),
+                  DropdownMenuItem(value: 'chat_mute',   child: Text('Chat Mute (temp)')),
+                  DropdownMenuItem(value: 'account_ban', child: Text('Account Ban (temp)')),
+                  DropdownMenuItem(value: 'gift_block',  child: Text('Gift Block')),
+                  DropdownMenuItem(value: 'dismissed',   child: Text('Dismiss / False Positive')),
+                ],
+                onChanged: (v) => setLocal(() => selectedAction = v ?? selectedAction),
+              ),
+              const SizedBox(height: 8),
+              if (selectedAction != 'dismissed' && selectedAction != 'warning') ...[
+                _DialogDropdown<Duration>(
+                  label: 'Duration',
+                  value: const Duration(hours: 1),
+                  items: const [
+                    DropdownMenuItem(value: Duration(minutes: 15), child: Text('15 minutes')),
+                    DropdownMenuItem(value: Duration(hours: 1),    child: Text('1 hour')),
+                    DropdownMenuItem(value: Duration(hours: 6),    child: Text('6 hours')),
+                    DropdownMenuItem(value: Duration(hours: 24),   child: Text('24 hours')),
+                    DropdownMenuItem(value: Duration(days: 7),     child: Text('7 days')),
+                  ],
+                  onChanged: (d) => setLocal(() =>
+                      expiresAt = d != null ? DateTime.now().add(d) : null),
+                ),
+                const SizedBox(height: 8),
+              ],
+              TextField(
+                style: const TextStyle(color: _kTxt),
+                decoration: const InputDecoration(
+                  labelText: 'Reason',
+                  labelStyle: TextStyle(color: _kMuted),
+                ),
+                onChanged: (v) => reason = v,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel', style: TextStyle(color: _kMuted)),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                _applyModerationAction(
+                  targetUserId: targetUserId,
+                  actionType:   selectedAction,
+                  reason:       reason.isEmpty ? selectedAction : reason,
+                  roomId:       roomId,
+                  expiresAt:    expiresAt,
+                  eventId:      eventId,
+                  reportId:     reportId,
+                );
+              },
+              style: FilledButton.styleFrom(backgroundColor: _kRed),
+              child: const Text('Apply'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _closeRoom(AdminRoomSummary room) async {
     final confirmed = await _confirm(
       title: 'Close room',
@@ -1257,8 +1399,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           selected: _module,
                           roles: _roles,
                           badges: _navBadges,
-                          onSelected: (module) =>
-                              setState(() => _module = module),
+                          onSelected: (module) {
+                            setState(() => _module = module);
+                            if (module == _AdminModule.moderation) {
+                              unawaited(_reloadModEvents());
+                            }
+                          },
                           onBrandTap: _onBrandTap,
                         ),
                       Expanded(
@@ -2267,9 +2413,73 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       .map((r) => _ReportTile(
                             report: r,
                             onProcess: (status) => _processReport(r, status),
+                            onAction: () => _showModerationActionDialog(
+                              targetUserId: r.targetId,
+                              targetName:   r.targetId,
+                              reportId:     r.id,
+                            ),
                           ))
                       .toList(),
                 ),
+        ),
+        const SizedBox(height: 14),
+
+        // ── Auto-mod events ───────────────────────────────────────────────────
+        _AdminSectionCard(
+          title: 'Auto-Mod Events (${_modEvents.length})',
+          action: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Status filter
+              DropdownButton<String?>(
+                value: _modEventsStatusFilter,
+                dropdownColor: _kSurface,
+                underline: const SizedBox(),
+                style: const TextStyle(color: _kTxt, fontSize: 12),
+                items: const [
+                  DropdownMenuItem(value: null,         child: Text('All')),
+                  DropdownMenuItem(value: 'open',       child: Text('Open')),
+                  DropdownMenuItem(value: 'reviewed',   child: Text('Reviewed')),
+                  DropdownMenuItem(value: 'dismissed',  child: Text('Dismissed')),
+                ],
+                onChanged: (v) {
+                  setState(() => _modEventsStatusFilter = v);
+                  _reloadModEvents();
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.refresh_rounded),
+                onPressed: _reloadModEvents,
+                tooltip: 'Refresh',
+              ),
+            ],
+          ),
+          child: _modEventsLoading
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: CircularProgressIndicator(color: _kGold, strokeWidth: 2),
+                  ),
+                )
+              : _modEvents.isEmpty
+                  ? const _AdminEmptyState(
+                      icon: Icons.smart_toy_outlined,
+                      title: 'No auto-mod events',
+                      subtitle: 'Events logged by text auto-moderation will appear here.',
+                    )
+                  : Column(
+                      children: _modEvents
+                          .map((e) => _ModEventTile(
+                                event: e,
+                                onAction: () => _showModerationActionDialog(
+                                  targetUserId: e.userId,
+                                  targetName:   e.userName,
+                                  eventId:      e.id,
+                                  roomId:       e.roomId,
+                                ),
+                              ))
+                          .toList(),
+                    ),
         ),
       ],
     );
@@ -6379,9 +6589,14 @@ class _AgencyEditDialogState extends State<_AgencyEditDialog> {
 // â”€â”€ Report tile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _ReportTile extends StatelessWidget {
-  const _ReportTile({required this.report, required this.onProcess});
+  const _ReportTile({
+    required this.report,
+    required this.onProcess,
+    this.onAction,
+  });
   final AdminReport report;
   final void Function(String status) onProcess;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -6479,6 +6694,12 @@ class _ReportTile extends StatelessWidget {
                   color: Colors.purpleAccent,
                   onTap: () => onProcess('needs_more_info'),
                 ),
+                if (onAction != null)
+                  _ReportActionButton(
+                    label: 'Take Action',
+                    color: _kAmber,
+                    onTap: onAction!,
+                  ),
               ],
             ),
           ],
@@ -6695,6 +6916,201 @@ class _MatrixCheckCell extends StatelessWidget {
           size: 16,
           color: unlocked ? _kGreen : _kBorder,
         ),
+      ),
+    );
+  }
+}
+
+// ── Simple labeled dropdown for dialog use (avoids deprecated FormField.value) ─
+
+class _DialogDropdown<T> extends StatelessWidget {
+  const _DialogDropdown({
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  final String label;
+  final T value;
+  final List<DropdownMenuItem<T>> items;
+  final ValueChanged<T?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(color: _kMuted, fontSize: 12)),
+        const SizedBox(height: 4),
+        DropdownButton<T>(
+          value: value,
+          isExpanded: true,
+          dropdownColor: _kSurface,
+          style: const TextStyle(color: _kTxt, fontSize: 14),
+          items: items,
+          onChanged: onChanged,
+        ),
+      ],
+    );
+  }
+}
+
+// ── Auto-mod event model ─────────────────────────────────────────────────────
+
+class _ModEvent {
+  const _ModEvent({
+    required this.id,
+    required this.userId,
+    required this.userName,
+    required this.roomId,
+    required this.source,
+    required this.violationType,
+    required this.severity,
+    required this.originalText,
+    required this.matchedRule,
+    required this.actionTaken,
+    required this.status,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String userId;
+  final String userName;
+  final String? roomId;
+  final String source;
+  final String violationType;
+  final int severity;
+  final String? originalText;
+  final String? matchedRule;
+  final String? actionTaken;
+  final String status;
+  final DateTime createdAt;
+
+  factory _ModEvent.fromJson(Map<String, dynamic> j) => _ModEvent(
+    id:            j['id'] as String,
+    userId:        j['user_id'] as String,
+    userName:      j['user_name'] as String? ?? 'Unknown',
+    roomId:        j['room_id'] as String?,
+    source:        j['source'] as String? ?? 'chat',
+    violationType: j['violation_type'] as String? ?? 'other',
+    severity:      (j['severity'] as num?)?.toInt() ?? 1,
+    originalText:  j['original_text'] as String?,
+    matchedRule:   j['matched_rule'] as String?,
+    actionTaken:   j['action_taken'] as String?,
+    status:        j['status'] as String? ?? 'open',
+    createdAt:     j['created_at'] != null
+        ? DateTime.parse(j['created_at'] as String)
+        : DateTime.now(),
+  );
+}
+
+// ── Auto-mod event tile ───────────────────────────────────────────────────────
+
+class _ModEventTile extends StatelessWidget {
+  const _ModEventTile({required this.event, required this.onAction});
+  final _ModEvent event;
+  final VoidCallback onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final severityColor = switch (event.severity) {
+      1 => _kAmber,
+      2 => Colors.orangeAccent,
+      3 => _kRed,
+      _ => const Color(0xFFDC2626),
+    };
+    final statusColor = switch (event.status) {
+      'open'      => _kAmber,
+      'reviewed'  => _kGreen,
+      'dismissed' => _kMuted,
+      _           => _kMuted,
+    };
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _kBg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: event.status == 'open'
+              ? severityColor.withValues(alpha: 0.3)
+              : _kBorder,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: severityColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: severityColor.withValues(alpha: 0.4)),
+                ),
+                child: Text(
+                  'S${event.severity} · ${event.violationType.replaceAll('_', ' ')}',
+                  style: TextStyle(
+                      color: severityColor, fontSize: 10, fontWeight: FontWeight.w700),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  event.status.toUpperCase(),
+                  style: TextStyle(
+                      color: statusColor, fontSize: 10, fontWeight: FontWeight.w600),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${event.createdAt.month}/${event.createdAt.day}'
+                ' ${event.createdAt.hour.toString().padLeft(2, '0')}'
+                ':${event.createdAt.minute.toString().padLeft(2, '0')}',
+                style: const TextStyle(color: _kMuted, fontSize: 11),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'User: ${event.userName}',
+            style: const TextStyle(
+                color: _kTxt, fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          if (event.originalText != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              '"${event.originalText}"',
+              style: const TextStyle(
+                  color: _kMuted, fontSize: 12, fontStyle: FontStyle.italic),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+          if (event.matchedRule != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              'Matched: ${event.matchedRule}',
+              style: const TextStyle(color: _kMuted, fontSize: 11),
+            ),
+          ],
+          if (event.status == 'open') ...[
+            const SizedBox(height: 10),
+            _ReportActionButton(
+              label: 'Take Action',
+              color: _kAmber,
+              onTap: onAction,
+            ),
+          ],
+        ],
       ),
     );
   }

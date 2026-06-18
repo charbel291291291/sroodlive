@@ -8,6 +8,7 @@ import '../../../shared/widgets/vip_badge.dart';
 import '../../../shared/widgets/vip_username.dart';
 import '../../messages/services/private_message_service.dart';
 import '../../messages/widgets/private_chat_sheet.dart';
+import '../../moderation/widgets/report_reason_sheet.dart';
 import '../../profile/screens/user_profile_screen.dart';
 import '../models/room_user_profile.dart';
 import '../services/room_user_profile_service.dart';
@@ -241,6 +242,22 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
     final id = _profile?.publicUserId ?? widget.userId;
     Clipboard.setData(ClipboardData(text: id));
     _snack(context.isArabic ? 'تم نسخ ID' : 'ID copied');
+  }
+
+  Future<void> _doReport() async {
+    if (_isMe) return;
+    final isArabic = context.isArabic;
+    final submitted = await ReportReasonSheet.show(
+      context,
+      reportedUserId: widget.userId,
+      roomId: widget.roomId,
+      isArabic: isArabic,
+    );
+    if (submitted == true && mounted) {
+      _snack(isArabic
+          ? 'تم إرسال البلاغ إلى فريق الإشراف.'
+          : 'Report sent to moderation.');
+    }
   }
 
   // ── Moderation actions ──────────────────────────────────────────────────────
@@ -520,6 +537,7 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
                                   onBan: _doBan,
                                   onSetAdmin: _doSetAdmin,
                                   onRemoveAdmin: _doRemoveAdmin,
+                                  onReport: _doReport,
                                 ),
                     ),
                   ),
@@ -656,6 +674,7 @@ class _SheetBody extends StatelessWidget {
     required this.onBan,
     required this.onSetAdmin,
     required this.onRemoveAdmin,
+    required this.onReport,
   });
 
   final RoomUserProfile profile;
@@ -697,6 +716,7 @@ class _SheetBody extends StatelessWidget {
   final VoidCallback onBan;
   final VoidCallback onSetAdmin;
   final VoidCallback onRemoveAdmin;
+  final VoidCallback onReport;
 
   @override
   Widget build(BuildContext context) {
@@ -934,6 +954,12 @@ class _SheetBody extends StatelessWidget {
                 label: isArabic ? 'الملف' : 'Profile',
                 color: const Color(0xFF9E91B8),
                 onTap: onViewProfile,
+              ),
+              _ActionBtn(
+                icon: Icons.flag_rounded,
+                label: isArabic ? 'إبلاغ' : 'Report',
+                color: const Color(0xFFEF4444),
+                onTap: onReport,
               ),
             ],
           ),

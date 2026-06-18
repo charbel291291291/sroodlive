@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../../../core/supabase/supabase_service.dart';
+import '../../moderation/services/moderation_service.dart';
 
 // ---------------------------------------------------------------------------
 // Model
@@ -123,6 +124,7 @@ class RoomMessagesService {
   }
 
   /// Send a text message. Throws on error.
+  /// Throws [UserMutedException] if the user has an active mute/ban.
   Future<void> sendMessage({
     required String roomId,
     required String message,
@@ -136,6 +138,12 @@ class RoomMessagesService {
     if (trimmed.isEmpty) throw ArgumentError('Message is empty');
     if (trimmed.length > _maxMessageLength) {
       throw ArgumentError('Message too long');
+    }
+
+    // Server-side mute check before sending.
+    final muteInfo = await const ModerationService().checkActiveMute(roomId);
+    if (muteInfo != null) {
+      throw UserMutedException(muteInfo);
     }
 
     await client.from('room_messages').insert({
