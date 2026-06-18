@@ -6503,38 +6503,39 @@ class _LuxuryGiftVideoOverlayState extends State<_LuxuryGiftVideoOverlay> {
   @override
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
-    final topPad = mq.padding.top;
-    final screenW = mq.size.width;
     final screenH = mq.size.height;
 
-    // Constrain video to upper-center; room content below remains visible.
-    final videoW = screenW * 0.80;
-    final videoH = (screenH * 0.38).clamp(150.0, 310.0);
+    // Safe zone: body Stack starts below the AppBar (kToolbarHeight = 56).
+    // Add status-bar padding because some devices still report it inside the
+    // body when the room background extends behind the system UI.
+    const double kAppBarH     = 56.0;
+    const double kBannerH     = 60.0;  // gift / VIP notification strip above the stage
+    const double kBottomBarH  = 120.0; // bottom composer + controls
+    const double kInfoCardH   = 80.0;  // _LuxuryGiftInfoCard + 8 px gap
+    final double bottomPad    = mq.padding.bottom;
+
+    // Top offset inside the body Stack (below the AppBar + upper strip).
+    final double safeTop = mq.padding.top + kAppBarH + kBannerH;
+
+    // Video fills all remaining vertical room, minus bottom bar and info card.
+    final double videoH = (screenH - safeTop - kBottomBarH - bottomPad - kInfoCardH)
+        .clamp(180.0, double.infinity);
 
     return Positioned(
       key: widget.playback.key,
-      top: topPad + 56,
-      left: (screenW - videoW) / 2,
-      width: videoW,
+      top: safeTop,
+      left: 0,
+      right: 0,
       child: IgnorePointer(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Video frame — dark backing only within this frame, not full screen.
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(22),
-                bottom: Radius.circular(10),
-              ),
-              child: SizedBox(
-                width: videoW,
-                height: videoH,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(color: Colors.black.withValues(alpha: 0.18)),
-                    if (_ready)
-                      FittedBox(
+            // Full-width video stage — FittedBox/contain preserves aspect ratio.
+            SizedBox(
+              height: videoH,
+              child: Center(
+                child: _ready
+                    ? FittedBox(
                         fit: BoxFit.contain,
                         child: SizedBox(
                           width: _controller.value.size.width,
@@ -6542,17 +6543,17 @@ class _LuxuryGiftVideoOverlayState extends State<_LuxuryGiftVideoOverlay> {
                           child: VideoPlayer(_controller),
                         ),
                       )
-                    else
-                      const CircularProgressIndicator(),
-                  ],
-                ),
+                    : const CircularProgressIndicator(),
               ),
             ),
             const SizedBox(height: 8),
-            // Luxury info card below the video.
-            _LuxuryGiftInfoCard(
-              giftName: widget.playback.giftName,
-              receiverName: widget.playback.receiverName,
+            // Info card pinned below the video.
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _LuxuryGiftInfoCard(
+                giftName: widget.playback.giftName,
+                receiverName: widget.playback.receiverName,
+              ),
             ),
           ],
         ),

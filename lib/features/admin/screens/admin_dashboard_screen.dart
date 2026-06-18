@@ -150,6 +150,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   bool get _canFinance     => _adminRole.hasPermission(kPermWalletCredit);
   bool get _canBd          => _adminRole.hasPermission(kPermAgenciesView);
   bool get _canContent     => _adminRole.hasPermission(kPermGiftsManage);
+  // Marketing & App Content uses banners.manage, which super_admin already has.
+  // Keeping this separate from _canContent (gifts.manage) so the two access
+  // levels are independently controllable per role.
+  bool get _canMarketing   => _adminRole.hasPermission(kPermBanners);
   bool get _canRooms       => _adminRole.hasPermission(kPermRoomsClose);
   bool get _canUnban       => _adminRole.canUnban;
   bool get _canManageStaff => _adminRole.isOSuperAdmin;
@@ -2282,14 +2286,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           title: 'Marketing & App Content',
           subtitle: 'Promo banners, carousel slides, and Charisma Challenge management.',
           icon: Icons.campaign_rounded,
-          locked: !_canContent,
+          locked: !_canMarketing,
         ),
         const SizedBox(height: 14),
 
         // ── Promo Banners ────────────────────────────────────────────────────
         _AdminSectionCard(
           title: 'Promo Banners',
-          action: _canContent
+          action: _canMarketing
               ? TextButton.icon(
                   onPressed: () => _editPromoBanner(),
                   icon: const Icon(Icons.add_rounded),
@@ -2315,7 +2319,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             spacing: 6,
                             children: [
                               _RoleChip(label: b.isActive ? 'Active' : 'Inactive'),
-                              if (_canContent) ...[
+                              if (_canMarketing) ...[
                                 TextButton(
                                   onPressed: () => _editPromoBanner(b),
                                   child: const Text('Edit'),

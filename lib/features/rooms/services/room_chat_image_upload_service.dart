@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -35,14 +37,20 @@ class RoomChatImageUploadService {
   /// Throws a [StateError] or [ArgumentError] on validation failure.
   /// Throws on upload failure.
   Future<RoomChatImageResult?> pickAndUpload({required String userId}) async {
+    debugPrint('[RoomImage] pickAndUpload called userId=$userId');
     final picker = ImagePicker();
+    debugPrint('[RoomImage] picker start');
     final picked = await picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 85,
       maxWidth: 1920,
       maxHeight: 1920,
     );
-    if (picked == null) return null;
+    if (picked == null) {
+      debugPrint('[RoomImage] picker cancelled');
+      return null;
+    }
+    debugPrint('[RoomImage] picked path=${picked.path} name=${picked.name}');
 
     // Extension check
     final ext = picked.name.split('.').last.toLowerCase();
@@ -64,6 +72,7 @@ class RoomChatImageUploadService {
     final storagePath = '$userId/${ts}_${picked.name.hashCode.abs()}.$ext';
 
     final client = SupabaseService.requiredClient;
+    debugPrint('[RoomImage] upload start bucket=$_bucket path=$storagePath ext=$ext size=${await file.length()}');
     await client.storage.from(_bucket).upload(
       storagePath,
       file,
@@ -73,8 +82,10 @@ class RoomChatImageUploadService {
       ),
     );
 
+    debugPrint('[RoomImage] upload success path=$storagePath');
     final publicUrl =
         client.storage.from(_bucket).getPublicUrl(storagePath);
+    debugPrint('[RoomImage] public url=$publicUrl');
 
     return RoomChatImageResult(url: publicUrl, path: storagePath);
   }

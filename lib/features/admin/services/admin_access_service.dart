@@ -117,26 +117,11 @@ class AdminRole {
           kPermTreasurePrize,
         }.contains(key);
       case kRoleSuperAdmin:
-        return {
-          kPermUsersView,
-          kPermUsersEdit,
-          kPermUsersTempBan,
-          kPermUsersPermanentBan,
-          kPermRoomsView,
-          kPermRoomsClose,
-          kPermReportsView,
-          kPermReportsManage,
-          kPermContentRemove,
-          kPermAgenciesView,
-          kPermHostsManage,
-          kPermCharismaAgency,
-          kPermCharismaCrown,
-          kPermGamesLogs,
-          kPermAnalytics,
-          kPermBanners,
-          kPermNotifSend,
-          kPermAuditLogs,
-        }.contains(key);
+        // super_admin has full access to all modules. The only operations
+        // reserved for o_super_admin are enforced at the DB level (e.g. unban,
+        // delete users, change roles of other admins) and are separately guarded
+        // by canUnban / isOSuperAdmin checks in the dashboard, not by hasPermission.
+        return true;
       case kRoleAdmin:
         return {
           kPermUsersView,

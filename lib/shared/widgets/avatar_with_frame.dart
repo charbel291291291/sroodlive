@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/vip/vip_spec.dart';
@@ -73,12 +74,12 @@ class AvatarWithFrame extends StatelessWidget {
               height: avatarSize,
               child: ClipOval(
                 child: url != null && url.isNotEmpty
-                    ? Image.network(
-                        url,
+                    ? CachedNetworkImage(
+                        imageUrl: url,
                         fit: BoxFit.cover,
                         width: avatarSize,
                         height: avatarSize,
-                        errorBuilder: (context, error, stackTrace) =>
+                        errorWidget: (context, error, stackTrace) =>
                             _AvatarFallback(
                               icon: fallbackIcon,
                               size: avatarSize,

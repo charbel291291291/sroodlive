@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../../../core/supabase/supabase_service.dart';
 
 // ---------------------------------------------------------------------------
@@ -156,11 +157,13 @@ class RoomMessagesService {
     final client = SupabaseService.requiredClient;
     if (client.auth.currentUser == null) throw StateError('Not authenticated');
 
+    debugPrint('[RoomImage] rpc send_room_image_message start room=$roomId path=$imagePath role=$senderRole');
     await client.rpc('send_room_image_message', params: {
       'p_room_id':    roomId,
       'p_image_url':  imageUrl,
       'p_image_path': imagePath,
       'p_sender_role': senderRole,
     });
+    debugPrint('[RoomImage] rpc send_room_image_message success');
   }
 }

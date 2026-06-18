@@ -1,4 +1,5 @@
 
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -441,19 +442,11 @@ class RoomsService {
     required String roomId,
     required bool isMuted,
   }) async {
-    final client = SupabaseService.requiredClient;
-    final user = client.auth.currentUser;
-
-    if (user == null) {
-      throw StateError('No logged-in user found.');
-    }
-
-    await client
-        .from('room_members')
-        .update({'is_muted': isMuted})
-        .eq('room_id', roomId)
-        .eq('user_id', user.id)
-        .filter('left_at', 'is', null);
+    debugPrint('[RT-MEMBERS] setMyMuteStatus roomId=$roomId isMuted=$isMuted');
+    await SupabaseService.requiredClient.rpc(
+      'set_my_room_mute_status',
+      params: {'p_room_id': roomId, 'p_is_muted': isMuted},
+    );
   }
 
   Future<void> leaveRoom(String roomId) async {

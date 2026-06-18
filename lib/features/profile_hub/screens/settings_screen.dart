@@ -23,6 +23,7 @@ import '../../wallet/screens/withdrawal_screen.dart';
 import '../models/profile_hub_models.dart';
 import '../services/settings_service.dart';
 import '../widgets/profile_hub_widgets.dart';
+import 'my_level_screen.dart';
 import 'policy_screen.dart';
 import 'preferences_screen.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
@@ -552,6 +553,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ProfileSectionTitle(
                   title: isArabic ? 'التطبيق' : 'App',
                   isArabic: isArabic,
+                ),
+                ProfileMenuItem(
+                  icon: Icons.trending_up_rounded,
+                  title: isArabic ? 'مستواي' : 'My level',
+                  subtitle: isArabic
+                      ? 'XP والتقدم والألقاب'
+                      : 'XP, progress and titles',
+                  isArabic: isArabic,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => MyLevelScreen(isArabic: isArabic),
+                    ),
+                  ),
                 ),
                 ProfileMenuItem(
                   icon: Icons.system_update_rounded,

@@ -5,7 +5,7 @@ class LevelService {
   const LevelService();
 
   Future<UserLevel> getMyLevel() async {
-    final data = await SupabaseService.requiredClient.rpc('ensure_user_level');
+    final data = await SupabaseService.requiredClient.rpc('get_my_level');
     return UserLevel.fromJson(data as Map<String, dynamic>);
   }
 

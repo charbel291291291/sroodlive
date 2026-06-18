@@ -5,6 +5,17 @@ class UserLevel {
     required this.totalSpentCoins,
     required this.totalReceivedGiftsValue,
     required this.totalRoomMinutes,
+    this.totalGiftsSent = 0,
+    this.totalGiftsReceived = 0,
+    this.lastXpAt,
+    this.currentLevelTitle,
+    this.currentLevelColor,
+    this.currentLevelBadgeKey,
+    this.nextLevel,
+    this.nextLevelTitle,
+    this.nextLevelRequiredXp,
+    this.xpToNextLevel,
+    this.levelProgress,
   });
 
   final int level;
@@ -12,6 +23,21 @@ class UserLevel {
   final int totalSpentCoins;
   final int totalReceivedGiftsValue;
   final int totalRoomMinutes;
+  final int totalGiftsSent;
+  final int totalGiftsReceived;
+  final DateTime? lastXpAt;
+  final String? currentLevelTitle;
+  final String? currentLevelColor;
+  final String? currentLevelBadgeKey;
+  final int? nextLevel;
+  final String? nextLevelTitle;
+  final int? nextLevelRequiredXp;
+  final int? xpToNextLevel;
+
+  /// 0.0–1.0 progress within the current level band.
+  final double? levelProgress;
+
+  bool get isMaxLevel => nextLevel == null;
 
   factory UserLevel.fromJson(Map<String, dynamic> json) => UserLevel(
     level: _intValue(json['level'], fallback: 1),
@@ -19,7 +45,24 @@ class UserLevel {
     totalSpentCoins: _intValue(json['total_spent_coins']),
     totalReceivedGiftsValue: _intValue(json['total_received_gifts_value']),
     totalRoomMinutes: _intValue(json['total_room_minutes']),
+    totalGiftsSent: _intValue(json['total_gifts_sent']),
+    totalGiftsReceived: _intValue(json['total_gifts_received']),
+    lastXpAt: _dateValue(json['last_xp_at']),
+    currentLevelTitle: json['current_level_title']?.toString(),
+    currentLevelColor: json['current_level_color']?.toString(),
+    currentLevelBadgeKey: json['current_level_badge_key']?.toString(),
+    nextLevel: _nullableInt(json['next_level']),
+    nextLevelTitle: json['next_level_title']?.toString(),
+    nextLevelRequiredXp: _nullableInt(json['next_level_required_xp']),
+    xpToNextLevel: _nullableInt(json['xp_to_next_level']),
+    levelProgress: _doubleOrNull(json['level_progress']),
   );
+}
+
+double? _doubleOrNull(dynamic value) {
+  if (value == null) return null;
+  if (value is num) return value.toDouble();
+  return double.tryParse(value.toString());
 }
 
 class LevelRule {

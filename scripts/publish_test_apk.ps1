@@ -1,98 +1,130 @@
-# publish_test_apk.ps1
-# Builds a debug APK and uploads it to Supabase Storage (app_releases bucket),
-# then upserts the android_latest row in public.app_versions.
-#
-# Usage:
-#   .\scripts\publish_test_apk.ps1
-#
-# Requirements:
-#   - Flutter SDK on PATH
-#   - Supabase CLI on PATH  (npx supabase or local install)
-#   - SUPABASE_URL and SUPABASE_SERVICE_KEY env vars set, OR a .env file at
-#     project root with those values.
-#   - pubspec.yaml at project root (script auto-reads version/build number)
+﻿param(
+  [ValidateSet("debug", "release")]
+  [string]$BuildType = "debug",
+
+  [string]$Notes = "Test build update",
+
+  [switch]$ForceUpdate
+)
 
 Set-StrictMode -Version Latest
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = "Stop"
 
-# ── Load .env if present ──────────────────────────────────────────────────────
-$envFile = Join-Path $PSScriptRoot '..' '.env'
-if (Test-Path $envFile) {
-    Get-Content $envFile | ForEach-Object {
-        if ($_ -match '^\s*([^#=]+?)\s*=\s*(.+?)\s*$') {
-            [System.Environment]::SetEnvironmentVariable($Matches[1], $Matches[2])
-        }
+$ProjectRoot = Split-Path -Parent $PSScriptRoot
+$PubspecPath = Join-Path $ProjectRoot "pubspec.yaml"
+$EnvPath = Join-Path $ProjectRoot ".env"
+
+if (Test-Path $EnvPath) {
+  Get-Content $EnvPath | ForEach-Object {
+    if ($_ -match "^\s*([^#=]+?)\s*=\s*(.+?)\s*$") {
+      [Environment]::SetEnvironmentVariable($Matches[1].Trim(), $Matches[2].Trim(), "Process")
     }
+  }
 }
 
-$supabaseUrl = $env:SUPABASE_URL
-$serviceKey  = $env:SUPABASE_SERVICE_KEY
+$SupabaseUrl = $env:SUPABASE_URL
+$ServiceRoleKey = $env:SUPABASE_SERVICE_KEY
 
-if (-not $supabaseUrl -or -not $serviceKey) {
-    Write-Error 'SUPABASE_URL and SUPABASE_SERVICE_KEY must be set.'
-    exit 1
+if ([string]::IsNullOrWhiteSpace($SupabaseUrl)) {
+  throw "Missing SUPABASE_URL. Set it as an environment variable or in .env"
 }
 
-# ── Read version from pubspec.yaml ────────────────────────────────────────────
-$pubspec = Get-Content (Join-Path $PSScriptRoot '..' 'pubspec.yaml') -Raw
-if ($pubspec -match 'version:\s+(\S+)\+(\d+)') {
-    $versionName = $Matches[1]
-    $versionCode = [int]$Matches[2]
+if ([string]::IsNullOrWhiteSpace($ServiceRoleKey)) {
+  throw "Missing SUPABASE_SERVICE_KEY. Set it as an environment variable or in .env"
+}
+
+if (!(Test-Path $PubspecPath)) {
+  throw "pubspec.yaml not found at $PubspecPath"
+}
+
+$Pubspec = Get-Content $PubspecPath -Raw
+
+if ($Pubspec -notmatch "(?m)^version:\s*([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+)\s*$") {
+  throw "Could not find version line like version: 1.0.0+15 in pubspec.yaml"
+}
+
+$VersionName = $Matches[1]
+$OldVersionCode = [int]$Matches[2]
+$NewVersionCode = $OldVersionCode + 1
+
+$NewPubspec = $Pubspec -replace "(?m)^version:\s*[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+\s*$", "version: $VersionName+$NewVersionCode"
+Set-Content -Path $PubspecPath -Value $NewPubspec -Encoding UTF8
+
+Write-Host "Version updated: $VersionName+$OldVersionCode -> $VersionName+$NewVersionCode"
+
+Push-Location $ProjectRoot
+
+flutter pub get
+
+if ($BuildType -eq "release") {
+  flutter build apk --release --split-per-abi
+  $ApkPath = Join-Path $ProjectRoot "build\app\outputs\flutter-apk\app-arm64-v8a-release.apk"
 } else {
-    Write-Error 'Could not parse version from pubspec.yaml'
-    exit 1
+  flutter build apk --debug
+  $ApkPath = Join-Path $ProjectRoot "build\app\outputs\flutter-apk\app-debug.apk"
 }
-Write-Host "Version: $versionName ($versionCode)" -ForegroundColor Cyan
 
-# ── Build debug APK ───────────────────────────────────────────────────────────
-Write-Host 'Building debug APK...' -ForegroundColor Cyan
-Push-Location (Join-Path $PSScriptRoot '..')
-flutter build apk --debug
 Pop-Location
 
-$apkSrc = Join-Path $PSScriptRoot '..' 'build' 'app' 'outputs' 'flutter-apk' 'app-debug.apk'
-if (-not (Test-Path $apkSrc)) {
-    Write-Error "APK not found at $apkSrc"
-    exit 1
+if (!(Test-Path $ApkPath)) {
+  throw "APK not found at $ApkPath"
 }
 
-# ── Upload to Supabase Storage ────────────────────────────────────────────────
-$storagePath = 'srood-live-latest.apk'
-$uploadUrl   = "$supabaseUrl/storage/v1/object/app_releases/$storagePath"
+$Bucket = "app_releases"
+$ObjectPath = "srood-live-latest.apk"
+$TempApk = Join-Path $env:TEMP $ObjectPath
 
-Write-Host "Uploading APK to $uploadUrl ..." -ForegroundColor Cyan
-$headers = @{
-    'Authorization' = "Bearer $serviceKey"
-    'Content-Type'  = 'application/octet-stream'
-    'x-upsert'      = 'true'
+Copy-Item $ApkPath $TempApk -Force
+
+$UploadUrl = "$SupabaseUrl/storage/v1/object/$Bucket/$ObjectPath"
+
+$StorageHeaders = @{
+  Authorization = "Bearer $ServiceRoleKey"
+  apikey = $ServiceRoleKey
+  "x-upsert" = "true"
+  "cache-control" = "no-cache"
 }
-$bytes = [System.IO.File]::ReadAllBytes((Resolve-Path $apkSrc))
-Invoke-RestMethod -Uri $uploadUrl -Method Post -Headers $headers -Body $bytes | Out-Null
-Write-Host 'Upload complete.' -ForegroundColor Green
 
-# ── Public URL for the APK ────────────────────────────────────────────────────
-$apkPublicUrl = "$supabaseUrl/storage/v1/object/public/app_releases/$storagePath"
+Write-Host "Uploading APK to Supabase Storage..."
 
-# ── Upsert android_latest row in app_versions ─────────────────────────────────
-$dbUrl  = "$supabaseUrl/rest/v1/app_versions"
-$body   = @{
-    id            = 'android_latest'
-    version_code  = $versionCode
-    version_name  = $versionName
-    apk_url       = $apkPublicUrl
-    release_notes = "Debug build $versionName+$versionCode"
-    is_active     = $true
-    force_update  = $false
+Invoke-RestMethod `
+  -Method Post `
+  -Uri $UploadUrl `
+  -Headers $StorageHeaders `
+  -ContentType "application/vnd.android.package-archive" `
+  -InFile $TempApk | Out-Null
+
+$PublicApkUrl = "$SupabaseUrl/storage/v1/object/public/$Bucket/$ObjectPath"
+
+$UpdateBody = @{
+  id = "android_latest"
+  platform = "android"
+  version_code = $NewVersionCode
+  version_name = $VersionName
+  apk_url = $PublicApkUrl
+  release_notes = $Notes
+  force_update = [bool]$ForceUpdate
+  is_active = $true
 } | ConvertTo-Json
 
-$dbHeaders = @{
-    'Authorization' = "Bearer $serviceKey"
-    'apikey'        = $serviceKey
-    'Content-Type'  = 'application/json'
-    'Prefer'        = 'resolution=merge-duplicates'
+$RestHeaders = @{
+  Authorization = "Bearer $ServiceRoleKey"
+  apikey = $ServiceRoleKey
+  Prefer = "resolution=merge-duplicates,return=minimal"
 }
 
-Write-Host "Upserting app_versions row (id=android_latest) ..." -ForegroundColor Cyan
-Invoke-RestMethod -Uri $dbUrl -Method Post -Headers $dbHeaders -Body $body | Out-Null
-Write-Host "Done. android_latest -> $versionName ($versionCode)" -ForegroundColor Green
-Write-Host "APK URL: $apkPublicUrl" -ForegroundColor White
+Write-Host "Updating app_versions row..."
+
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "$SupabaseUrl/rest/v1/app_versions?on_conflict=id" `
+  -Headers $RestHeaders `
+  -ContentType "application/json" `
+  -Body $UpdateBody | Out-Null
+
+Write-Host ""
+Write-Host "Done."
+Write-Host "VersionCode: $NewVersionCode"
+Write-Host "APK URL: $PublicApkUrl?v=$NewVersionCode"
+Write-Host "Testers should open the app and tap Download update."
+

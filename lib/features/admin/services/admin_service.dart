@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
+import '../../../core/auth/safe_logout.dart';
 import '../models/admin_models.dart';
 
 class AdminService {
@@ -25,7 +26,7 @@ class AdminService {
   }
 
   Future<void> signOut() async {
-    await SupabaseService.requiredClient.auth.signOut();
+    await SafeLogout.run();
   }
 
   Future<AdminOverview> fetchOverview() async {
