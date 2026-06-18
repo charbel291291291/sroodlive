@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/supabase/supabase_service.dart';
+import '../../core/auth/safe_logout.dart';
 import '../../core/utils/vip_visuals.dart';
 import '../../shared/widgets/avatar_with_frame.dart';
 import '../../shared/widgets/vip_badge.dart';
@@ -406,7 +407,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
     if (confirmed == true && mounted) {
-      await SupabaseService.requiredClient.auth.signOut();
+      await SafeLogout.run();
     }
   }
 
@@ -2292,6 +2293,8 @@ class _SectionCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Color(0xFFF0C15A),
                     fontSize: 13,
@@ -2368,6 +2371,8 @@ class ProfileListRow extends StatelessWidget {
                     children: [
                       Text(
                         title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 14,
@@ -2378,6 +2383,8 @@ class ProfileListRow extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           subtitle!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Color(0xFFB9A9D4),
                             fontSize: 11,
@@ -2489,6 +2496,8 @@ class _GoldMiniButton extends StatelessWidget {
       ),
       child: Text(
         label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           color: Color(0xFF160B26),
           fontSize: 12,

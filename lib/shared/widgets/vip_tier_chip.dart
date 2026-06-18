@@ -50,6 +50,8 @@ class VipTierChip extends StatelessWidget {
       ),
       child: Text(
         style.label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         textAlign: TextAlign.center,
         style: TextStyle(
           color: filled ? style.text : style.border,

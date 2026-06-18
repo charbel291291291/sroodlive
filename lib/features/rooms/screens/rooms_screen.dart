@@ -320,6 +320,8 @@ class _RoomsScreenState extends State<RoomsScreen> {
                               const SizedBox(width: 8),
                               Text(
                                 context.isArabic ? '\u0627\u0644\u062c\u062f\u0648\u0644' : 'Schedule',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(color: Color(0xFFE8DFFF)),
                               ),
                             ],
@@ -334,6 +336,8 @@ class _RoomsScreenState extends State<RoomsScreen> {
                               const SizedBox(width: 8),
                               Text(
                                 context.isArabic ? '\u0627\u0644\u0625\u0634\u0639\u0627\u0631\u0627\u062a' : 'Notifications',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(color: Color(0xFFE8DFFF)),
                               ),
                             ],
@@ -1190,6 +1194,8 @@ class _RoomPill extends StatelessWidget {
           const SizedBox(width: 5),
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 12,

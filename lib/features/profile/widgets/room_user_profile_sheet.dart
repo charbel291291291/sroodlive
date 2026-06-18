@@ -1159,12 +1159,16 @@ class _RoomRoleBadge extends StatelessWidget {
         children: [
           Icon(icon, size: 10, color: color),
           const SizedBox(width: 3),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 10,
-              fontWeight: FontWeight.w900,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
         ],
@@ -1199,12 +1203,16 @@ class _MetaBadge extends StatelessWidget {
         children: [
           Icon(icon, size: 10, color: textColor.withValues(alpha: 0.70)),
           const SizedBox(width: 3),
-          Text(
-            label,
-            style: TextStyle(
-              color: textColor.withValues(alpha: 0.80),
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: textColor.withValues(alpha: 0.80),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -1257,30 +1265,36 @@ class _LevelCard extends StatelessWidget {
             size: 22,
           ),
           const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: hasGradient
-                      ? prestige.badgeTextColor.withValues(alpha: 0.80)
-                      : const Color(0xFF6B7280),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: hasGradient
+                        ? prestige.badgeTextColor.withValues(alpha: 0.80)
+                        : const Color(0xFF6B7280),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-              Text(
-                value,
-                style: TextStyle(
-                  color: hasGradient
-                      ? prestige.badgeTextColor
-                      : const Color(0xFF4A3470),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: hasGradient
+                        ? prestige.badgeTextColor
+                        : const Color(0xFF4A3470),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -1320,30 +1334,36 @@ class _NobleLevelCard extends StatelessWidget {
             size: 22,
           ),
           const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                isArabic ? 'نبيل' : 'Noble',
-                style: TextStyle(
-                  color: hasLevel
-                      ? const Color(0xFFD8CFEA)
-                      : const Color(0xFF6B7280),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isArabic ? 'نبيل' : 'Noble',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: hasLevel
+                        ? const Color(0xFFD8CFEA)
+                        : const Color(0xFF6B7280),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-              Text(
-                hasLevel ? 'Lv $nobleLevel' : '–',
-                style: TextStyle(
-                  color: hasLevel
-                      ? const Color(0xFFF0C15A)
-                      : const Color(0xFF4A3470),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
+                Text(
+                  hasLevel ? 'Lv $nobleLevel' : '–',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: hasLevel
+                        ? const Color(0xFFF0C15A)
+                        : const Color(0xFF4A3470),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -1504,12 +1524,16 @@ class _SectionLabel extends StatelessWidget {
       children: [
         Icon(icon, size: 14, color: color),
         const SizedBox(width: 6),
-        Text(
-          label,
-          style: TextStyle(
-            color: color,
-            fontSize: 12,
-            fontWeight: FontWeight.w900,
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ),
         const SizedBox(width: 8),

@@ -93,6 +93,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   bool _connectingAudio = false;
   bool _connectedAudio = false;
   bool _syncingMicConnection = false;
+  // Notifier keeps audio state for the bottom bar without full-screen setState.
+  late final ValueNotifier<({bool connecting, bool connected})> _audioStateNotifier;
   bool _wasCurrentUserOnMic = false;
   bool _micEnabled = true;
   // Cached so we don't call permission_handler on every mic-seat change.
@@ -102,10 +104,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   String? _activeAnnouncementText;
 
   List<RoomMember> _members = const [];
+  RealtimeChannel? _roomChannel;
   RealtimeChannel? _membersChannel;
   RealtimeChannel? _giftTransactionsChannel;
   Timer? _heartbeatTimer;
   Timer? _membersRefreshTimer;
+  Timer? _membersDebounceTimer;
   Timer? _giftBannerTimer;
   Timer? _giftFeedCleanupTimer;
   Timer? _vipEntryBannerTimer;
@@ -113,8 +117,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   final List<Timer> _giftEventTimers = [];
   final Map<String, int> _giftSupportByUserId = {};
   List<RoomGiftTransaction> _roomGifts = const [];
-  RoomGiftTransaction? _latestGiftBanner;
-  RoomMember? _latestVipEntryMember;
+  // Notifiers so banner changes rebuild only the banner widget, not the screen.
+  final ValueNotifier<RoomGiftTransaction?> _giftBannerNotifier = ValueNotifier(null);
+  final ValueNotifier<RoomMember?>          _vipBannerNotifier  = ValueNotifier(null);
   _ActiveLuxuryGiftVideo? _activeLuxuryGiftVideo;
   Timer? _luxuryGiftVideoTimer;
   bool _soundEnabled = true;
@@ -243,9 +248,34 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
   bool get _iAmSuperAdmin => false;
 
+  // ── Audio state helpers ────────────────────────────────────────────────────
+
+  /// Updates the audio bool fields AND pushes to the notifier — no setState.
+  /// Callers that previously did setState just for audio now call this instead.
+  void _setAudioState({bool? connecting, bool? connected}) {
+    if (connecting != null) _connectingAudio = connecting;
+    if (connected  != null) _connectedAudio  = connected;
+    _audioStateNotifier.value = (
+      connecting: _connectingAudio,
+      connected:  _connectedAudio,
+    );
+  }
+
+  // ── Member debounce ────────────────────────────────────────────────────────
+
+  /// Buffers rapid member change events and fires a single reload after 500 ms.
+  void _debouncedLoadMembers() {
+    _membersDebounceTimer?.cancel();
+    _membersDebounceTimer = Timer(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      unawaited(_loadMembers(showLoading: false, detectVipEntry: true));
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+    _audioStateNotifier = ValueNotifier((connecting: false, connected: false));
     WidgetsBinding.instance.addObserver(this);
     debugPrint('[Room] ${_roomTs()} room screen opened id=${widget.room.id}');
     _musicService = RoomMusicService();
@@ -268,22 +298,33 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     // member loading, so audio is ready before the member list arrives.
     unawaited(_connectAudioEarly());
 
+    // Critical: member list is needed for the seat grid on first paint.
     _loadMembers();
-    _loadRoomGifts();
-    _loadModeratorCount();
-    _loadAnnouncement();
-    _loadWalletBalance();
-    _startHeartbeat();
-    _startMembersRefresh();
-    _startGiftFeedCleanupTimer();
+    // Realtime subscriptions open immediately so no events are missed.
+    _subscribeToRoom();
     _subscribeToMembers();
     _subscribeToGiftTransactions();
-    _loadMessages();
     _subscribeToMessages();
-    unawaited(_loadActivePk());
     _subscribeToPk();
     _subscribeToReactions();
     _subscribeToRedEnvelopes();
+    // Timers start immediately.
+    _startHeartbeat();
+    _startMembersRefresh();
+    _startGiftFeedCleanupTimer();
+
+    // Non-critical queries deferred until after first frame so the room
+    // scaffold renders without waiting for extra round-trips.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _loadRoomGifts();
+      _loadModeratorCount();
+      _loadAnnouncement();
+      _loadWalletBalance();
+      _loadMessages();
+      unawaited(_loadActivePk());
+      unawaited(_loadActiveRedEnvelope());
+    });
   }
 
   // When the host changes music locally (via MusicPanel), push the new state
@@ -324,17 +365,15 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
   Future<void> _reconnectAudio() async {
     if (_syncingMicConnection) return;
-    if (mounted) setState(() => _connectingAudio = true);
+    if (mounted) _setAudioState(connecting: true);
     try {
       await _liveKitRoomService.reconnectIfNeeded();
-      if (mounted) {
-        setState(() => _connectedAudio = _liveKitRoomService.isConnected);
-      }
+      if (mounted) _setAudioState(connected: _liveKitRoomService.isConnected);
       await _syncMicConnectionWithSeat();
     } catch (e) {
       debugPrint('[Room] reconnect failed: $e');
     } finally {
-      if (mounted) setState(() => _connectingAudio = false);
+      if (mounted) _setAudioState(connecting: false);
     }
   }
 
@@ -347,7 +386,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   /// because [_connectedAudio] will already be true.
   Future<void> _connectAudioEarly() async {
     if (_connectedAudio || _connectingAudio || _syncingMicConnection) return;
-    if (mounted) setState(() => _connectingAudio = true);
+    if (mounted) _setAudioState(connecting: true);
 
     _liveKitRoomService.onSpeakersChanged = (ids) {
       if (mounted) setState(() => _speakingUserIds = ids);
@@ -360,15 +399,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         microphoneEnabled: false,
       );
       debugPrint('[Room] ${_roomTs()} LiveKit connected');
-      if (mounted) {
-        setState(() {
-          _connectedAudio = true;
-          _connectingAudio = false;
-        });
-      }
+      if (mounted) _setAudioState(connecting: false, connected: true);
     } catch (e) {
       debugPrint('[Room] ${_roomTs()} early audio connect failed: $e');
-      if (mounted) setState(() => _connectingAudio = false);
+      if (mounted) _setAudioState(connecting: false);
     }
   }
 
@@ -387,11 +421,20 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     _musicService.dispose();
     _heartbeatTimer?.cancel();
     _membersRefreshTimer?.cancel();
+    _membersDebounceTimer?.cancel();
+    _audioStateNotifier.dispose();
+    _giftBannerNotifier.dispose();
+    _vipBannerNotifier.dispose();
     _giftBannerTimer?.cancel();
     _giftFeedCleanupTimer?.cancel();
     _vipEntryBannerTimer?.cancel();
     for (final timer in _giftEventTimers) {
       timer.cancel();
+    }
+
+    final roomChannel = _roomChannel;
+    if (roomChannel != null) {
+      unawaited(SupabaseService.requiredClient.removeChannel(roomChannel));
     }
 
     final membersChannel = _membersChannel;
@@ -453,6 +496,30 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
 
   // -- Emoji reaction channel (Supabase Broadcast) --
+  Future<void> _loadActiveRedEnvelope() async {
+    try {
+      final rows = await SupabaseService.requiredClient
+          .from('red_envelopes')
+          .select()
+          .eq('room_id', widget.room.id)
+          .eq('is_expired', false)
+          .order('created_at', ascending: false)
+          .limit(1);
+
+      if (!mounted) return;
+      final list = rows as List<dynamic>;
+      if (list.isEmpty) return;
+      final row = list.first as Map<String, dynamic>;
+      final claimed = (row['claimed_count'] as int? ?? 0);
+      final total   = (row['envelope_count'] as int? ?? 1);
+      if (claimed < total) {
+        setState(() => _activeRedEnvelope = row);
+      }
+    } catch (e) {
+      debugPrint('[RED] loadActiveRedEnvelope error: $e');
+    }
+  }
+
   void _subscribeToRedEnvelopes() {
     _redEnvelopesChannel = SupabaseService.requiredClient
         .channel('red_envelopes_${widget.room.id}')
@@ -496,7 +563,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             }
           },
         )
-        .subscribe();
+        .subscribe((status, [error]) {
+          debugPrint('[RT-RED] status=$status error=$error room=${widget.room.id}');
+        });
   }
 
   Future<void> _claimRedEnvelope() async {
@@ -528,7 +597,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 100),
         duration: const Duration(seconds: 3),
       ));
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[RoomImage] failed: $e');
+      debugPrintStack(stackTrace: st);
       if (!mounted) return;
       final msg = e.toString();
       String friendly;
@@ -649,7 +720,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   void _startMembersRefresh() {
     _membersRefreshTimer?.cancel();
 
-    _membersRefreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    _membersRefreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (!mounted) return;
       unawaited(_loadMembers(showLoading: false));
     });
@@ -687,6 +758,36 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     });
   }
 
+  void _subscribeToRoom() {
+    _roomChannel = SupabaseService.requiredClient
+        .channel('room_config_${widget.room.id}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'rooms',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: widget.room.id,
+          ),
+          callback: (payload) {
+            if (!mounted) return;
+            final rec = payload.newRecord;
+            final newMaxSeats = rec['max_seats'] as int?;
+            debugPrint(
+              '[RT-ROOM] event=UPDATE roomId=${widget.room.id} maxSeats=$newMaxSeats',
+            );
+            if (newMaxSeats != null && newMaxSeats != _currentMaxSeats) {
+              debugPrint('[RT-ROOM] applying maxSeats=$newMaxSeats locally');
+              setState(() => _currentMaxSeats = newMaxSeats);
+            }
+          },
+        )
+        .subscribe((status, [error]) {
+          debugPrint('[RT-ROOM] status=$status error=$error room=${widget.room.id}');
+        });
+  }
+
   void _subscribeToMembers() {
     _membersChannel = SupabaseService.requiredClient
         .channel('room_members_${widget.room.id}')
@@ -699,13 +800,15 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             column: 'room_id',
             value: widget.room.id,
           ),
-          callback: (_) {
+          callback: (payload) {
             if (!mounted) return;
-
-            unawaited(_loadMembers(showLoading: false, detectVipEntry: true));
+            debugPrint('[RT-MEMBERS] event=${payload.eventType} id=${payload.newRecord["id"]} muted=${payload.newRecord["is_muted"]}');
+            _debouncedLoadMembers();
           },
         )
-        .subscribe();
+        .subscribe((status, [error]) {
+          debugPrint('[RT-MEMBERS] status=$status error=$error room=${widget.room.id}');
+        });
   }
 
   void _subscribeToGiftTransactions() {
@@ -726,6 +829,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             // Use the insert payload directly so luxury video shows without
             // waiting for the DB read ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â avoids the read-before-write race on
             // the receiver's phone.
+            debugPrint('[RT-RED] event room=${widget.room.id} new=${payload.newRecord} old=${payload.oldRecord}');
             final record = payload.newRecord;
             if (kDebugMode) {
               debugPrint(
@@ -825,19 +929,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
   void _showRoomGiftBanner(RoomGiftTransaction gift) {
     _giftBannerTimer?.cancel();
-
-    setState(() {
-      _latestGiftBanner = gift;
-    });
-
+    _giftBannerNotifier.value = gift;
     _giftBannerTimer = Timer(const Duration(seconds: 3), () {
       if (!mounted) return;
-
-      setState(() {
-        if (_latestGiftBanner?.id == gift.id) {
-          _latestGiftBanner = null;
-        }
-      });
+      if (_giftBannerNotifier.value?.id == gift.id) {
+        _giftBannerNotifier.value = null;
+      }
     });
   }
 
@@ -853,6 +950,31 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       final members = await _roomsService.getActiveRoomMembers(widget.room.id);
 
       if (!mounted) return;
+
+      // Detect if the current user was removed / kicked by someone else.
+      // Guard: only check after the initial load (_members is non-empty or we
+      // already had at least one successful load), and never during self-exit.
+      final currentUserId = _currentUserId;
+      if (!_leaving &&
+          currentUserId != null &&
+          _members.isNotEmpty &&
+          !members.any((m) => m.userId == currentUserId)) {
+        debugPrint('[MODERATION] kicked detection: user=$currentUserId not in active members');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                context.isArabic
+                    ? 'تمت إزالتك من الغرفة'
+                    : 'You were removed from the room',
+              ),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+          await _leaveRoom();
+        }
+        return;
+      }
 
       setState(() {
         _members = members;
@@ -892,19 +1014,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       }
 
       _vipEntryBannerTimer?.cancel();
-
-      setState(() {
-        _latestVipEntryMember = member;
-      });
-
+      _vipBannerNotifier.value = member;
       _vipEntryBannerTimer = Timer(const Duration(seconds: 3), () {
         if (!mounted) return;
-
-        setState(() {
-          if (_latestVipEntryMember?.userId == member.userId) {
-            _latestVipEntryMember = null;
-          }
-        });
+        if (_vipBannerNotifier.value?.userId == member.userId) {
+          _vipBannerNotifier.value = null;
+        }
       });
       break;
     }
@@ -1040,6 +1155,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   }
 
   Future<void> _sendChatImageMessage() async {
+    debugPrint('[RoomImage] _sendChatImageMessage tapped');
     // Fast path: local cached VIP level is already enough.
     final localVipLevel = _myMember?.effectiveVipLevel ?? 0;
     bool canSend = localVipLevel >= 7;
@@ -1091,7 +1207,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         imagePath: result.path,
         senderRole: _myMember?.role ?? 'listener',
       );
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[RoomImage] failed: $e');
+      debugPrintStack(stackTrace: st);
       if (!mounted) return;
       final msg = e is ArgumentError
           ? e.message.toString()
@@ -1180,6 +1298,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         // _onLocalMusicChanged will push the state to Supabase automatically.
         onTrackSelected: canManage
             ? (song) {
+                debugPrint('[RoomMusicSync] host selected id=${song.id} source=${song.sourceType} url=${song.url} localPath=${song.localPath}');
                 _musicService.addToPlaylist(song);
                 final idx = _musicService.playlist.indexWhere((s) => s.id == song.id);
                 if (idx >= 0) unawaited(_musicService.playSong(idx));
@@ -2045,7 +2164,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
         if (!_connectedAudio) {
           // Early connect failed or never started Ã¢â‚¬â€ connect now.
-          if (mounted) setState(() => _connectingAudio = true);
+          if (mounted) _setAudioState(connecting: true);
 
           _liveKitRoomService.onSpeakersChanged = (ids) {
             if (mounted) setState(() => _speakingUserIds = ids);
@@ -2058,7 +2177,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
           );
           debugPrint('[Room] ${_roomTs()} LiveKit connected');
 
-          if (mounted) setState(() => _connectedAudio = true);
+          if (mounted) _setAudioState(connected: true);
         }
       }
 
@@ -2124,8 +2243,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     } catch (error) {
       if (!mounted) return;
 
+      _setAudioState(connected: _liveKitRoomService.room != null);
       setState(() {
-        _connectedAudio = _liveKitRoomService.room != null;
         _micEnabled = false;
         _wasCurrentUserOnMic = false;
       });
@@ -2146,11 +2265,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     } finally {
       _syncingMicConnection = false;
 
-      if (mounted) {
-        setState(() {
-          _connectingAudio = false;
-        });
-      }
+      if (mounted) _setAudioState(connecting: false);
     }
   }
 
@@ -2194,6 +2309,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   Future<void> _teardownRoom() async {
     _heartbeatTimer?.cancel();
     _membersRefreshTimer?.cancel();
+    _membersDebounceTimer?.cancel();
     _giftBannerTimer?.cancel();
     _giftFeedCleanupTimer?.cancel();
     _vipEntryBannerTimer?.cancel();
@@ -2796,34 +2912,42 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                     announcement: _activeAnnouncementText,
                   ),
                 ),
-                // Gift / VIP entry banners (fixed, between header and mic stage)
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 220),
-                  child: _latestGiftBanner == null
-                      ? const SizedBox.shrink()
-                      : Padding(
-                          key: ValueKey(_latestGiftBanner!.id),
-                          padding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
-                          child: _GiftRoomBanner(
-                            gift: _latestGiftBanner!,
-                            isArabic: context.isArabic,
-                            onProfileTap: _openUserProfileSheet,
+                // Gift / VIP entry banners — rebuilt only when banner changes.
+                ValueListenableBuilder<RoomGiftTransaction?>(
+                  valueListenable: _giftBannerNotifier,
+                  builder: (ctx, giftBanner, child) => AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    child: giftBanner == null
+                        ? const SizedBox.shrink()
+                        : Padding(
+                            key: ValueKey(giftBanner.id),
+                            padding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
+                            child: _GiftRoomBanner(
+                              gift: giftBanner,
+                              isArabic: ctx.isArabic,
+                              onProfileTap: _openUserProfileSheet,
+                            ),
                           ),
-                        ),
+                  ),
                 ),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 220),
-                  child: _latestGiftBanner != null ||
-                          _latestVipEntryMember == null
-                      ? const SizedBox.shrink()
-                      : Padding(
-                          key: ValueKey(_latestVipEntryMember!.userId),
-                          padding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
-                          child: _VipEntryRoomBanner(
-                            member: _latestVipEntryMember!,
-                            isArabic: context.isArabic,
-                          ),
-                        ),
+                ValueListenableBuilder<RoomMember?>(
+                  valueListenable: _vipBannerNotifier,
+                  builder: (ctx, vipMember, child) => ValueListenableBuilder<RoomGiftTransaction?>(
+                    valueListenable: _giftBannerNotifier,
+                    builder: (ctx2, giftBanner, child2) => AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      child: giftBanner != null || vipMember == null
+                          ? const SizedBox.shrink()
+                          : Padding(
+                              key: ValueKey(vipMember.userId),
+                              padding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
+                              child: _VipEntryRoomBanner(
+                                member: vipMember,
+                                isArabic: ctx2.isArabic,
+                              ),
+                            ),
+                    ),
+                  ),
                 ),
                 // Mic stage glass panel (FIXED -- never inside a scroll container)
                 Container(
@@ -2883,23 +3007,26 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             bottom: kbHeight,
             left: 0,
             right: 0,
-            child: _LiveBottomActionBar(
-              isArabic: context.isArabic,
-              connectingAudio: _connectingAudio,
-              micEnabled: _micEnabled,
-              isOnMic: _isCurrentUserOnMic,
-              leaving: _leaving,
-              isSendingMessage: _isSendingMessage,
-              myVipLevel: _myMember?.effectiveVipLevel ?? 0,
-              isUploadingImage: _uploadingChatImage,
-              onToggleMic: _toggleMic,
-              onLeaveRoom: _leaveRoom,
-              onGiftTap: _openGiftSheet,
-              onMoreTap: _openToolsSheet,
-              onReactionTap: _openReactionPicker,
-              onSendMessage: _sendChatMessage,
-              onSendImage: _sendChatImageMessage,
-              bottomPad: bottomPad,
+            child: ValueListenableBuilder<({bool connecting, bool connected})>(
+              valueListenable: _audioStateNotifier,
+              builder: (context2, audioState, child2) => _LiveBottomActionBar(
+                isArabic: context.isArabic,
+                connectingAudio: audioState.connecting,
+                micEnabled: _micEnabled,
+                isOnMic: _isCurrentUserOnMic,
+                leaving: _leaving,
+                isSendingMessage: _isSendingMessage,
+                myVipLevel: _myMember?.effectiveVipLevel ?? 0,
+                isUploadingImage: _uploadingChatImage,
+                onToggleMic: _toggleMic,
+                onLeaveRoom: _leaveRoom,
+                onGiftTap: _openGiftSheet,
+                onMoreTap: _openToolsSheet,
+                onReactionTap: _openReactionPicker,
+                onSendMessage: _sendChatMessage,
+                onSendImage: _sendChatImageMessage,
+                bottomPad: bottomPad,
+              ),
             ),
           ),
 
@@ -3963,6 +4090,8 @@ class _ParticipantsChip extends StatelessWidget {
             const SizedBox(width: 5),
             Text(
               count.toString(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Color(0xFFF4EBD8),
                 fontSize: 12,

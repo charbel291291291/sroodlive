@@ -280,13 +280,17 @@ class _SroodButtonState extends State<SroodButton> {
                     children: [
                       Icon(widget.icon, size: 19, color: widget.labelColor),
                       const SizedBox(width: 8),
-                      Text(
-                        widget.label,
-                        style: TextStyle(
-                          color: widget.labelColor,
-                          fontSize: widget.fontSize,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.3,
+                      Flexible(
+                        child: Text(
+                          widget.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: widget.labelColor,
+                            fontSize: widget.fontSize,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.3,
+                          ),
                         ),
                       ),
                     ],
