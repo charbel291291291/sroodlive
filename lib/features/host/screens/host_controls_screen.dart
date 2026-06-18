@@ -160,11 +160,10 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
     );
     if (confirm != true) return;
     try {
-      await SupabaseService.requiredClient
-          .from('room_members')
-          .update({'status': 'kicked'})
-          .eq('room_id', widget.roomId)
-          .eq('user_id', seat.userId);
+      await SupabaseService.requiredClient.rpc(
+        'remove_room_member',
+        params: {'p_room_id': widget.roomId, 'p_user_id': seat.userId},
+      );
       await _load();
     } catch (_) {}
   }
