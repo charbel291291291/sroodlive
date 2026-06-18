@@ -14,6 +14,8 @@ import '../../games/screens/hungry_cat_admin_panel.dart';
 import '../../games/screens/rocket_crash_admin_panel.dart';
 import '../../games/screens/srood_loto_admin_panel.dart';
 import '../../charisma/screens/charisma_admin_panel.dart';
+import '../../startup_promo/models/startup_promo.dart' show AdminStartupPromo;
+import '../../startup_promo/services/startup_promo_service.dart';
 import 'owner_game_control_screen.dart';
 import 'vip_visual_preview_screen.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
@@ -101,6 +103,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   List<AdminEntranceBanner> _entranceBanners = const [];
   List<AdminGiftCategory> _giftCategories = const [];
   List<AdminPromoBanner> _promoBanners = const [];
+  List<_AdminStartupPromoRow> _startupPromos = const [];
   AdminWalletSummary? _walletLookup;
 
   // â”€â”€ Phase 2 additions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -284,6 +287,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final entranceBanners = await _adminService.fetchEntranceBanners();
       final giftCategories = await _adminService.fetchGiftCategories();
       final promoBanners = await _adminService.fetchPromoBanners();
+      final startupPromosRaw = _canMarketing
+          ? await const StartupPromoService().adminListPromos()
+          : <AdminStartupPromo>[];
       final reports = await _adminService.fetchReports(
         status: _reportsStatusFilter,
       );
@@ -312,6 +318,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _entranceBanners = entranceBanners;
         _giftCategories = giftCategories;
         _promoBanners = promoBanners;
+        _startupPromos = startupPromosRaw
+            .map((p) => _AdminStartupPromoRow.fromModel(p))
+            .toList();
         _reports = reports;
         _isLoading = false;
       });
@@ -1826,6 +1835,91 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
+  // ── Startup Promo admin actions ───────────────────────────────────────────
+
+  Future<void> _editStartupPromo([_AdminStartupPromoRow? existing]) async {
+    final result = await showDialog<_AdminStartupPromoRow>(
+      context: context,
+      builder: (_) => _StartupPromoEditDialog(
+        existing: existing,
+        adminService: _adminService,
+      ),
+    );
+    if (result == null) return;
+    if (_actionInProgress) return;
+    setState(() => _actionInProgress = true);
+    try {
+      await const StartupPromoService().adminSavePromo(
+        id: result.id.isEmpty ? null : result.id,
+        title: result.title,
+        imageUrl: result.imageUrl,
+        isActive: result.isActive,
+        startsAt: result.startsAt,
+        endsAt: result.endsAt,
+        durationSeconds: result.durationSeconds,
+        frequency: result.frequency,
+        priority: result.priority,
+      );
+      if (!mounted) return;
+      _showSnack('Startup promo saved');
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack('Save failed: $e');
+    } finally {
+      if (mounted) setState(() => _actionInProgress = false);
+    }
+  }
+
+  Future<void> _deleteStartupPromo(_AdminStartupPromoRow promo) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete promo?'),
+        content: Text('This removes "${promo.title}" permanently.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: _kRed),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    if (_actionInProgress) return;
+    setState(() => _actionInProgress = true);
+    try {
+      await const StartupPromoService().adminDeletePromo(promo.id);
+      if (!mounted) return;
+      _showSnack('Promo deleted');
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack('Delete failed: $e');
+    } finally {
+      if (mounted) setState(() => _actionInProgress = false);
+    }
+  }
+
+  void _previewStartupPromo(_AdminStartupPromoRow promo) {
+    Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        opaque: false,
+        barrierColor: Colors.transparent,
+        pageBuilder: (_, _, _) =>
+            _StartupPromoPreviewPage(promoRow: promo),
+        transitionsBuilder: (_, animation, _, child) =>
+            FadeTransition(opacity: animation, child: child),
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+    );
+  }
+
   Widget _buildGames() {
     if (!_adminRole.hasPermission(kPermDrawManage)) {
       return const Center(
@@ -2552,6 +2646,59 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
         ),
         const SizedBox(height: 14),
+
+        const SizedBox(height: 14),
+
+        // ── Startup Promo ────────────────────────────────────────────────────
+        _AdminSectionCard(
+          title: 'Startup Promo',
+          action: _canMarketing
+              ? TextButton.icon(
+                  onPressed: () => _editStartupPromo(),
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('New Promo'),
+                )
+              : null,
+          child: _startupPromos.isEmpty
+              ? const _AdminEmptyState(
+                  icon: Icons.photo_size_select_actual_rounded,
+                  title: 'No startup promos',
+                  subtitle: 'Add a full-screen promo shown when the app opens.',
+                )
+              : Column(
+                  children: _startupPromos
+                      .map(
+                        (p) => _AdminListTile(
+                          icon: Icons.photo_size_select_actual_rounded,
+                          title: p.title,
+                          subtitle: '${p.frequency} · ${p.durationSeconds}s · priority ${p.priority}',
+                          trailing: Wrap(
+                            spacing: 6,
+                            children: [
+                              _RoleChip(label: p.isActive ? 'Active' : 'Inactive'),
+                              if (p.imageUrl.isNotEmpty)
+                                TextButton(
+                                  onPressed: () => _previewStartupPromo(p),
+                                  child: const Text('Preview'),
+                                ),
+                              if (_canMarketing) ...[
+                                TextButton(
+                                  onPressed: () => _editStartupPromo(p),
+                                  child: const Text('Edit'),
+                                ),
+                                TextButton(
+                                  onPressed: () => _deleteStartupPromo(p),
+                                  style: TextButton.styleFrom(foregroundColor: _kRed),
+                                  child: const Text('Delete'),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+        ),
 
         // ── Charisma Challenge ───────────────────────────────────────────────
         _AdminSectionCard(
@@ -7110,6 +7257,502 @@ class _ModEventTile extends StatelessWidget {
               onTap: onAction,
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── Startup Promo — local data row ────────────────────────────────────────────
+
+class _AdminStartupPromoRow {
+  const _AdminStartupPromoRow({
+    required this.id,
+    required this.title,
+    required this.imageUrl,
+    required this.isActive,
+    this.startsAt,
+    this.endsAt,
+    required this.durationSeconds,
+    required this.frequency,
+    required this.priority,
+  });
+
+  final String id;
+  final String title;
+  final String imageUrl;
+  final bool isActive;
+  final DateTime? startsAt;
+  final DateTime? endsAt;
+  final int durationSeconds;
+  final String frequency;
+  final int priority;
+
+  factory _AdminStartupPromoRow.fromModel(AdminStartupPromo m) {
+    return _AdminStartupPromoRow(
+      id: m.id,
+      title: m.title,
+      imageUrl: m.imageUrl,
+      isActive: m.isActive,
+      startsAt: m.startsAt,
+      endsAt: m.endsAt,
+      durationSeconds: m.durationSeconds,
+      frequency: m.frequency,
+      priority: m.priority,
+    );
+  }
+}
+
+// ── Startup Promo — Edit Dialog ───────────────────────────────────────────────
+
+class _StartupPromoEditDialog extends StatefulWidget {
+  const _StartupPromoEditDialog({
+    required this.adminService,
+    this.existing,
+  });
+
+  final AdminService adminService;
+  final _AdminStartupPromoRow? existing;
+
+  @override
+  State<_StartupPromoEditDialog> createState() =>
+      _StartupPromoEditDialogState();
+}
+
+class _StartupPromoEditDialogState extends State<_StartupPromoEditDialog> {
+  late final TextEditingController _titleCtrl;
+  late final TextEditingController _imageUrlCtrl;
+  late final TextEditingController _durationCtrl;
+  late final TextEditingController _priorityCtrl;
+  late bool _isActive;
+  late String _frequency;
+  bool _uploading = false;
+  String? _uploadError;
+
+  static const _frequencies = [
+    ('once_per_day',    'Once per day'),
+    ('every_open',      'Every open'),
+    ('once_per_session','Once per session'),
+    ('once_only',       'Once only'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.existing;
+    _titleCtrl    = TextEditingController(text: e?.title ?? '');
+    _imageUrlCtrl = TextEditingController(text: e?.imageUrl ?? '');
+    _durationCtrl = TextEditingController(
+        text: (e?.durationSeconds ?? 5).toString());
+    _priorityCtrl = TextEditingController(
+        text: (e?.priority ?? 0).toString());
+    _isActive  = e?.isActive ?? false;
+    _frequency = e?.frequency ?? 'once_per_day';
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _imageUrlCtrl.dispose();
+    _durationCtrl.dispose();
+    _priorityCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickAndUpload() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked == null || !mounted) return;
+
+    final bytes = await picked.readAsBytes();
+    final ext   = picked.name.split('.').last.toLowerCase();
+
+    if (bytes.length > 2 * 1024 * 1024) {
+      setState(() =>
+          _uploadError = 'File too large (max 2MB). Use compressed WebP.');
+      return;
+    }
+    if (!['webp', 'jpg', 'jpeg', 'png'].contains(ext)) {
+      setState(() =>
+          _uploadError = 'Unsupported format. Use WebP, JPG, or PNG.');
+      return;
+    }
+
+    setState(() { _uploading = true; _uploadError = null; });
+
+    try {
+      final contentType = ext == 'png'
+          ? 'image/png'
+          : ext == 'webp'
+              ? 'image/webp'
+              : 'image/jpeg';
+
+      String url;
+      try {
+        url = await const StartupPromoService().uploadPromoImage(
+          bytes: bytes,
+          filename: picked.name,
+          contentType: contentType,
+        );
+      } catch (_) {
+        url = await widget.adminService.uploadAdminAsset(
+          bytes: bytes,
+          filename: picked.name,
+          contentType: contentType,
+        );
+      }
+
+      if (!mounted) return;
+      _imageUrlCtrl.text = url;
+      final sizeKb = bytes.length ~/ 1024;
+      setState(() {
+        _uploadError = sizeKb > 700
+            ? 'Uploaded (${sizeKb}KB). Consider compressing below 700KB.'
+            : null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _uploadError = 'Upload failed: $e');
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  bool get _canSave =>
+      _titleCtrl.text.trim().isNotEmpty &&
+      _imageUrlCtrl.text.trim().isNotEmpty &&
+      !_uploading;
+
+  InputDecoration _inputDeco(String label) => InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: _kMuted, fontSize: 12),
+        enabledBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: _kBorder),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderSide: const BorderSide(color: _kGold),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      );
+
+  void _save() {
+    final duration = int.tryParse(_durationCtrl.text.trim()) ?? 5;
+    if (duration < 3 || duration > 10) {
+      setState(() =>
+          _uploadError = 'Duration must be between 3 and 10 seconds.');
+      return;
+    }
+    Navigator.of(context).pop(
+      _AdminStartupPromoRow(
+        id: widget.existing?.id ?? '',
+        title: _titleCtrl.text.trim(),
+        imageUrl: _imageUrlCtrl.text.trim(),
+        isActive: _isActive,
+        durationSeconds: duration,
+        frequency: _frequency,
+        priority: int.tryParse(_priorityCtrl.text.trim()) ?? 0,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final previewUrl = _imageUrlCtrl.text.trim();
+    final isNew = widget.existing == null;
+
+    return AlertDialog(
+      backgroundColor: _kSurface,
+      title: Text(
+        isNew ? 'New Startup Promo' : 'Edit Startup Promo',
+        style: const TextStyle(
+            color: _kTxt, fontWeight: FontWeight.w700),
+      ),
+      content: SizedBox(
+        width: 480,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Spec hint
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: _kGold.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                      color: _kGold.withValues(alpha: 0.3)),
+                ),
+                child: const Text(
+                  'Recommended: 1080×1920 px, 9:16 ratio, WebP preferred, under 700KB\n'
+                  'Safe zones: top 160px and bottom 180px reserved.\n'
+                  'Maximum file size: 2MB.',
+                  style: TextStyle(
+                      color: _kGold, fontSize: 11, height: 1.4),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              TextField(
+                controller: _titleCtrl,
+                style: const TextStyle(color: _kTxt),
+                decoration: _inputDeco('Title *'),
+              ),
+              const SizedBox(height: 10),
+
+              // Image URL + upload button
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _imageUrlCtrl,
+                      style: const TextStyle(color: _kTxt, fontSize: 12),
+                      decoration: _inputDeco('Image URL *'),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  if (_uploading)
+                    const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: _kGold),
+                    )
+                  else
+                    IconButton(
+                      icon: const Icon(Icons.upload_rounded, color: _kGold),
+                      tooltip: 'Pick & upload image',
+                      onPressed: _pickAndUpload,
+                    ),
+                ],
+              ),
+
+              if (_uploadError != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  _uploadError!,
+                  style: TextStyle(
+                    color: _uploadError!.contains('Uploaded')
+                        ? _kAmber
+                        : _kRed,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+
+              if (previewUrl.startsWith('http')) ...[
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    previewUrl,
+                    height: 140,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => Container(
+                      height: 140,
+                      color: const Color(0xFF1E2435),
+                      child: const Center(
+                        child: Icon(Icons.broken_image_rounded,
+                            color: _kMuted),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 10),
+
+              TextField(
+                controller: _durationCtrl,
+                style: const TextStyle(color: _kTxt),
+                keyboardType: TextInputType.number,
+                decoration: _inputDeco('Duration seconds (3–10)'),
+              ),
+              const SizedBox(height: 10),
+
+              DropdownButton<String>(
+                value: _frequency,
+                dropdownColor: _kSurface,
+                style: const TextStyle(color: _kTxt),
+                isExpanded: true,
+                items: _frequencies
+                    .map((f) => DropdownMenuItem(
+                          value: f.$1,
+                          child: Text(f.$2),
+                        ))
+                    .toList(),
+                onChanged: (v) {
+                  if (v != null) setState(() => _frequency = v);
+                },
+              ),
+              const SizedBox(height: 10),
+
+              TextField(
+                controller: _priorityCtrl,
+                style: const TextStyle(color: _kTxt),
+                keyboardType: TextInputType.number,
+                decoration:
+                    _inputDeco('Priority (higher = shown first)'),
+              ),
+              const SizedBox(height: 12),
+
+              Row(
+                children: [
+                  Switch(
+                    value: _isActive,
+                    activeThumbColor: _kGreen,
+                    onChanged: (v) => setState(() => _isActive = v),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _isActive
+                        ? 'Active — visible to users'
+                        : 'Inactive',
+                    style: TextStyle(
+                      color: _isActive ? _kGreen : _kMuted,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+              backgroundColor: _kGold, foregroundColor: _kBg),
+          onPressed: _canSave ? _save : null,
+          child: Text(isNew ? 'Create' : 'Save'),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Startup Promo — Admin Preview ─────────────────────────────────────────────
+
+class _StartupPromoPreviewPage extends StatefulWidget {
+  const _StartupPromoPreviewPage({required this.promoRow});
+
+  final _AdminStartupPromoRow promoRow;
+
+  @override
+  State<_StartupPromoPreviewPage> createState() =>
+      _StartupPromoPreviewPageState();
+}
+
+class _StartupPromoPreviewPageState
+    extends State<_StartupPromoPreviewPage> {
+  late int _remaining;
+
+  @override
+  void initState() {
+    super.initState();
+    _remaining = widget.promoRow.durationSeconds.clamp(3, 10);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final url = widget.promoRow.imageUrl;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF08060F),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (url.startsWith('http'))
+            Image.network(
+              url,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+              errorBuilder: (_, _, _) =>
+                  const ColoredBox(color: Color(0xFF12061F)),
+            )
+          else
+            const ColoredBox(color: Color(0xFF12061F)),
+
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.25),
+                    Colors.transparent,
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.35),
+                  ],
+                  stops: const [0.0, 0.2, 0.75, 1.0],
+                ),
+              ),
+            ),
+          ),
+
+          Positioned(
+            top: 60,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.85),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text(
+                  'ADMIN PREVIEW',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topRight,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 12, right: 16),
+                child: GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.25)),
+                    ),
+                    child: Text(
+                      'Skip ${_remaining}s',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
