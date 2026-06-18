@@ -56,7 +56,7 @@ const double _seatOuterSize      = 44.0;
 const double _emptySeatSize      = 44.0;
 const double _micSeatIconSize    = 13.0;
 const double _micSeatBadgeHorizontalPadding = 4.0;
-const double _micSeatSupportSlotHeight      = 5.0;
+const double _micSeatSupportSlotHeight      = 16.0;
 // Fixed height for the avatar zone inside every grid cell.
 // Must be >= _hostSeatOuterSize (58) so the host avatar is never clipped.
 const double _kAvatarAreaHeight = 50.0;
@@ -4038,7 +4038,7 @@ class _SeatGrid extends StatelessWidget {
       // Minimum height = sum of all fixed zones in _LiveSeatBubble so the
       // tile never clips its content on high-density small screens.
       const minBubbleHeight =
-          _kAvatarAreaHeight + 2 + 11 + _micSeatSupportSlotHeight + 12; // 80 px
+          _kAvatarAreaHeight + 2 + 11 + _micSeatSupportSlotHeight + 12; // 91 px
       final tileWidth = (constraints.maxWidth - colGap * (cols - 1)) / cols;
       final tileHeight =
           math.max(tileWidth / aspectRatio, minBubbleHeight);
@@ -5607,18 +5607,23 @@ class _GiftRoomBanner extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
         gradient: const LinearGradient(
-          colors: [Color(0xFF3A174F), Color(0xFF20102F), Color(0xFF12091D)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF2B1A45), Color(0xFF18103A), Color(0xFF0F0820)],
         ),
-        border: Border.all(color: const Color(0xFFF0C15A)),
+        border: Border.all(
+          color: Color(0xFFD4A017).withValues(alpha: 0.72),
+          width: 0.9,
+        ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFF0C15A).withValues(alpha: 0.20),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+            color: const Color(0xFFF0C15A).withValues(alpha: 0.18),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -6022,69 +6027,75 @@ class _GiftEventBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final giftName = isArabic ? event.gift.arabicName : event.gift.name;
 
+    final qty = event.quantity > 1 ? ' \u00d7${event.quantity}' : '';
+
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 320),
-      curve: Curves.easeOutBack,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
       builder: (context, value, child) {
         return Opacity(
-          opacity: value.clamp(0, 1),
+          opacity: value.clamp(0.0, 1.0),
           child: Transform.translate(
-            offset: Offset(0, (1 - value) * -18),
-            child: Transform.scale(scale: 0.92 + (value * 0.08), child: child),
+            offset: Offset(0, (1 - value) * -10),
+            child: child,
           ),
         );
       },
       child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
           gradient: const LinearGradient(
-            colors: [Color(0xFF2B0A3D), Color(0xFF5A127A), Color(0xFFE0A83A)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF2B1A45), Color(0xFF160B26)],
           ),
-          border: Border.all(color: const Color(0xFFFFD978)),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: Color(0xFFD4A017).withValues(alpha: 0.68),
+            width: 0.9,
+          ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFB000FF).withValues(alpha: 0.38),
-              blurRadius: 26,
-              offset: const Offset(0, 12),
+              color: const Color(0xFFF0C15A).withValues(alpha: 0.22),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Row(
           textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
           children: [
-            _GiftArtwork(gift: event.gift, size: 58),
-            const SizedBox(width: 12),
+            _GiftArtwork(gift: event.gift, size: 32),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: isArabic
                     ? CrossAxisAlignment.end
                     : CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    isArabic
-                        ? '\u0647\u062f\u064a\u0629 \u062c\u062f\u064a\u062f\u0629'
-                        : 'Gift sent',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.78),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
+                    isArabic ? '\u0647\u062f\u064a\u0629' : 'Gift sent',
+                    style: const TextStyle(
+                      color: Color(0xFFD4A017),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.4,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 1),
                   Text(
                     isArabic
-                        ? '$giftName x${event.quantity} \u0625\u0644\u0649 ${event.receiverName}'
-                        : '$giftName x${event.quantity} to ${event.receiverName}',
+                        ? '$giftName$qty \u0625\u0644\u0649 ${event.receiverName}'
+                        : '$giftName$qty to ${event.receiverName}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: isArabic ? TextAlign.right : TextAlign.left,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],
@@ -6491,70 +6502,142 @@ class _LuxuryGiftVideoOverlayState extends State<_LuxuryGiftVideoOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    return Positioned.fill(
+    final mq = MediaQuery.of(context);
+    final topPad = mq.padding.top;
+    final screenW = mq.size.width;
+    final screenH = mq.size.height;
+
+    // Constrain video to upper-center; room content below remains visible.
+    final videoW = screenW * 0.80;
+    final videoH = (screenH * 0.38).clamp(150.0, 310.0);
+
+    return Positioned(
       key: widget.playback.key,
+      top: topPad + 56,
+      left: (screenW - videoW) / 2,
+      width: videoW,
       child: IgnorePointer(
-        child: Container(
-          color: Colors.black.withValues(alpha: 0.72),
-          child: Stack(
-            alignment: Alignment.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Video frame — dark backing only within this frame, not full screen.
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(22),
+                bottom: Radius.circular(10),
+              ),
+              child: SizedBox(
+                width: videoW,
+                height: videoH,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Container(color: Colors.black.withValues(alpha: 0.18)),
+                    if (_ready)
+                      FittedBox(
+                        fit: BoxFit.contain,
+                        child: SizedBox(
+                          width: _controller.value.size.width,
+                          height: _controller.value.size.height,
+                          child: VideoPlayer(_controller),
+                        ),
+                      )
+                    else
+                      const CircularProgressIndicator(),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Luxury info card below the video.
+            _LuxuryGiftInfoCard(
+              giftName: widget.playback.giftName,
+              receiverName: widget.playback.receiverName,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LuxuryGiftInfoCard extends StatelessWidget {
+  const _LuxuryGiftInfoCard({
+    required this.giftName,
+    required this.receiverName,
+  });
+
+  final String giftName;
+  final String receiverName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF2B1A45), Color(0xFF160B26)],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Color(0xFFD4A017).withValues(alpha: 0.75),
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF0C15A).withValues(alpha: 0.22),
+            blurRadius: 18,
+            spreadRadius: 0,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            giftName,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFFFFD700),
+              fontSize: 17,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              if (_ready)
-                SizedBox.expand(
-                  child: FittedBox(
-                    fit: BoxFit.cover,
-                    child: SizedBox(
-                      width: _controller.value.size.width,
-                      height: _controller.value.size.height,
-                      child: VideoPlayer(_controller),
-                    ),
-                  ),
-                )
-              else
-                const Center(child: CircularProgressIndicator()),
-              Positioned(
-                left: 20,
-                right: 20,
-                bottom: 70,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 14,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.45),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Color(0xFFFFD76A)),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        widget.playback.giftName,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Color(0xFFFFD76A),
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        widget.playback.receiverName,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
+              const Icon(
+                Icons.person_rounded,
+                color: Color(0xFFD4A017),
+                size: 13,
+              ),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  receiverName,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.90),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.1,
                   ),
                 ),
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
@@ -7793,26 +7876,43 @@ class _SupportPill extends StatelessWidget {
   final int amount;
   final bool compact;
 
+  String get _label {
+    if (amount >= 1000000) {
+      final v = amount / 1000000;
+      return '${v % 1 == 0 ? v.toInt() : v.toStringAsFixed(1)}M';
+    }
+    if (amount >= 1000) {
+      final v = amount / 1000;
+      return '${v % 1 == 0 ? v.toInt() : v.toStringAsFixed(1)}k';
+    }
+    return amount.toString();
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (amount <= 0) {
-      return const SizedBox.shrink();
-    }
+    if (amount <= 0) return const SizedBox.shrink();
 
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: compact ? 7 : 9,
-        vertical: compact ? 3 : 4,
+        horizontal: compact ? 6 : 8,
+        vertical: compact ? 2 : 3,
       ),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFFFD978), Color(0xFFE0A83A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF2B1A45), Color(0xFF160B26)],
         ),
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: Color(0xFFD4A017).withValues(alpha: 0.70),
+          width: 0.8,
+        ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFF0C15A).withValues(alpha: 0.24),
-            blurRadius: 10,
+            color: const Color(0xFFF0C15A).withValues(alpha: 0.32),
+            blurRadius: 8,
+            spreadRadius: 0,
           ),
         ],
       ),
@@ -7821,16 +7921,18 @@ class _SupportPill extends StatelessWidget {
         children: [
           Icon(
             Icons.monetization_on_rounded,
-            color: const Color(0xFF160B26),
-            size: compact ? 11 : 13,
+            color: const Color(0xFFFFD700),
+            size: compact ? 10 : 12,
           ),
           SizedBox(width: compact ? 2 : 3),
           Text(
-            amount.toString(),
+            _label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: const Color(0xFF160B26),
-              fontWeight: FontWeight.w900,
-              fontSize: compact ? 10 : 11,
+              color: const Color(0xFFFFE566),
+              fontWeight: FontWeight.w800,
+              fontSize: compact ? 9 : 10,
             ),
           ),
         ],
