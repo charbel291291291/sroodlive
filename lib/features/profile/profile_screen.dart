@@ -20,7 +20,7 @@ import '../wallet/services/wallet_service.dart';
 import '../rooms/utils/vip_room_features.dart';
 import '../rooms/services/rooms_service.dart';
 import '../rooms/screens/room_details_screen.dart';
-import '../games/screens/srood_loto_screen.dart';
+import '../profile_hub/screens/my_level_screen.dart';
 import 'models/avatar_frame.dart';
 import 'screens/follow_list_screen.dart';
 import 'services/follow_service.dart';
@@ -359,10 +359,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<void> _openLoto() async {
+  Future<void> _openLevels() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => SroodLotoScreen(isArabic: context.isArabic),
+        builder: (_) => MyLevelScreen(isArabic: context.isArabic),
       ),
     );
   }
@@ -964,7 +964,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onVipCenter: _openVipCenter,
                       onStore: _openStore,
                       onBackpack: _openBackpack,
-                      onLoto: _openLoto,
+                      onLevels: _openLevels,
                       onMyRoom: _openMyRoom,
                       roomLoading: _roomLoading,
                       onSettings: () => _openProfileHub(
@@ -1799,7 +1799,7 @@ class _QuickActionsGrid extends StatelessWidget {
     required this.onVipCenter,
     required this.onStore,
     required this.onBackpack,
-    required this.onLoto,
+    required this.onLevels,
     required this.onMyRoom,
     required this.onSettings,
     required this.roomLoading,
@@ -1809,7 +1809,7 @@ class _QuickActionsGrid extends StatelessWidget {
   final VoidCallback onVipCenter;
   final VoidCallback onStore;
   final VoidCallback onBackpack;
-  final VoidCallback onLoto;
+  final VoidCallback onLevels;
   final VoidCallback onMyRoom;
   final VoidCallback onSettings;
   final bool roomLoading;
@@ -1836,10 +1836,10 @@ class _QuickActionsGrid extends StatelessWidget {
         gradientColors: const [Color(0xFFFFD978), Color(0xFFFF9500)],
       ),
       _FeatureTileData(
-        icon: Icons.confirmation_number_rounded,
-        label: isArabic ? 'سحب سرود' : 'Srood Draw',
-        onTap: onLoto,
-        gradientColors: const [Color(0xFFE4B5FF), Color(0xFF7D2BFF)],
+        icon: Icons.military_tech_rounded,
+        label: isArabic ? 'المستويات' : 'Levels',
+        onTap: onLevels,
+        gradientColors: const [Color(0xFFF0C15A), Color(0xFF9B59B6)],
       ),
       _FeatureTileData(
         icon: roomLoading ? Icons.hourglass_top_rounded : Icons.home_rounded,
