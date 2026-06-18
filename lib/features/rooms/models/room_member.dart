@@ -7,6 +7,7 @@ class RoomMember {
     required this.userId,
     required this.role,
     required this.isMuted,
+    this.forceMuted = false,
     this.seatNumber,
     required this.joinedAt,
     this.leftAt,
@@ -26,6 +27,7 @@ class RoomMember {
   final String role;
   final int? seatNumber;
   final bool isMuted;
+  final bool forceMuted;
   final DateTime joinedAt;
   final DateTime? leftAt;
   final String? displayName;
@@ -85,6 +87,7 @@ class RoomMember {
       role: json['role']?.toString() ?? 'listener',
       seatNumber: json['seat_number'] as int?,
       isMuted: json['is_muted'] as bool? ?? false,
+      forceMuted: json['force_muted'] as bool? ?? false,
       joinedAt: DateTime.parse(json['joined_at'].toString()),
       leftAt: json['left_at'] == null
           ? null

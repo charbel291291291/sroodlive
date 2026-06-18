@@ -2227,11 +2227,15 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
         await _liveKitRoomService.setMicrophoneEnabled(desiredMicEnabled);
 
-        if (justTookSeat && member?.isMuted == true) {
+        // Clear self-mute on seat take, but never clear a force-mute set by owner.
+        if (justTookSeat && member?.isMuted == true && member?.forceMuted != true) {
           await _roomsService.setMyMuteStatus(
             roomId: widget.room.id,
             isMuted: false,
           );
+        }
+        if (justTookSeat && member?.forceMuted == true) {
+          debugPrint('[MUTE] forced mute applied user=${member?.userId} — seat taken but mute preserved');
         }
 
         if (!mounted) return;
@@ -2304,6 +2308,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     }
 
     final nextValue = !_micEnabled;
+
+    // Block self-unmute when owner has force-muted this user.
+    if (nextValue && (_myMember?.forceMuted == true)) {
+      debugPrint('[MUTE] self unmute denied reason=forced_mute');
+      return;
+    }
 
     if (nextValue) {
       final hasMicrophonePermission = await _ensureMicrophonePermission();
@@ -2464,6 +2474,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
           // Moderation callbacks ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â only provided when caller can act
           onToggleMute: (canModerate && !isTargetOwner && target != null)
               ? (muted) async {
+                  debugPrint('[MUTE] forced mute applied user=$userId isMuted=$muted');
                   await const RoomManagementService().ownerMuteMember(
                     widget.room.id,
                     userId,
@@ -3063,7 +3074,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             _LuxuryGiftVideoOverlay(
               playback: _activeLuxuryGiftVideo!,
               onDone: _clearLuxuryGiftVideo,
-              soundEnabled: _soundEnabled,
+              // Mute gift video audio while room music is playing so the music
+              // player is never interrupted by the video's audio track.
+              soundEnabled: _soundEnabled && !_musicService.isActive,
             ),
 
           if (_activeRedEnvelope != null &&
@@ -8529,7 +8542,8 @@ class _LuckyBagEntranceOverlayState extends State<_LuckyBagEntranceOverlay>
 
   Future<void> _tryPlaySound() async {
     if (!widget.soundEnabled) return;
-    final player = AudioPlayer();
+    debugPrint('[GIFT-AUDIO] play overlay sound without pausing music (lucky_bag_open)');
+    final player = AudioPlayer(handleInterruptions: false);
     try {
       await player.setAsset('assets/sounds/lucky_bag_open.mp3');
       await player.play();
@@ -8784,7 +8798,8 @@ class _LuckyBagWinOverlayState extends State<_LuckyBagWinOverlay>
 
   Future<void> _tryPlayWinSound() async {
     if (!widget.soundEnabled) return;
-    final player = AudioPlayer();
+    debugPrint('[GIFT-AUDIO] play overlay sound without pausing music (lucky_bag_win)');
+    final player = AudioPlayer(handleInterruptions: false);
     try {
       await player.setAsset('assets/sounds/lucky_bag_win.wav');
       await player.play();

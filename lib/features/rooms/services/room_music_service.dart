@@ -7,7 +7,10 @@ import '../models/room_music.dart';
 
 class RoomMusicService extends ChangeNotifier {
   RoomMusicService() {
-    _player = AudioPlayer();
+    // handleInterruptions: false — the music player ignores audio-focus
+    // requests from transient SFX players (gift sounds, lucky-bag sounds),
+    // so room music continues playing during gift animations.
+    _player = AudioPlayer(handleInterruptions: false);
     _subs = [
       _player.playerStateStream.listen(_onPlayerState),
       _player.positionStream.listen(_onPosition),
