@@ -117,11 +117,27 @@ class AdminRole {
           kPermTreasurePrize,
         }.contains(key);
       case kRoleSuperAdmin:
-        // super_admin has full access to all modules. The only operations
-        // reserved for o_super_admin are enforced at the DB level (e.g. unban,
-        // delete users, change roles of other admins) and are separately guarded
-        // by canUnban / isOSuperAdmin checks in the dashboard, not by hasPermission.
-        return true;
+        // super_admin has broad operational access across all modules but must
+        // not reach owner-level authority. Excluded keys:
+        //   • Admin staff management  (create/remove/change-roles of admins)
+        //   • User unban / delete     (owner-only destructive user actions)
+        //   • Financial overrides     (price changes, debit, force-settle, void)
+        //   • Prize / treasure config (owner-only economy settings)
+        // All excluded actions have a second guard in the dashboard
+        // (isOSuperAdmin / canUnban), so this is belt-and-suspenders.
+        return !{
+          kPermAdminsCreate,
+          kPermAdminsRemove,
+          kPermAdminsChangeRoles,
+          kPermUsersUnban,
+          kPermUsersDelete,
+          kPermWalletDebit,
+          kPermWalletPrices,
+          kPermGiftsPrices,
+          kPermDrawForceSettle,
+          'draw.void_refund',
+          kPermTreasurePrize,
+        }.contains(key);
       case kRoleAdmin:
         return {
           kPermUsersView,

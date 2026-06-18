@@ -41,6 +41,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final SettingsService _service = const SettingsService();
   late Future<UserSettings> _future;
   UserSettings? _settings;
+  bool _isLoggingOut = false;
 
   @override
   void initState() {
@@ -88,12 +89,63 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _logout() async {
-    await SafeLogout.run();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-      (_) => false,
-    );
+    if (_isLoggingOut) return;
+    setState(() => _isLoggingOut = true);
+    debugPrint('[SettingsLogout] ① starting logout');
+
+    try {
+      await SafeLogout.run();
+    } catch (e) {
+      debugPrint('[SettingsLogout] ✗ SafeLogout threw: $e');
+      if (mounted) {
+        setState(() => _isLoggingOut = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              widget.isArabic
+                  ? 'فشل تسجيل الخروج. حاول مجددًا.'
+                  : 'Sign out failed. Please try again.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    debugPrint('[SettingsLogout] ② SafeLogout done');
+    _navigateToOnboarding();
+  }
+
+  void _navigateToOnboarding() {
+    void go() {
+      final nav = rootNavigatorKey.currentState;
+      debugPrint('[SettingsLogout] root nav exists=${nav != null}');
+
+      if (nav != null) {
+        nav.pushAndRemoveUntil(
+          MaterialPageRoute<void>(builder: (_) => const OnboardingScreen()),
+          (_) => false,
+        );
+        debugPrint('[SettingsLogout] navigation requested via rootNavigatorKey');
+        return;
+      }
+
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+          MaterialPageRoute<void>(builder: (_) => const OnboardingScreen()),
+          (_) => false,
+        );
+        debugPrint('[SettingsLogout] navigation requested via context fallback');
+        return;
+      }
+
+      debugPrint('[SettingsLogout] ERROR: no navigator available after logout');
+    }
+
+    // Defer by one frame so any widget-tree rebuilds triggered by
+    // AuthChangeEvent.signedOut fully settle before we mutate the navigator.
+    // This guarantees rootNavigatorKey.currentState is non-null.
+    WidgetsBinding.instance.addPostFrameCallback((_) => go());
   }
 
   void _openPolicy(String key, String title) {
@@ -584,6 +636,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.logout_rounded,
                   title: isArabic ? 'تسجيل الخروج' : 'Logout',
                   isArabic: isArabic,
+                  isEnabled: !_isLoggingOut,
+                  trailing: _isLoggingOut
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : null,
                   onTap: _logout,
                 ),
               ],

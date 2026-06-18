@@ -6503,53 +6503,59 @@ class _LuxuryGiftVideoOverlayState extends State<_LuxuryGiftVideoOverlay> {
   @override
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
-    final screenH = mq.size.height;
+    final screenW = mq.size.width;
 
-    // Safe zone: body Stack starts below the AppBar (kToolbarHeight = 56).
-    // Add status-bar padding because some devices still report it inside the
-    // body when the room background extends behind the system UI.
-    const double kAppBarH     = 56.0;
-    const double kBannerH     = 60.0;  // gift / VIP notification strip above the stage
-    const double kBottomBarH  = 120.0; // bottom composer + controls
-    const double kInfoCardH   = 80.0;  // _LuxuryGiftInfoCard + 8 px gap
-    final double bottomPad    = mq.padding.bottom;
+    // ── Safe bounds ───────────────────────────────────────────────────────────
+    // The body Stack uses extendBodyBehindAppBar: true, so coordinate (0,0)
+    // inside the body is the raw top-left of the screen (behind the status bar).
+    // We start the stage just below the AppBar so room controls stay visible.
+    final double topBound = mq.padding.top + kToolbarHeight;
 
-    // Top offset inside the body Stack (below the AppBar + upper strip).
-    final double safeTop = mq.padding.top + kAppBarH + kBannerH;
+    // The bottom action bar sits at Positioned(bottom: 0) and is ~80 px tall;
+    // add the system nav inset so we never cover gesture-navigation handles.
+    const double kBottomBarH = 88.0;
+    final double bottomBound = kBottomBarH + mq.padding.bottom;
 
-    // Video fills all remaining vertical room, minus bottom bar and info card.
-    final double videoH = (screenH - safeTop - kBottomBarH - bottomPad - kInfoCardH)
-        .clamp(180.0, double.infinity);
+    // ── Video child ───────────────────────────────────────────────────────────
+    // BoxFit.cover scales the video so its SHORTEST side fills the stage width,
+    // cropping top/bottom if needed. This eliminates the black letterbox bars
+    // that BoxFit.contain creates for portrait-aspect videos like Golden Lion.
+    // ClipRect confines the overflow to the stage bounds.
+    final Widget videoChild = _ready
+        ? FittedBox(
+            fit: BoxFit.cover,
+            child: SizedBox(
+              width: _controller.value.size.width,
+              height: _controller.value.size.height,
+              child: VideoPlayer(_controller),
+            ),
+          )
+        : const Center(child: CircularProgressIndicator());
+
+    // ── Info card width ───────────────────────────────────────────────────────
+    // Card spans ~88 % of screen width, centred, overlaid at the bottom of the
+    // stage so it costs zero video height.
+    final double cardHPad = screenW * 0.06; // 6 % each side → 88 % card width
 
     return Positioned(
       key: widget.playback.key,
-      top: safeTop,
+      top: topBound,
+      bottom: bottomBound,
       left: 0,
       right: 0,
       child: IgnorePointer(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            // Full-width video stage — FittedBox/contain preserves aspect ratio.
-            SizedBox(
-              height: videoH,
-              child: Center(
-                child: _ready
-                    ? FittedBox(
-                        fit: BoxFit.contain,
-                        child: SizedBox(
-                          width: _controller.value.size.width,
-                          height: _controller.value.size.height,
-                          child: VideoPlayer(_controller),
-                        ),
-                      )
-                    : const CircularProgressIndicator(),
-              ),
-            ),
-            const SizedBox(height: 8),
-            // Info card pinned below the video.
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+            // Full-stage video: cover-fills width, clips vertical overflow.
+            ClipRect(child: SizedBox.expand(child: videoChild)),
+
+            // Info card overlaid at the bottom of the stage — does NOT reduce
+            // the video area since it is Positioned, not in a Column.
+            Positioned(
+              bottom: 14,
+              left: cardHPad,
+              right: cardHPad,
               child: _LuxuryGiftInfoCard(
                 giftName: widget.playback.giftName,
                 receiverName: widget.playback.receiverName,
@@ -6575,14 +6581,17 @@ class _LuxuryGiftInfoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF2B1A45), Color(0xFF160B26)],
+          colors: [
+            const Color(0xFF2B1A45).withValues(alpha: 0.92),
+            const Color(0xFF160B26).withValues(alpha: 0.92),
+          ],
         ),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: Color(0xFFD4A017).withValues(alpha: 0.75),
           width: 1.0,
@@ -6606,7 +6615,7 @@ class _LuxuryGiftInfoCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: Color(0xFFFFD700),
-              fontSize: 17,
+              fontSize: 14,
               fontWeight: FontWeight.w900,
               letterSpacing: 0.4,
             ),

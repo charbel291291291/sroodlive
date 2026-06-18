@@ -2310,8 +2310,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   children: _promoBanners
                       .map(
                         (b) => _AdminListTile(
-                          icon: Icons.view_carousel_rounded,
-                          title: b.titleEn.isNotEmpty ? b.titleEn : b.slideKey,
+                          icon: b.imageUrl != null && b.imageUrl!.isNotEmpty
+                              ? Icons.image_rounded
+                              : Icons.view_carousel_rounded,
+                          title: b.imageUrl != null && b.imageUrl!.isNotEmpty
+                              ? '[Image] ${b.targetRoute ?? b.slideKey}'
+                              : (b.titleEn.isNotEmpty ? b.titleEn : b.slideKey),
                           subtitle:
                               '${b.slideKey} · order ${b.sortOrder}'
                               '${b.targetRoute != null ? ' → ${b.targetRoute}' : ''}',
@@ -3903,8 +3907,9 @@ class _PromoBannerEditDialog extends StatefulWidget {
 }
 
 class _PromoBannerEditDialogState extends State<_PromoBannerEditDialog> {
-  late final TextEditingController _slideKey;
   late final TextEditingController _sortOrder;
+  late final TextEditingController _targetRoute;
+  // Fallback text/icon fields (only used when no image is uploaded).
   late final TextEditingController _labelEn;
   late final TextEditingController _labelAr;
   late final TextEditingController _titleEn;
@@ -3918,16 +3923,20 @@ class _PromoBannerEditDialogState extends State<_PromoBannerEditDialog> {
   late final TextEditingController _gradientMid;
   late final TextEditingController _gradientEnd;
   late final TextEditingController _iconBgColor;
-  late final TextEditingController _targetRoute;
   late bool _isActive;
   String? _imageUrl;
+  bool _showFallbackFields = false;
+
+  // Preserved from existing record so we don't accidentally null out the key.
+  late final String _existingSlideKey;
 
   @override
   void initState() {
     super.initState();
     final b = widget.existing;
-    _slideKey = TextEditingController(text: b?.slideKey ?? '');
+    _existingSlideKey = b?.slideKey ?? '';
     _sortOrder = TextEditingController(text: (b?.sortOrder ?? 0).toString());
+    _targetRoute = TextEditingController(text: b?.targetRoute ?? '');
     _labelEn = TextEditingController(text: b?.labelEn ?? '');
     _labelAr = TextEditingController(text: b?.labelAr ?? '');
     _titleEn = TextEditingController(text: b?.titleEn ?? '');
@@ -3941,15 +3950,16 @@ class _PromoBannerEditDialogState extends State<_PromoBannerEditDialog> {
     _gradientMid = TextEditingController(text: b?.gradientMid ?? '');
     _gradientEnd = TextEditingController(text: b?.gradientEnd ?? '');
     _iconBgColor = TextEditingController(text: b?.iconBgColor ?? '');
-    _targetRoute = TextEditingController(text: b?.targetRoute ?? '');
     _isActive = b?.isActive ?? true;
     _imageUrl = b?.imageUrl;
+    // Auto-expand fallback section when editing a gradient banner.
+    _showFallbackFields = _imageUrl == null || _imageUrl!.isEmpty;
   }
 
   @override
   void dispose() {
-    _slideKey.dispose();
     _sortOrder.dispose();
+    _targetRoute.dispose();
     _labelEn.dispose();
     _labelAr.dispose();
     _titleEn.dispose();
@@ -3963,22 +3973,42 @@ class _PromoBannerEditDialogState extends State<_PromoBannerEditDialog> {
     _gradientMid.dispose();
     _gradientEnd.dispose();
     _iconBgColor.dispose();
-    _targetRoute.dispose();
     super.dispose();
   }
 
   String? _ne(String v) => v.trim().isEmpty ? null : v.trim();
 
+  // Generates a stable unique key from route + epoch so admins don't need to type one.
+  String _deriveSlideKey() {
+    if (_existingSlideKey.isNotEmpty) return _existingSlideKey;
+    final route = _targetRoute.text.trim().replaceAll(RegExp(r'[^a-z0-9_]'), '_');
+    final suffix = DateTime.now().millisecondsSinceEpoch % 100000;
+    return route.isNotEmpty ? '${route}_$suffix' : 'banner_$suffix';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final hasImage = _imageUrl != null && _imageUrl!.isNotEmpty;
     return _CatalogEditDialogShell(
       title: widget.existing == null ? 'New promo banner' : 'Edit promo banner',
       fields: [
+        // ── Always-required fields ──────────────────────────────────────────
+        _ImageUploadField(
+          label: 'Banner image (upload replaces text layout)',
+          initialUrl: _imageUrl,
+          adminService: widget.adminService,
+          onChanged: (url) => setState(() {
+            _imageUrl = url;
+            // Auto-collapse fallback fields when image is added.
+            if (url != null && url.isNotEmpty) _showFallbackFields = false;
+          }),
+        ),
+        const SizedBox(height: 4),
         TextField(
-          controller: _slideKey,
+          controller: _targetRoute,
           decoration: const InputDecoration(
-            labelText: 'Slide key (unique ID)',
-            hintText: 'e.g. explore_rooms',
+            labelText: 'Target route *',
+            hintText: 'discovery / gifts / vip / rooms',
           ),
         ),
         TextField(
@@ -3986,101 +4016,109 @@ class _PromoBannerEditDialogState extends State<_PromoBannerEditDialog> {
           keyboardType: TextInputType.number,
           decoration: const InputDecoration(labelText: 'Sort order'),
         ),
-        const Divider(),
-        TextField(
-          controller: _labelEn,
-          decoration: const InputDecoration(labelText: 'Label (EN)'),
-        ),
-        TextField(
-          controller: _labelAr,
-          decoration: const InputDecoration(labelText: 'Label (AR)'),
-        ),
-        TextField(
-          controller: _titleEn,
-          decoration: const InputDecoration(labelText: 'Title (EN)'),
-        ),
-        TextField(
-          controller: _titleAr,
-          decoration: const InputDecoration(labelText: 'Title (AR)'),
-        ),
-        TextField(
-          controller: _subtitleEn,
-          decoration: const InputDecoration(labelText: 'Subtitle (EN)'),
-        ),
-        TextField(
-          controller: _subtitleAr,
-          decoration: const InputDecoration(labelText: 'Subtitle (AR)'),
-        ),
-        TextField(
-          controller: _ctaEn,
-          decoration: const InputDecoration(labelText: 'CTA button (EN)'),
-        ),
-        TextField(
-          controller: _ctaAr,
-          decoration: const InputDecoration(labelText: 'CTA button (AR)'),
-        ),
-        const Divider(),
-        TextField(
-          controller: _iconName,
-          decoration: const InputDecoration(
-            labelText: 'Icon name',
-            hintText: 'mic_rounded / card_giftcard_rounded / ...',
-          ),
-        ),
-        TextField(
-          controller: _gradientStart,
-          decoration: const InputDecoration(
-            labelText: 'Gradient start (hex AARRGGBB)',
-            hintText: 'FF2D0D5E',
-          ),
-        ),
-        TextField(
-          controller: _gradientMid,
-          decoration: const InputDecoration(
-            labelText: 'Gradient mid (hex AARRGGBB)',
-            hintText: 'FF5B1A9A',
-          ),
-        ),
-        TextField(
-          controller: _gradientEnd,
-          decoration: const InputDecoration(
-            labelText: 'Gradient end (hex AARRGGBB)',
-            hintText: 'FF8B26D9',
-          ),
-        ),
-        TextField(
-          controller: _iconBgColor,
-          decoration: const InputDecoration(
-            labelText: 'Icon bg color (hex AARRGGBB)',
-          ),
-        ),
-        const Divider(),
-        _ImageUploadField(
-          label: 'Image URL (optional)',
-          initialUrl: _imageUrl,
-          adminService: widget.adminService,
-          onChanged: (url) => setState(() => _imageUrl = url),
-        ),
-        TextField(
-          controller: _targetRoute,
-          decoration: const InputDecoration(
-            labelText: 'Target route',
-            hintText: 'discovery / gifts / vip',
-          ),
-        ),
         SwitchListTile(
           value: _isActive,
           onChanged: (v) => setState(() => _isActive = v),
           title: const Text('Active'),
+          contentPadding: EdgeInsets.zero,
         ),
+        const Divider(height: 24),
+        // ── Fallback text/icon fields (hidden when image is set) ────────────
+        if (hasImage)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              'Image banner — text layout hidden.',
+              style: TextStyle(color: Colors.green.shade300, fontSize: 12),
+            ),
+          ),
+        TextButton.icon(
+          onPressed: () => setState(() => _showFallbackFields = !_showFallbackFields),
+          icon: Icon(_showFallbackFields ? Icons.expand_less : Icons.expand_more, size: 18),
+          label: Text(
+            _showFallbackFields
+                ? 'Hide fallback text/icon fields'
+                : 'Show fallback text/icon fields${hasImage ? ' (not used)' : ''}',
+            style: const TextStyle(fontSize: 12),
+          ),
+          style: TextButton.styleFrom(foregroundColor: Colors.white54),
+        ),
+        if (_showFallbackFields) ...[
+          TextField(
+            controller: _labelEn,
+            decoration: const InputDecoration(labelText: 'Label (EN)'),
+          ),
+          TextField(
+            controller: _labelAr,
+            decoration: const InputDecoration(labelText: 'Label (AR)'),
+          ),
+          TextField(
+            controller: _titleEn,
+            decoration: const InputDecoration(labelText: 'Title (EN)'),
+          ),
+          TextField(
+            controller: _titleAr,
+            decoration: const InputDecoration(labelText: 'Title (AR)'),
+          ),
+          TextField(
+            controller: _subtitleEn,
+            decoration: const InputDecoration(labelText: 'Subtitle (EN)'),
+          ),
+          TextField(
+            controller: _subtitleAr,
+            decoration: const InputDecoration(labelText: 'Subtitle (AR)'),
+          ),
+          TextField(
+            controller: _ctaEn,
+            decoration: const InputDecoration(labelText: 'CTA button (EN)'),
+          ),
+          TextField(
+            controller: _ctaAr,
+            decoration: const InputDecoration(labelText: 'CTA button (AR)'),
+          ),
+          TextField(
+            controller: _iconName,
+            decoration: const InputDecoration(
+              labelText: 'Icon name',
+              hintText: 'mic_rounded / card_giftcard_rounded / ...',
+            ),
+          ),
+          TextField(
+            controller: _gradientStart,
+            decoration: const InputDecoration(
+              labelText: 'Gradient start (hex AARRGGBB)',
+              hintText: 'FF2D0D5E',
+            ),
+          ),
+          TextField(
+            controller: _gradientMid,
+            decoration: const InputDecoration(
+              labelText: 'Gradient mid (hex AARRGGBB)',
+              hintText: 'FF5B1A9A',
+            ),
+          ),
+          TextField(
+            controller: _gradientEnd,
+            decoration: const InputDecoration(
+              labelText: 'Gradient end (hex AARRGGBB)',
+              hintText: 'FF8B26D9',
+            ),
+          ),
+          TextField(
+            controller: _iconBgColor,
+            decoration: const InputDecoration(
+              labelText: 'Icon bg color (hex AARRGGBB)',
+            ),
+          ),
+        ],
       ],
       onSave: () {
-        final key = _slideKey.text.trim();
-        if (key.isEmpty) return;
+        // Require at minimum a target route.
+        if (_targetRoute.text.trim().isEmpty) return;
         Navigator.of(context).pop(
           AdminPromoBanner(
             id: widget.existing?.id ?? '',
-            slideKey: key,
+            slideKey: _deriveSlideKey(),
             sortOrder: int.tryParse(_sortOrder.text.trim()) ?? 0,
             isActive: _isActive,
             labelEn: _labelEn.text.trim(),

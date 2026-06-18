@@ -536,6 +536,8 @@ class _SlideData {
     required this.gradientColors,
     required this.iconBgColor,
     this.targetRoute,
+    this.imageUrl,
+    this.updatedAt,
   });
 
   final String labelAr;
@@ -550,6 +552,23 @@ class _SlideData {
   final List<Color> gradientColors;
   final Color iconBgColor;
   final String? targetRoute;
+  /// Optional banner image from Supabase Storage. When non-null it is shown as
+  /// a full-cover background replacing the gradient+icon layout.
+  final String? imageUrl;
+  /// Used to build a cache-busting URL so the app re-fetches the image after
+  /// an admin edit without needing to clear Flutter's image cache manually.
+  final DateTime? updatedAt;
+
+  /// Returns the image URL with an `?v=` cache-buster derived from updatedAt.
+  /// Falls back to a millisecond timestamp when updatedAt is absent.
+  String? get cachedImageUrl {
+    final url = imageUrl;
+    if (url == null || url.isEmpty) return null;
+    final v = updatedAt?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch;
+    // Avoid double query-string if the URL already has one.
+    final sep = url.contains('?') ? '&' : '?';
+    return '$url${sep}v=$v';
+  }
 
   static _SlideData fromJson(Map<String, dynamic> j) {
     Color hex(String? h, Color fb) {
@@ -577,6 +596,13 @@ class _SlideData {
     final iconKey = j['icon_name'] as String? ?? 'mic_rounded';
     final icon = iconMap[iconKey] ?? Icons.mic_rounded;
 
+    final rawUrl = j['image_url'] as String?;
+    final imageUrl = (rawUrl != null && rawUrl.trim().isNotEmpty) ? rawUrl.trim() : null;
+
+    DateTime? updatedAt;
+    final rawTs = j['updated_at'];
+    if (rawTs != null) updatedAt = DateTime.tryParse(rawTs.toString());
+
     return _SlideData(
       labelAr: j['label_ar'] as String? ?? '',
       labelEn: j['label_en'] as String? ?? '',
@@ -590,6 +616,8 @@ class _SlideData {
       gradientColors: [g1, g2, g3],
       iconBgColor: bg,
       targetRoute: j['target_route'] as String?,
+      imageUrl: imageUrl,
+      updatedAt: updatedAt,
     );
   }
 }
@@ -767,8 +795,114 @@ class _BannerSlide extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isRtl = isArabic;
-    final cross = isRtl ? CrossAxisAlignment.end : CrossAxisAlignment.start;
     final align = isRtl ? TextAlign.right : TextAlign.left;
+
+    final imageUrl = slide.cachedImageUrl;
+
+    // ── Determine inner content based on whether an image URL is set ──────────
+    Widget innerContent;
+    if (imageUrl != null) {
+      // Image banner: show only the photo, no text/icon overlay.
+      innerContent = Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (context, error, stack) => const SizedBox.shrink(),
+      );
+    } else {
+      // Gradient + icon banner (fallback when no image uploaded).
+      final cross2 = isRtl ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+      final textBlock = Column(
+        crossAxisAlignment: cross2,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              isArabic ? slide.labelAr : slide.labelEn,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            isArabic ? slide.titleAr : slide.titleEn,
+            textAlign: align,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              height: 1.2,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            isArabic ? slide.subtitleAr : slide.subtitleEn,
+            textAlign: align,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.72),
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: isRtl ? Alignment.centerRight : Alignment.centerLeft,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+              ),
+              child: Text(
+                isArabic ? slide.ctaAr : slide.ctaEn,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+      innerContent = Padding(
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+          children: [
+            Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                color: slide.iconBgColor.withValues(alpha: 0.55),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+              ),
+              child: Icon(slide.icon, color: Colors.white, size: 28),
+            ),
+            const SizedBox(width: 14),
+            Expanded(child: textBlock),
+          ],
+        ),
+      );
+    }
 
     return GestureDetector(
       onTap: onCta,
@@ -776,11 +910,14 @@ class _BannerSlide extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 2),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(22),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: slide.gradientColors,
-          ),
+          gradient: imageUrl == null
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: slide.gradientColors,
+                )
+              : null,
+          color: imageUrl != null ? Colors.black : null,
           boxShadow: [
             BoxShadow(
               color: slide.gradientColors.last.withValues(alpha: 0.32),
@@ -790,113 +927,9 @@ class _BannerSlide extends StatelessWidget {
           ],
           border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
-            children: [
-              // Icon block
-              Container(
-                width: 54,
-                height: 54,
-                decoration: BoxDecoration(
-                  color: slide.iconBgColor.withValues(alpha: 0.55),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.12),
-                  ),
-                ),
-                child: Icon(slide.icon, color: Colors.white, size: 28),
-              ),
-              const SizedBox(width: 14),
-              // Text + CTA
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: cross,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Label pill
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 9,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        isArabic ? slide.labelAr : slide.labelEn,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.4,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    // Title
-                    Text(
-                      isArabic ? slide.titleAr : slide.titleEn,
-                      textAlign: align,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        height: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    // Subtitle
-                    Text(
-                      isArabic ? slide.subtitleAr : slide.subtitleEn,
-                      textAlign: align,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.72),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        height: 1.3,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    // CTA pill
-                    Align(
-                      alignment: isRtl
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.25),
-                          ),
-                        ),
-                        child: Text(
-                          isArabic ? slide.ctaAr : slide.ctaEn,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: innerContent,
         ),
       ),
     );
