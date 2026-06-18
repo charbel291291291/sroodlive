@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:just_audio/just_audio.dart';
 import 'dart:math' as math;
 import 'dart:ui';
@@ -332,8 +332,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   // Skipped during server-driven updates to avoid feedback loops.
   // Skipped for position-only changes (tick updates) via pushCurrentStateIfChanged().
   void _onLocalMusicChanged() {
-    if (!(_iAmRoomOwner || _iAmHost)) return;
+    if (!(_iAmRoomOwner || _iAmHost)) {
+      debugPrint('[MUSIC-CONTROL] denied user=$_currentUserId reason=not_manager');
+      return;
+    }
     if (_syncedMusic.applyingServerState) return;
+    debugPrint('[MUSIC-CONTROL] allowed user=$_currentUserId song=${_musicService.currentSong?.id}');
     unawaited(_syncedMusic.pushCurrentStateIfChanged());
   }
 
@@ -513,6 +517,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       final claimed = (row['claimed_count'] as int? ?? 0);
       final total   = (row['envelope_count'] as int? ?? 1);
       if (claimed < total) {
+        final envelopeId = row['id'] as String? ?? '';
+        debugPrint('[L luckybag] active envelope loaded id=$envelopeId sender=${row['sender_id']}');
         setState(() => _activeRedEnvelope = row);
       }
     } catch (e) {
@@ -537,7 +543,16 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             final row = payload.newRecord;
             if (row.isEmpty) return;
             if (row['is_expired'] == true) return;
-            setState(() => _activeRedEnvelope = row);
+            final envelopeId = row['id'] as String? ?? '';
+            final senderId = row['sender_id'] as String? ?? '';
+            final iAmSender = senderId == _currentUserId;
+            debugPrint('[L luckybag] realtime insert envelope=$envelopeId sender=$senderId iAmSender=$iAmSender');
+            setState(() {
+              _activeRedEnvelope = row;
+              // Show the entrance overlay only to receivers, not the sender
+              // (sender already saw the confirmation from onRedEnvelopeCreated).
+              if (!iAmSender) _showLuckyBagEntrance = true;
+            });
           },
         )
         .onPostgresChanges(
@@ -573,6 +588,11 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     if (envelope == null || _claimingEnvelope) return;
     final envelopeId = envelope['id'] as String?;
     if (envelopeId == null) return;
+    // Sender cannot claim their own Lucky Bag.
+    if ((envelope['sender_id'] as String?) == _currentUserId) {
+      debugPrint('[L luckybag] hidden reason=sender id=$envelopeId');
+      return;
+    }
     setState(() => _claimingEnvelope = true);
     try {
       final coins = await SupabaseService.requiredClient
@@ -1340,9 +1360,13 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         onRedEnvelopeCreated: (envelope) {
           if (!mounted) return;
           final spent = (envelope['total_coins'] as num?)?.toInt() ?? 0;
+          final envelopeId = envelope['id'] as String? ?? '';
+          debugPrint('[L luckybag] created sender=$_currentUserId envelope=$envelopeId');
           setState(() {
             _activeRedEnvelope = envelope;
-            _showLuckyBagEntrance = true;
+            // Sender sees their own sent-confirmation banner, not the entrance
+            // overlay (which is reserved for receivers via Realtime).
+            _showLuckyBagEntrance = false;
             // Optimistic decrement so toolbar balance updates instantly.
             if (spent > 0) _walletCoins = (_walletCoins - spent).clamp(0, _walletCoins);
           });
@@ -3044,20 +3068,31 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
           if (_activeRedEnvelope != null &&
               !_openedLuckyBagIds.contains(_activeRedEnvelope!['id'] as String?))
-            Positioned(
-              top: 80 + MediaQuery.of(context).padding.top,
-              left: 16,
-              right: 16,
-              child: _RedEnvelopeBanner(
-                envelope: _activeRedEnvelope!,
-                isArabic: context.isArabic,
-                loading: _claimingEnvelope,
-                onClaim: _claimRedEnvelope,
-                onDismiss: () => setState(() => _activeRedEnvelope = null),
-              ),
-            ),
+            Builder(builder: (context) {
+              final envelope = _activeRedEnvelope!;
+              final envelopeId = envelope['id'] as String? ?? '';
+              final isSender = (envelope['sender_id'] as String?) == _currentUserId;
+              if (isSender) {
+                debugPrint('[L luckybag] sender confirmation only id=$envelopeId');
+              } else {
+                debugPrint('[L luckybag] show receiver claim ui id=$envelopeId');
+              }
+              return Positioned(
+                top: 80 + MediaQuery.of(context).padding.top,
+                left: 16,
+                right: 16,
+                child: _RedEnvelopeBanner(
+                  envelope: envelope,
+                  isArabic: context.isArabic,
+                  loading: _claimingEnvelope,
+                  isSender: isSender,
+                  onClaim: _claimRedEnvelope,
+                  onDismiss: () => setState(() => _activeRedEnvelope = null),
+                ),
+              );
+            }),
 
-          // -- 6. Lucky Bag entrance overlay (sender sees this) --
+          // -- 6. Lucky Bag entrance overlay (receivers see this on Realtime INSERT) --
           if (_showLuckyBagEntrance)
             Positioned.fill(
               child: _LuckyBagEntranceOverlay(
@@ -6157,6 +6192,7 @@ class _RedEnvelopeBanner extends StatelessWidget {
     required this.envelope,
     required this.isArabic,
     required this.loading,
+    required this.isSender,
     required this.onClaim,
     required this.onDismiss,
   });
@@ -6164,6 +6200,7 @@ class _RedEnvelopeBanner extends StatelessWidget {
   final Map<String, dynamic> envelope;
   final bool isArabic;
   final bool loading;
+  final bool isSender;
   final VoidCallback onClaim;
   final VoidCallback onDismiss;
 
@@ -6270,8 +6307,27 @@ class _RedEnvelopeBanner extends StatelessWidget {
             ),
             const SizedBox(width: 8),
 
-            // Claim button
-            if (loading)
+            // Sender sees a "Sent" badge; receivers see the claim button.
+            if (isSender)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A0A00).withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFFFFD700).withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Text(
+                  isArabic ? 'تم الإرسال' : 'Sent',
+                  style: const TextStyle(
+                    color: Color(0xFFFFD700),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                  ),
+                ),
+              )
+            else if (loading)
               const SizedBox(
                 width: 28,
                 height: 28,
@@ -6308,7 +6364,7 @@ class _RedEnvelopeBanner extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        isArabic ? 'Ø§ÙØªØ­' : 'Open',
+                        isArabic ? 'افتح' : 'Open',
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w900,
@@ -6318,8 +6374,7 @@ class _RedEnvelopeBanner extends StatelessWidget {
                     ],
                   ),
                 ),
-              ),
-            const SizedBox(width: 8),
+              ),            const SizedBox(width: 8),
 
             // Dismiss
             GestureDetector(

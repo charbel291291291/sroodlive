@@ -74,6 +74,7 @@ class RoomSyncedMusicService {
 
   Future<void> syncNow() async {
     try {
+      debugPrint('[RoomMusicSync] syncNow get_room_music_state');
       final result = await _client.rpc(
         'get_room_music_state',
         params: {'p_room_id': roomId},
@@ -106,14 +107,17 @@ class RoomSyncedMusicService {
           final row = payload.newRecord;
           if (row.isEmpty) return;
           final state = RoomMusicState.fromJson(row);
+          debugPrint('[RT-MUSIC] received state=playing:${state.isPlaying} stopped:${state.isStopped} track=${state.trackId} title=${state.trackTitle} room=$roomId');
           await _applyState(state, fromRealtime: true);
         } catch (e) {
-          if (kDebugMode) debugPrint('[RoomSyncedMusic] realtime error: $e');
+          debugPrint('[RT-MUSIC] realtime error: $e');
         }
       },
     );
 
-    _rtChannel!.subscribe();
+    _rtChannel!.subscribe((status, [error]) {
+      debugPrint('[RT-MUSIC] status=$status error=$error room=$roomId');
+    });
   }
 
   // ── Apply server state → local RoomMusicService ───────────────────────────
@@ -140,6 +144,7 @@ class RoomSyncedMusicService {
         return;
       }
 
+      debugPrint('[RoomMusicSync] apply state trackId=${newState.trackId} playing=${newState.isPlaying} url=${newState.trackUrl}');
       final trackUrl = newState.trackUrl;
       if (trackUrl == null) return;
 
@@ -150,6 +155,7 @@ class RoomSyncedMusicService {
       // ── PAUSED (with a track) ─────────────────────────────────────────────
       // Load the song so mini-player shows track info, but do NOT start playback.
       if (!newState.isPlaying) {
+        debugPrint('[MUSIC-LISTENER] autoPause track=${newState.trackId} title=${newState.trackTitle}');
         final trackChanged = prev?.trackId != newState.trackId;
         if (trackChanged || !musicService.isActive) {
           await musicService.loadSongPaused(
@@ -170,11 +176,13 @@ class RoomSyncedMusicService {
 
       if (trackChanged || !musicService.isActive) {
         // New track: load and play, then seek to live position.
+        debugPrint('[MUSIC-LISTENER] autoPlay track=${newState.trackId} title=${newState.trackTitle} url=${newState.trackUrl}');
         await musicService.playSong(idx);
         final seekTo = Duration(seconds: newState.livePositionSeconds);
         if (seekTo.inSeconds > 1) await musicService.seek(seekTo);
       } else if (!wasPlaying && newState.isPlaying) {
         // Resume same track: seek to live position then play.
+        debugPrint('[MUSIC-LISTENER] autoPlay resume track=${newState.trackId}');
         final seekTo = Duration(seconds: newState.livePositionSeconds);
         if (seekTo.inSeconds > 1) await musicService.seek(seekTo);
         if (!musicService.isPlaying) await musicService.playPause();

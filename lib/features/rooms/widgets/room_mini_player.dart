@@ -140,13 +140,34 @@ class _RoomMiniPlayerState extends State<RoomMiniPlayer>
                           color: Colors.white.withValues(alpha: 0.18),
                           size: 42,
                         ),
-                        GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () {
-                            HapticFeedback.mediumImpact();
-                            svc.playPause();
-                          },
-                          child: Container(
+                        if (widget.canManage)
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () {
+                              HapticFeedback.mediumImpact();
+                              svc.playPause();
+                            },
+                            child: Container(
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.black.withValues(alpha: 0.20),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.18),
+                                ),
+                              ),
+                              child: Icon(
+                                svc.isPlaying
+                                    ? Icons.pause_rounded
+                                    : Icons.play_arrow_rounded,
+                                color: Colors.white,
+                                size: 28,
+                              ),
+                            ),
+                          )
+                        else
+                          Container(
                             width: 42,
                             height: 42,
                             decoration: BoxDecoration(
@@ -160,11 +181,10 @@ class _RoomMiniPlayerState extends State<RoomMiniPlayer>
                               svc.isPlaying
                                   ? Icons.pause_rounded
                                   : Icons.play_arrow_rounded,
-                              color: Colors.white,
+                              color: Colors.white.withValues(alpha: 0.50),
                               size: 28,
                             ),
                           ),
-                        ),
                       ],
                     ),
                   ),
