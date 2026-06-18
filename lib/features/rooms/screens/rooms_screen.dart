@@ -1086,6 +1086,12 @@ class _RoomCard extends StatelessWidget {
                             ? Image.network(
                                 room.avatarUrl!,
                                 fit: BoxFit.cover,
+                                loadingBuilder: (_, child, progress) =>
+                                    progress == null
+                                        ? child
+                                        : const ColoredBox(
+                                            color: Color(0xFF2D2040),
+                                          ),
                                 errorBuilder: (_, e, s) => const Icon(
                                   Icons.mic_rounded,
                                   color: Color(0xFFF0C15A),

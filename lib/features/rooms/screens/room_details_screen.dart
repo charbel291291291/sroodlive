@@ -38,6 +38,9 @@ import '../services/room_music_service.dart';
 import '../services/room_music_upload_service.dart';
 import '../services/room_synced_music_service.dart';
 import '../../games/screens/srood_loto_screen.dart';
+import '../../messages/screens/messages_screen.dart';
+import '../../messages/services/private_message_service.dart';
+import '../../moderation/services/moderation_service.dart';
 import 'room_owner_management_screen.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 import '../models/room_reaction.dart';
@@ -97,6 +100,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   late final ValueNotifier<({bool connecting, bool connected})> _audioStateNotifier;
   bool _wasCurrentUserOnMic = false;
   bool _micEnabled = true;
+  bool _micToggleBusy = false;
   // Cached so we don't call permission_handler on every mic-seat change.
   bool? _micPermissionGranted;
   int _moderatorCount = 0;
@@ -139,6 +143,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   final List<RoomMessage> _chatMessages = [];
   RealtimeChannel? _messagesChannel;
   bool _isSendingMessage = false;
+
+  int _inboxUnreadCount = 0;
   bool _uploadingChatImage = false;
 
   // -- Emoji reactions (keyed by seat number 1-based) --
@@ -277,6 +283,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     super.initState();
     _audioStateNotifier = ValueNotifier((connecting: false, connected: false));
     WidgetsBinding.instance.addObserver(this);
+    debugPrint('[PerfRoom] open id=${widget.room.id} ts=${DateTime.now().millisecondsSinceEpoch}');
     debugPrint('[Room] ${_roomTs()} room screen opened id=${widget.room.id}');
     _musicService = RoomMusicService();
     _syncedMusic = RoomSyncedMusicService(
@@ -297,6 +304,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     // Start LiveKit in listen-only mode immediately, in parallel with
     // member loading, so audio is ready before the member list arrives.
     unawaited(_connectAudioEarly());
+
+    unawaited(_loadInboxUnread());
 
     // Critical: member list is needed for the seat grid on first paint.
     _loadMembers();
@@ -403,6 +412,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         microphoneEnabled: false,
       );
       debugPrint('[Room] ${_roomTs()} LiveKit connected');
+      debugPrint('[PerfRoom] livekit connected ts=${DateTime.now().millisecondsSinceEpoch}');
       if (mounted) _setAudioState(connecting: false, connected: true);
     } catch (e) {
       debugPrint('[Room] ${_roomTs()} early audio connect failed: $e');
@@ -967,7 +977,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         : <String>{};
 
     try {
+      final t0 = DateTime.now().millisecondsSinceEpoch;
       final members = await _roomsService.getActiveRoomMembers(widget.room.id);
+      debugPrint('[PerfRoom] members loaded in ${DateTime.now().millisecondsSinceEpoch - t0}ms count=${members.length}');
 
       if (!mounted) return;
 
@@ -1133,9 +1145,56 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   }
 
   Future<void> _sendChatMessage(String text) async {
-    
-    FocusManager.instance.primaryFocus?.unfocus();if (text.trim().isEmpty) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (text.trim().isEmpty) return;
     setState(() => _isSendingMessage = true);
+
+    // ── Client-side text moderation ──────────────────────────────────────────
+    final modResult = const ModerationService().checkMessage(text);
+    if (!modResult.passed) {
+      if (modResult.action == ModerationAction.warn) {
+        // Severity 1: show warning but still allow send — log in background.
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(context.isArabic
+              ? 'تحذير: يرجى التحدث باحترام.'
+              : 'Warning: please be respectful.'),
+          backgroundColor: const Color(0xFFF59E0B),
+          behavior: SnackBarBehavior.floating,
+        ));
+        unawaited(const ModerationService().logEvent(
+          roomId: widget.room.id,
+          source: 'chat',
+          violationType: modResult.violationType,
+          severity: modResult.severity,
+          originalText: text.trim(),
+          normalizedText: modResult.matchedRule,
+          matchedRule: modResult.matchedRule,
+          actionTaken: 'warned',
+        ));
+        // fall through and send the message
+      } else {
+        // Severity 2+: block message.
+        setState(() => _isSendingMessage = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(context.isArabic
+              ? 'تم حظر رسالتك بسبب انتهاك قواعد السلامة.'
+              : 'Message blocked by safety rules.'),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ));
+        unawaited(const ModerationService().logEvent(
+          roomId: widget.room.id,
+          source: 'chat',
+          violationType: modResult.violationType,
+          severity: modResult.severity,
+          originalText: text.trim(),
+          normalizedText: modResult.matchedRule,
+          matchedRule: modResult.matchedRule,
+          actionTaken: 'blocked',
+        ));
+        return;
+      }
+    }
 
     // Optimistic insert using current user profile.
     final me = SupabaseService.requiredClient.auth.currentUser;
@@ -1162,8 +1221,19 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         message: text,
         senderRole: _myMember?.role ?? 'listener',
       );
+    } on UserMutedException catch (e) {
+      if (mounted) {
+        setState(() => _chatMessages.removeWhere(
+          (m) => m.id.startsWith('optimistic_'),
+        ));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(e.displayMessage),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
     } catch (_) {
-      // Remove optimistic on failure.
+      // Remove optimistic on any other failure.
       if (mounted) {
         setState(() => _chatMessages.removeWhere(
           (m) => m.id.startsWith('optimistic_'),
@@ -2298,9 +2368,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   }
 
   Future<void> _toggleMic() async {
-    if (!_isCurrentUserOnMic) {
-      return;
-    }
+    if (!_isCurrentUserOnMic) return;
+    if (_micToggleBusy) return;
 
     if (!_connectedAudio) {
       await _syncMicConnectionWithSeat();
@@ -2312,30 +2381,53 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     // Block self-unmute when owner has force-muted this user.
     if (nextValue && (_myMember?.forceMuted == true)) {
       debugPrint('[MUTE] self unmute denied reason=forced_mute');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('You have been muted by the room owner.'),
+          backgroundColor: Color(0xFFEF4444),
+          duration: Duration(seconds: 3),
+        ));
+      }
       return;
     }
 
+    final tapMs = DateTime.now().millisecondsSinceEpoch;
+    debugPrint('[PerfMic] tap nextValue=$nextValue');
+
     if (nextValue) {
       final hasMicrophonePermission = await _ensureMicrophonePermission();
-
-      if (!hasMicrophonePermission) {
-        return;
-      }
+      if (!hasMicrophonePermission) return;
+      debugPrint('[PerfMic] permission ok +${DateTime.now().millisecondsSinceEpoch - tapMs}ms');
     }
 
-    await _liveKitRoomService.setMicrophoneEnabled(nextValue);
-    await _roomsService.setMyMuteStatus(
-      roomId: widget.room.id,
-      isMuted: !nextValue,
-    );
-
-    if (!mounted) return;
-
+    // Optimistic UI — update immediately before awaiting network.
     setState(() {
       _micEnabled = nextValue;
+      _micToggleBusy = true;
     });
 
-    await _loadMembers();
+    try {
+      // Parallelize LiveKit + RPC instead of sequencing them.
+      final t1 = DateTime.now().millisecondsSinceEpoch;
+      await Future.wait([
+        _liveKitRoomService.setMicrophoneEnabled(nextValue),
+        _roomsService.setMyMuteStatus(
+          roomId: widget.room.id,
+          isMuted: !nextValue,
+        ),
+      ]);
+      final elapsed = DateTime.now().millisecondsSinceEpoch - t1;
+      debugPrint('[PerfMic] livekit+rpc done in ${elapsed}ms');
+      debugPrint('[PerfMic] total ${DateTime.now().millisecondsSinceEpoch - tapMs}ms');
+    } catch (e) {
+      // Roll back optimistic state on failure.
+      if (mounted) {
+        setState(() => _micEnabled = !nextValue);
+      }
+      debugPrint('[PerfMic] error: $e');
+    } finally {
+      if (mounted) setState(() => _micToggleBusy = false);
+    }
   }
 
   // Single entry point for all leave/close flows.
@@ -2428,6 +2520,23 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
   // Called from the bottom action bar exit button \u2014 exits quietly (no vault anim).
   Future<void> _leaveRoom() => _handleExitRoom();
+
+  Future<void> _loadInboxUnread() async {
+    try {
+      final count = await const PrivateMessageService().fetchTotalUnreadCount();
+      if (mounted) setState(() => _inboxUnreadCount = count);
+    } catch (_) {}
+  }
+
+  Future<void> _openInbox() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MessagesScreen(isArabic: context.isArabic),
+      ),
+    );
+    // Refresh unread count when returning from inbox.
+    unawaited(_loadInboxUnread());
+  }
 
   String _roleLabel(String role) {
     switch (role) {
@@ -2891,6 +3000,22 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
           ),
         ),
         actions: [
+          // Private messages inbox shortcut
+          IconButton(
+            icon: Badge(
+              isLabelVisible: _inboxUnreadCount > 0,
+              label: Text(
+                _inboxUnreadCount > 99 ? '99+' : '$_inboxUnreadCount',
+                style: const TextStyle(fontSize: 10),
+              ),
+              child: const Icon(Icons.chat_bubble_outline_rounded),
+            ),
+            tooltip: context.isArabic ? '\u0627\u0644\u0631\u0633\u0627\u0626\u0644 \u0627\u0644\u062e\u0627\u0635\u0629' : 'Messages',
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.black.withValues(alpha: 0.35),
+            ),
+            onPressed: _openInbox,
+          ),
           if (_iAmRoomOwner)
             IconButton(
               icon: const Icon(Icons.manage_accounts_rounded),
