@@ -3,12 +3,13 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/supabase/supabase_service.dart';
 import '../models/hungry_cat_models.dart';
 import '../services/hungry_cat_game_service.dart';
 
-// ── Fallback food definitions (used when DB returns fewer than 8 items) ────────
-// These are display-only; all money / multiplier logic lives in the backend.
+// ── Fallback display data ────────────────────────────────────────────────────
 
 const _kDefaultFoods = [
   (emoji: '🌽', name: 'Corn',    nameAr: 'ذرة',   mult: 5.0),
@@ -23,12 +24,12 @@ const _kDefaultFoods = [
 
 const _kBetChips = [100, 500, 1000, 2000, 5000];
 
-enum _Phase { loading, idle, spinning, result }
+enum _Phase { loading, betting, spinning, settled, error }
 
-/// Hungry Cat — native Flutter radial wheel game.
+/// Hungry Cat — real-time shared global round.
 ///
-/// Economy is 100% server-side via `play_hungry_cat_spin` RPC.
-/// The client only drives the visual animation after getting the result.
+/// One active round is visible to all connected users simultaneously.
+/// All wallet/bet logic lives server-side; this screen only drives UX.
 class HungryCatWebviewScreen extends StatefulWidget {
   const HungryCatWebviewScreen({required this.isArabic, super.key});
   final bool isArabic;
@@ -41,23 +42,50 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     with SingleTickerProviderStateMixin {
   final _service = const HungryCatGameService();
 
-  // Data
-  List<HungryCatFood>          _foods   = [];
-  int                          _balance = 0;
-  List<HungryCatHistoryEntry>  _history = [];
+  // ── Foods / balance / history ────────────────────────────────────────────
+  List<HungryCatFood>         _foods   = [];
+  int                         _balance = 0;
+  List<HungryCatHistoryEntry> _history = [];
 
-  // Game state
-  _Phase               _phase      = _Phase.loading;
-  int                  _betAmount  = 100;
-  int                  _highlighted = 0; // currently lit bubble index
-  HungryCatSpinResult? _lastResult;
-  String?              _errorMsg;
+  // ── Round state ──────────────────────────────────────────────────────────
+  _Phase              _phase       = _Phase.loading;
+  String?             _roundId;
+  int                 _roundNumber = 0;
+  DateTime?           _bettingEndsAt;
+  Duration            _clockOffset = Duration.zero; // serverNow − localNow
+  int                 _secsLeft    = 0;
 
-  // Pulse animation for the winning bubble
+  // winner (populated when round settles)
+  String? _winFoodId;
+  String? _winFoodIcon;
+  String? _winFoodName;
+  double? _winMult;
+
+  // ── User bet state ───────────────────────────────────────────────────────
+  String? _selectedFoodId;
+  int     _betAmount    = 100;
+  bool    _betPlaced    = false;
+
+  // ── Animation ────────────────────────────────────────────────────────────
+  int  _highlighted = 0;
+  bool _settling    = false; // guard: only settle once per round
+
   late AnimationController _pulseCtrl;
   late Animation<double>   _pulseAnim;
 
+  // ── Realtime ─────────────────────────────────────────────────────────────
+  RealtimeChannel? _channel;
+
+  // ── Misc ─────────────────────────────────────────────────────────────────
+  Timer?  _countdownTimer;
+  String? _errorMsg;
+  bool    _reconnecting = false;
+
   bool get _ar => widget.isArabic;
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Lifecycle
+  // ─────────────────────────────────────────────────────────────────────────
 
   @override
   void initState() {
@@ -74,150 +102,312 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
 
   @override
   void dispose() {
+    _countdownTimer?.cancel();
+    _channel?.unsubscribe();
     _pulseCtrl.dispose();
     super.dispose();
   }
 
-  // ── Data loading ─────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────
+  // Init / round loading
+  // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _loadGame() async {
     setState(() { _phase = _Phase.loading; _errorMsg = null; });
     try {
-      final foods   = await _service.fetchFoodConfig();
-      final balance = await _service.fetchCoinBalance();
-      List<HungryCatHistoryEntry> history;
-      try { history = await _service.fetchRecentSpins(); }
-      catch (_) { history = []; }
+      final results = await Future.wait<dynamic>([
+        _service.fetchFoodConfig(),
+        _service.fetchCoinBalance(),
+        _service.getOrCreateRound(),
+        _service.getGlobalHistory(),
+      ]);
 
       if (!mounted) return;
-      setState(() {
-        _foods   = foods.take(8).toList();
-        _balance = balance;
-        _history = history.take(12).toList();
-        _phase   = _Phase.idle;
-      });
-    } catch (e) {
+
+      final foods   = results[0] as List<HungryCatFood>;
+      final balance = results[1] as int;
+      final round   = results[2] as HungryCatGlobalRound;
+      final history = results[3] as List<HungryCatHistoryEntry>;
+
+      _foods   = foods.take(8).toList();
+      _balance = balance;
+      _history = history.take(20).toList();
+
+      _applyRound(round);
+      _subscribeToRound(round.roundId);
+    } catch (e, st) {
+      debugPrint('[HungryCat] loadGame failed: $e\n$st');
       if (!mounted) return;
       setState(() {
-        _phase    = _Phase.loading; // stays loading to show retry
-        _errorMsg = '$e';
+        _phase    = _Phase.error;
+        _errorMsg = _friendlyError('$e');
       });
     }
   }
 
-  // ── Spin logic ────────────────────────────────────────────────────────────────
+  /// Applies a freshly loaded or arrived round to local state and starts the
+  /// countdown timer.  Works for both initial load and next-round transitions.
+  void _applyRound(HungryCatGlobalRound round) {
+    _countdownTimer?.cancel();
 
-  Future<void> _spin() async {
-    if (_phase != _Phase.idle) return;
+    _roundId      = round.roundId;
+    _roundNumber  = round.roundNumber;
+    _bettingEndsAt = round.bettingEndsAt;
+    _clockOffset  = round.serverNow.difference(DateTime.now().toUtc());
+    _settling     = false;
+    _winFoodId    = null;
+    _winFoodIcon  = null;
+    _winFoodName  = null;
+    _winMult      = null;
+    _betPlaced    = false;
+    _selectedFoodId = null;
+
+    if (round.isSettled) {
+      // Joined a round that already settled — show result then move on
+      _winFoodId   = round.winningFoodId;
+      _winFoodIcon = round.winningFoodIcon;
+      _winFoodName = round.winningFoodName;
+      _winMult     = round.winningMultiplier;
+      setState(() => _phase = _Phase.settled);
+      Future.delayed(const Duration(seconds: 3), _loadNextRound);
+    } else {
+      final now  = DateTime.now().toUtc().add(_clockOffset);
+      final left = round.bettingEndsAt.difference(now);
+      _secsLeft  = left.inSeconds.clamp(0, 9999);
+      setState(() => _phase = _Phase.betting);
+      _startCountdown();
+    }
+  }
+
+  void _startCountdown() {
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) { t.cancel(); return; }
+      final now  = DateTime.now().toUtc().add(_clockOffset);
+      final left = _bettingEndsAt!.difference(now).inSeconds;
+      if (left <= 0) {
+        t.cancel();
+        setState(() => _secsLeft = 0);
+        _triggerSettle();
+      } else {
+        setState(() => _secsLeft = left);
+      }
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Realtime
+  // ─────────────────────────────────────────────────────────────────────────
+
+  void _subscribeToRound(String roundId) {
+    _channel?.unsubscribe();
+    _reconnecting = false;
+
+    _channel = SupabaseService.requiredClient
+        .channel('hcat_global_$roundId')
+        .onPostgresChanges(
+          event:  PostgresChangeEvent.update,
+          schema: 'public',
+          table:  'hungry_cat_global_rounds',
+          filter: PostgresChangeFilter(
+            type:   PostgresChangeFilterType.eq,
+            column: 'id',
+            value:  roundId,
+          ),
+          callback: _onRoundUpdate,
+        )
+        .subscribe((status, [err]) {
+          if (!mounted) return;
+          setState(() => _reconnecting = status == RealtimeSubscribeStatus.channelError);
+        });
+  }
+
+  void _onRoundUpdate(PostgresChangePayload payload) {
+    if (!mounted) return;
+    final row = payload.newRecord;
+    if (row['status'] != 'settled') return;
+
+    final foodId   = row['winning_food_id']?.toString();
+    final foodIcon = row['winning_food_icon']?.toString();
+    final foodName = row['winning_food_name']?.toString();
+    final mult     = row['winning_multiplier'] == null
+        ? null
+        : (row['winning_multiplier'] as num).toDouble();
+
+    // Only act if we haven't already received the winner via direct RPC
+    if (_winFoodId == null) {
+      _applyWinner(foodId, foodIcon, foodName, mult);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Betting
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<void> _placeBet() async {
+    if (_phase != _Phase.betting || _selectedFoodId == null || _betPlaced) return;
     if (_balance < _betAmount) {
       _showSnack(_ar ? 'رصيد غير كافٍ' : 'Insufficient coins');
       return;
     }
-
-    setState(() { _phase = _Phase.spinning; _lastResult = null; });
     HapticFeedback.lightImpact();
-
-    // Generate a simple client-side spin id (no uuid package needed)
-    final clientId = '${DateTime.now().millisecondsSinceEpoch}_${math.Random().nextInt(999999)}';
-
-    HungryCatSpinResult result;
     try {
-      result = await _service.playSpin(
-        betAmount:    _betAmount,
-        clientSpinId: clientId,
+      final newBalance = await _service.placeGlobalBet(
+        roundId: _roundId!,
+        foodId:  _selectedFoodId!,
+        amount:  _betAmount,
       );
-    } catch (e) {
       if (!mounted) return;
-      setState(() => _phase = _Phase.idle);
+      setState(() {
+        _balance   = newBalance;
+        _betPlaced = true;
+      });
       _showSnack(_ar
-          ? 'حدث خطأ. حاول مجدداً.'
+          ? '✅ تم الرهان على ${_foodName(_selectedFoodId!)}!'
+          : '✅ Bet placed on ${_foodName(_selectedFoodId!)}!');
+    } catch (e, st) {
+      debugPrint('[HungryCat] placeBet failed: $e\n$st');
+      if (!mounted) return;
+      _showSnack(_ar
+          ? _friendlyErrorAr('$e')
           : _friendlyError('$e'));
-      return;
     }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Settling
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<void> _triggerSettle() async {
+    if (_settling || _phase != _Phase.betting) return;
+    _settling = true;
+    setState(() => _phase = _Phase.spinning);
+
+    // Run free-spin animation while waiting for the result
+    _runFreeSpin();
+
+    try {
+      final result = await _service.settleGlobalRound(_roundId!);
+      if (!mounted) return;
+      _applyWinner(
+        result.winningFoodId,
+        result.winningFoodIcon,
+        result.winningFoodName,
+        result.winningMultiplier,
+      );
+    } catch (e, st) {
+      debugPrint('[HungryCat] settle failed: $e\n$st');
+      // Realtime will still deliver the result; no UI error needed here.
+    }
+  }
+
+  /// Sets the winner and runs the landing animation.
+  void _applyWinner(
+    String? foodId, String? foodIcon, String? foodName, double? mult,
+  ) {
+    _winFoodId   = foodId;
+    _winFoodIcon = foodIcon;
+    _winFoodName = foodName;
+    _winMult     = mult;
+    // _runFreeSpin() is polling _winFoodId; it will transition to landing.
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Spin animation
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<void> _runFreeSpin() async {
+    // Fast loop until winner is known
+    while (mounted && _winFoodId == null && _phase == _Phase.spinning) {
+      await Future.delayed(const Duration(milliseconds: 70));
+      if (!mounted || _phase != _Phase.spinning) return;
+      setState(() => _highlighted = (_highlighted + 1) % _displayFoodCount);
+    }
+    if (!mounted || _phase != _Phase.spinning) return;
+
+    // Slow-landing animation to the winner slot
+    final target = _findWinnerIndex();
+    await _runLandingAnimation(target);
     if (!mounted) return;
 
-    // Find which bubble slot corresponds to the winning food
-    final winningIndex = _findWinningIndex(result);
-
-    // Run the spin animation — modifies _highlighted
-    await _runSpinAnimation(winningIndex);
-    if (!mounted) return;
-
-    // Pulse the winner 2-3 times
+    // Pulse the winner bubble
+    HapticFeedback.mediumImpact();
     for (int i = 0; i < 3; i++) {
+      if (!mounted) break;
       await _pulseCtrl.forward();
       await _pulseCtrl.reverse();
     }
     if (!mounted) return;
 
-    HapticFeedback.mediumImpact();
-
-    setState(() {
-      _lastResult = result;
-      _balance    = result.newBalance;
-      _history    = [
-        HungryCatHistoryEntry(
-          foodIcon:     result.foodIcon,
-          foodName:     result.foodName,
-          multiplier:   result.multiplier,
-          rarity:       result.rarity,
-          rewardAmount: result.rewardAmount,
-          betAmount:    result.betAmount,
-        ),
-        ..._history,
-      ].take(12).toList();
-      _phase = _Phase.result;
-    });
-
-    // Auto-reset to idle after 2.5s
-    await Future.delayed(const Duration(milliseconds: 2500));
+    // Fetch updated balance (we may have won)
+    _balance = await _service.fetchCoinBalance();
     if (!mounted) return;
-    setState(() { _phase = _Phase.idle; _lastResult = null; });
+
+    // Load fresh global history
+    try {
+      final hist = await _service.getGlobalHistory();
+      if (mounted) _history = hist.take(20).toList();
+    } catch (_) {}
+    if (!mounted) return;
+
+    setState(() => _phase = _Phase.settled);
+    await Future.delayed(const Duration(seconds: 3));
+    if (!mounted) return;
+    _loadNextRound();
   }
 
-  // Eased spin: fast start → gradual slowdown → stop on winner
-  Future<void> _runSpinAnimation(int winningIndex) async {
-    final n = _displayFoodCount;
-    // 4-6 full loops + distance to winner
-    final fullLoops = 4 + (DateTime.now().millisecondsSinceEpoch % 3).toInt();
-    final distToWinner = (winningIndex - _highlighted + n) % n;
-    final totalSteps   = fullLoops * n + (distToWinner == 0 ? n : distToWinner);
+  Future<void> _runLandingAnimation(int target) async {
+    final n    = _displayFoodCount;
+    final dist = (target - _highlighted + n) % n;
+    final steps = dist == 0 ? n : dist; // always spin forward to land
 
-    for (int i = 0; i < totalSteps; i++) {
-      final progress = i / totalSteps;
-      final ms = _stepDelay(progress);
+    for (int i = 0; i < steps; i++) {
+      if (!mounted) return;
+      final progress = i / steps;
+      final ms = (70 + progress * 230).toInt(); // 70 → 300 ms
       await Future.delayed(Duration(milliseconds: ms));
       if (!mounted) return;
       setState(() => _highlighted = (_highlighted + 1) % n);
     }
-    // _highlighted should now == winningIndex
   }
 
-  int _stepDelay(double progress) {
-    // 0..0.4 → 50ms, 0.4..0.7 → 50→150ms, 0.7..1.0 → 150→300ms
-    if (progress < 0.40) return 50;
-    if (progress < 0.70) {
-      return 50 + ((progress - 0.40) / 0.30 * 100).toInt();
-    }
-    return 150 + ((progress - 0.70) / 0.30 * 150).toInt();
-  }
-
-  int _findWinningIndex(HungryCatSpinResult result) {
-    // 1. Match by foodId
+  int _findWinnerIndex() {
+    if (_winFoodId == null) return _highlighted;
     for (int i = 0; i < _foods.length; i++) {
-      if (_foods[i].foodId == result.foodId) return i;
+      if (_foods[i].foodId == _winFoodId) return i;
     }
-    // 2. Match by multiplier (closest)
+    // Fallback: closest multiplier
     double best = double.maxFinite;
     int idx = 0;
+    final m = _winMult ?? 0;
     for (int i = 0; i < _foods.length; i++) {
-      final diff = (_foods[i].multiplier - result.multiplier).abs();
+      final diff = (_foods[i].multiplier - m).abs();
       if (diff < best) { best = diff; idx = i; }
     }
     return idx;
   }
 
-  // ── Display helpers ───────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────
+  // Next round
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<void> _loadNextRound() async {
+    if (!mounted) return;
+    try {
+      final round = await _service.getOrCreateRound();
+      if (!mounted) return;
+      _subscribeToRound(round.roundId);
+      _applyRound(round);
+    } catch (e, st) {
+      debugPrint('[HungryCat] nextRound failed: $e\n$st');
+      // Retry after a brief pause
+      await Future.delayed(const Duration(seconds: 2));
+      _loadNextRound();
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Helpers
+  // ─────────────────────────────────────────────────────────────────────────
 
   int get _displayFoodCount => _foods.isEmpty ? _kDefaultFoods.length : _foods.length;
 
@@ -230,17 +420,62 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     final mult = i < _foods.length
         ? _foods[i].multiplier
         : _kDefaultFoods[i % _kDefaultFoods.length].mult;
-    final intMult = mult.truncateToDouble() == mult ? mult.toInt() : mult;
-    return _ar ? '${intMult}x' : '${intMult}x';
+    final v = mult.truncateToDouble() == mult ? mult.toInt().toString() : mult.toString();
+    return '${v}x';
   }
 
-  // ── UI ────────────────────────────────────────────────────────────────────────
+  String _foodName(String foodId) {
+    for (final f in _foods) {
+      if (f.foodId == foodId) return _ar ? f.name : f.name;
+    }
+    return foodId;
+  }
+
+  String _friendlyError(String e) {
+    if (e.contains('insufficient_coins'))  return 'Insufficient coins';
+    if (e.contains('game_disabled'))       return 'Game is currently disabled';
+    if (e.contains('betting_closed'))      return 'Betting window has closed';
+    if (e.contains('round_not_found'))     return 'Round not found — refreshing';
+    if (e.contains('invalid_food'))        return 'Invalid food selection';
+    if (e.contains('not_authenticated'))   return 'Please log in again';
+    if (e.contains('duplicate'))           return 'Duplicate request, try again';
+    return 'Something went wrong. Please try again.';
+  }
+
+  String _friendlyErrorAr(String e) {
+    if (e.contains('insufficient_coins'))  return 'رصيد غير كافٍ';
+    if (e.contains('game_disabled'))       return 'اللعبة معطّلة حالياً';
+    if (e.contains('betting_closed'))      return 'انتهى وقت الرهان';
+    if (e.contains('round_not_found'))     return 'لم يُوجد الجولة — جارٍ التحديث';
+    if (e.contains('invalid_food'))        return 'اختيار طعام غير صالح';
+    if (e.contains('not_authenticated'))   return 'يرجى تسجيل الدخول من جديد';
+    if (e.contains('duplicate'))           return 'طلب مكرر، حاول مجدداً';
+    return 'حدث خطأ. حاول مجدداً.';
+  }
+
+  void _showSnack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
+    );
+  }
+
+  String _formatCoins(int v) {
+    if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
+    if (v >= 1000)    return '${(v / 1000).toStringAsFixed(v % 1000 == 0 ? 0 : 1)}K';
+    return '$v';
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Build
+  // ─────────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF08030F),
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             _buildHeader(),
@@ -261,41 +496,68 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
             onPressed: () => Navigator.of(context).maybePop(),
           ),
           const SizedBox(width: 2),
-          const Text('🐱', style: TextStyle(fontSize: 28)),
+          const Text('🐱', style: TextStyle(fontSize: 26)),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              _ar ? 'القط الجائع' : 'Hungry Cat',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(30),
-              gradient: const LinearGradient(
-                colors: [Color(0xFF2A1A0A), Color(0xFF3D2610)],
-              ),
-              border: Border.all(color: const Color(0xFFF0C15A).withValues(alpha: 0.5)),
-            ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('🪙', style: TextStyle(fontSize: 14)),
-                const SizedBox(width: 5),
                 Text(
-                  _formatCoins(_balance),
+                  _ar ? 'القط الجائع' : 'Hungry Cat',
                   style: const TextStyle(
-                    color: Color(0xFFF0C15A),
-                    fontWeight: FontWeight.w800,
-                    fontSize: 15,
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
+                if (_roundNumber > 0)
+                  Text(
+                    _ar ? 'جولة #$_roundNumber' : 'Round #$_roundNumber',
+                    style: const TextStyle(color: Colors.white38, fontSize: 11),
+                  ),
               ],
+            ),
+          ),
+          if (_reconnecting)
+            const Padding(
+              padding: EdgeInsets.only(right: 8),
+              child: SizedBox(
+                width: 14, height: 14,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2, color: Color(0xFFF0C15A),
+                ),
+              ),
+            ),
+          _buildBalanceChip(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBalanceChip() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF2A1A0A), Color(0xFF3D2610)],
+        ),
+        border: Border.all(
+          color: const Color(0xFFF0C15A).withValues(alpha: 0.5),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('🪙', style: TextStyle(fontSize: 13)),
+          const SizedBox(width: 5),
+          Text(
+            _formatCoins(_balance),
+            style: const TextStyle(
+              color: Color(0xFFF0C15A),
+              fontWeight: FontWeight.w800,
+              fontSize: 14,
             ),
           ),
         ],
@@ -304,56 +566,114 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   }
 
   Widget _buildBody() {
-    if (_phase == _Phase.loading && _foods.isEmpty) {
-      return _errorMsg != null ? _buildError() : _buildLoading();
-    }
+    if (_phase == _Phase.loading) return _buildLoading();
+    if (_phase == _Phase.error)   return _buildError();
     return Column(
       children: [
+        _buildPhaseBar(),
         Expanded(child: _buildWheelArea()),
         _buildHistoryStrip(),
-        _buildBetSelector(),
-        _buildSpinButton(),
-        const SizedBox(height: 20),
+        _buildBottomControls(),
+        const SizedBox(height: 16),
       ],
     );
   }
 
+  // ── Phase label bar ───────────────────────────────────────────────────────
+
+  Widget _buildPhaseBar() {
+    String label;
+    Color  bg;
+    Color  fg;
+
+    switch (_phase) {
+      case _Phase.betting:
+        label = _ar
+            ? 'الرهان مفتوح • $_secsLeft ث'
+            : 'Betting open • ${_secsLeft}s';
+        bg = const Color(0xFF1A3D1A);
+        fg = const Color(0xFF4ADE80);
+      case _Phase.spinning:
+        label = _ar ? '🎰 جارٍ الدوران...' : '🎰 Spinning...';
+        bg = const Color(0xFF1A1A3D);
+        fg = const Color(0xFFA78BFA);
+      case _Phase.settled:
+        final icon = _winFoodIcon ?? '🍽️';
+        final name = _winFoodName ?? '';
+        final mult = _winMult != null
+            ? (_winMult!.truncateToDouble() == _winMult
+                ? '${_winMult!.toInt()}x'
+                : '${_winMult}x')
+            : '';
+        label = _ar
+            ? '🏆 الفائز: $icon $name $mult'
+            : '🏆 Winner: $icon $name $mult';
+        bg = const Color(0xFF2A1A00);
+        fg = const Color(0xFFF0C15A);
+      default:
+        return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 14),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: fg.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (_phase == _Phase.spinning)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: SizedBox(
+                width: 12, height: 12,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2, color: fg,
+                ),
+              ),
+            ),
+          Text(
+            label,
+            style: TextStyle(color: fg, fontSize: 13, fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Wheel area ────────────────────────────────────────────────────────────
+
   Widget _buildWheelArea() {
     return LayoutBuilder(
       builder: (ctx, constraints) {
-        final size = math.min(constraints.maxWidth, constraints.maxHeight);
-        final radius   = size * 0.34;
-        final catSize  = size * 0.22;
-        final bubSize  = size * 0.195;
-        final center   = Offset(size / 2, size / 2);
-        final n        = _displayFoodCount;
+        final size    = math.min(constraints.maxWidth, constraints.maxHeight);
+        final radius  = size * 0.34;
+        final catSize = size * 0.22;
+        final bubSize = size * 0.195;
+        final center  = Offset(size / 2, size / 2);
+        final n       = _displayFoodCount;
 
         return SizedBox(
           width: size,
           height: size,
           child: Stack(
             children: [
-              // ── Decorative glow ring ──────────────────────────────────────
               Positioned.fill(
                 child: CustomPaint(painter: _RingPainter(radius: radius)),
               ),
-
-              // ── Food bubbles ──────────────────────────────────────────────
-              for (int i = 0; i < n; i++) ...[
+              for (int i = 0; i < n; i++)
                 _positionedBubble(i, n, center, radius, bubSize),
-              ],
-
-              // ── Center cat ────────────────────────────────────────────────
               Positioned(
-                left:  center.dx - catSize / 2,
-                top:   center.dy - catSize / 2,
-                width: catSize,
+                left:   center.dx - catSize / 2,
+                top:    center.dy - catSize / 2,
+                width:  catSize,
                 height: catSize,
-                child: _buildCatCenter(catSize),
+                child:  _buildCatCenter(catSize),
               ),
-
-              // ── Result overlay ────────────────────────────────────────────
-              if (_phase == _Phase.result && _lastResult != null)
+              if (_phase == _Phase.settled && _winFoodId != null)
                 Positioned.fill(child: _buildResultOverlay()),
             ],
           ),
@@ -365,47 +685,64 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   Widget _positionedBubble(
     int i, int n, Offset center, double radius, double bubSize,
   ) {
-    final angle = -math.pi / 2 + i * 2 * math.pi / n;
-    final left  = center.dx + math.cos(angle) * radius - bubSize / 2;
-    final top   = center.dy + math.sin(angle) * radius - bubSize / 2;
-
+    final angle    = -math.pi / 2 + i * 2 * math.pi / n;
+    final left     = center.dx + math.cos(angle) * radius - bubSize / 2;
+    final top      = center.dy + math.sin(angle) * radius - bubSize / 2;
     final isActive = i == _highlighted;
-    final isWinner = _phase == _Phase.result &&
-        _lastResult != null &&
-        i == _highlighted;
+    final isWinner = _phase == _Phase.settled && _winFoodId != null
+        && i == _findWinnerIndex();
+    final isSelected = _phase == _Phase.betting
+        && _foods.isNotEmpty
+        && i < _foods.length
+        && _foods[i].foodId == _selectedFoodId;
+
+    final bubble = AnimatedBuilder(
+      animation: _pulseAnim,
+      builder: (_, child) {
+        final scale = isWinner ? _pulseAnim.value : 1.0;
+        return Transform.scale(scale: scale, child: child);
+      },
+      child: _HungryCatBubble(
+        emoji:      _emojiAt(i),
+        size:       bubSize,
+        isActive:   isActive,
+        isWinner:   isWinner,
+        isSelected: isSelected,
+      ),
+    );
+
+    final label = Text(
+      _labelAt(i),
+      style: TextStyle(
+        color: isSelected
+            ? const Color(0xFF34D399)
+            : isActive
+                ? const Color(0xFFF0C15A)
+                : Colors.white.withValues(alpha: 0.65),
+        fontSize: bubSize * 0.20,
+        fontWeight: (isActive || isSelected) ? FontWeight.w900 : FontWeight.w600,
+      ),
+    );
+
+    // Make tappable during betting phase
+    Widget child = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [bubble, const SizedBox(height: 2), label],
+    );
+
+    if (_phase == _Phase.betting && i < _foods.length) {
+      child = GestureDetector(
+        onTap: () => setState(() => _selectedFoodId = _foods[i].foodId),
+        child: child,
+      );
+    }
 
     return Positioned(
-      left: left, top: top,
-      width: bubSize, height: bubSize + 20,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AnimatedBuilder(
-            animation: _pulseAnim,
-            builder: (_, child) {
-              final scale = isWinner ? _pulseAnim.value : 1.0;
-              return Transform.scale(scale: scale, child: child);
-            },
-            child: _HungryCatBubble(
-              emoji:    _emojiAt(i),
-              size:     bubSize,
-              isActive: isActive,
-              isWinner: isWinner,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            _labelAt(i),
-            style: TextStyle(
-              color: isActive
-                  ? const Color(0xFFF0C15A)
-                  : Colors.white.withValues(alpha: 0.65),
-              fontSize: bubSize * 0.2,
-              fontWeight: isActive ? FontWeight.w900 : FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
+      left:   left,
+      top:    top,
+      width:  bubSize,
+      height: bubSize + 24, // extra for label
+      child:  child,
     );
   }
 
@@ -415,11 +752,8 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
       duration: const Duration(milliseconds: 300),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: [
-            const Color(0xFF3D1C7E),
-            const Color(0xFF1A0533),
-          ],
+        gradient: const RadialGradient(
+          colors: [Color(0xFF3D1C7E), Color(0xFF1A0533)],
         ),
         border: Border.all(
           color: spinning
@@ -429,7 +763,8 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF8B5CF6).withValues(alpha: spinning ? 0.5 : 0.25),
+            color: const Color(0xFF8B5CF6)
+                .withValues(alpha: spinning ? 0.5 : 0.25),
             blurRadius: spinning ? 24 : 12,
           ),
         ],
@@ -444,8 +779,14 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   }
 
   Widget _buildResultOverlay() {
-    final r  = _lastResult!;
-    final won = r.rewardAmount > r.betAmount;
+    final icon = _winFoodIcon ?? '🍽️';
+    final name = _winFoodName ?? '';
+    final mult = _winMult != null
+        ? (_winMult!.truncateToDouble() == _winMult
+            ? '${_winMult!.toInt()}x'
+            : '${_winMult}x')
+        : '';
+
     return IgnorePointer(
       child: AnimatedOpacity(
         opacity: 1.0,
@@ -457,21 +798,13 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
             padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
-              gradient: LinearGradient(
-                colors: won
-                    ? [const Color(0xFF2A1A00), const Color(0xFF3D2610)]
-                    : [const Color(0xFF1A0533), const Color(0xFF2D0D5E)],
+              gradient: const LinearGradient(
+                colors: [Color(0xFF2A1A00), Color(0xFF3D2610)],
               ),
-              border: Border.all(
-                color: won
-                    ? const Color(0xFFF0C15A)
-                    : const Color(0xFF6D28D9),
-                width: 2,
-              ),
+              border: Border.all(color: const Color(0xFFF0C15A), width: 2),
               boxShadow: [
                 BoxShadow(
-                  color: (won ? const Color(0xFFF0C15A) : const Color(0xFF8B5CF6))
-                      .withValues(alpha: 0.35),
+                  color: const Color(0xFFF0C15A).withValues(alpha: 0.35),
                   blurRadius: 20,
                 ),
               ],
@@ -479,21 +812,36 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(r.foodIcon, style: const TextStyle(fontSize: 36)),
+                Text(icon, style: const TextStyle(fontSize: 38)),
                 const SizedBox(height: 6),
                 Text(
-                  r.foodName,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16),
+                  name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                  ),
                 ),
+                if (mult.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    mult,
+                    style: const TextStyle(
+                      color: Color(0xFFF0C15A),
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 4),
                 Text(
-                  won
-                      ? (_ar ? '🎉 ربحت ${_formatCoins(r.rewardAmount)} 🪙' : '🎉 Won ${_formatCoins(r.rewardAmount)} 🪙')
-                      : (_ar ? 'حاول مجدداً!' : 'Better luck next time!'),
-                  style: TextStyle(
-                    color: won ? const Color(0xFFF0C15A) : Colors.white70,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
+                  _betPlaced
+                      ? (_ar ? '🎉 راجع رصيدك!' : '🎉 Check your balance!')
+                      : (_ar ? 'رهان في الجولة القادمة!' : 'Bet next round!'),
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -504,36 +852,39 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     );
   }
 
-  // ── History strip ─────────────────────────────────────────────────────────────
+  // ── History strip ─────────────────────────────────────────────────────────
 
   Widget _buildHistoryStrip() {
-    if (_history.isEmpty) return const SizedBox(height: 8);
+    if (_history.isEmpty) return const SizedBox(height: 6);
     return SizedBox(
-      height: 54,
+      height: 50,
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 14),
         scrollDirection: Axis.horizontal,
-        reverse: true, // newest at left
+        reverse: true,
         itemCount: _history.length,
         itemBuilder: (ctx, i) {
-          final h = _history[i];
-          final won = h.rewardAmount > h.betAmount;
+          final h   = _history[i];
+          final big = h.multiplier >= 20;
           return Container(
-            margin: const EdgeInsets.only(right: 8, top: 4, bottom: 4),
-            width: 46,
+            margin: const EdgeInsets.only(right: 7, top: 4, bottom: 4),
+            width: 42,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: won
+              color: big
                   ? const Color(0xFFF0C15A).withValues(alpha: 0.15)
                   : Colors.white.withValues(alpha: 0.05),
               border: Border.all(
-                color: won
+                color: big
                     ? const Color(0xFFF0C15A).withValues(alpha: 0.5)
                     : Colors.white12,
               ),
             ),
             child: Center(
-              child: Text(h.foodIcon, style: const TextStyle(fontSize: 22)),
+              child: Text(
+                h.foodIcon,
+                style: const TextStyle(fontSize: 20),
+              ),
             ),
           );
         },
@@ -541,129 +892,131 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     );
   }
 
-  // ── Bet selector ──────────────────────────────────────────────────────────────
+  // ── Bottom controls ───────────────────────────────────────────────────────
 
-  Widget _buildBetSelector() {
-    final disabled = _phase == _Phase.spinning;
+  Widget _buildBottomControls() {
+    if (_phase != _Phase.betting) return const SizedBox(height: 8);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
+      padding: const EdgeInsets.fromLTRB(14, 4, 14, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            _ar ? 'الرهان' : 'Bet Amount',
-            style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 6),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: _kBetChips.map((chip) {
-                final selected = chip == _betAmount;
-                return GestureDetector(
-                  onTap: disabled ? null : () => setState(() => _betAmount = chip),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(30),
-                      gradient: selected
-                          ? const LinearGradient(
-                              colors: [Color(0xFFF0C15A), Color(0xFFD4A017)],
-                            )
-                          : null,
-                      color: selected ? null : Colors.white.withValues(alpha: 0.06),
-                      border: Border.all(
-                        color: selected
-                            ? const Color(0xFFF0C15A)
-                            : Colors.white.withValues(alpha: 0.14),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (selected)
-                          const Text('🪙', style: TextStyle(fontSize: 13)),
-                        if (selected) const SizedBox(width: 4),
-                        Text(
-                          _formatCoins(chip),
-                          style: TextStyle(
-                            color: selected ? const Color(0xFF1A0533) : Colors.white70,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
+          if (_selectedFoodId == null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                _ar ? 'اختر طعاماً للرهان عليه 👆' : 'Tap a food to select it 👆',
+                style: const TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                _ar
+                    ? 'مختار: ${_foodName(_selectedFoodId!)} ✅'
+                    : 'Selected: ${_foodName(_selectedFoodId!)} ✅',
+                style: const TextStyle(
+                  color: Color(0xFF34D399),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
-          ),
+          _buildBetChips(),
+          const SizedBox(height: 8),
+          _buildBetButton(),
         ],
       ),
     );
   }
 
-  // ── Spin button ───────────────────────────────────────────────────────────────
-
-  Widget _buildSpinButton() {
-    final canSpin = _phase == _Phase.idle && _balance >= _betAmount;
-    final spinning = _phase == _Phase.spinning;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
-      child: GestureDetector(
-        onTap: canSpin ? _spin : null,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          height: 54,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            gradient: canSpin
-                ? const LinearGradient(
-                    colors: [Color(0xFFF0C15A), Color(0xFFD4A017)],
-                  )
-                : null,
-            color: canSpin ? null : Colors.white.withValues(alpha: 0.06),
-            boxShadow: canSpin
-                ? [const BoxShadow(
-                    color: Color(0x55F0C15A), blurRadius: 18, offset: Offset(0, 6))]
-                : null,
-          ),
-          alignment: Alignment.center,
-          child: spinning
-              ? const SizedBox(
-                  width: 22, height: 22,
-                  child: CircularProgressIndicator(
-                    color: Color(0xFFF0C15A), strokeWidth: 2.5,
-                  ),
-                )
-              : Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('🎰', style: TextStyle(fontSize: 20)),
-                    const SizedBox(width: 8),
-                    Text(
-                      canSpin
-                          ? (_ar ? 'العب مقابل ${_formatCoins(_betAmount)} 🪙' : 'Spin for ${_formatCoins(_betAmount)} 🪙')
-                          : (_balance < _betAmount
-                              ? (_ar ? 'رصيد غير كافٍ' : 'Insufficient coins')
-                              : (_ar ? 'انتظر...' : 'Please wait...')),
-                      style: TextStyle(
-                        color: canSpin ? const Color(0xFF1A0533) : Colors.white38,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
+  Widget _buildBetChips() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: _kBetChips.map((chip) {
+          final sel = chip == _betAmount;
+          return GestureDetector(
+            onTap: _betPlaced ? null : () => setState(() => _betAmount = chip),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(30),
+                gradient: sel
+                    ? const LinearGradient(
+                        colors: [Color(0xFFF0C15A), Color(0xFFD4A017)],
+                      )
+                    : null,
+                color: sel ? null : Colors.white.withValues(alpha: 0.06),
+                border: Border.all(
+                  color: sel
+                      ? const Color(0xFFF0C15A)
+                      : Colors.white.withValues(alpha: 0.14),
                 ),
+              ),
+              child: Text(
+                '${sel ? '🪙 ' : ''}${_formatCoins(chip)}',
+                style: TextStyle(
+                  color: sel ? const Color(0xFF1A0533) : Colors.white70,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildBetButton() {
+    final canBet = _selectedFoodId != null && !_betPlaced && _balance >= _betAmount;
+    final label  = _betPlaced
+        ? (_ar ? '✅ تم الرهان' : '✅ Bet placed')
+        : canBet
+            ? (_ar
+                ? 'راهن بـ ${_formatCoins(_betAmount)} 🪙'
+                : 'Bet ${_formatCoins(_betAmount)} 🪙')
+            : _selectedFoodId == null
+                ? (_ar ? 'اختر طعاماً أولاً' : 'Select a food first')
+                : (_ar ? 'رصيد غير كافٍ' : 'Insufficient coins');
+
+    return GestureDetector(
+      onTap: canBet ? _placeBet : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        height: 50,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: canBet
+              ? const LinearGradient(
+                  colors: [Color(0xFFF0C15A), Color(0xFFD4A017)],
+                )
+              : null,
+          color: canBet ? null : Colors.white.withValues(alpha: 0.06),
+          boxShadow: canBet
+              ? [const BoxShadow(
+                  color: Color(0x55F0C15A), blurRadius: 14, offset: Offset(0, 4))]
+              : null,
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: canBet ? const Color(0xFF1A0533) : Colors.white38,
+            fontSize: 15,
+            fontWeight: FontWeight.w900,
+          ),
         ),
       ),
     );
   }
 
-  // ── Loading / Error ───────────────────────────────────────────────────────────
+  // ── Loading / Error ───────────────────────────────────────────────────────
 
   Widget _buildLoading() {
     return Center(
@@ -677,8 +1030,10 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
           ),
           const SizedBox(height: 14),
           Text(
-            _ar ? 'جاري التحميل...' : 'Loading...',
-            style: const TextStyle(color: Color(0xFFF0C15A), fontSize: 15, fontWeight: FontWeight.w700),
+            _ar ? 'جارٍ التحميل...' : 'Loading...',
+            style: const TextStyle(
+              color: Color(0xFFF0C15A), fontSize: 15, fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -695,8 +1050,10 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
             const Text('🐱', style: TextStyle(fontSize: 52)),
             const SizedBox(height: 12),
             Text(
-              _ar ? 'تعذر تحميل اللعبة' : 'Failed to load',
-              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+              _ar ? 'تعذّر تحميل اللعبة' : 'Failed to load',
+              style: const TextStyle(
+                color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -718,30 +1075,9 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
       ),
     );
   }
-
-  // ── Utilities ─────────────────────────────────────────────────────────────────
-
-  String _formatCoins(int v) {
-    if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
-    if (v >= 1000)    return '${(v / 1000).toStringAsFixed(v % 1000 == 0 ? 0 : 1)}K';
-    return '$v';
-  }
-
-  String _friendlyError(String e) {
-    if (e.contains('insufficient_coins')) return 'Insufficient coins';
-    if (e.contains('game_disabled'))      return 'Game is currently disabled';
-    if (e.contains('duplicate'))          return 'Duplicate request, please try again';
-    return 'Something went wrong. Please try again.';
-  }
-
-  void _showSnack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
-    );
-  }
 }
 
-// ── Option bubble widget ──────────────────────────────────────────────────────
+// ── Bubble widget ─────────────────────────────────────────────────────────────
 
 class _HungryCatBubble extends StatelessWidget {
   const _HungryCatBubble({
@@ -749,15 +1085,25 @@ class _HungryCatBubble extends StatelessWidget {
     required this.size,
     required this.isActive,
     required this.isWinner,
+    required this.isSelected,
   });
 
   final String emoji;
   final double size;
   final bool   isActive;
   final bool   isWinner;
+  final bool   isSelected;
 
   @override
   Widget build(BuildContext context) {
+    final Color borderColor = isWinner
+        ? const Color(0xFFF0C15A)
+        : isSelected
+            ? const Color(0xFF34D399)
+            : isActive
+                ? const Color(0xFFF0C15A).withValues(alpha: 0.85)
+                : const Color(0xFF4A1C8C).withValues(alpha: 0.55);
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 120),
       width: size,
@@ -765,22 +1111,21 @@ class _HungryCatBubble extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: RadialGradient(
-          colors: isActive
+          colors: (isActive || isSelected)
               ? [const Color(0xFF3D2610), const Color(0xFF2A1A00)]
               : [const Color(0xFF1E0D3E), const Color(0xFF130826)],
         ),
         border: Border.all(
-          color: isWinner
-              ? const Color(0xFFF0C15A)
-              : isActive
-                  ? const Color(0xFFF0C15A).withValues(alpha: 0.85)
-                  : const Color(0xFF4A1C8C).withValues(alpha: 0.55),
-          width: isActive ? 2.5 : 1.5,
+          color: borderColor,
+          width: (isActive || isSelected) ? 2.5 : 1.5,
         ),
-        boxShadow: isActive
+        boxShadow: (isActive || isSelected || isWinner)
             ? [
                 BoxShadow(
-                  color: const Color(0xFFF0C15A).withValues(alpha: isWinner ? 0.7 : 0.45),
+                  color: (isWinner || isSelected
+                          ? const Color(0xFFF0C15A)
+                          : const Color(0xFFF0C15A))
+                      .withValues(alpha: isWinner ? 0.7 : 0.45),
                   blurRadius: isWinner ? 20 : 12,
                   spreadRadius: isWinner ? 3 : 0,
                 ),

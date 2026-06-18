@@ -3,41 +3,39 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
 import '../services/crash_game_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
-/// Rocket Crash — local WebView game with Flutter wallet bridge.
+/// Rocket Crash — global shared rounds, server-calculated cashout, real-time sync.
 ///
-/// JS drives the entire round loop (waiting → flying → crashed).
-/// Flutter handles ONLY atomic wallet operations via Supabase RPCs.
-///
-/// Security: all coin deduction and credit happen inside Supabase RPC
-/// functions with SQL-side validation.  The frontend never updates wallet
-/// balances directly.
-///
-/// ── Bridge Web → Flutter ──────────────────────────────────────────────
+/// ── Bridge Web → Flutter ──────────────────────────────────────────────────
 ///   GAME_READY              page loaded; request init
-///   REQUEST_BET_DEBIT       arm a slot: deduct coins, create bet record
-///   REQUEST_BET_REFUND      cancel a slot: refund full amount
-///   REQUEST_CASHOUT_CREDIT  cash out: credit bet × multiplier
-///   REQUEST_BET_LOST        rocket crashed before cashout: mark bet lost
+///   REQUEST_PLACE_BET       arm a slot in the global round
+///   REQUEST_BET_DEBIT       legacy fallback if round unavailable
+///   REQUEST_BET_REFUND      cancel a slot (legacy path only)
+///   REQUEST_CASHOUT_CREDIT  cash out; server calculates multiplier for global bets
+///   REQUEST_BET_LOST        rocket crashed (legacy path; global settle handles it)
+///   REQUEST_START_FLIGHT    JS countdown ended; Flutter calls start_rocket_crash_flight
+///   REQUEST_SETTLE_ROUND    JS detected crash; Flutter calls settle_rocket_crash_round
 ///   REQUEST_WALLET_REFRESH  refresh balance from DB
-///   SET_SOUND_SETTING       persist sound pref (JS handles localStorage)
-///   GAME_CLOSED             pop the screen
+///   SET_SOUND_SETTING       sound pref (JS localStorage)
+///   GAME_CLOSED             pop screen
 ///
-/// ── Bridge Flutter → Web ──────────────────────────────────────────────
-///   INIT_GAME               balance, locale, sound
-///   WALLET_UPDATED          new balance after any operation
+/// ── Bridge Flutter → Web ──────────────────────────────────────────────────
+///   INIT_GAME               balance, locale, round state, history
+///   SET_ROUND_STATE         phase transition (betting/flying/crashed)
+///   HISTORY_UPDATE          last 20 crash multipliers
+///   BETS_UPDATE             current round bet feed
+///   WALLET_UPDATED          new balance
 ///   BET_ACCEPTED            bet_id, amount, newBalance
 ///   BET_REJECTED            code
-///   REFUND_ACCEPTED         refunded_amount, newBalance
-///   REFUND_REJECTED         code
+///   REFUND_ACCEPTED/REJECTED
 ///   CASHOUT_ACCEPTED        winAmount, multiplier, newBalance
 ///   CASHOUT_REJECTED        code
-///   SOUND_SETTING_UPDATED   enabled bool (echo back to JS if needed)
 class RocketCrashWebviewScreen extends StatefulWidget {
   const RocketCrashWebviewScreen({required this.isArabic, super.key});
   final bool isArabic;
@@ -52,11 +50,18 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
   final _service = const CrashGameService();
 
   bool _pageLoaded = false;
-  bool _pageError = false;
+  bool _pageError  = false;
   String? _pageErrorMsg;
 
-  // Guards against duplicate cashout/refund calls for the same betId.
+  // Idempotency guard for cashout / refund calls.
   final Set<String> _settledBetIds = {};
+
+  // Global round state
+  String? _roundId;
+  bool _flightStarted = false;
+  bool _settling      = false;
+  Timer? _bettingEndTimer;
+  RealtimeChannel? _roundChannel;
 
   @override
   void initState() {
@@ -74,28 +79,28 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
         'SroodBridge',
         onMessageReceived: (msg) => _onWebMessage(msg.message),
       )
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onPageFinished: (_) {
-            if (!mounted) return;
-            setState(() => _pageLoaded = true);
-          },
-          onWebResourceError: (e) {
-            if (e.isForMainFrame == false) return;
-            if (!mounted) return;
-            setState(() {
-              _pageLoaded = true;
-              _pageError = true;
-              _pageErrorMsg = e.description;
-            });
-          },
-        ),
-      )
+      ..setNavigationDelegate(NavigationDelegate(
+        onPageFinished: (_) {
+          if (!mounted) return;
+          setState(() => _pageLoaded = true);
+        },
+        onWebResourceError: (e) {
+          if (e.isForMainFrame == false) return;
+          if (!mounted) return;
+          setState(() {
+            _pageLoaded  = true;
+            _pageError   = true;
+            _pageErrorMsg = e.description;
+          });
+        },
+      ))
       ..loadFlutterAsset('assets/games/rocket_crash/index.html');
   }
 
   @override
   void dispose() {
+    _bettingEndTimer?.cancel();
+    _roundChannel?.unsubscribe();
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       systemNavigationBarColor: Colors.transparent,
     ));
@@ -111,27 +116,34 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
     } catch (_) {
       return;
     }
-
-    final type = msg['type'] as String? ?? '';
-    final payload = (msg['payload'] as Map<String, dynamic>?) ?? {};
+    final type    = msg['type']    as String?              ?? '';
+    final payload = msg['payload'] as Map<String, dynamic>? ?? {};
 
     debugPrint('[RocketCrash] ← $type');
 
     switch (type) {
       case 'GAME_READY':
         await _initGame();
+      case 'REQUEST_PLACE_BET':
+        await _handlePlaceBet(payload);
       case 'REQUEST_BET_DEBIT':
-        await _handleBetDebit(payload);
+        await _handleBetDebit(payload); // legacy local fallback
       case 'REQUEST_BET_REFUND':
         await _handleBetRefund(payload);
       case 'REQUEST_CASHOUT_CREDIT':
         await _handleCashout(payload);
       case 'REQUEST_BET_LOST':
-        _handleBetLost(payload); // fire-and-forget; UI is already updated
+        _handleBetLost(payload);
+      case 'REQUEST_START_FLIGHT':
+        final rId = payload['roundId']?.toString() ?? _roundId;
+        if (rId != null) await _startFlight(rId);
+      case 'REQUEST_SETTLE_ROUND':
+        final rId = payload['roundId']?.toString() ?? _roundId;
+        if (rId != null) await _triggerSettle(rId);
       case 'REQUEST_WALLET_REFRESH':
         await _refreshBalance();
       case 'SET_SOUND_SETTING':
-        break; // sound pref stored in JS localStorage; no Flutter action needed
+        break;
       case 'GAME_CLOSED':
         if (mounted) Navigator.of(context).maybePop();
     }
@@ -141,48 +153,259 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
 
   Future<void> _initGame() async {
     final isArabic = context.isArabic;
-    final user = SupabaseService.requiredClient.auth.currentUser;
-    if (user == null) {
-      debugPrint('[RocketCrash] init: no authenticated user');
-      // JS will retry GAME_READY; nothing to send yet
-      return;
-    }
+    if (SupabaseService.requiredClient.auth.currentUser == null) return;
+
     try {
       final balance = await _service.fetchBalance();
+      final round   = await _service.getOrCreateRocketRound();
+      final history = await _service.getRocketResults();
+
+      _roundId = round['round_id']?.toString();
+      final phase           = round['status']?.toString() ?? 'betting';
+      final bettingEndsAtMs = _toDouble(round['betting_ends_at']);
+      final flightStartsAtMs= _toDouble(round['flight_starts_at']);
+      final crashMultiplier = _toDouble(round['crash_multiplier']);
+      final serverNowMs     = _toDouble(round['server_now']);
+      final roundNumber     = _parseInt(round['round_number']);
+
+      if (_roundId != null) _subscribeToRound(_roundId!);
+
+      // Schedule betting-end transition
+      if (phase == 'betting') {
+        _scheduleBettingEnd(bettingEndsAtMs, serverNowMs);
+      }
+
+      final histValues = history
+          .map((h) => _toDouble(h['crash_multiplier']))
+          .where((v) => v > 0)
+          .toList();
+
       _post('INIT_GAME', {
         'balance': balance,
-        'locale': isArabic ? 'ar' : 'en',
-        'sound': true,
+        'locale' : isArabic ? 'ar' : 'en',
+        'sound'  : true,
+        'round'  : {
+          'roundId'        : _roundId,
+          'roundNumber'    : roundNumber,
+          'phase'          : phase,
+          'bettingEndsAtMs': bettingEndsAtMs,
+          'flightStartsAtMs': flightStartsAtMs,
+          'crashMultiplier': crashMultiplier,
+          'serverNowMs'    : serverNowMs,
+          'history'        : histValues,
+          'myBets'         : [null, null],
+        },
       });
-    } catch (e) {
-      debugPrint('[RocketCrash] init error: $e');
-      // Send INIT_GAME with 0 balance so JS knows wallet is connected
-      // but has a problem — JS will display 0 and prevent betting
+
+      // Load bet feed for current round
+      if (_roundId != null) _sendBetFeed(_roundId!);
+
+    } catch (e, st) {
+      debugPrint('[RocketCrash] init error: $e\n$st');
       _post('INIT_GAME', {
         'balance': 0,
-        'locale': isArabic ? 'ar' : 'en',
-        'sound': true,
-        'error': 'wallet_error',
+        'locale' : isArabic ? 'ar' : 'en',
+        'sound'  : true,
+        'error'  : 'wallet_error',
       });
+    }
+  }
+
+  void _scheduleBettingEnd(double bettingEndsAtMs, double serverNowMs) {
+    _bettingEndTimer?.cancel();
+    if (bettingEndsAtMs <= 0) return;
+    final offset       = serverNowMs - DateTime.now().millisecondsSinceEpoch;
+    final localMs      = bettingEndsAtMs - offset;
+    final delayMs      = (localMs - DateTime.now().millisecondsSinceEpoch).round();
+    final delay        = Duration(milliseconds: delayMs.clamp(0, 60000));
+    if (delayMs <= 200) {
+      if (_roundId != null) _startFlight(_roundId!);
+    } else {
+      _bettingEndTimer = Timer(delay, () {
+        if (_roundId != null) _startFlight(_roundId!);
+      });
+    }
+  }
+
+  // ── Realtime ──────────────────────────────────────────────────────────────
+
+  void _subscribeToRound(String roundId) {
+    _roundChannel?.unsubscribe();
+    _roundChannel = SupabaseService.requiredClient
+        .channel('rc_round_$roundId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'rocket_crash_global_rounds',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: roundId,
+          ),
+          callback: _onRoundUpdate,
+        )
+        .subscribe((status, [err]) {
+          debugPrint('[RocketCrash] realtime $status ${err ?? ''}');
+        });
+  }
+
+  void _onRoundUpdate(PostgresChangePayload payload) {
+    if (!mounted) return;
+    final rec    = payload.newRecord;
+    final status = rec['status']?.toString();
+    debugPrint('[RocketCrash] round update status=$status');
+
+    if (status == 'flying') {
+      final fsMs = rec['flight_starts_at'] != null
+          ? DateTime.parse(rec['flight_starts_at'] as String)
+              .toUtc()
+              .millisecondsSinceEpoch
+              .toDouble()
+          : null;
+      final cm = _toDouble(rec['crash_multiplier']);
+      _post('SET_ROUND_STATE', {
+        'roundId'        : rec['id'],
+        'phase'          : 'flying',
+        'flightStartsAtMs': fsMs,
+        'crashMultiplier': cm,
+        'serverNowMs'    : DateTime.now().millisecondsSinceEpoch.toDouble(),
+      });
+    } else if (status == 'crashed') {
+      final cm = _toDouble(rec['crash_multiplier']);
+      _post('SET_ROUND_STATE', {
+        'roundId'        : rec['id'],
+        'phase'          : 'crashed',
+        'crashMultiplier': cm,
+      });
+      if (!_settling) {
+        _settling = true;
+        Future.delayed(const Duration(milliseconds: 4200), _loadNextRound);
+      }
+    }
+  }
+
+  // ── Round lifecycle ───────────────────────────────────────────────────────
+
+  Future<void> _startFlight(String roundId) async {
+    if (_flightStarted) return;
+    _flightStarted = true;
+    try {
+      final result = await _service.startRocketFlight(roundId);
+      if (!mounted) return;
+      _post('SET_ROUND_STATE', {
+        'roundId'         : roundId,
+        'phase'           : 'flying',
+        'flightStartsAtMs': _toDouble(result['flight_starts_at']),
+        'crashMultiplier' : _toDouble(result['crash_multiplier']),
+        'serverNowMs'     : _toDouble(result['server_now']),
+      });
+    } catch (e) {
+      debugPrint('[RocketCrash] startFlight error: $e');
+      _flightStarted = false;
+    }
+  }
+
+  Future<void> _triggerSettle(String roundId) async {
+    if (_settling) return;
+    _settling = true;
+    try {
+      await _service.settleRocketRound(roundId);
+      debugPrint('[RocketCrash] settled round $roundId');
+      // Realtime fires the crashed update; also schedule next round as fallback.
+      Future.delayed(const Duration(milliseconds: 4200), _loadNextRound);
+    } catch (e) {
+      debugPrint('[RocketCrash] settle error: $e');
+      _settling = false;
+    }
+  }
+
+  Future<void> _loadNextRound() async {
+    if (!mounted) return;
+    _bettingEndTimer?.cancel();
+    _flightStarted = false;
+    _settling      = false;
+
+    try {
+      final round = await _service.getOrCreateRocketRound();
+      if (!mounted) return;
+
+      final newId           = round['round_id']?.toString();
+      final bettingEndsAtMs = _toDouble(round['betting_ends_at']);
+      final serverNowMs     = _toDouble(round['server_now']);
+      final roundNumber     = _parseInt(round['round_number']);
+
+      if (newId != null && newId != _roundId) {
+        _roundId = newId;
+        _subscribeToRound(newId);
+      }
+
+      _post('SET_ROUND_STATE', {
+        'roundId'        : newId,
+        'roundNumber'    : roundNumber,
+        'phase'          : 'betting',
+        'bettingEndsAtMs': bettingEndsAtMs,
+        'serverNowMs'    : serverNowMs,
+      });
+
+      _scheduleBettingEnd(bettingEndsAtMs, serverNowMs);
+
+      // Refresh history
+      final history = await _service.getRocketResults();
+      if (!mounted) return;
+      final histValues = history
+          .map((h) => _toDouble(h['crash_multiplier']))
+          .where((v) => v > 0)
+          .toList();
+      _post('HISTORY_UPDATE', {'history': histValues});
+
+    } catch (e) {
+      debugPrint('[RocketCrash] loadNextRound error: $e');
+    }
+  }
+
+  Future<void> _sendBetFeed(String roundId) async {
+    try {
+      final bets = await _service.getRocketRoundBets(roundId);
+      if (!mounted) return;
+      _post('BETS_UPDATE', {
+        'bets': bets.map((b) => {
+          'displayName'           : b['display_name'],
+          'betAmount'             : b['bet_amount'],
+          'autoCashoutMultiplier' : b['auto_cashout_multiplier'],
+          'cashoutMultiplier'     : b['cashout_multiplier'],
+          'winAmount'             : b['win_amount'],
+          'status'                : b['status'],
+          'isOwn'                 : b['is_own'] ?? false,
+        }).toList(),
+      });
+    } catch (e) {
+      debugPrint('[RocketCrash] betFeed error: $e');
     }
   }
 
   // ── Wallet handlers ───────────────────────────────────────────────────────
 
-  Future<void> _handleBetDebit(Map<String, dynamic> payload) async {
-    final slotIndex = _parseInt(payload['slotIndex']);
-    final amount = _parseInt(payload['amount']);
+  Future<void> _handlePlaceBet(Map<String, dynamic> payload) async {
+    final slotIndex   = _parseInt(payload['slotIndex']);
+    final amount      = _parseInt(payload['amount']);
+    final roundId     = payload['roundId']?.toString() ?? _roundId;
+    final autoCashout = payload['autoCashoutMultiplier'] is num
+        ? (payload['autoCashoutMultiplier'] as num).toDouble()
+        : null;
 
     if (amount <= 0) {
       _post('BET_REJECTED', {'slotIndex': slotIndex, 'code': 'invalid_amount'});
       return;
     }
+    if (roundId == null) {
+      _post('BET_REJECTED', {'slotIndex': slotIndex, 'code': 'no_active_round'});
+      return;
+    }
 
     try {
-      final result = await _service.armBet(amount, slotIndex: slotIndex);
+      final result     = await _service.placeRocketBet(roundId, amount, autoCashout);
       if (!mounted) return;
-
-      final betId = result['bet_id']?.toString();
+      final betId      = result['bet_id']?.toString();
       final newBalance = _parseInt(result['new_balance']);
 
       if (betId == null || betId.isEmpty) {
@@ -191,11 +414,46 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
       }
 
       HapticFeedback.lightImpact();
-      debugPrint('[RocketCrash] bet armed slot=$slotIndex betId=$betId');
+      debugPrint('[RocketCrash] bet placed slot=$slotIndex id=$betId');
       _post('BET_ACCEPTED', {
-        'slotIndex': slotIndex,
-        'betId': betId,
-        'amount': amount,
+        'slotIndex' : slotIndex,
+        'betId'     : betId,
+        'amount'    : amount,
+        'newBalance': newBalance,
+      });
+
+      // Refresh bet feed so other slots are visible
+      _sendBetFeed(roundId);
+
+    } catch (e) {
+      if (!mounted) return;
+      debugPrint('[RocketCrash] placeBet error: $e');
+      _post('BET_REJECTED', {'slotIndex': slotIndex, 'code': _mapError('$e')});
+    }
+  }
+
+  Future<void> _handleBetDebit(Map<String, dynamic> payload) async {
+    final slotIndex = _parseInt(payload['slotIndex']);
+    final amount    = _parseInt(payload['amount']);
+
+    if (amount <= 0) {
+      _post('BET_REJECTED', {'slotIndex': slotIndex, 'code': 'invalid_amount'});
+      return;
+    }
+    try {
+      final result     = await _service.armBet(amount, slotIndex: slotIndex);
+      if (!mounted) return;
+      final betId      = result['bet_id']?.toString();
+      final newBalance = _parseInt(result['new_balance']);
+      if (betId == null || betId.isEmpty) {
+        _post('BET_REJECTED', {'slotIndex': slotIndex, 'code': 'no_bet_id'});
+        return;
+      }
+      HapticFeedback.lightImpact();
+      _post('BET_ACCEPTED', {
+        'slotIndex' : slotIndex,
+        'betId'     : betId,
+        'amount'    : amount,
         'newBalance': newBalance,
       });
     } catch (e) {
@@ -207,95 +465,101 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
 
   Future<void> _handleBetRefund(Map<String, dynamic> payload) async {
     final slotIndex = _parseInt(payload['slotIndex']);
-    final betId = payload['betId']?.toString();
+    final betId     = payload['betId']?.toString();
 
     if (betId == null || betId.isEmpty) {
       _post('REFUND_REJECTED', {'slotIndex': slotIndex, 'code': 'no_bet_id'});
       return;
     }
     if (_settledBetIds.contains(betId)) {
-      _post('REFUND_REJECTED',
-          {'slotIndex': slotIndex, 'code': 'already_settled'});
+      _post('REFUND_REJECTED', {'slotIndex': slotIndex, 'code': 'already_settled'});
       return;
     }
-
     try {
-      final result = await _service.refundBet(betId);
+      final result         = await _service.refundBet(betId);
       if (!mounted) return;
       _settledBetIds.add(betId);
-
-      final newBalance = _parseInt(result['new_balance']);
+      final newBalance     = _parseInt(result['new_balance']);
       final refundedAmount = _parseInt(result['refunded_amount']);
-
-      debugPrint('[RocketCrash] refund ok slot=$slotIndex amt=$refundedAmount');
       _post('REFUND_ACCEPTED', {
-        'slotIndex': slotIndex,
-        'betId': betId,
+        'slotIndex'     : slotIndex,
+        'betId'         : betId,
         'refundedAmount': refundedAmount,
-        'newBalance': newBalance,
+        'newBalance'    : newBalance,
       });
     } catch (e) {
       if (!mounted) return;
       debugPrint('[RocketCrash] refund error: $e');
-      _post('REFUND_REJECTED',
-          {'slotIndex': slotIndex, 'code': _mapError('$e')});
+      _post('REFUND_REJECTED', {'slotIndex': slotIndex, 'code': _mapError('$e')});
     }
   }
 
   Future<void> _handleCashout(Map<String, dynamic> payload) async {
     final slotIndex = _parseInt(payload['slotIndex']);
-    final betId = payload['betId']?.toString();
-    final multiplier = _parseDouble(payload['multiplier']);
+    final betId     = payload['betId']?.toString();
 
     if (betId == null || betId.isEmpty) {
-      _post('CASHOUT_REJECTED',
-          {'slotIndex': slotIndex, 'code': 'no_bet_id'});
+      _post('CASHOUT_REJECTED', {'slotIndex': slotIndex, 'code': 'no_bet_id'});
       return;
     }
-    // Idempotency guard: reject if we already settled this bet.
     if (_settledBetIds.contains(betId)) {
-      _post('CASHOUT_REJECTED',
-          {'slotIndex': slotIndex, 'code': 'already_settled'});
+      _post('CASHOUT_REJECTED', {'slotIndex': slotIndex, 'code': 'already_settled'});
       return;
     }
 
     try {
-      final result = await _service.cashoutLocal(betId, multiplier);
+      final Map<String, dynamic> result;
+      if (_roundId != null) {
+        // Server-calculated multiplier — ignores JS-provided value for security.
+        result = await _service.cashOutRocketBet(betId);
+      } else {
+        // Legacy local path: trust client-provided multiplier.
+        final multiplier = _parseDouble(payload['multiplier']);
+        result = await _service.cashoutLocal(betId, multiplier);
+      }
       if (!mounted) return;
-      _settledBetIds.add(betId);
 
-      final winAmount = _parseInt(result['win_amount']);
+      final status = result['status']?.toString();
+      if (status == 'lost') {
+        _settledBetIds.add(betId);
+        _post('CASHOUT_REJECTED', {'slotIndex': slotIndex, 'code': 'round_crashed'});
+        return;
+      }
+
+      _settledBetIds.add(betId);
+      final winAmount  = _parseInt(result['win_amount']);
       final newBalance = _parseInt(result['new_balance']);
-      final actualMult = _parseDouble(result['multiplier'] ?? multiplier);
+      final actualMult = _parseDouble(
+          result['cashout_multiplier'] ?? result['multiplier'] ?? payload['multiplier'] ?? 1.0);
 
       HapticFeedback.mediumImpact();
-      debugPrint(
-          '[RocketCrash] cashout ok slot=$slotIndex ×$actualMult win=$winAmount');
+      debugPrint('[RocketCrash] cashout ok slot=$slotIndex ×$actualMult win=$winAmount');
       _post('CASHOUT_ACCEPTED', {
-        'slotIndex': slotIndex,
-        'betId': betId,
-        'winAmount': winAmount,
+        'slotIndex' : slotIndex,
+        'betId'     : betId,
+        'winAmount' : winAmount,
         'multiplier': actualMult,
         'newBalance': newBalance,
       });
     } catch (e) {
       if (!mounted) return;
       debugPrint('[RocketCrash] cashout error: $e');
-      _post('CASHOUT_REJECTED',
-          {'slotIndex': slotIndex, 'code': _mapError('$e')});
+      _post('CASHOUT_REJECTED', {'slotIndex': slotIndex, 'code': _mapError('$e')});
     }
   }
 
   void _handleBetLost(Map<String, dynamic> payload) {
     final betId = payload['betId']?.toString();
-    final crashMult = _parseDouble(payload['crashMultiplier'] ?? 1.0);
     if (betId == null || betId.isEmpty) return;
     if (_settledBetIds.contains(betId)) return;
     _settledBetIds.add(betId);
-    // Fire-and-forget: mark the DB record but don't block the UI.
-    _service.markBetLost(betId, crashMult).catchError((e) {
-      debugPrint('[RocketCrash] markBetLost error: $e');
-    });
+    // Global rounds: settle RPC already marks lost. Legacy only.
+    if (_roundId == null) {
+      final crashMult = _parseDouble(payload['crashMultiplier'] ?? 1.0);
+      _service.markBetLost(betId, crashMult).catchError((e) {
+        debugPrint('[RocketCrash] markBetLost error: $e');
+      });
+    }
   }
 
   Future<void> _refreshBalance() async {
@@ -334,12 +598,26 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
     return 1.0;
   }
 
+  double _toDouble(dynamic v) {
+    if (v == null) return 0;
+    if (v is double) return v;
+    if (v is int) return v.toDouble();
+    if (v is String) return double.tryParse(v) ?? 0;
+    return 0;
+  }
+
   String _mapError(String e) {
-    if (e.contains('insufficient_coins')) return 'insufficient_coins';
-    if (e.contains('not_authenticated')) return 'not_authenticated';
-    if (e.contains('already_settled')) return 'already_settled';
-    if (e.contains('bet_not_found')) return 'bet_not_found';
-    if (e.contains('not_refundable')) return 'not_refundable';
+    if (e.contains('insufficient_coins'))    return 'insufficient_coins';
+    if (e.contains('not_authenticated'))     return 'not_authenticated';
+    if (e.contains('already_settled'))       return 'already_settled';
+    if (e.contains('bet_not_found'))         return 'bet_not_found';
+    if (e.contains('not_refundable'))        return 'not_refundable';
+    if (e.contains('round_not_found'))       return 'round_not_found';
+    if (e.contains('betting_closed'))        return 'betting_closed';
+    if (e.contains('game_disabled'))         return 'game_disabled';
+    if (e.contains('round_not_flying'))      return 'round_not_flying';
+    if (e.contains('round_already_crashed')) return 'round_already_crashed';
+    if (e.contains('invalid_auto_cashout'))  return 'invalid_auto_cashout';
     return 'network_error';
   }
 
@@ -350,7 +628,8 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
     return PopScope(
       canPop: true,
       onPopInvokedWithResult: (didPop, result) {
-        // Reset system nav bar color when leaving.
+        _bettingEndTimer?.cancel();
+        _roundChannel?.unsubscribe();
       },
       child: Scaffold(
         backgroundColor: const Color(0xFF020818),
@@ -361,7 +640,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
             children: [
               WebViewWidget(controller: _controller),
               if (!_pageLoaded) _buildLoading(),
-              if (_pageError) _buildError(),
+              if (_pageError)   _buildError(),
             ],
           ),
         ),
@@ -379,20 +658,16 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
             const Text('🚀', style: TextStyle(fontSize: 60)),
             const SizedBox(height: 18),
             const SizedBox(
-              width: 38,
-              height: 38,
+              width: 38, height: 38,
               child: CircularProgressIndicator(
-                color: Color(0xFF00D4FF),
-                strokeWidth: 3,
+                color: Color(0xFF00D4FF), strokeWidth: 3,
               ),
             ),
             const SizedBox(height: 14),
             Text(
-              context.isArabic ? 'جاري تحميل اللعبة...' : 'Loading game...',
+              widget.isArabic ? 'جاري تحميل اللعبة...' : 'Loading game...',
               style: const TextStyle(
-                color: Color(0xFF00D4FF),
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
+                color: Color(0xFF00D4FF), fontSize: 15, fontWeight: FontWeight.w700,
               ),
             ),
           ],
@@ -411,33 +686,24 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
           decoration: BoxDecoration(
             color: const Color(0xFF0A1A3A),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-                color: const Color(0xFF1A4AFF).withValues(alpha: 0.4)),
+            border: Border.all(color: const Color(0xFF1A4AFF).withValues(alpha: 0.4)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text('🚀', style: TextStyle(fontSize: 48)),
               const SizedBox(height: 12),
-              const Text(
-                'Rocket Crash',
+              const Text('Rocket Crash',
                 style: TextStyle(
-                  color: Color(0xFF00D4FF),
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
+                  color: Color(0xFF00D4FF), fontSize: 22, fontWeight: FontWeight.w900,
+                )),
               const SizedBox(height: 10),
               Text(
                 _pageErrorMsg ??
-                    (context.isArabic
-                        ? 'تعذر تحميل اللعبة.'
-                        : 'Failed to load the game.'),
+                    (widget.isArabic ? 'تعذر تحميل اللعبة.' : 'Failed to load the game.'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.7),
-                  fontSize: 14,
-                  height: 1.4,
+                  color: Colors.white.withValues(alpha: 0.7), fontSize: 14, height: 1.4,
                 ),
               ),
               const SizedBox(height: 20),
@@ -447,20 +713,17 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1A6FFF),
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   onPressed: () {
                     setState(() {
-                      _pageLoaded = false;
-                      _pageError = false;
+                      _pageLoaded   = false;
+                      _pageError    = false;
                       _pageErrorMsg = null;
                     });
-                    _controller
-                        .loadFlutterAsset('assets/games/rocket_crash/index.html');
+                    _controller.loadFlutterAsset('assets/games/rocket_crash/index.html');
                   },
-                  child: Text(context.isArabic ? 'إعادة المحاولة' : 'Retry'),
+                  child: Text(widget.isArabic ? 'إعادة المحاولة' : 'Retry'),
                 ),
               ),
             ],

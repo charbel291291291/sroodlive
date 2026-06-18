@@ -68,6 +68,83 @@ class CrashGameService {
     );
   }
 
+  // ── Global round RPCs ─────────────────────────────────────────────────────
+
+  /// Returns the current active round or creates a new 8-second betting window.
+  /// Response: {round_id, round_number, status, betting_ends_at (epoch ms),
+  ///            flight_starts_at (epoch ms | null), crash_multiplier, server_now}
+  Future<Map<String, dynamic>> getOrCreateRocketRound() async {
+    final data = await _client.rpc('get_or_create_rocket_crash_round')
+        as Map<String, dynamic>;
+    return data;
+  }
+
+  /// Places a bet during the betting phase. Returns {bet_id, new_balance}.
+  Future<Map<String, dynamic>> placeRocketBet(
+    String roundId,
+    int amount, [
+    double? autoCashoutMultiplier,
+  ]) async {
+    final data = await _client.rpc(
+      'place_rocket_crash_bet',
+      params: {
+        'p_round_id':    roundId,
+        'p_amount':      amount,
+        'p_auto_cashout': autoCashoutMultiplier,
+      },
+    ) as Map<String, dynamic>;
+    return data;
+  }
+
+  /// Transitions the round from betting → flying and commits the crash point.
+  /// Returns {flight_starts_at (epoch ms), crash_multiplier, server_now}.
+  Future<Map<String, dynamic>> startRocketFlight(String roundId) async {
+    final data = await _client.rpc(
+      'start_rocket_crash_flight',
+      params: {'p_round_id': roundId},
+    ) as Map<String, dynamic>;
+    return data;
+  }
+
+  /// Server-calculated cashout (multiplier = exp(0.055 × elapsed_seconds)).
+  /// Returns {status, cashout_multiplier, win_amount, new_balance?}.
+  Future<Map<String, dynamic>> cashOutRocketBet(String betId) async {
+    final data = await _client.rpc(
+      'cash_out_rocket_crash_bet',
+      params: {'p_bet_id': betId},
+    ) as Map<String, dynamic>;
+    return data;
+  }
+
+  /// Settles the round: auto-cashouts qualifying bets, marks rest lost,
+  /// transitions round to 'crashed' (triggers Realtime UPDATE).
+  Future<void> settleRocketRound(String roundId) async {
+    await _client.rpc(
+      'settle_rocket_crash_round',
+      params: {'p_round_id': roundId},
+    );
+  }
+
+  /// Last [limit] crashed round multipliers, newest first.
+  Future<List<Map<String, dynamic>>> getRocketResults({int limit = 20}) async {
+    final data = await _client.rpc(
+      'get_rocket_crash_recent_results',
+      params: {'p_limit': limit},
+    );
+    if (data is List) return data.cast<Map<String, dynamic>>();
+    return [];
+  }
+
+  /// Bet feed for a round (display_name, amounts, status, is_own).
+  Future<List<Map<String, dynamic>>> getRocketRoundBets(String roundId) async {
+    final data = await _client.rpc(
+      'get_rocket_crash_round_bets',
+      params: {'p_round_id': roundId},
+    );
+    if (data is List) return data.cast<Map<String, dynamic>>();
+    return [];
+  }
+
   // ── Legacy batch-round RPCs (kept for compatibility) ──────────────────────
 
   Future<Map<String, dynamic>> startRound(

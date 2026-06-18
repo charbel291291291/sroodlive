@@ -257,6 +257,12 @@ const G = {
   soundOn:  true,
   history:  [],
   feedItems:[],
+  hasRealFeed: false,
+  // Server sync
+  roundId:           null,  // uuid from server
+  serverFlightStartMs: 0,   // epoch ms when flight began (server time)
+  clockOffset:         0,   // serverNowMs - Date.now() at last calibration
+  bettingEndsAtMs:     0,   // epoch ms for betting deadline
   // Timers
   waitTmr:  null,
   waitSecs: WAIT_SECS,
@@ -504,6 +510,7 @@ function startWaiting() {
   G.round  += 1;
   G.mult    = 1.00;
   G.crashAt = genCrash();
+  G.serverFlightStartMs = 0;
   _flightPath = [];
   _explodeTs  = 0;
 
@@ -513,7 +520,6 @@ function startWaiting() {
   setCdown(1.0);
   SFX.newRound();
 
-  // reset settled slots
   G.slots.forEach(s => {
     if (['won','lost','idle'].includes(s.state)) {
       s.state='idle'; s.betId=null; s.winAmt=0; s.cashing=false;
@@ -536,69 +542,117 @@ function waitTick() {
   }
 }
 
-function startFlight() {
-  G.phase  = 'flying';
-  G.mult   = 1.00;
-  G.startTs = performance.now();
-  _shakeEnd = performance.now() + 420;
-  setPhase('','');
-  setCdown(0);
-  SFX.launch();
+// Returns current multiplier using server time when available, local perf.now() otherwise.
+function getCurrentMult() {
+  if (G.serverFlightStartMs > 0) {
+    const nowMs = Date.now() + G.clockOffset;
+    const elapsed = Math.max(0, (nowMs - G.serverFlightStartMs) / 1000);
+    return Math.max(1.00, parseFloat(Math.pow(Math.E, 0.055 * elapsed).toFixed(2)));
+  }
+  const elapsed = (performance.now() - G.startTs) / 1000;
+  return Math.max(1.00, parseFloat(Math.pow(Math.E, 0.055 * elapsed).toFixed(2)));
+}
 
-  // any still-pending slot didn't get server ack in time → reject
-  G.slots.forEach(s => {
-    if (s.state === 'pending') { s.state='idle'; s.betId=null; }
-  });
-  renderSlots();
-
-  let lastTickM = 1.0;
-  const FLY_INTERVAL = 50; // ~20 fps update for multiplier; canvas is 60fps
-
+// Core flight animation loop (called by startFlight and handleRoundState).
+function startFlightLoop() {
+  let lastTickM = G.mult || 1.0;
+  const FLY_INTERVAL = 50;
   function flightStep() {
     if (G.phase !== 'flying') return;
-    const elapsed = (performance.now() - G.startTs) / 1000;
-    G.mult = Math.max(1.00, parseFloat(Math.pow(Math.E, 0.055 * elapsed).toFixed(2)));
-    setMult(G.mult,'flying');
-
-    // SFX tick per 0.5x milestone
+    G.mult = getCurrentMult();
+    setMult(G.mult, 'flying');
     if (G.mult - lastTickM >= 0.5) { SFX.flightTick(G.mult); lastTickM = G.mult; }
-
-    // auto cashout check
     G.slots.forEach((s,i) => {
       if (s.state==='armed' && s.mode==='auto' && s.betId && !s.cashing && G.mult >= s.autoT) {
         doCashout(i);
       }
     });
-
-    if (G.mult >= G.crashAt) { doCrash(); return; }
+    if (G.mult >= G.crashAt) {
+      if (G.roundId) postToFlutter('REQUEST_SETTLE_ROUND', {roundId: G.roundId});
+      doCrash();
+      return;
+    }
     setTimeout(flightStep, FLY_INTERVAL);
   }
   setTimeout(flightStep, FLY_INTERVAL);
 }
 
+function _doStartFlight() {
+  G.phase   = 'flying';
+  G.mult    = 1.00;
+  G.startTs = performance.now();
+  _shakeEnd = performance.now() + 420;
+  setPhase('', '');
+  setCdown(0);
+  SFX.launch();
+  G.slots.forEach(s => { if (s.state==='pending') { s.state='idle'; s.betId=null; } });
+  renderSlots();
+  startFlightLoop();
+}
+
+function startFlight() {
+  // Reject pending slots that didn't receive BET_ACCEPTED in time
+  G.slots.forEach(s => { if (s.state==='pending') { s.state='idle'; s.betId=null; } });
+  renderSlots();
+  setPhase('LAUNCHING…', '');
+  setCdown(0);
+
+  if (G.roundId) {
+    // Server-driven: ask Flutter to call start_rocket_crash_flight RPC.
+    // Flutter responds with SET_ROUND_STATE {phase:'flying'}.
+    postToFlutter('REQUEST_START_FLIGHT', {roundId: G.roundId});
+    // Local fallback: if no server response in 3s, start with local crash point.
+    setTimeout(() => {
+      if (G.phase === 'waiting') {
+        G.crashAt = genCrash();
+        G.serverFlightStartMs = 0;
+        _doStartFlight();
+      }
+    }, 3000);
+  } else {
+    G.crashAt = genCrash();
+    G.serverFlightStartMs = 0;
+    _doStartFlight();
+  }
+}
+
 function doCrash() {
-  G.phase     = 'crashed';
-  G.mult      = G.crashAt;
-  _explodeTs  = performance.now();
+  G.phase    = 'crashed';
+  G.mult     = G.crashAt;
+  _explodeTs = performance.now();
   SFX.crash();
   setMult(G.crashAt, 'crashed');
   setPhase('CRASHED @ ' + G.crashAt.toFixed(2) + 'x', '');
 
-  // lose all still-armed bets
   G.slots.forEach((s,i) => {
     if (s.state === 'armed' || s.state === 'cashing') {
       const wasArmed = s.state === 'armed';
       s.state = 'lost';
       if (wasArmed && s.betId) {
         addFeedLost(i, s.amount);
-        postToFlutter('REQUEST_BET_LOST', { slotIndex:i, betId:s.betId, crashMultiplier:G.crashAt });
+        // Global round: server settle handles marking bets lost.
+        // Legacy local mode only:
+        if (!G.roundId) {
+          postToFlutter('REQUEST_BET_LOST', { slotIndex:i, betId:s.betId, crashMultiplier:G.crashAt });
+        }
       }
     }
   });
   renderSlots();
   addHistory(G.crashAt);
 
-  setTimeout(startWaiting, CRASH_DELAY_MS);
+  if (G.roundId) {
+    // Flutter will send SET_ROUND_STATE {phase:'betting'} after settling.
+    // Safety fallback: if no new round arrives in CRASH_DELAY_MS + 5s, revert to local.
+    setTimeout(() => {
+      if (G.phase === 'crashed') {
+        G.roundId = null;
+        startWaiting();
+      }
+    }, CRASH_DELAY_MS + 5000);
+  } else {
+    setTimeout(startWaiting, CRASH_DELAY_MS);
+  }
 }
 
 function addHistory(v) {
@@ -617,7 +671,8 @@ function slotTap(i) {
     if (s.state === 'idle')   armBet(i);
     else if (s.state === 'armed') cancelBet(i);
   } else if (G.phase === 'flying') {
-    if (s.state === 'armed' && s.mode === 'manual' && !s.cashing) doCashout(i);
+    // Part A: allow manual cashout in both manual AND auto mode
+    if (s.state === 'armed' && !s.cashing) doCashout(i);
   }
 }
 
@@ -635,7 +690,16 @@ function armBet(i) {
   s.cashing= false;
   renderSlots();
   SFX.arm();
-  postToFlutter('REQUEST_BET_DEBIT', { slotIndex:i, amount:s.amount });
+  if (G.roundId) {
+    postToFlutter('REQUEST_PLACE_BET', {
+      slotIndex: i,
+      amount: s.amount,
+      roundId: G.roundId,
+      autoCashoutMultiplier: s.mode === 'auto' ? s.autoT : null,
+    });
+  } else {
+    postToFlutter('REQUEST_BET_DEBIT', { slotIndex:i, amount:s.amount });
+  }
 }
 
 function cancelBet(i) {
@@ -665,6 +729,136 @@ function doCashout(i) {
 // ═══════════════════════════════════════════════════════════════════════════
 // FLUTTER → WEB MESSAGE HANDLER
 // ═══════════════════════════════════════════════════════════════════════════
+// ─── handleRoundState: sync JS phase to a server round snapshot ─────────────
+function handleRoundState(round) {
+  if (!round) return;
+  if (round.serverNowMs) G.clockOffset = round.serverNowMs - Date.now();
+  G.roundId = round.roundId || G.roundId;
+
+  const phase = round.phase || round.status || '';
+
+  if (phase === 'betting') {
+    G.mult    = 1.00;
+    G.crashAt = 2.00;
+    G.serverFlightStartMs = 0;
+    _flightPath = [];
+    _explodeTs  = 0;
+
+    const rn = round.roundNumber || (G.round + 1);
+    if (rn !== G.round) {
+      G.round = rn;
+      document.getElementById('round-lbl').textContent = 'Round #' + G.round;
+    }
+
+    clearInterval(G.waitTmr);
+    setMult(1.00, 'waiting');
+    SFX.newRound();
+
+    // Reset resolved slots; preserve armed slots that still have betIds
+    G.slots.forEach(s => {
+      if (['won','lost','idle'].includes(s.state)) {
+        s.state='idle'; s.betId=null; s.winAmt=0; s.cashing=false;
+      }
+    });
+
+    // Restore my bets for this round
+    if (round.myBets) {
+      round.myBets.forEach((bet, i) => {
+        if (i < G.slots.length && bet && bet.betId) {
+          G.slots[i].state = 'armed';
+          G.slots[i].betId  = bet.betId;
+          G.slots[i].amount = bet.amount || G.slots[i].amount;
+          G.slots[i].mode   = bet.autoCashout ? 'auto' : 'manual';
+          G.slots[i].autoT  = bet.autoCashout || 2.0;
+        }
+      });
+    }
+
+    G.phase = 'waiting';
+    const nowMs    = Date.now() + G.clockOffset;
+    const msLeft   = (round.bettingEndsAtMs || 0) - nowMs;
+    G.waitSecs     = Math.max(0, Math.ceil(msLeft / 1000));
+    G.bettingEndsAtMs = round.bettingEndsAtMs || 0;
+
+    setPhase('PLACE YOUR BETS', G.waitSecs + 's');
+    setCdown(G.waitSecs / WAIT_SECS);
+    renderSlots();
+    G.waitTmr = setInterval(waitTick, 1000);
+
+  } else if (phase === 'flying') {
+    const cm  = round.crashMultiplier || 2.00;
+    const fsMs = round.flightStartsAtMs || (Date.now() + G.clockOffset);
+    G.crashAt = cm;
+    G.serverFlightStartMs = fsMs;
+
+    if (G.phase !== 'flying') {
+      clearInterval(G.waitTmr);
+
+      if (round.myBets) {
+        round.myBets.forEach((bet, i) => {
+          if (i < G.slots.length && bet && bet.betId) {
+            G.slots[i].state = 'armed';
+            G.slots[i].betId  = bet.betId;
+            G.slots[i].amount = bet.amount || G.slots[i].amount;
+            G.slots[i].mode   = bet.autoCashout ? 'auto' : 'manual';
+            G.slots[i].autoT  = bet.autoCashout || 2.0;
+          }
+        });
+      }
+
+      // Check if already past crash point (joined after crash)
+      const m = getCurrentMult();
+      if (m >= G.crashAt) {
+        G.crashAt = m;
+        doCrash();
+        return;
+      }
+
+      G.phase   = 'flying';
+      G.mult    = getCurrentMult();
+      G.startTs = performance.now(); // fallback if serverFlightStartMs lost
+      _shakeEnd = 0;                 // no launch shake for mid-flight join
+      _flightPath = [];
+      setPhase('', '');
+      setCdown(0);
+      SFX.launch();
+      renderSlots();
+      startFlightLoop();
+    }
+
+  } else if (phase === 'crashed') {
+    if (G.phase !== 'crashed') {
+      G.crashAt  = round.crashMultiplier || G.crashAt;
+      G.mult     = G.crashAt;
+      G.phase    = 'crashed';
+      _explodeTs = performance.now();
+      SFX.crash();
+      setMult(G.crashAt, 'crashed');
+      setPhase('CRASHED @ ' + G.crashAt.toFixed(2) + 'x', '');
+      G.slots.forEach(s => {
+        if (s.state === 'armed' || s.state === 'cashing') s.state = 'lost';
+      });
+      renderSlots();
+      addHistory(G.crashAt);
+    }
+    // Next round arrives via SET_ROUND_STATE {phase:'betting'}
+  }
+}
+
+// ─── handleBetsUpdate: replace feed with real server bets ───────────────────
+function handleBetsUpdate(bets) {
+  if (!bets || !bets.length) return;
+  G.hasRealFeed = true;
+  G.feedItems = bets.map(b => ({
+    name    : b.displayName || 'Player',
+    color   : b.isOwn ? '#00c864' : AVT_COLORS[Math.abs((b.displayName||'').charCodeAt(0)||0) % AVT_COLORS.length],
+    betAmt  : b.betAmount || 0,
+    winMult : b.cashoutMultiplier || null,
+    state   : b.status === 'cashed_out' ? 'won' : b.status === 'lost' ? 'lost' : 'live',
+  }));
+  renderFeed();
+}
+
 window.onSroodMessage = function(msg) {
   const { type, payload } = msg;
   switch(type) {
@@ -677,7 +871,31 @@ window.onSroodMessage = function(msg) {
       if (payload.error === 'wallet_error') {
         showErr('Wallet error — balance may be unavailable');
       }
-      startWaiting();
+      if (payload.round) {
+        // Pre-load history from server
+        if (payload.round.history && payload.round.history.length) {
+          G.history = payload.round.history.map(v => parseFloat(v) || 1.0);
+          renderHistory();
+        }
+        handleRoundState(payload.round);
+      } else {
+        startWaiting();
+      }
+      break;
+
+    case 'SET_ROUND_STATE':
+      handleRoundState(payload);
+      break;
+
+    case 'HISTORY_UPDATE':
+      if (payload.history && payload.history.length) {
+        G.history = payload.history.map(v => parseFloat(v) || 1.0);
+        renderHistory();
+      }
+      break;
+
+    case 'BETS_UPDATE':
+      handleBetsUpdate(payload.bets);
       break;
 
     case 'WALLET_UPDATED':
@@ -846,10 +1064,9 @@ function renderSlots() {
     } else if (G.phase === 'flying') {
       if (s.state==='idle')
         { btn.textContent='Bet Next Round'; btn.classList.add('locked'); btn.disabled=true; }
-      else if (s.state==='armed' && s.mode==='manual' && !s.cashing)
-        { btn.textContent='💰 CASH OUT'; btn.classList.add('cashout'); }
-      else if (s.state==='armed' && s.mode==='auto')
-        { btn.textContent='AUTO @ '+s.autoT.toFixed(2)+'×'; btn.classList.add('armed'); btn.disabled=true; }
+      else if (s.state==='armed' && !s.cashing)
+        // Part A: show cashout in both manual and auto modes
+        { btn.textContent='💰 CASH OUT'+(s.mode==='auto'?' (auto:'+s.autoT.toFixed(2)+'×)':''); btn.classList.add('cashout'); }
       else if (s.state==='cashing')
         { btn.textContent='Processing…'; btn.classList.add('locked'); btn.disabled=true; }
       else if (s.state==='won') {
@@ -967,9 +1184,10 @@ function renderFeed() {
   });
 }
 
-// inject fake players in waiting phase
+// inject fake players only when no real server feed is available
 const _FAKE_AMTS=[100,200,500,1000,2000,5000];
 setInterval(()=>{
+  if (G.hasRealFeed) return; // real feed from server — no fakes needed
   if (G.phase==='waiting') {
     const n=FAKE_NAMES[Math.floor(Math.random()*FAKE_NAMES.length)];
     const c=AVT_COLORS[Math.floor(Math.random()*AVT_COLORS.length)];

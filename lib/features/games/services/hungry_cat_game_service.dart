@@ -137,4 +137,63 @@ class HungryCatGameService {
             HungryCatHistoryEntry.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+
+  // ── Global round methods ─────────────────────────────────────────────────────
+
+  Future<HungryCatGlobalRound> getOrCreateRound() async {
+    final data = await SupabaseService.requiredClient
+        .rpc('get_or_create_hungry_cat_round') as Map<String, dynamic>;
+    return HungryCatGlobalRound.fromJson(data);
+  }
+
+  Future<int> placeGlobalBet({
+    required String roundId,
+    required String foodId,
+    required int amount,
+  }) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'place_hungry_cat_global_bet',
+      params: {
+        'p_round_id': roundId,
+        'p_food_id':  foodId,
+        'p_amount':   amount,
+      },
+    ) as Map<String, dynamic>;
+    return (data['new_balance'] as int?) ?? 0;
+  }
+
+  Future<HungryCatGlobalRound> settleGlobalRound(String roundId) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'settle_hungry_cat_global_round',
+      params: {'p_round_id': roundId},
+    ) as Map<String, dynamic>;
+    // settle RPC returns the settled round without betting_ends_at/server_now,
+    // so we normalise missing fields
+    return HungryCatGlobalRound(
+      roundId:           data['round_id']?.toString() ?? roundId,
+      roundNumber:       0,
+      status:            data['status']?.toString() ?? 'settled',
+      bettingEndsAt:     DateTime.now().toUtc(),
+      serverNow:         DateTime.parse(data['server_now'] as String).toUtc(),
+      winningFoodId:     data['winning_food_id']?.toString(),
+      winningFoodIcon:   data['winning_food_icon']?.toString(),
+      winningFoodName:   data['winning_food_name']?.toString(),
+      winningMultiplier: data['winning_multiplier'] == null
+          ? null
+          : (data['winning_multiplier'] as num).toDouble(),
+    );
+  }
+
+  Future<List<HungryCatHistoryEntry>> getGlobalHistory({
+    int limit = 20,
+  }) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'get_hungry_cat_global_history',
+      params: {'p_limit': limit},
+    );
+    final rows = data as List<dynamic>;
+    return rows
+        .map((e) => HungryCatHistoryEntry.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
 }

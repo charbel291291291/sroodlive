@@ -131,6 +131,49 @@ class HungryCatHistoryEntry {
       };
 }
 
+/// Returned by get_or_create_hungry_cat_round and settle_hungry_cat_global_round.
+class HungryCatGlobalRound {
+  const HungryCatGlobalRound({
+    required this.roundId,
+    required this.roundNumber,
+    required this.status,
+    required this.bettingEndsAt,
+    required this.serverNow,
+    this.winningFoodId,
+    this.winningFoodIcon,
+    this.winningFoodName,
+    this.winningMultiplier,
+  });
+
+  final String    roundId;
+  final int       roundNumber;
+  final String    status; // 'betting' | 'settled'
+  final DateTime  bettingEndsAt;
+  final DateTime  serverNow;
+  final String?   winningFoodId;
+  final String?   winningFoodIcon;
+  final String?   winningFoodName;
+  final double?   winningMultiplier;
+
+  bool get isSettled => status == 'settled';
+
+  factory HungryCatGlobalRound.fromJson(Map<String, dynamic> json) {
+    return HungryCatGlobalRound(
+      roundId:          json['round_id']?.toString() ?? '',
+      roundNumber:      json['round_number'] is int ? json['round_number'] as int : 0,
+      status:           json['status']?.toString() ?? 'betting',
+      bettingEndsAt:    DateTime.parse(json['betting_ends_at'] as String).toUtc(),
+      serverNow:        DateTime.parse(json['server_now'] as String).toUtc(),
+      winningFoodId:    json['winning_food_id']?.toString(),
+      winningFoodIcon:  json['winning_food_icon']?.toString(),
+      winningFoodName:  json['winning_food_name']?.toString(),
+      winningMultiplier: json['winning_multiplier'] == null
+          ? null
+          : _toDouble(json['winning_multiplier']),
+    );
+  }
+}
+
 /// Returned by start_hungry_cat_round RPC.
 class HungryCatRoundInfo {
   const HungryCatRoundInfo({required this.roundId});
