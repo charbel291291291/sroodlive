@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../models/recharge_package.dart';
-import '../models/recharge_request.dart';
 import '../models/wallet.dart';
 import '../models/wallet_transaction.dart';
 import '../services/wallet_service.dart';
 import '../widgets/recharge_request_sheet.dart';
 import 'recharge_help_screen.dart';
+import 'transaction_history_screen.dart';
 import 'withdrawal_screen.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
@@ -21,50 +21,93 @@ class WalletScreen extends StatefulWidget {
 
 class _WalletScreenState extends State<WalletScreen> {
   final WalletService _walletService = const WalletService();
-  final GlobalKey _transactionsKey = GlobalKey();
 
   UserWallet? _wallet;
-  List<WalletTransaction> _transactions = const [];
-  List<RechargeRequest> _rechargeRequests = const [];
+  List<WalletTransaction> _recentActivity = const [];
+  int _pendingRequestCount = 0;
   List<RechargePackage> _rechargePackages = const [];
-  bool _isLoading = true;
+
+  bool _walletLoading = true;
+  bool _activityLoading = true;
+  bool _pendingLoading = true;
   bool _isSubmitting = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _loadWallet();
+    debugPrint('[PerfWallet] screen opened ts=${DateTime.now().millisecondsSinceEpoch}');
+    _loadAll();
+  }
+
+  Future<void> _loadAll() async {
+    await _loadWallet();
+    await Future.wait([_loadRecentActivity(), _loadPendingRequests()]);
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _walletLoading = true;
+      _activityLoading = true;
+      _pendingLoading = true;
+      _error = null;
+    });
+    await _loadAll();
   }
 
   Future<void> _loadWallet() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
+    final t0 = DateTime.now().millisecondsSinceEpoch;
     try {
-      final wallet = await _walletService.ensureWallet();
-      final transactions = await _walletService.fetchTransactions();
-      final rechargeRequests = await _walletService.fetchRechargeRequests();
-      final rechargePackages = await _walletService.fetchRechargePackages();
-
+      final results = await Future.wait([
+        _walletService.ensureWallet(),
+        _walletService.fetchRechargePackages(),
+      ]);
       if (!mounted) return;
-
       setState(() {
-        _wallet = wallet;
-        _transactions = transactions;
-        _rechargeRequests = rechargeRequests;
-        _rechargePackages = rechargePackages;
-        _isLoading = false;
+        _wallet = results[0] as UserWallet;
+        _rechargePackages = results[1] as List<RechargePackage>;
+        _walletLoading = false;
+        _error = null;
       });
-    } catch (error) {
+      debugPrint('[PerfWallet] balances loaded in ${DateTime.now().millisecondsSinceEpoch - t0}ms');
+    } catch (e) {
       if (!mounted) return;
-
       setState(() {
-        _error = error.toString();
-        _isLoading = false;
+        _error = e.toString();
+        _walletLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadRecentActivity() async {
+    final t0 = DateTime.now().millisecondsSinceEpoch;
+    try {
+      final txs = await _walletService.fetchTransactions(limit: 3);
+      if (!mounted) return;
+      setState(() {
+        _recentActivity = txs;
+        _activityLoading = false;
+      });
+      debugPrint('[PerfWallet] recent activity loaded in ${DateTime.now().millisecondsSinceEpoch - t0}ms count=${txs.length}');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _activityLoading = false);
+    }
+  }
+
+  Future<void> _loadPendingRequests() async {
+    final t0 = DateTime.now().millisecondsSinceEpoch;
+    try {
+      final pending = await _walletService.fetchPendingRechargeRequests(limit: 10);
+      if (!mounted) return;
+      setState(() {
+        _pendingRequestCount = pending.length;
+        _pendingLoading = false;
+      });
+      debugPrint('[PerfWallet] pending requests loaded in ${DateTime.now().millisecondsSinceEpoch - t0}ms count=${pending.length}');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _pendingLoading = false);
     }
   }
 
@@ -82,9 +125,7 @@ class _WalletScreenState extends State<WalletScreen> {
       ),
     );
 
-    if (input == null || !mounted) {
-      return;
-    }
+    if (input == null || !mounted) return;
 
     setState(() => _isSubmitting = true);
 
@@ -104,34 +145,38 @@ class _WalletScreenState extends State<WalletScreen> {
         SnackBar(
           content: Text(
             context.isArabic
-                ? '\u062a\u0645 \u0625\u0631\u0633\u0627\u0644 \u0637\u0644\u0628 \u0627\u0644\u0634\u062d\u0646'
+                ? 'تم إرسال طلب الشحن'
                 : 'Recharge request submitted',
           ),
         ),
       );
 
-      await _loadWallet();
+      await _refresh();
     } catch (error) {
       if (!mounted) return;
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Recharge failed: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Recharge failed: $error')),
+      );
     } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
-  void _scrollToTransactions() {
-    final context = _transactionsKey.currentContext;
-    if (context == null) return;
-
-    Scrollable.ensureVisible(
+  void _showWithdraw() {
+    Navigator.push(
       context,
-      duration: const Duration(milliseconds: 320),
-      curve: Curves.easeOutCubic,
+      MaterialPageRoute<void>(
+        builder: (_) => WithdrawalScreen(isArabic: context.isArabic),
+      ),
+    ).then((_) => _refresh());
+  }
+
+  void _showHistory() {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => TransactionHistoryScreen(isArabic: context.isArabic),
+      ),
     );
   }
 
@@ -144,139 +189,90 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  void _showWithdraw() {
-    Navigator.push(
-      context,
-      MaterialPageRoute<void>(
-        builder: (_) => WithdrawalScreen(isArabic: context.isArabic),
-      ),
-    ).then((_) => _loadWallet());
-  }
-
   @override
   Widget build(BuildContext context) {
     final isArabic = context.isArabic;
-    final mediaQuery = MediaQuery.of(context);
+    final mq = MediaQuery.of(context);
+    final bottomPad = (mq.padding.bottom + 80 + 60).clamp(140.0, 300.0);
 
-    // Scaffold provides the Material ancestor — without it, text renders
-    // with the fallback yellow-underline style when this screen is pushed
-    // as a standalone route.
     return Scaffold(
       backgroundColor: const Color(0xFF08060F),
       body: Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF12061F), Color(0xFF07030D), Color(0xFF050208)],
-        ),
-      ),
-      child: MediaQuery(
-        data: mediaQuery.copyWith(
-          textScaler: mediaQuery.textScaler.clamp(
-            minScaleFactor: 1,
-            maxScaleFactor: 1.08,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF12061F), Color(0xFF07030D), Color(0xFF050208)],
           ),
         ),
-        child: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 520),
-              child: RefreshIndicator(
-                onRefresh: _loadWallet,
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
-                  child: Directionality(
-                    textDirection: isArabic
-                        ? TextDirection.rtl
-                        : TextDirection.ltr,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _WalletHeader(
-                          isArabic: isArabic,
-                          onRefresh: _loadWallet,
-                        ),
-                        const SizedBox(height: 14),
-                        if (_isLoading)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 80),
-                            child: Center(child: CircularProgressIndicator()),
-                          )
-                        else if (_error != null)
-                          _WalletErrorState(
-                            message: _error!,
-                            onRetry: _loadWallet,
-                          )
-                        else ...[
-                          _WalletBalanceCard(
-                            wallet: _wallet,
+        child: MediaQuery(
+          data: mq.copyWith(
+            textScaler: mq.textScaler.clamp(
+              minScaleFactor: 1,
+              maxScaleFactor: 1.08,
+            ),
+          ),
+          child: SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: RefreshIndicator(
+                  color: const Color(0xFFF4C95D),
+                  backgroundColor: const Color(0xFF1A0E2C),
+                  onRefresh: _refresh,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.fromLTRB(20, 12, 20, bottomPad),
+                    child: Directionality(
+                      textDirection:
+                          isArabic ? TextDirection.rtl : TextDirection.ltr,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _WalletHeader(
                             isArabic: isArabic,
-                            onRecharge: _isSubmitting
-                                ? null
-                                : _openRechargeSheet,
+                            onRefresh: _refresh,
                           ),
-                          const SizedBox(height: 12),
-                          _WalletStatsRow(wallet: _wallet, isArabic: isArabic),
-                          const SizedBox(height: 12),
-                          _WalletActionsRow(
-                            isArabic: isArabic,
-                            onRecharge: _isSubmitting
-                                ? null
-                                : _openRechargeSheet,
-                            onHistory: _scrollToTransactions,
-                            onHelp: _showHelp,
-                            onWithdraw: _showWithdraw,
-                          ),
-                          const SizedBox(height: 14),
-                          _WalletSection(
-                            title: isArabic
-                                ? '\u0637\u0644\u0628\u0627\u062a \u0627\u0644\u0634\u062d\u0646'
-                                : 'Recharge Requests',
-                            child: _rechargeRequests.isEmpty
-                                ? _WalletEmptyState(
-                                    icon: Icons.add_card_rounded,
-                                    title: isArabic
-                                        ? '\u0644\u0627 \u064a\u0648\u062c\u062f \u0637\u0644\u0628\u0627\u062a \u0634\u062d\u0646'
-                                        : 'No recharge requests yet',
-                                    subtitle: isArabic
-                                        ? '\u0627\u0636\u063a\u0637 \u0634\u062d\u0646 \u0644\u0625\u0646\u0634\u0627\u0621 \u0637\u0644\u0628'
-                                        : 'Tap Recharge to create one',
-                                    compact: true,
-                                  )
-                                : Column(
-                                    children: _rechargeRequests
-                                        .take(6)
-                                        .map(_RechargeRequestTile.new)
-                                        .toList(),
-                                  ),
-                          ),
-                          const SizedBox(height: 14),
-                          _WalletSection(
-                            key: _transactionsKey,
-                            title: isArabic
-                                ? '\u0633\u062c\u0644 \u0627\u0644\u0645\u062d\u0641\u0638\u0629'
-                                : 'Transactions',
-                            child: _transactions.isEmpty
-                                ? _WalletEmptyState(
-                                    icon: Icons.receipt_long_rounded,
-                                    title: isArabic
-                                        ? '\u0644\u0627 \u064a\u0648\u062c\u062f \u0633\u062c\u0644 \u0628\u0639\u062f'
-                                        : 'No transactions yet',
-                                    subtitle: isArabic
-                                        ? '\u0633\u064a\u0638\u0647\u0631 \u0646\u0634\u0627\u0637 \u0645\u062d\u0641\u0638\u062a\u0643 \u0647\u0646\u0627'
-                                        : 'Your wallet activity will appear here',
-                                  )
-                                : Column(
-                                    children: _transactions
-                                        .take(8)
-                                        .map(_TransactionTile.new)
-                                        .toList(),
-                                  ),
-                          ),
+                          const SizedBox(height: 24),
+                          if (_walletLoading)
+                            const _LoadingShell()
+                          else if (_error != null)
+                            _ErrorCard(
+                              message: _error!,
+                              onRetry: _refresh,
+                            )
+                          else ...[
+                            _BalanceCard(
+                              wallet: _wallet,
+                              isArabic: isArabic,
+                            ),
+                            const SizedBox(height: 20),
+                            _PrimaryActions(
+                              isArabic: isArabic,
+                              isSubmitting: _isSubmitting,
+                              onRecharge: _openRechargeSheet,
+                              onWithdraw: _showWithdraw,
+                              onHistory: _showHistory,
+                              onHelp: _showHelp,
+                            ),
+                            if (!_pendingLoading && _pendingRequestCount > 0) ...[
+                              const SizedBox(height: 16),
+                              _PendingAlert(
+                                count: _pendingRequestCount,
+                                isArabic: isArabic,
+                                onView: _showHistory,
+                              ),
+                            ],
+                            const SizedBox(height: 24),
+                            _RecentActivitySection(
+                              transactions: _recentActivity,
+                              isLoading: _activityLoading,
+                              isArabic: isArabic,
+                              onViewAll: _showHistory,
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -285,10 +281,13 @@ class _WalletScreenState extends State<WalletScreen> {
           ),
         ),
       ),
-      ),
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Header
+// ---------------------------------------------------------------------------
 
 class _WalletHeader extends StatelessWidget {
   const _WalletHeader({required this.isArabic, required this.onRefresh});
@@ -303,10 +302,8 @@ class _WalletHeader extends StatelessWidget {
         IconButton(
           tooltip: MaterialLocalizations.of(context).backButtonTooltip,
           onPressed: () {
-            final navigator = Navigator.of(context);
-            if (navigator.canPop()) {
-              navigator.pop();
-            }
+            final nav = Navigator.of(context);
+            if (nav.canPop()) nav.pop();
           },
           icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
         ),
@@ -316,29 +313,21 @@ class _WalletHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                isArabic
-                    ? '\u0627\u0644\u0645\u062d\u0641\u0638\u0629'
-                    : 'Wallet',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                isArabic ? 'المحفظة' : 'Wallet',
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 28,
+                  fontSize: 26,
                   fontWeight: FontWeight.w900,
                   height: 1.0,
                 ),
               ),
-              const SizedBox(height: 5),
+              const SizedBox(height: 4),
               Text(
-                isArabic
-                    ? '\u0627\u0644\u0631\u0635\u064a\u062f\u060c \u0627\u0644\u0634\u062d\u0646\u060c \u0648\u0627\u0644\u0633\u062c\u0644'
-                    : 'Balance, recharge, and history',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                isArabic ? 'الرصيد والمدفوعات' : 'Balance and payments',
                 style: const TextStyle(
                   color: Color(0xFFBCAED6),
                   fontSize: 13,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
@@ -354,144 +343,124 @@ class _WalletHeader extends StatelessWidget {
   }
 }
 
-class _WalletBalanceCard extends StatelessWidget {
-  const _WalletBalanceCard({
-    required this.wallet,
-    required this.isArabic,
-    required this.onRecharge,
-  });
+// ---------------------------------------------------------------------------
+// Loading shell (skeleton-style placeholders)
+// ---------------------------------------------------------------------------
+
+class _LoadingShell extends StatelessWidget {
+  const _LoadingShell();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          height: 160,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            color: const Color(0xFF1E1130),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                height: 56,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  color: const Color(0xFF1E1130),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Container(
+                height: 56,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  color: const Color(0xFF1E1130),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Balance card
+// ---------------------------------------------------------------------------
+
+class _BalanceCard extends StatelessWidget {
+  const _BalanceCard({required this.wallet, required this.isArabic});
 
   final UserWallet? wallet;
   final bool isArabic;
-  final VoidCallback? onRecharge;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 172,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(28),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF4A1689), Color(0xFF231036), Color(0xFFC8952D)],
+          colors: [Color(0xFF3D1278), Color(0xFF1E0A3C), Color(0xFF2C1800)],
+          stops: [0.0, 0.6, 1.0],
         ),
         border: Border.all(
-          color: const Color(0xFFF4C95D).withValues(alpha: 0.5),
+          color: const Color(0xFFF4C95D).withValues(alpha: 0.35),
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF8B26D9).withValues(alpha: 0.25),
-            blurRadius: 26,
-            offset: const Offset(0, 14),
+            color: const Color(0xFF8B26D9).withValues(alpha: 0.22),
+            blurRadius: 32,
+            offset: const Offset(0, 16),
           ),
         ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.22),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.16),
-                  ),
-                ),
-                child: const Icon(
-                  Icons.account_balance_wallet_rounded,
-                  color: Color(0xFFF4C95D),
-                  size: 22,
-                ),
-              ),
-              const Spacer(),
-              _GoldPillButton(
-                label: isArabic ? '\u0634\u062d\u0646' : 'Recharge',
-                icon: Icons.add_rounded,
-                onTap: onRecharge,
-              ),
-            ],
-          ),
-          const Spacer(),
-          Row(
-            children: [
-              Expanded(
-                child: _BalanceTile(
-                  icon: Icons.monetization_on_rounded,
-                  label: isArabic ? '\u0639\u0645\u0644\u0627\u062a' : 'Coins',
-                  value: wallet?.coinsBalance ?? 0,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _BalanceTile(
-                  icon: Icons.diamond_rounded,
-                  label: isArabic
-                      ? '\u0623\u0644\u0645\u0627\u0633'
-                      : 'Diamonds',
-                  value: wallet?.diamondsBalance ?? 0,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BalanceTile extends StatelessWidget {
-  const _BalanceTile({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final int value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 86,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.24),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: const Color(0xFFF4C95D), size: 20),
-          const Spacer(),
           Text(
-            _formatWalletCount(value),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              height: 1.0,
+            isArabic ? 'رصيدك' : 'Your Balance',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.55),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
             ),
           ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFFE3D9F4),
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              height: 1.0,
-            ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: _BalanceItem(
+                  icon: Icons.monetization_on_rounded,
+                  iconColor: const Color(0xFFF4C95D),
+                  label: isArabic ? 'عملات' : 'Coins',
+                  value: wallet?.coinsBalance ?? 0,
+                ),
+              ),
+              Container(
+                width: 1,
+                height: 48,
+                color: Colors.white.withValues(alpha: 0.12),
+              ),
+              Expanded(
+                child: _BalanceItem(
+                  icon: Icons.diamond_rounded,
+                  iconColor: const Color(0xFF7DD3FC),
+                  label: isArabic ? 'ألماس' : 'Diamonds',
+                  value: wallet?.diamondsBalance ?? 0,
+                  align: CrossAxisAlignment.end,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -499,84 +468,54 @@ class _BalanceTile extends StatelessWidget {
   }
 }
 
-class _WalletStatsRow extends StatelessWidget {
-  const _WalletStatsRow({required this.wallet, required this.isArabic});
-
-  final UserWallet? wallet;
-  final bool isArabic;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _StatTile(
-            icon: Icons.south_west_rounded,
-            label: isArabic ? '\u0645\u0634\u062d\u0648\u0646' : 'Charged',
-            value: wallet?.lifetimeCoinsCharged ?? 0,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _StatTile(
-            icon: Icons.north_east_rounded,
-            label: isArabic ? '\u0645\u0635\u0631\u0648\u0641' : 'Spent',
-            value: wallet?.lifetimeCoinsSpent ?? 0,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _StatTile(
-            icon: Icons.auto_awesome_rounded,
-            label: isArabic ? '\u0645\u0643\u062a\u0633\u0628' : 'Earned',
-            value: wallet?.lifetimeDiamondsEarned ?? 0,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StatTile extends StatelessWidget {
-  const _StatTile({
+class _BalanceItem extends StatelessWidget {
+  const _BalanceItem({
     required this.icon,
+    required this.iconColor,
     required this.label,
     required this.value,
+    this.align = CrossAxisAlignment.start,
   });
 
   final IconData icon;
+  final Color iconColor;
   final String label;
   final int value;
+  final CrossAxisAlignment align;
 
   @override
   Widget build(BuildContext context) {
-    return _WalletGlassCard(
-      height: 78,
-      padding: const EdgeInsets.all(10),
+    return Padding(
+      padding: align == CrossAxisAlignment.end
+          ? const EdgeInsets.only(left: 20)
+          : const EdgeInsets.only(right: 20),
       child: Column(
+        crossAxisAlignment: align,
         children: [
-          Icon(icon, color: const Color(0xFFF4C95D), size: 17),
-          const Spacer(),
+          Row(
+            mainAxisAlignment: align == CrossAxisAlignment.end
+                ? MainAxisAlignment.end
+                : MainAxisAlignment.start,
+            children: [
+              Icon(icon, color: iconColor, size: 16),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.55),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
           Text(
-            _formatWalletCount(value),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            _fmt(value),
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 17,
+              fontSize: 28,
               fontWeight: FontWeight.w900,
-              height: 1.0,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFFBCAED6),
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
               height: 1.0,
             ),
           ),
@@ -586,63 +525,81 @@ class _StatTile extends StatelessWidget {
   }
 }
 
-class _WalletActionsRow extends StatelessWidget {
-  const _WalletActionsRow({
+// ---------------------------------------------------------------------------
+// Primary actions
+// ---------------------------------------------------------------------------
+
+class _PrimaryActions extends StatelessWidget {
+  const _PrimaryActions({
     required this.isArabic,
+    required this.isSubmitting,
     required this.onRecharge,
+    required this.onWithdraw,
     required this.onHistory,
     required this.onHelp,
-    required this.onWithdraw,
   });
 
   final bool isArabic;
-  final VoidCallback? onRecharge;
+  final bool isSubmitting;
+  final VoidCallback onRecharge;
+  final VoidCallback onWithdraw;
   final VoidCallback onHistory;
   final VoidCallback onHelp;
-  final VoidCallback onWithdraw;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _WalletActionButton(
-            icon: Icons.add_card_rounded,
-            label: isArabic ? '\u0634\u062d\u0646' : 'Recharge',
-            onTap: onRecharge,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: _GoldButton(
+                icon: Icons.add_rounded,
+                label: isArabic ? 'شحن' : 'Recharge',
+                onTap: isSubmitting ? null : onRecharge,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _DarkButton(
+                icon: Icons.arrow_circle_up_rounded,
+                label: isArabic ? 'سحب' : 'Withdraw',
+                onTap: onWithdraw,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _WalletActionButton(
-            icon: Icons.arrow_circle_up_rounded,
-            label: isArabic ? '\u0633\u062d\u0628' : 'Withdraw',
-            onTap: onWithdraw,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _WalletActionButton(
-            icon: Icons.history_rounded,
-            label: isArabic ? '\u0627\u0644\u0633\u062c\u0644' : 'History',
-            onTap: onHistory,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _WalletActionButton(
-            icon: Icons.support_agent_rounded,
-            label: isArabic ? '\u062f\u0639\u0645' : 'Help',
-            onTap: onHelp,
-          ),
+        const SizedBox(height: 14),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _TextLink(
+              label: isArabic ? 'السجل' : 'View history',
+              onTap: onHistory,
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                '·',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.25),
+                  fontSize: 16,
+                ),
+              ),
+            ),
+            _TextLink(
+              label: isArabic ? 'المساعدة' : 'Help',
+              onTap: onHelp,
+            ),
+          ],
         ),
       ],
     );
   }
 }
 
-class _WalletActionButton extends StatelessWidget {
-  const _WalletActionButton({
+class _GoldButton extends StatelessWidget {
+  const _GoldButton({
     required this.icon,
     required this.label,
     required this.onTap,
@@ -654,155 +611,351 @@ class _WalletActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      type: MaterialType.transparency,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: _WalletGlassCard(
-          height: 64,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
-          child: Column(
-            children: [
-              Icon(icon, color: const Color(0xFFF4C95D), size: 21),
-              const Spacer(),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
+    return SizedBox(
+      height: 56,
+      child: FilledButton.icon(
+        onPressed: onTap,
+        style: FilledButton.styleFrom(
+          backgroundColor: const Color(0xFFF4C95D),
+          disabledBackgroundColor: const Color(0xFFF4C95D).withValues(alpha: 0.4),
+          foregroundColor: const Color(0xFF140820),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
           ),
+        ),
+        icon: Icon(icon, size: 20),
+        label: Text(
+          label,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
         ),
       ),
     );
   }
 }
 
-class _WalletSection extends StatelessWidget {
-  const _WalletSection({required this.title, required this.child, super.key});
+class _DarkButton extends StatelessWidget {
+  const _DarkButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
-  final String title;
-  final Widget child;
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return _WalletGlassCard(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return SizedBox(
+      height: 56,
+      child: OutlinedButton.icon(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.white,
+          side: BorderSide(
+            color: const Color(0xFF6E3AA8).withValues(alpha: 0.7),
+          ),
+          backgroundColor: const Color(0xFF1A0B2E),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+        ),
+        icon: Icon(icon, size: 20),
+        label: Text(
+          label,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+        ),
+      ),
+    );
+  }
+}
+
+class _TextLink extends StatelessWidget {
+  const _TextLink({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFFBCAED6),
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          decoration: TextDecoration.underline,
+          decorationColor: Color(0xFFBCAED6),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Pending recharge alert
+// ---------------------------------------------------------------------------
+
+class _PendingAlert extends StatelessWidget {
+  const _PendingAlert({
+    required this.count,
+    required this.isArabic,
+    required this.onView,
+  });
+
+  final int count;
+  final bool isArabic;
+  final VoidCallback onView;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF3E2C12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFF4C95D).withValues(alpha: 0.4),
+        ),
+      ),
+      child: Row(
         children: [
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-              height: 1.0,
+          const Icon(Icons.pending_actions_rounded,
+              color: Color(0xFFF4C95D), size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              isArabic
+                  ? 'لديك $count طلب شحن معلّق'
+                  : 'You have $count pending recharge ${count == 1 ? 'request' : 'requests'}',
+              style: const TextStyle(
+                color: Color(0xFFF4C95D),
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-          const SizedBox(height: 12),
-          child,
+          GestureDetector(
+            onTap: onView,
+            child: Text(
+              isArabic ? 'عرض' : 'View',
+              style: const TextStyle(
+                color: Color(0xFFF4C95D),
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+                decoration: TextDecoration.underline,
+                decorationColor: Color(0xFFF4C95D),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _RechargeRequestTile extends StatelessWidget {
-  const _RechargeRequestTile(this.request);
+// ---------------------------------------------------------------------------
+// Recent activity
+// ---------------------------------------------------------------------------
 
-  final RechargeRequest request;
+class _RecentActivitySection extends StatelessWidget {
+  const _RecentActivitySection({
+    required this.transactions,
+    required this.isLoading,
+    required this.isArabic,
+    required this.onViewAll,
+  });
+
+  final List<WalletTransaction> transactions;
+  final bool isLoading;
+  final bool isArabic;
+  final VoidCallback onViewAll;
 
   @override
   Widget build(BuildContext context) {
-    final statusStyle = _statusStyle(request.status);
-    final detail = request.referenceCode?.trim().isNotEmpty == true
-        ? 'Ref ${request.referenceCode}'
-        : request.agentCode?.trim().isNotEmpty == true
-        ? 'Agent ${request.agentCode}'
-        : _dateLabel(request.createdAt);
-
-    return _WalletListTile(
-      icon: Icons.add_card_rounded,
-      title: '${request.methodLabel} • ${request.requestedCoins} coins',
-      subtitle: detail,
-      trailing: _StatusPill(
-        label: request.statusLabel,
-        color: statusStyle.$1,
-        background: statusStyle.$2,
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                isArabic ? 'النشاط الأخير' : 'Recent Activity',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            if (transactions.isNotEmpty)
+              GestureDetector(
+                onTap: onViewAll,
+                child: Text(
+                  isArabic ? 'عرض الكل' : 'See all',
+                  style: const TextStyle(
+                    color: Color(0xFFBCAED6),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    decoration: TextDecoration.underline,
+                    decorationColor: Color(0xFFBCAED6),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (isLoading)
+          const _ActivityLoadingPlaceholder()
+        else if (transactions.isEmpty)
+          _EmptyActivity(isArabic: isArabic)
+        else
+          ...transactions.map((tx) => _ActivityTile(tx: tx)),
+      ],
     );
-  }
-
-  (Color, Color) _statusStyle(RechargeStatus status) {
-    return switch (status) {
-      RechargeStatus.approved => (
-        const Color(0xFF63E6A1),
-        const Color(0xFF123A2A),
-      ),
-      RechargeStatus.rejected => (
-        const Color(0xFFFF6B8A),
-        const Color(0xFF3A1422),
-      ),
-      RechargeStatus.cancelled => (
-        const Color(0xFFBCAED6),
-        const Color(0xFF241638),
-      ),
-      RechargeStatus.pending => (
-        const Color(0xFFF4C95D),
-        const Color(0xFF3E2C12),
-      ),
-    };
   }
 }
 
-class _TransactionTile extends StatelessWidget {
-  const _TransactionTile(this.transaction);
-
-  final WalletTransaction transaction;
+class _ActivityLoadingPlaceholder extends StatelessWidget {
+  const _ActivityLoadingPlaceholder();
 
   @override
   Widget build(BuildContext context) {
-    final delta = transaction.coinsDelta != 0
-        ? transaction.coinsDelta
-        : transaction.diamondsDelta;
-    final unit = transaction.coinsDelta != 0 ? 'coins' : 'diamonds';
-    final isPositive = delta > 0;
-    final isNegative = delta < 0;
-    final color = isPositive
-        ? const Color(0xFF63E6A1)
-        : isNegative
-        ? const Color(0xFFFF6B8A)
-        : const Color(0xFFBCAED6);
-
-    return _WalletListTile(
-      icon: _transactionIcon(transaction.type),
-      title: transaction.label,
-      subtitle: transaction.note?.trim().isNotEmpty == true
-          ? transaction.note!
-          : _dateLabel(transaction.createdAt),
-      trailing: Text(
-        '${delta > 0 ? '+' : ''}$delta $unit',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.w900,
+    return Column(
+      children: List.generate(
+        2,
+        (_) => Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          height: 64,
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A0E2C),
+            borderRadius: BorderRadius.circular(16),
+          ),
         ),
       ),
     );
   }
+}
 
-  IconData _transactionIcon(WalletTransactionType type) {
+class _EmptyActivity extends StatelessWidget {
+  const _EmptyActivity({required this.isArabic});
+
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 36),
+      decoration: BoxDecoration(
+        color: const Color(0xFF12081E),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.receipt_long_rounded,
+            color: Colors.white.withValues(alpha: 0.2),
+            size: 36,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            isArabic ? 'لا يوجد نشاط بعد' : 'No activity yet',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.4),
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActivityTile extends StatelessWidget {
+  const _ActivityTile({required this.tx});
+
+  final WalletTransaction tx;
+
+  @override
+  Widget build(BuildContext context) {
+    final delta =
+        tx.coinsDelta != 0 ? tx.coinsDelta : tx.diamondsDelta;
+    final unit = tx.coinsDelta != 0 ? 'coins' : 'diamonds';
+    final isPositive = delta > 0;
+    final amountColor = isPositive
+        ? const Color(0xFF63E6A1)
+        : const Color(0xFFFF6B8A);
+    final amountStr =
+        '${isPositive ? '+' : ''}${_fmt(delta.abs())} $unit';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF12081E),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF4C95D).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              _icon(tx.type),
+              color: const Color(0xFFF4C95D),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tx.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  _dateLabel(tx.createdAt),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.45),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            amountStr,
+            style: TextStyle(
+              color: amountColor,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _icon(WalletTransactionType type) {
     return switch (type) {
       WalletTransactionType.giftSent => Icons.card_giftcard_rounded,
       WalletTransactionType.giftReceived => Icons.redeem_rounded,
@@ -810,205 +963,43 @@ class _TransactionTile extends StatelessWidget {
       WalletTransactionType.agencyRecharge => Icons.groups_rounded,
       WalletTransactionType.adminAdjustment => Icons.tune_rounded,
       WalletTransactionType.refund => Icons.undo_rounded,
-      WalletTransactionType.system => Icons.receipt_long_rounded,
       WalletTransactionType.gameBet => Icons.casino_rounded,
       WalletTransactionType.gameReward => Icons.emoji_events_rounded,
       WalletTransactionType.gameRefund => Icons.replay_rounded,
       WalletTransactionType.withdrawal => Icons.arrow_circle_up_rounded,
       WalletTransactionType.withdrawalRefund => Icons.arrow_circle_down_rounded,
       WalletTransactionType.agencyCommission => Icons.account_balance_rounded,
+      WalletTransactionType.system => Icons.receipt_long_rounded,
     };
   }
 }
 
-class _WalletListTile extends StatelessWidget {
-  const _WalletListTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.trailing,
-  });
+// ---------------------------------------------------------------------------
+// Error card
+// ---------------------------------------------------------------------------
 
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Widget trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 9),
-      padding: const EdgeInsets.all(11),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1B102B).withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFF6E3AA8).withValues(alpha: 0.32),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF4C95D).withValues(alpha: 0.13),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: const Color(0xFFF4C95D), size: 20),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFFBCAED6),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Align(alignment: Alignment.centerRight, child: trailing),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({
-    required this.label,
-    required this.color,
-    required this.background,
-  });
-
-  final String label;
-  final Color color;
-  final Color background;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.45)),
-      ),
-      child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-}
-
-class _WalletEmptyState extends StatelessWidget {
-  const _WalletEmptyState({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    this.compact = false,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: compact ? 120 : 150,
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1B102B).withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFF6E3AA8).withValues(alpha: 0.32),
-        ),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: const Color(0xFFF4C95D), size: compact ? 26 : 30),
-          const SizedBox(height: 9),
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            subtitle,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFFBCAED6),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              height: 1.25,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _WalletErrorState extends StatelessWidget {
-  const _WalletErrorState({required this.message, required this.onRetry});
+class _ErrorCard extends StatelessWidget {
+  const _ErrorCard({required this.message, required this.onRetry});
 
   final String message;
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
-    return _WalletGlassCard(
-      padding: const EdgeInsets.all(18),
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A0B2E),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: const Color(0xFFFF6B8A).withValues(alpha: 0.3),
+        ),
+      ),
       child: Column(
         children: [
-          const Icon(
-            Icons.error_outline_rounded,
-            color: Color(0xFFFF6B8A),
-            size: 32,
-          ),
-          const SizedBox(height: 10),
+          const Icon(Icons.error_outline_rounded,
+              color: Color(0xFFFF6B8A), size: 32),
+          const SizedBox(height: 12),
           Text(
             message,
             textAlign: TextAlign.center,
@@ -1017,7 +1008,7 @@ class _WalletErrorState extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh_rounded),
@@ -1029,89 +1020,26 @@ class _WalletErrorState extends StatelessWidget {
   }
 }
 
-class _GoldPillButton extends StatelessWidget {
-  const _GoldPillButton({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-  });
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
-  final String label;
-  final IconData icon;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return FilledButton.icon(
-      onPressed: onTap,
-      style: FilledButton.styleFrom(
-        backgroundColor: const Color(0xFFF4C95D),
-        foregroundColor: const Color(0xFF140820),
-        minimumSize: const Size(0, 38),
-        padding: const EdgeInsets.symmetric(horizontal: 15),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      ),
-      icon: Icon(icon, size: 18),
-      label: Text(
-        label,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
-      ),
-    );
+String _fmt(int value) {
+  final abs = value.abs();
+  if (abs >= 1000000) {
+    return '${(abs / 1000000).toStringAsFixed(1)}M';
   }
+  if (abs >= 1000) {
+    return '${(abs / 1000).toStringAsFixed(1)}K';
+  }
+  return abs.toString();
 }
 
-class _WalletGlassCard extends StatelessWidget {
-  const _WalletGlassCard({
-    required this.child,
-    this.height,
-    this.padding = const EdgeInsets.all(14),
-  });
-
-  final Widget child;
-  final double? height;
-  final EdgeInsetsGeometry padding;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: height,
-      width: double.infinity,
-      padding: padding,
-      decoration: BoxDecoration(
-        color: const Color(0xFF160B24).withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: const Color(0xFF6E3AA8).withValues(alpha: 0.45),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF6A28D9).withValues(alpha: 0.12),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: child,
-    );
-  }
-}
-
-String _formatWalletCount(int value) {
-  if (value >= 1000000) {
-    return '${(value / 1000000).toStringAsFixed(1)}M';
-  }
-
-  if (value >= 1000) {
-    return '${(value / 1000).toStringAsFixed(1)}K';
-  }
-
-  return value.toString();
-}
-
-String _dateLabel(DateTime? value) {
-  if (value == null) {
-    return '-';
-  }
-
-  return '${value.month}/${value.day}/${value.year}';
+String _dateLabel(DateTime? dt) {
+  if (dt == null) return '—';
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
 }
