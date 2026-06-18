@@ -162,8 +162,15 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
       } else {
         await _service.followUser(p.userId);
       }
-    } catch (_) {
-      if (mounted) setState(() => _profile = p);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _profile = p);
+        final isArabic = context.isArabic;
+        final msg = e.toString().contains('follow_blocked_by_vip')
+            ? (isArabic ? 'هذا المستخدم لا يقبل المتابعة' : 'This user does not accept followers')
+            : (isArabic ? 'تعذّر تنفيذ العملية' : 'Action failed, please try again');
+        _snack(msg);
+      }
     } finally {
       if (mounted) setState(() => _followBusy = false);
     }

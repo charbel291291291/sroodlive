@@ -82,8 +82,8 @@ class _SearchScreenState extends State<SearchScreen>
       final [usersRaw, roomsRaw] = await Future.wait<dynamic>([
         SupabaseService.requiredClient
             .from('profiles')
-            .select('id, display_name, avatar_url, bio')
-            .ilike('display_name', '%$q%')
+            .select('id, display_name, username, avatar_url, bio, public_user_id')
+            .or('display_name.ilike.%$q%,username.ilike.%$q%,public_user_id.ilike.%$q%')
             .limit(20),
         SupabaseService.requiredClient
             .from('rooms')
@@ -98,8 +98,10 @@ class _SearchScreenState extends State<SearchScreen>
         (row) => _SearchResult(
           id: row['id'] as String,
           type: 'user',
-          title: row['display_name'] as String? ?? 'Unknown',
-          subtitle: row['bio'] as String?,
+          title: row['display_name'] as String? ??
+              row['username'] as String? ??
+              'Unknown',
+          subtitle: row['public_user_id'] as String? ?? row['bio'] as String?,
           imageUrl: row['avatar_url'] as String?,
         ),
       );

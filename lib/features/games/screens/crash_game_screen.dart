@@ -1,9 +1,12 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import 'gold_ladder_quiz_screen.dart';
 import 'hungry_cat_webview_screen.dart';
 import 'rocket_crash_webview_screen.dart';
 import 'spin_wheel_screen.dart';
+import 'srood_blocks_screen.dart';
+import 'srood_loto_screen.dart';
+import 'srood_treasure_screen.dart';
 
 class CrashGameScreen extends StatelessWidget {
   const CrashGameScreen({required this.isArabic, super.key});
@@ -14,14 +17,17 @@ class CrashGameScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final title = isArabic ? 'الألعاب' : 'Games';
 
+    final games = _gamesData(context, isArabic);
+
     return Scaffold(
       backgroundColor: const Color(0xFF08030F),
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
+            // ── Header ────────────────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
                 child: Row(
                   children: [
                     Container(
@@ -49,8 +55,6 @@ class CrashGameScreen extends StatelessWidget {
                     Expanded(
                       child: Text(
                         title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 30,
@@ -59,72 +63,43 @@ class CrashGameScreen extends StatelessWidget {
                         ),
                       ),
                     ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(30),
+                        color: const Color(0xFF6D28D9).withValues(alpha: 0.3),
+                        border: Border.all(
+                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.4),
+                        ),
+                      ),
+                      child: Text(
+                        '${games.length} ${isArabic ? 'لعبة' : 'Games'}',
+                        style: const TextStyle(
+                          color: Color(0xFFA78BFA),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
+
+            // ── 2-column grid ─────────────────────────────────────────────
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 10, 18, 110),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate.fixed([
-                  _GameCard(
-                    icon: '🎡',
-                    title: isArabic ? 'عجلة الحظ' : 'Spin Wheel',
-                    subtitle: isArabic
-                        ? 'اختار رهانك ولف العجلة.'
-                        : 'Pick your bet and spin the wheel.',
-                    colors: const [Color(0xFFF97316), Color(0xFF7C2D12)],
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => SpinWheelScreen(isArabic: isArabic),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  _GameCard(
-                    icon: '🐱',
-                    title: isArabic ? 'القط الجائع' : 'Hungry Cat',
-                    subtitle: isArabic
-                        ? 'لعبة أكل وجوائز مع القط.'
-                        : 'Food, coins, and cute cat rewards.',
-                    colors: const [Color(0xFFF0C15A), Color(0xFF92400E)],
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => HungryCatWebviewScreen(isArabic: isArabic),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  _GameCard(
-                    icon: '🚀',
-                    title: isArabic ? 'صاروخ الانهيار' : 'Rocket Crash',
-                    subtitle: isArabic
-                        ? 'راهن واكسب قبل أن يسقط الصاروخ!'
-                        : 'Bet and cash out before the rocket crashes!',
-                    colors: const [Color(0xFF1A6FFF), Color(0xFF030e2a)],
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            RocketCrashWebviewScreen(isArabic: isArabic),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  _GameCard(
-                    icon: '🏆',
-                    title: isArabic ? 'سلم الذهب' : 'Gold Ladder',
-                    subtitle: isArabic
-                        ? 'جاوب واربح واطلع على السلم.'
-                        : 'Answer, climb, and win rewards.',
-                    colors: const [Color(0xFF22C55E), Color(0xFF064E3B)],
-                    badge: isArabic ? 'جديد' : 'NEW',
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => GoldLadderQuizScreen(isArabic: isArabic),
-                      ),
-                    ),
-                  ),
-                ]),
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 120),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount:   2,
+                  mainAxisSpacing:  12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 0.95,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (ctx, i) => _GameGridCard(data: games[i]),
+                  childCount: games.length,
+                ),
               ),
             ),
           ],
@@ -132,153 +107,273 @@ class CrashGameScreen extends StatelessWidget {
       ),
     );
   }
+
+  List<_GameData> _gamesData(BuildContext context, bool ar) => [
+    _GameData(
+      emoji:     '🎡',
+      assetPath: 'assets/images/games/spin_wheel.webp',
+      title:     ar ? 'عجلة الحظ'       : 'Spin Wheel',
+      subtitle:  ar ? 'لف العجلة واربح' : 'Spin & win',
+      colors:    const [Color(0xFFF97316), Color(0xFF7C2D12)],
+      glowColor: const Color(0xFFF97316),
+      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => SpinWheelScreen(isArabic: ar),
+      )),
+    ),
+    _GameData(
+      emoji:     '🐱',
+      assetPath: 'assets/images/games/hungry_cat.webp',
+      title:     ar ? 'القط الجائع'      : 'Hungry Cat',
+      subtitle:  ar ? 'أطعم القط واكسب' : 'Feed & earn',
+      colors:    const [Color(0xFFF0C15A), Color(0xFF92400E)],
+      glowColor: const Color(0xFFF0C15A),
+      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => HungryCatWebviewScreen(isArabic: ar),
+      )),
+    ),
+    _GameData(
+      emoji:     '🚀',
+      assetPath: 'assets/images/games/rocket_crash.webp',
+      title:     ar ? 'صاروخ الانهيار'  : 'Rocket Crash',
+      subtitle:  ar ? 'اسحب قبل السقوط' : 'Cash out in time',
+      colors:    const [Color(0xFF1A6FFF), Color(0xFF030E2A)],
+      glowColor: const Color(0xFF1A6FFF),
+      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => RocketCrashWebviewScreen(isArabic: ar),
+      )),
+    ),
+    _GameData(
+      emoji:     '🏆',
+      assetPath: 'assets/images/games/gold_ladder.webp',
+      title:     ar ? 'سلم الذهب'       : 'Gold Ladder',
+      subtitle:  ar ? 'جاوب واطلع فوق'  : 'Answer & climb',
+      colors:    const [Color(0xFF22C55E), Color(0xFF064E3B)],
+      glowColor: const Color(0xFF22C55E),
+      badge:     ar ? 'تحدي' : 'QUIZ',
+      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => GoldLadderQuizScreen(isArabic: ar),
+      )),
+    ),
+    _GameData(
+      emoji:     '🎰',
+      assetPath: 'assets/images/games/srood_draw.webp',
+      title:     ar ? 'سرود درو'          : 'Srood Draw',
+      subtitle:  ar ? 'اشتري تذكرة واكسب' : 'Buy a ticket & win',
+      colors:    const [Color(0xFFEC4899), Color(0xFF831843)],
+      glowColor: const Color(0xFFEC4899),
+      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => SroodLotoScreen(isArabic: ar),
+      )),
+    ),
+    _GameData(
+      emoji:     '💎',
+      assetPath: 'assets/images/games/srood_treasure.webp',
+      title:     ar ? 'سرود تريجر'   : 'Srood Treasure',
+      subtitle:  ar ? 'اختار صندوقك' : 'Pick your box',
+      colors:    const [Color(0xFF06B6D4), Color(0xFF164E63)],
+      glowColor: const Color(0xFF06B6D4),
+      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => SroodTreasureScreen(isArabic: ar),
+      )),
+    ),
+    _GameData(
+      emoji:     '🟪',
+      assetPath: 'assets/images/games/srood_blocks.webp',
+      title:     ar ? 'سرود بلوكس'          : 'Srood Blocks',
+      subtitle:  ar ? 'رتّب البلوكس واكسب XP' : 'Stack & earn XP',
+      colors:    const [Color(0xFF8B5CF6), Color(0xFF2E1065)],
+      glowColor: const Color(0xFF8B5CF6),
+      badge:     ar ? 'جديد' : 'NEW',
+      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => SroodBlocksScreen(isArabic: ar),
+      )),
+    ),
+  ];
 }
 
-class _GameCard extends StatelessWidget {
-  const _GameCard({
-    required this.icon,
+// ── Data ──────────────────────────────────────────────────────────────────────
+
+class _GameData {
+  const _GameData({
+    required this.emoji,
     required this.title,
     required this.subtitle,
     required this.colors,
+    required this.glowColor,
     required this.onTap,
     this.badge,
+    this.assetPath,
   });
 
-  final String icon;
-  final String title;
-  final String subtitle;
-  final List<Color> colors;
-  final VoidCallback onTap;
-  final String? badge;
+  final String        emoji;
+  final String        title;
+  final String        subtitle;
+  final List<Color>   colors;
+  final Color         glowColor;
+  final VoidCallback  onTap;
+  final String?       badge;
+  final String?       assetPath;
+}
+
+// ── Grid card ─────────────────────────────────────────────────────────────────
+
+class _GameGridCard extends StatelessWidget {
+  const _GameGridCard({required this.data});
+
+  final _GameData data;
 
   @override
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(26),
-        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        onTap: data.onTap,
         child: Ink(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(26),
+            borderRadius: BorderRadius.circular(22),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: colors,
+              colors: [
+                data.colors[0].withValues(alpha: 0.18),
+                data.colors[1].withValues(alpha: 0.35),
+              ],
             ),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+            border: Border.all(
+              color: data.colors[0].withValues(alpha: 0.28),
+            ),
             boxShadow: [
               BoxShadow(
-                color: colors.first.withValues(alpha: 0.28),
-                blurRadius: 22,
-                offset: const Offset(0, 12),
+                color: data.glowColor.withValues(alpha: 0.12),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
           child: Stack(
             children: [
+              // ghost emoji background
               Positioned(
-                right: -18,
-                bottom: -22,
+                right: -12,
+                bottom: -14,
                 child: Text(
-                  icon,
+                  data.emoji,
                   style: TextStyle(
-                    fontSize: 108,
-                    color: Colors.white.withValues(alpha: 0.12),
+                    fontSize: 72,
+                    color: Colors.white.withValues(alpha: 0.07),
                   ),
                 ),
               ),
+
+              // content
               Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // icon container
                     Container(
-                      width: 64,
-                      height: 64,
+                      width: 52,
+                      height: 52,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: data.colors,
                         ),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        icon,
-                        style: const TextStyle(fontSize: 34),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 21,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ),
-                              if (badge != null) ...[
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.18),
-                                    borderRadius: BorderRadius.circular(999),
-                                  ),
-                                  child: Text(
-                                    badge!,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            subtitle,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.82),
-                              fontSize: 13,
-                              height: 1.3,
-                              fontWeight: FontWeight.w600,
-                            ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: data.glowColor.withValues(alpha: 0.35),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
                           ),
                         ],
                       ),
+                      padding: const EdgeInsets.all(6),
+                      child: data.assetPath != null
+                          ? Image.asset(
+                              data.assetPath!,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context2, err, st) =>
+                                  Text(data.emoji, style: const TextStyle(fontSize: 26)),
+                            )
+                          : Center(
+                              child: Text(data.emoji, style: const TextStyle(fontSize: 26)),
+                            ),
                     ),
-                    const SizedBox(width: 10),
-                    Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(14),
+
+                    const Spacer(),
+
+                    // badge
+                    if (data.badge != null)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 5),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(30),
+                          color: data.colors[0].withValues(alpha: 0.3),
+                          border: Border.all(
+                            color: data.colors[0].withValues(alpha: 0.5),
+                          ),
+                        ),
+                        child: Text(
+                          data.badge!,
+                          style: TextStyle(
+                            color: data.colors[0],
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.arrow_forward_rounded,
+
+                    // title
+                    Text(
+                      data.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
                         color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+
+                    // subtitle
+                    Text(
+                      data.subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
+                ),
+              ),
+
+              // arrow chip
+              Positioned(
+                top: 12,
+                right: 12,
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(9),
+                    color: Colors.white.withValues(alpha: 0.08),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  ),
+                  child: const Icon(
+                    Icons.arrow_forward_rounded,
+                    color: Colors.white54,
+                    size: 14,
+                  ),
                 ),
               ),
             ],

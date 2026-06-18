@@ -111,23 +111,39 @@ class RoomManagementService {
   // ── Moderators ─────────────────────────────────────────────────────────────
 
   Future<List<RoomModerator>> getModerators(String roomId) async {
-    final data = await SupabaseService.requiredClient
-        .from('room_moderators')
-        .select('*, profiles(display_name, avatar_url)')
-        .eq('room_id', roomId)
-        .order('created_at', ascending: false);
-
-    return (data as List<dynamic>)
-        .map((e) => RoomModerator.fromJson(e as Map<String, dynamic>))
-        .toList();
+    final client = SupabaseService.requiredClient;
+    try {
+      final data = await client
+          .from('room_moderators')
+          .select('*, profiles(display_name, avatar_url)')
+          .eq('room_id', roomId)
+          .order('created_at', ascending: false);
+      return (data as List<dynamic>)
+          .map((e) => RoomModerator.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      // Profiles join may fail if RLS is restrictive — fall back to bare query.
+      final data = await client
+          .from('room_moderators')
+          .select()
+          .eq('room_id', roomId)
+          .order('created_at', ascending: false);
+      return (data as List<dynamic>)
+          .map((e) => RoomModerator.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
   }
 
   Future<void> addModerator(String roomId, String userId) async {
-    await SupabaseService.requiredClient.from('room_moderators').insert({
-      'room_id': roomId,
-      'user_id': userId,
-      'created_by': SupabaseService.requiredClient.auth.currentUser!.id,
-    });
+    await SupabaseService.requiredClient.from('room_moderators').upsert(
+      {
+        'room_id': roomId,
+        'user_id': userId,
+        'created_by': SupabaseService.requiredClient.auth.currentUser!.id,
+      },
+      onConflict: 'room_id,user_id',
+      ignoreDuplicates: true,
+    );
   }
 
   Future<void> removeModerator(String moderatorId) async {

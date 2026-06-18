@@ -560,12 +560,13 @@ class _SlideData {
   final DateTime? updatedAt;
 
   /// Returns the image URL with an `?v=` cache-buster derived from updatedAt.
-  /// Falls back to a millisecond timestamp when updatedAt is absent.
+  /// When updatedAt is absent the raw URL is returned unchanged so Flutter's
+  /// image cache can reuse the decoded image across rebuilds.
   String? get cachedImageUrl {
     final url = imageUrl;
     if (url == null || url.isEmpty) return null;
-    final v = updatedAt?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch;
-    // Avoid double query-string if the URL already has one.
+    if (updatedAt == null) return url;
+    final v = updatedAt!.millisecondsSinceEpoch;
     final sep = url.contains('?') ? '&' : '?';
     return '$url${sep}v=$v';
   }
@@ -722,6 +723,13 @@ class _RoomsHeroBannerState extends State<_RoomsHeroBanner> {
         _slides = parsed;
         _page = 0;
       });
+      // Warm Flutter's image cache so banners appear instantly on first display.
+      for (final slide in _slides) {
+        final url = slide.cachedImageUrl;
+        if (url != null && mounted) {
+          unawaited(precacheImage(NetworkImage(url), context));
+        }
+      }
     } catch (_) {
       // silently fall back to hardcoded slides
     }
@@ -802,13 +810,39 @@ class _BannerSlide extends StatelessWidget {
     // ── Determine inner content based on whether an image URL is set ──────────
     Widget innerContent;
     if (imageUrl != null) {
-      // Image banner: show only the photo, no text/icon overlay.
+      // Image banner: full-cover photo. The container behind it provides a
+      // purple gradient placeholder that shows while the image loads.
       innerContent = Image.network(
         imageUrl,
         fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,
-        errorBuilder: (context, error, stack) => const SizedBox.shrink(),
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          // Gradient from the container shows through; just add a soft indicator.
+          return const Center(
+            child: SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Color(0xFFF0C15A),
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stack) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.image_not_supported_outlined,
+                color: Colors.white.withValues(alpha: 0.30),
+                size: 28,
+              ),
+            ],
+          ),
+        ),
       );
     } else {
       // Gradient + icon banner (fallback when no image uploaded).
@@ -910,14 +944,13 @@ class _BannerSlide extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 2),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(22),
-          gradient: imageUrl == null
-              ? LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: slide.gradientColors,
-                )
-              : null,
-          color: imageUrl != null ? Colors.black : null,
+          gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: imageUrl != null
+                  ? const [Color(0xFF1A0533), Color(0xFF2D0D5E), Color(0xFF4A1280)]
+                  : slide.gradientColors,
+            ),
           boxShadow: [
             BoxShadow(
               color: slide.gradientColors.last.withValues(alpha: 0.32),

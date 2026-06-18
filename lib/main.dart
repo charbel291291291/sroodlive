@@ -1,4 +1,6 @@
-﻿import 'package:flutter/foundation.dart';
+﻿import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -6,6 +8,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 import 'core/config/supabase_config.dart';
+import 'features/onboarding/onboarding_screen.dart';
 import 'features/vip/services/vip_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/admin/screens/admin_dashboard_screen.dart';
@@ -48,6 +51,41 @@ class SrOOdLiveApp extends StatefulWidget {
 
 class _SrOOdLiveAppState extends State<SrOOdLiveApp> {
   Locale locale = const Locale('en');
+  StreamSubscription<AuthState>? _authSub;
+
+  @override
+  void initState() {
+    super.initState();
+    if (SupabaseConfig.isConfigured) {
+      _authSub = Supabase.instance.client.auth.onAuthStateChange.listen(
+        _onAuthStateChange,
+      );
+    }
+  }
+
+  void _onAuthStateChange(AuthState state) {
+    if (state.event != AuthChangeEvent.signedOut) return;
+    debugPrint('[RootAuth] signedOut detected — navigating to onboarding');
+    // Use addPostFrameCallback so we never mutate the navigator mid-build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final nav = rootNavigatorKey.currentState;
+      if (nav == null) {
+        debugPrint('[RootAuth] rootNavigatorKey.currentState is null — skipping');
+        return;
+      }
+      debugPrint('[RootAuth] navigating to onboarding');
+      nav.pushAndRemoveUntil(
+        MaterialPageRoute<void>(builder: (_) => const OnboardingScreen()),
+        (_) => false,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
+  }
 
   void setLocale(Locale newLocale) {
     setState(() {

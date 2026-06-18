@@ -1284,7 +1284,6 @@ class _PremiumProfileHero extends StatelessWidget {
                       children: [
                         if (flag.isNotEmpty)
                           _ProfileBadge(
-                            icon: Icons.flag_rounded,
                             label: flag,
                             highlighted: false,
                           ),
@@ -2510,12 +2509,12 @@ class _GoldMiniButton extends StatelessWidget {
 
 class _ProfileBadge extends StatelessWidget {
   const _ProfileBadge({
-    required this.icon,
+    this.icon,
     required this.label,
     required this.highlighted,
   });
 
-  final IconData icon;
+  final IconData? icon;
   final String label;
   final bool highlighted;
 
@@ -2537,12 +2536,14 @@ class _ProfileBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 13,
-            color: highlighted ? const Color(0xFFF0C15A) : Colors.white,
-          ),
-          const SizedBox(width: 5),
+          if (icon != null) ...[
+            Icon(
+              icon!,
+              size: 13,
+              color: highlighted ? const Color(0xFFF0C15A) : Colors.white,
+            ),
+            const SizedBox(width: 5),
+          ],
           Text(
             label,
             style: TextStyle(

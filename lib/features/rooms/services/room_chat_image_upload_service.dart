@@ -33,18 +33,23 @@ class RoomChatImageUploadService {
   /// Opens the gallery picker and, if the user selected an image, validates
   /// and uploads it to Supabase Storage.
   ///
+  /// Storage path: `{userId}/{roomId}/{timestamp}.{ext}`
+  /// The userId-first prefix satisfies the RLS policy that checks [1] == caller.
+  ///
   /// Returns [null] if the user cancelled.
-  /// Throws a [StateError] or [ArgumentError] on validation failure.
+  /// Throws [ArgumentError] on validation failure.
   /// Throws on upload failure.
-  Future<RoomChatImageResult?> pickAndUpload({required String userId}) async {
-    debugPrint('[RoomImage] pickAndUpload called userId=$userId');
+  Future<RoomChatImageResult?> pickAndUpload({
+    required String userId,
+    required String roomId,
+  }) async {
+    debugPrint('[RoomImage] pickAndUpload userId=$userId roomId=$roomId');
     final picker = ImagePicker();
-    debugPrint('[RoomImage] picker start');
     final picked = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 85,
-      maxWidth: 1920,
-      maxHeight: 1920,
+      imageQuality: 82,
+      maxWidth: 1200,
+      maxHeight: 1200,
     );
     if (picked == null) {
       debugPrint('[RoomImage] picker cancelled');
@@ -60,19 +65,19 @@ class RoomChatImageUploadService {
       );
     }
 
-    // Size check
+    // Size check (after image_picker compression)
     final file = File(picked.path);
     final size = await file.length();
     if (size > _maxBytes) {
       throw ArgumentError('Image is too large. Maximum size is 5 MB.');
     }
 
-    // Generate a unique path: userId/timestamp_randomSuffix.ext
+    // Path: userId/roomId/timestamp.ext  — userId first satisfies storage policy
     final ts = DateTime.now().millisecondsSinceEpoch;
-    final storagePath = '$userId/${ts}_${picked.name.hashCode.abs()}.$ext';
+    final storagePath = '$userId/$roomId/$ts.$ext';
 
     final client = SupabaseService.requiredClient;
-    debugPrint('[RoomImage] upload start bucket=$_bucket path=$storagePath ext=$ext size=${await file.length()}');
+    debugPrint('[RoomImage] uploading to $storagePath (${size}b)');
     await client.storage.from(_bucket).upload(
       storagePath,
       file,
@@ -82,10 +87,8 @@ class RoomChatImageUploadService {
       ),
     );
 
-    debugPrint('[RoomImage] upload success path=$storagePath');
-    final publicUrl =
-        client.storage.from(_bucket).getPublicUrl(storagePath);
-    debugPrint('[RoomImage] public url=$publicUrl');
+    final publicUrl = client.storage.from(_bucket).getPublicUrl(storagePath);
+    debugPrint('[RoomImage] upload done url=$publicUrl');
 
     return RoomChatImageResult(url: publicUrl, path: storagePath);
   }

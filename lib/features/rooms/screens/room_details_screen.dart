@@ -1218,7 +1218,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       if (userId == null) return;
 
       final result = await const RoomChatImageUploadService()
-          .pickAndUpload(userId: userId);
+          .pickAndUpload(userId: userId, roomId: widget.room.id);
       if (result == null) return; // user cancelled
 
       await _msgService.sendImageMessage(
@@ -3060,6 +3060,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                 onReactionTap: _openReactionPicker,
                 onSendMessage: _sendChatMessage,
                 onSendImage: _sendChatImageMessage,
+                members: _members,
                 bottomPad: bottomPad,
               ),
             ),
@@ -7477,6 +7478,7 @@ class _LiveBottomActionBar extends StatefulWidget {
     required this.onReactionTap,
     required this.onSendMessage,
     required this.onSendImage,
+    this.members = const [],
     this.bottomPad = 0,
   });
 
@@ -7495,6 +7497,7 @@ class _LiveBottomActionBar extends StatefulWidget {
   final VoidCallback onReactionTap;
   final Future<void> Function(String) onSendMessage;
   final Future<void> Function() onSendImage;
+  final List<RoomMember> members;
   final double bottomPad;
 
   @override
@@ -7506,6 +7509,7 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
   final _focus = FocusNode();
   bool _isTyping = false;
   bool _isFocused = false;
+  List<RoomMember> _mentionSuggestions = const [];
 
   @override
   void initState() {
@@ -7525,12 +7529,62 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
     super.dispose();
   }
 
+  void _onTextChanged(String v) {
+    final isTyping = v.trim().isNotEmpty;
+    // Detect @mention: find last @ before cursor, extract query after it.
+    final cursor = _ctrl.selection.baseOffset;
+    final text = cursor >= 0 ? v.substring(0, cursor) : v;
+    final atIdx = text.lastIndexOf('@');
+    List<RoomMember> suggestions = const [];
+    if (atIdx >= 0) {
+      final query = text.substring(atIdx + 1).toLowerCase();
+      // Only suggest when there's no space after @.
+      if (!query.contains(' ')) {
+        suggestions = widget.members.where((m) {
+          final name = (m.displayName ?? m.username ?? '').toLowerCase();
+          return name.isNotEmpty && (query.isEmpty || name.contains(query));
+        }).take(5).toList();
+      }
+    }
+    setState(() {
+      _isTyping = isTyping;
+      _mentionSuggestions = suggestions;
+    });
+  }
+
+  void _insertMention(RoomMember member) {
+    final name = member.displayName ?? member.username ?? member.userId.substring(0, 8);
+    final text = _ctrl.text;
+    final cursor = _ctrl.selection.baseOffset >= 0 ? _ctrl.selection.baseOffset : text.length;
+    final before = text.substring(0, cursor);
+    final after = text.substring(cursor);
+    final atIdx = before.lastIndexOf('@');
+    final newText = atIdx >= 0
+        ? '${before.substring(0, atIdx)}@$name $after'
+        : '@$name $after';
+    _ctrl.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(
+        offset: atIdx >= 0 ? atIdx + name.length + 2 : name.length + 2,
+      ),
+    );
+    setState(() {
+      _isTyping = newText.trim().isNotEmpty;
+      _mentionSuggestions = const [];
+    });
+    _focus.requestFocus();
+  }
+
   Future<void> _submit() async {
     final text = _ctrl.text.trim();
     if (text.isEmpty || widget.isSendingMessage) return;
-    
-    FocusManager.instance.primaryFocus?.unfocus();_ctrl.clear();
-    setState(() => _isTyping = false);
+
+    FocusManager.instance.primaryFocus?.unfocus();
+    _ctrl.clear();
+    setState(() {
+      _isTyping = false;
+      _mentionSuggestions = const [];
+    });
     _focus.requestFocus();
     try {
       await widget.onSendMessage(text);
@@ -7576,12 +7630,71 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
           ),
         ),
       ),
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + widget.bottomPad),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Row 1: composer
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // @mention suggestion panel
+          if (_mentionSuggestions.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.fromLTRB(10, 6, 10, 0),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A0D2E),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF3D2860)),
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                itemCount: _mentionSuggestions.length,
+                separatorBuilder: (context2, idx) => const Divider(
+                  height: 1,
+                  color: Color(0xFF2A1945),
+                  indent: 44,
+                ),
+                itemBuilder: (_, i) {
+                  final m = _mentionSuggestions[i];
+                  final name = m.displayName ?? m.username ?? m.userId.substring(0, 8);
+                  return InkWell(
+                    onTap: () => _insertMention(m),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 14,
+                            backgroundImage: m.avatarUrl != null
+                                ? NetworkImage(m.avatarUrl!)
+                                : null,
+                            backgroundColor: const Color(0xFF3D2860),
+                            child: m.avatarUrl == null
+                                ? const Icon(Icons.person, size: 14, color: Colors.white54)
+                                : null,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              '@$name',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + widget.bottomPad),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Row 1: composer
             Row(
               textDirection:
                   context.isArabic ? TextDirection.rtl : TextDirection.ltr,
@@ -7656,8 +7769,7 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
                                 fontSize: 13.5,
                               ),
                             ),
-                            onChanged: (v) =>
-                                setState(() => _isTyping = v.trim().isNotEmpty),
+                            onChanged: _onTextChanged,
                             onSubmitted: (_) => _submit(),
                           ),
                         ),
@@ -7820,6 +7932,8 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
             ],
           ],
         ),
+      ),
+        ],
       ),
     );
   }

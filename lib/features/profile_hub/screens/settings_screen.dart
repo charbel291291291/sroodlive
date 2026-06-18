@@ -91,12 +91,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _logout() async {
     if (_isLoggingOut) return;
     setState(() => _isLoggingOut = true);
-    debugPrint('[SettingsLogout] ① starting logout');
+    debugPrint('[SettingsLogout] logout pressed');
 
     try {
       await SafeLogout.run();
+      // Navigation is handled by the root-level auth listener in main.dart
+      // (_SrOOdLiveAppState._onAuthStateChange). We wait briefly to let it fire;
+      // if it hasn't navigated yet we fall back here.
+      debugPrint('[SettingsLogout] SafeLogout done — root auth listener will navigate');
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      if (!mounted) return;
+      // Fallback: root listener may not have fired yet (e.g. in tests or edge cases).
+      final nav = rootNavigatorKey.currentState;
+      if (nav != null && nav.canPop()) {
+        debugPrint('[SettingsLogout] fallback navigation triggered');
+        nav.pushAndRemoveUntil(
+          MaterialPageRoute<void>(builder: (_) => const OnboardingScreen()),
+          (_) => false,
+        );
+      }
     } catch (e) {
-      debugPrint('[SettingsLogout] ✗ SafeLogout threw: $e');
+      debugPrint('[SettingsLogout] SafeLogout threw: $e');
       if (mounted) {
         setState(() => _isLoggingOut = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -109,43 +124,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         );
       }
-      return;
     }
-
-    debugPrint('[SettingsLogout] ② SafeLogout done');
-    _navigateToOnboarding();
-  }
-
-  void _navigateToOnboarding() {
-    void go() {
-      final nav = rootNavigatorKey.currentState;
-      debugPrint('[SettingsLogout] root nav exists=${nav != null}');
-
-      if (nav != null) {
-        nav.pushAndRemoveUntil(
-          MaterialPageRoute<void>(builder: (_) => const OnboardingScreen()),
-          (_) => false,
-        );
-        debugPrint('[SettingsLogout] navigation requested via rootNavigatorKey');
-        return;
-      }
-
-      if (mounted) {
-        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-          MaterialPageRoute<void>(builder: (_) => const OnboardingScreen()),
-          (_) => false,
-        );
-        debugPrint('[SettingsLogout] navigation requested via context fallback');
-        return;
-      }
-
-      debugPrint('[SettingsLogout] ERROR: no navigator available after logout');
-    }
-
-    // Defer by one frame so any widget-tree rebuilds triggered by
-    // AuthChangeEvent.signedOut fully settle before we mutate the navigator.
-    // This guarantees rootNavigatorKey.currentState is non-null.
-    WidgetsBinding.instance.addPostFrameCallback((_) => go());
   }
 
   void _openPolicy(String key, String title) {
