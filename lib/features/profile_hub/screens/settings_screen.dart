@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../core/supabase/supabase_service.dart';
+import '../../../core/auth/safe_logout.dart';
+import '../../../core/update/app_update_dialog.dart';
+import '../../../core/update/app_update_service.dart';
 import '../../../main.dart';
 import '../../calls/screens/call_history_screen.dart';
 import '../../discovery/screens/discovery_screen.dart';
@@ -63,10 +64,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
-  Future<void> _logout() async {
-    await SupabaseService.requiredClient.auth.signOut(
-      scope: SignOutScope.local,
+  Future<void> _checkForUpdate() async {
+    final info = await const AppUpdateService().checkForUpdate();
+    if (!mounted) return;
+    if (info == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.isArabic
+                ? 'التطبيق محدّث بالفعل'
+                : 'App is up to date',
+          ),
+        ),
+      );
+      return;
+    }
+    await showAppUpdateDialog(
+      context,
+      info: info,
+      isArabic: widget.isArabic,
     );
+  }
+
+  Future<void> _logout() async {
+    await SafeLogout.run();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const OnboardingScreen()),
@@ -527,6 +548,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       builder: (_) => PreferencesScreen(isArabic: isArabic),
                     ),
                   ),
+                ),
+                ProfileSectionTitle(
+                  title: isArabic ? 'التطبيق' : 'App',
+                  isArabic: isArabic,
+                ),
+                ProfileMenuItem(
+                  icon: Icons.system_update_rounded,
+                  title: isArabic ? 'التحقق من التحديثات' : 'Check for update',
+                  subtitle: isArabic
+                      ? 'تحقق من وجود إصدار جديد'
+                      : 'Check if a newer version is available',
+                  isArabic: isArabic,
+                  onTap: _checkForUpdate,
                 ),
                 ProfileSectionTitle(
                   title: isArabic ? 'الخروج' : 'Session',

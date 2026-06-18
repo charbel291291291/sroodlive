@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/update/app_update_dialog.dart';
+import '../../core/update/app_update_service.dart';
 import '../../main.dart';
 import '../games/screens/crash_game_screen.dart';
 import '../messages/screens/messages_screen.dart';
@@ -17,6 +19,23 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int selectedIndex = 0;
   int _messagesUnread = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Check for updates once per session, after the first frame so the
+    // navigator is ready to show the dialog.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkForUpdate());
+  }
+
+  Future<void> _checkForUpdate() async {
+    if (!mounted) return;
+    final info = await const AppUpdateService().checkForUpdate();
+    if (!mounted || info == null) return;
+    final isArabic =
+        AppLanguageController.of(context).locale.languageCode == 'ar';
+    await showAppUpdateDialog(context, info: info, isArabic: isArabic);
+  }
 
   @override
   Widget build(BuildContext context) {
