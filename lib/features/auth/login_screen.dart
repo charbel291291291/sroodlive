@@ -57,7 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final email = emailController.text.trim();
-      final password = passwordController.text.trim();
+      final password = passwordController.text;
 
       if (email.isEmpty || password.isEmpty) {
         setState(() {
@@ -76,6 +76,9 @@ class _LoginScreenState extends State<LoginScreen> {
         });
         return;
       }
+
+      debugPrint('[LoginDebug] email=$email');
+      debugPrint('[LoginDebug] passwordLength=${password.length}');
 
       await SupabaseService.requiredClient.auth.signInWithPassword(
         email: email,
@@ -104,6 +107,7 @@ class _LoginScreenState extends State<LoginScreen> {
         context,
       ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
     } on AuthException catch (error) {
+      debugPrint('[LoginDebug] AuthException message=${error.message} statusCode=${error.statusCode}');
       setState(() {
         message = isArabic
             ? '\u0641\u0634\u0644 \u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644: ${error.message}'
