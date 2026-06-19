@@ -20,6 +20,7 @@ class RoomMessage {
     required this.createdAt,
     this.imageUrl,
     this.imagePath,
+    this.isRemoved = false,
   });
 
   final String id;
@@ -34,6 +35,7 @@ class RoomMessage {
   final DateTime createdAt;
   final String? imageUrl;
   final String? imagePath;
+  final bool isRemoved;
 
   bool get isSystem => messageType == 'system';
   bool get isImage  => messageType == 'image';
@@ -57,8 +59,17 @@ class RoomMessage {
       createdAt: DateTime.parse(json['created_at'] as String),
       imageUrl:  json['image_url']  as String?,
       imagePath: json['image_path'] as String?,
+      isRemoved: json['is_removed'] as bool? ?? false,
     );
   }
+
+  RoomMessage copyWithRemoved() => RoomMessage(
+    id: id, roomId: roomId, senderId: senderId, senderName: senderName,
+    senderAvatarUrl: senderAvatarUrl, senderVipLevel: senderVipLevel,
+    senderRole: senderRole, message: message, messageType: messageType,
+    createdAt: createdAt, imageUrl: imageUrl, imagePath: imagePath,
+    isRemoved: true,
+  );
 
   static int _effectiveSenderVipLevel(Map<String, dynamic>? profile) {
     final level = (profile?['vip_level'] as int?) ?? 0;
@@ -109,9 +120,7 @@ class RoomMessagesService {
           .select('*, profiles(display_name, username, avatar_url, vip_level, vip_expires_at)')
           .eq('room_id', roomId)
           .order('created_at', ascending: false)
-          .limit(_recentCount)
-          // image_url and image_path are returned automatically by select(*)
-          ;
+          .limit(_recentCount);
 
       return (rows as List)
           .map((r) => RoomMessage.fromJson(r as Map<String, dynamic>))
@@ -152,6 +161,14 @@ class RoomMessagesService {
       'message': trimmed,
       'message_type': 'text',
       'metadata': {'role': senderRole},
+    });
+  }
+
+  /// Mark a message as removed (admin / room owner / moderator only).
+  Future<void> removeMessage(String messageId, {String? reason}) async {
+    await SupabaseService.requiredClient.rpc('remove_room_message', params: {
+      'p_message_id': messageId,
+      'p_reason': reason,
     });
   }
 

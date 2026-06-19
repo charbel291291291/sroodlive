@@ -1,8 +1,10 @@
-﻿import 'dart:math' as math;
+﻿import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -1449,11 +1451,15 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
   static const _coinPresetsNormal = [777, 999, 2999, 4999];
   static const _coinPresetsSuper  = [9999, 19999, 49999, 99999];
   static const _countPresets      = [9, 19, 29, 49];
+  static const _timerPresets      = [15, 30, 60, 120, 300];
 
   int _selectedCoins = 777;
   int _selectedCount = 9;
+  int _selectedTimer = 60;
   bool _loading = false;
   String? _error;
+
+  AudioPlayer? _sfxPlayer;
 
   bool get _isSuper => _tab.index == 1;
   String _t(String ar, String en) => widget.isArabic ? ar : en;
@@ -1461,10 +1467,12 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
   @override
   void initState() {
     super.initState();
+    _sfxPlayer = AudioPlayer(handleInterruptions: false);
     _tab = TabController(length: 2, vsync: this);
     _tab.addListener(() {
       if (!_tab.indexIsChanging) return;
       HapticFeedback.selectionClick();
+      _playSfx('assets/sounds/lucky_bag_open.mp3');
       setState(() {
         _selectedCoins = _tab.index == 0 ? 777 : 9999;
         _selectedCount = 9;
@@ -1476,7 +1484,16 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
   @override
   void dispose() {
     _tab.dispose();
+    _sfxPlayer?.dispose();
     super.dispose();
+  }
+
+  Future<void> _playSfx(String asset) async {
+    try {
+      await _sfxPlayer?.setAsset(asset);
+      await _sfxPlayer?.seek(Duration.zero);
+      unawaited(_sfxPlayer?.play());
+    } catch (_) {}
   }
 
   List<int> get _coinPresets =>
@@ -1484,14 +1501,20 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
 
   Future<void> _send() async {
     HapticFeedback.mediumImpact();
+    _playSfx('assets/sounds/lucky_bag_win.wav');
     setState(() { _loading = true; _error = null; });
     try {
+      final expiresAt = DateTime.now()
+          .toUtc()
+          .add(Duration(seconds: _selectedTimer))
+          .toIso8601String();
       final result = await Supabase.instance.client
           .rpc('create_red_envelope', params: {
         'p_room_id':     widget.roomId,
         'p_total_coins': _selectedCoins,
         'p_count':       _selectedCount,
         'p_is_super':    _isSuper,
+        'p_expires_at':  expiresAt,
       });
       if (mounted) Navigator.of(context).pop(result);
     } catch (e) {
@@ -1739,6 +1762,31 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
                   ),
                 )).toList(),
               ),
+              const SizedBox(height: 18),
+
+              // ── Timer presets ─────────────────────────────────────────────
+              _BagSectionLabel(
+                _t('مدة الحقيبة', 'Duration'),
+                const Color(0xFF7EC8E3),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: _timerPresets.map((secs) => Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    child: _BagPresetChip(
+                      label: _fmtTimer(secs),
+                      selected: _selectedTimer == secs,
+                      selectedColor: Colors.white,
+                      selectedBg: const Color(0xFF1A5276),
+                      onTap: () => setState(() {
+                        _selectedTimer = secs;
+                        _error = null;
+                      }),
+                    ),
+                  ),
+                )).toList(),
+              ),
               const SizedBox(height: 14),
 
               // ── Summary pill ──────────────────────────────────────────────
@@ -1913,6 +1961,12 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
           : '${k.toStringAsFixed(1)}k';
     }
     return '$n';
+  }
+
+  String _fmtTimer(int secs) {
+    if (secs < 60) return '${secs}s';
+    final m = secs ~/ 60;
+    return '${m}m';
   }
 }
 
@@ -2090,13 +2144,39 @@ class _LuxuryBagPainter extends CustomPainter {
     );
 
     // ── Center emblem ────────────────────────────────────────────────────────
-    final emblemCenter = Offset(w * 0.5, bodyTop + bodyH * 0.5);
+    final emblemCenter = Offset(w * 0.5, bodyTop + bodyH * 0.44);
     final emblemR = w * 0.2;
     if (isSuper) {
       _drawDiamond(canvas, emblemCenter, emblemR);
     } else {
       _drawStar(canvas, emblemCenter, emblemR, emblemR * 0.42, 5);
     }
+
+    // ── Dollar sign below emblem ─────────────────────────────────────────────
+    final dollarPainter = TextPainter(
+      text: TextSpan(
+        text: '\$',
+        style: TextStyle(
+          color: const Color(0xFFFFE066).withValues(alpha: 0.9),
+          fontSize: w * 0.22,
+          fontWeight: FontWeight.w900,
+          shadows: [
+            Shadow(
+              color: const Color(0xFFD4A500).withValues(alpha: 0.8),
+              blurRadius: 4,
+            ),
+          ],
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    dollarPainter.paint(
+      canvas,
+      Offset(
+        w * 0.5 - dollarPainter.width / 2,
+        bodyTop + bodyH * 0.64,
+      ),
+    );
 
     // ── Gold handles ─────────────────────────────────────────────────────────
     final handlePaint = Paint()
