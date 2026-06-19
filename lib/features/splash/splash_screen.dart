@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../core/config/app_config.dart';
 import '../../core/supabase/supabase_service.dart';
 import '../home/home_screen.dart';
 import '../onboarding/onboarding_screen.dart';
@@ -62,7 +63,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _initVideo() async {
     try {
-      final ctrl = VideoPlayerController.asset('assets/videos/srood_splash.mp4');
+      final ctrl = VideoPlayerController.asset(AppConfig.instance.splashVideoPath);
       await ctrl.initialize();
       if (!mounted) { ctrl.dispose(); return; }
 
@@ -247,8 +248,9 @@ class _VideoFill extends StatelessWidget {
 class _StaticFallback extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return const DecoratedBox(
-      decoration: BoxDecoration(
+    final cfg = AppConfig.instance;
+    return DecoratedBox(
+      decoration: const BoxDecoration(
         gradient: RadialGradient(
           center: Alignment(0, -0.15),
           radius: 1.0,
@@ -261,18 +263,18 @@ class _StaticFallback extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Srood Live',
-              style: TextStyle(
+              cfg.appDisplayName,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 42,
                 fontWeight: FontWeight.w900,
                 letterSpacing: -1.0,
               ),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Text(
-              'Voice rooms. Gifts. Prestige.',
-              style: TextStyle(
+              cfg.appTaglineEn,
+              style: const TextStyle(
                 color: Color(0xFFB8B8C7),
                 fontSize: 14,
                 fontWeight: FontWeight.w400,

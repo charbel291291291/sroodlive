@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../core/config/app_config.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/supabase/supabase_service.dart';
 import '../../core/auth/safe_logout.dart';
@@ -1193,7 +1194,7 @@ class _PremiumProfileHero extends StatelessWidget {
     final flag = _countryFlag(country);
     final subtitle = bio.isNotEmpty
         ? bio
-        : (isArabic ? 'Ø£Ù‡Ù„Ø§Ù‹ Ø¨Ùƒ ÙÙŠ Ø³Ø±ÙˆØ¯ Ù„Ø§ÙŠÙ.' : 'Welcome to Srood Live.');
+        : (isArabic ? 'Ø£Ù‡Ù„Ø§Ù‹ Ø¨Ùƒ ÙÙŠ Ø³Ø±ÙˆØ¯ Ù„Ø§ÙŠÙ.' : 'Welcome to ${AppConfig.instance.appDisplayName}.');
 
     return Container(
       width: double.infinity,
@@ -2373,7 +2374,7 @@ class _LoveRelationshipCard extends StatelessWidget {
                 Text(
                   isArabic
                       ? 'Ø§Ø¨Ø­Ø« Ø¹Ù† Ø±ÙˆØ­Ùƒ Ø§Ù„ØªÙˆØ£Ù… ÙÙŠ Ø³Ø±ÙˆØ¯ Ù„Ø§ÙŠÙ'
-                      : 'Find your soulmate on Srood Live',
+                      : 'Find your soulmate on ${AppConfig.instance.appDisplayName}',
                   style: const TextStyle(
                     color: Color(0xFFBCAED6),
                     fontSize: 12,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/config/app_config.dart';
 import '../../core/supabase/supabase_service.dart';
 import '../../main.dart';
 import '../../shared/branding/branding_assets.dart';
@@ -176,8 +177,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 18),
                         Text(
                           isArabic
-                              ? '\u0627\u062f\u062e\u0644 \u0625\u0644\u0649 SrOOd Live'
-                              : 'Enter SrOOd Live',
+                              ? '\u0627\u062f\u062e\u0644 \u0625\u0644\u0649 ${AppConfig.instance.appDisplayName}'
+                              : 'Enter ${AppConfig.instance.appDisplayName}',
                           textAlign: isArabic
                               ? TextAlign.right
                               : TextAlign.left,

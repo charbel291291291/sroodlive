@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
+import 'core/config/app_config.dart';
 import 'core/config/supabase_config.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/vip/services/vip_service.dart';
@@ -19,6 +20,11 @@ final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // TODO(white-label): Replace SroodLiveConfig() with the client-specific
+  // config before calling runApp(), e.g.:
+  //   AppConfig.configure(const MyClientConfig());
+  AppConfig.configure(const SroodLiveConfig());
 
   // Explicitly register the WebView platform â€” skipped on web where dart:io
   // Platform is unavailable and WebView runs natively in the browser.
@@ -108,7 +114,7 @@ class _SrOOdLiveAppState extends State<SrOOdLiveApp> {
       setLocale: setLocale,
       child: MaterialApp(
         navigatorKey: rootNavigatorKey,
-        title: 'SrOOd Live',
+        title: AppConfig.instance.appDisplayName,
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
         locale: locale,

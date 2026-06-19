@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/constants/coin_constants.dart';
 import '../models/recharge_package.dart';
 import '../models/recharge_request.dart';
@@ -161,7 +162,7 @@ class _RechargeRequestSheetState extends State<RechargeRequestSheet> {
                 Text(
                   isArabic
                       ? '\u0627\u062f\u0641\u0639 \u0639\u0628\u0631 \u0648\u0643\u064a\u0644 \u0634\u062d\u0646 \u0631\u0633\u0645\u064a \u062b\u0645 \u0623\u0631\u0633\u0644 \u0631\u0642\u0645 \u0627\u0644\u0639\u0645\u0644\u064a\u0629.'
-                      : 'Send payment to an official SrOOd recharge agent, then submit the reference.',
+                      : 'Send payment to an official ${AppConfig.instance.appDisplayName} recharge agent, then submit the reference.',
                   style: const TextStyle(
                     color: Color(0xFFD8CFEA),
                     fontWeight: FontWeight.w700,
@@ -188,7 +189,7 @@ class _RechargeRequestSheetState extends State<RechargeRequestSheet> {
                 Text(
                   isArabic
                       ? '\u0627\u0644\u0633\u0639\u0631 \u0627\u0644\u0623\u0633\u0627\u0633\u064a: 1 USD = 20,000 \u0639\u0645\u0644\u0629'
-                      : 'Base rate: 1 USD = 20,000 SrOOd Coins',
+                      : 'Base rate: 1 USD = 20,000 ${AppConfig.instance.coinsLabel}',
                   style: const TextStyle(
                     color: Color(0xFFF0C15A),
                     fontSize: 12,

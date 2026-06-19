@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/config/app_config.dart';
 import '../../main.dart';
 import '../../shared/branding/branding_assets.dart';
 import '../auth/login_screen.dart';
@@ -72,7 +73,9 @@ class OnboardingScreen extends StatelessWidget {
               ),
               const SizedBox(height: 32),
               Text(
-                isArabic ? 'أهلا بك في SrOOd Live' : 'Welcome to SrOOd Live',
+                isArabic
+                    ? 'أهلا بك في ${AppConfig.instance.appDisplayName}'
+                    : 'Welcome to ${AppConfig.instance.appDisplayName}',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 30,
@@ -113,8 +116,8 @@ class OnboardingScreen extends StatelessWidget {
               const SizedBox(height: 18),
               Text(
                 isArabic
-                    ? 'إعداد نسخة SrOOd Live التجريبية'
-                    : 'SrOOd Live beta setup',
+                    ? 'إعداد نسخة ${AppConfig.instance.appDisplayName} التجريبية'
+                    : '${AppConfig.instance.appDisplayName} beta setup',
                 style: const TextStyle(fontSize: 13, color: Color(0xFF77778A)),
               ),
             ],

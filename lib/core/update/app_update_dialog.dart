@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../config/app_config.dart';
 import 'app_update_service.dart';
 
 /// Shows the Srood-style update dialog.
@@ -28,7 +29,7 @@ class _UpdateDialog extends StatelessWidget {
   Future<void> _download() async {
     // Append version code to bust any cached APK on the device's browser.
     final rawUrl = info.apkUrl.isEmpty
-        ? 'https://example.com/srood-live-latest.apk'
+        ? AppConfig.instance.updateUrl
         : info.apkUrl;
     final uri = Uri.parse(rawUrl).replace(
       queryParameters: {

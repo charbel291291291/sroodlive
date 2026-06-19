@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/config/app_config.dart';
 import '../../core/supabase/supabase_service.dart';
 import '../../main.dart';
 import '../../shared/branding/branding_assets.dart';
@@ -161,8 +162,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     const SizedBox(height: 6),
                     Text(
                       isArabic
-                          ? 'انضم إلى SrOOd Live وابدأ البث المباشر.'
-                          : 'Join SrOOd Live and start streaming.',
+                          ? 'انضم إلى ${AppConfig.instance.appDisplayName} وابدأ البث المباشر.'
+                          : 'Join ${AppConfig.instance.appDisplayName} and start streaming.',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 14,
