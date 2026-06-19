@@ -4,6 +4,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
@@ -25,14 +26,36 @@ class VoiceRoomService : Service() {
             .setSilent(true)
             .setOngoing(true)
             .build()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                NOTIFICATION_ID,
-                notification,
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
-            )
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+        when {
+            // Android 14+ (API 34): microphone type required for background mic access.
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK or
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE,
+                )
+            }
+            // Android 11-13 (API 30-33): microphone type available.
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK or
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE,
+                )
+            }
+            // Android 10 (API 29): only media playback type available.
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
+                )
+            }
+            else -> {
+                startForeground(NOTIFICATION_ID, notification)
+            }
         }
         return START_STICKY
     }

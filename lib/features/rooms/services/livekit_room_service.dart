@@ -40,10 +40,24 @@ class LiveKitRoomService {
     final tokenResponse = await _tokenService.getToken(roomId: roomId);
     debugPrint('[LiveKit] ${_ts()} token received — connecting…');
 
+    debugPrint('[VoiceQuality] echoCancellation enabled');
+    debugPrint('[VoiceQuality] noiseSuppression enabled');
+    debugPrint('[VoiceQuality] autoGainControl enabled');
+    debugPrint('[VoiceQuality] highPassFilter enabled');
+    debugPrint('[VoiceQuality] typingNoiseDetection enabled');
+
     final room = Room(
       roomOptions: const RoomOptions(
         adaptiveStream: true,
         dynacast: true,
+        // Explicit audio processing flags — applied to every mic track published.
+        defaultAudioCaptureOptions: AudioCaptureOptions(
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          highPassFilter: true,
+          typingNoiseDetection: true,
+        ),
         defaultAudioOutputOptions: AudioOutputOptions(speakerOn: true),
       ),
     );
