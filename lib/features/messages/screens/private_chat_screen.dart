@@ -81,6 +81,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // ---------------------------------------------------------------------------
 
   Future<void> _load() async {
+    final currentUserId =
+        SupabaseService.requiredClient.auth.currentUser?.id ?? 'unknown';
+    debugPrint('[MessagesProfile] currentUserId=$currentUserId');
+    debugPrint('[MessagesProfile] otherUserId=${widget.targetUserId}');
+
     // Check mutual follow and fetch profile in parallel.
     final results = await Future.wait([
       _service.fetchTargetProfile(widget.targetUserId).catchError((_) => null),
@@ -92,6 +97,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
 
     if (profile != null) {
       final name = _pickName(profile);
+      debugPrint('[MessagesProfile] profileLoaded name=$name');
       if (mounted) {
         setState(() {
           _resolvedName = name;
@@ -99,6 +105,8 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           _resolvedFrameKey = profile['selected_avatar_frame_key']?.toString();
         });
       }
+    } else {
+      debugPrint('[MessagesProfile] fallback reason=profile_null_rls_or_missing');
     }
 
     if (!mutual) {
@@ -117,6 +125,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     String? cid;
     try {
       cid = await _service.getOrCreateConversation(widget.targetUserId);
+      debugPrint('[MessagesProfile] conversationId=$cid');
     } catch (_) {}
 
     if (cid == null) {

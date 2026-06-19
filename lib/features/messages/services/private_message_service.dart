@@ -133,7 +133,7 @@ class PrivateMessageService {
   Future<Map<String, dynamic>?> fetchTargetProfile(String userId) async {
     final data = await SupabaseService.requiredClient
         .from('profiles')
-        .select('id, display_name, username, avatar_url, selected_avatar_frame_key')
+        .select('id, display_name, full_name, username, avatar_url, selected_avatar_frame_key')
         .eq('id', userId)
         .maybeSingle();
     return data;
@@ -170,7 +170,7 @@ class PrivateMessageService {
       final profileData = await client
           .from('profiles')
           .select(
-            'id, display_name, username, avatar_url, selected_avatar_frame_key, vip_level, vip_expires_at',
+            'id, display_name, full_name, username, avatar_url, selected_avatar_frame_key, vip_level, vip_expires_at',
           )
           .inFilter('id', otherIds);
 

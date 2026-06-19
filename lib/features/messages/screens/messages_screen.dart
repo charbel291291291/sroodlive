@@ -271,101 +271,104 @@ class _ConversationTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasUnread = convo.unreadCount > 0;
 
-    return InkWell(
-      onTap: onTap,
-      splashColor: const Color(0xFF8B26D9).withValues(alpha: 0.12),
-      highlightColor: const Color(0xFF8B26D9).withValues(alpha: 0.06),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-        child: Row(
-          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-          children: [
-            // Avatar with optional VIP frame
-            VipFramedAvatar(
-              size: 52,
-              imageUrl: convo.otherAvatarUrl,
-              vipLevel: convo.otherVipLevel,
-            ),
-            const SizedBox(width: 12),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        splashColor: const Color(0xFF8B26D9).withValues(alpha: 0.12),
+        highlightColor: const Color(0xFF8B26D9).withValues(alpha: 0.06),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+          child: Row(
+            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+            children: [
+              // Avatar with optional VIP frame
+              VipFramedAvatar(
+                size: 52,
+                imageUrl: convo.otherAvatarUrl,
+                vipLevel: convo.otherVipLevel,
+              ),
+              const SizedBox(width: 12),
 
-            // Name + last message
-            Expanded(
-              child: Column(
-                crossAxisAlignment: isArabic
-                    ? CrossAxisAlignment.end
-                    : CrossAxisAlignment.start,
-                children: [
-                  // Name row: username + timestamp
-                  Row(
-                    textDirection: isArabic
-                        ? TextDirection.rtl
-                        : TextDirection.ltr,
-                    children: [
-                      Expanded(
-                        child: VipUsername(
-                          name: convo.otherNickname,
-                          vipLevel: convo.otherVipLevel,
-                          fontSize: 15,
-                          fontWeight: hasUnread
-                              ? FontWeight.w900
-                              : FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _formatTime(convo.lastMessageAt, isArabic),
-                        style: TextStyle(
-                          color: hasUnread
-                              ? const Color(0xFFF0C15A)
-                              : const Color(0xFF7A6890),
-                          fontSize: 11,
-                          fontWeight: hasUnread
-                              ? FontWeight.w800
-                              : FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 3),
-
-                  // Last message row: preview + unread badge
-                  Row(
-                    textDirection: isArabic
-                        ? TextDirection.rtl
-                        : TextDirection.ltr,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          convo.lastMessage ??
-                              (isArabic
-                                  ? 'ابدأ المحادثة...'
-                                  : 'Start the conversation...'),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textDirection: isArabic
-                              ? TextDirection.rtl
-                              : TextDirection.ltr,
-                          style: TextStyle(
-                            color: hasUnread
-                                ? const Color(0xFFD8CFEA)
-                                : const Color(0xFF7A6890),
-                            fontSize: 13,
+              // Name + last message
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: isArabic
+                      ? CrossAxisAlignment.end
+                      : CrossAxisAlignment.start,
+                  children: [
+                    // Name row: username + timestamp
+                    Row(
+                      textDirection: isArabic
+                          ? TextDirection.rtl
+                          : TextDirection.ltr,
+                      children: [
+                        Expanded(
+                          child: VipUsername(
+                            name: convo.otherNickname,
+                            vipLevel: convo.otherVipLevel,
+                            fontSize: 15,
                             fontWeight: hasUnread
-                                ? FontWeight.w700
-                                : FontWeight.w400,
+                                ? FontWeight.w900
+                                : FontWeight.w700,
                           ),
                         ),
-                      ),
-                      if (hasUnread) ...[
                         const SizedBox(width: 8),
-                        _UnreadBadge(count: convo.unreadCount),
+                        Text(
+                          _formatTime(convo.lastMessageAt, isArabic),
+                          style: TextStyle(
+                            color: hasUnread
+                                ? const Color(0xFFF0C15A)
+                                : const Color(0xFF7A6890),
+                            fontSize: 11,
+                            fontWeight: hasUnread
+                                ? FontWeight.w800
+                                : FontWeight.w500,
+                          ),
+                        ),
                       ],
-                    ],
-                  ),
-                ],
+                    ),
+                    const SizedBox(height: 3),
+
+                    // Last message row: preview + unread badge
+                    Row(
+                      textDirection: isArabic
+                          ? TextDirection.rtl
+                          : TextDirection.ltr,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            convo.lastMessage ??
+                                (isArabic
+                                    ? 'ابدأ المحادثة...'
+                                    : 'Start the conversation...'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textDirection: isArabic
+                                ? TextDirection.rtl
+                                : TextDirection.ltr,
+                            style: TextStyle(
+                              color: hasUnread
+                                  ? const Color(0xFFD8CFEA)
+                                  : const Color(0xFF7A6890),
+                              fontSize: 13,
+                              fontWeight: hasUnread
+                                  ? FontWeight.w700
+                                  : FontWeight.w400,
+                            ),
+                          ),
+                        ),
+                        if (hasUnread) ...[
+                          const SizedBox(width: 8),
+                          _UnreadBadge(count: convo.unreadCount),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
