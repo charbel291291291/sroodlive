@@ -63,6 +63,9 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
   Timer? _bettingEndTimer;
   RealtimeChannel? _roundChannel;
 
+  // Recent results band
+  List<double> _recentResults = [];
+
   @override
   void initState() {
     super.initState();
@@ -181,6 +184,11 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
           .map((h) => _toDouble(h['crash_multiplier']))
           .where((v) => v > 0)
           .toList();
+
+      if (mounted) {
+        setState(() => _recentResults = histValues.take(15).toList());
+        debugPrint('[RocketResultsBand] init count=${_recentResults.length}');
+      }
 
       _post('INIT_GAME', {
         'balance': balance,
@@ -359,6 +367,11 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
           .where((v) => v > 0)
           .toList();
       _post('HISTORY_UPDATE', {'history': histValues});
+
+      if (mounted) {
+        setState(() => _recentResults = histValues.take(15).toList());
+        debugPrint('[RocketResultsBand] updated count=${_recentResults.length}');
+      }
 
     } catch (e) {
       debugPrint('[RocketCrash] loadNextRound error: $e');
@@ -650,6 +663,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
             fit: StackFit.expand,
             children: [
               WebViewWidget(controller: _controller),
+              _RecentResultsBand(results: _recentResults, isArabic: widget.isArabic),
               if (!_pageLoaded) _buildLoading(),
               if (_pageError)   _buildError(),
             ],
@@ -739,6 +753,60 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RecentResultsBand extends StatelessWidget {
+  const _RecentResultsBand({required this.results, required this.isArabic});
+  final List<double> results;
+  final bool isArabic;
+
+  Color _color(double m) {
+    if (m < 2.0) return const Color(0xFFFF4444);
+    if (m < 5.0) return const Color(0xFFFF9900);
+    return const Color(0xFF00DD88);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (results.isEmpty) return const SizedBox.shrink();
+    return Positioned(
+      top: 0, left: 0, right: 0,
+      child: Container(
+        height: 36,
+        color: Colors.black.withValues(alpha: 0.55),
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          reverse: isArabic,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          itemCount: results.length,
+          separatorBuilder: (_, _) => const SizedBox(width: 6),
+          itemBuilder: (_, i) {
+            final m = results[i];
+            final c = _color(m);
+            return Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: c.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: c.withValues(alpha: 0.6), width: 1),
+                ),
+                child: Text(
+                  '${m.toStringAsFixed(2)}×',
+                  style: TextStyle(
+                    color: c,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
