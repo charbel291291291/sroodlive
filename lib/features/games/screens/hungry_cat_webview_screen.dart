@@ -66,9 +66,10 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   // ── User bet state ───────────────────────────────────────────────────────
   /// Per-food bet totals for the current round. Updated immediately after
   /// each successful bet RPC call.
-  Map<String, int> _betsByFood  = {};
-  String?          _betBusyFoodId; // food currently in-flight (debounce)
-  int              _betAmount   = 100;
+  Map<String, int> _betsByFood   = {};
+  /// Foods currently processing a bet RPC (per-food debounce, not global).
+  Set<String>      _betBusyFoods = {};
+  int              _betAmount    = 100;
 
   // ── Spin payout delta ────────────────────────────────────────────────────
   int? _balanceBeforeSpin; // snapshot taken at settle trigger
@@ -88,6 +89,8 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
 
   // ── Misc ─────────────────────────────────────────────────────────────────
   Timer?  _countdownTimer;
+  Timer?  _resultPollTimer; // fallback poll when realtime + settle RPC both lag
+  bool    _waitingForResult = false; // true while spinning beyond ~5s
   String? _errorMsg;
   bool    _reconnecting = false;
 
@@ -120,6 +123,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _countdownTimer?.cancel();
+    _resultPollTimer?.cancel();
     _reconnectTimer?.cancel();
     _channel?.unsubscribe();
     _pulseCtrl.dispose();
@@ -181,13 +185,16 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     _roundNumber   = round.roundNumber;
     _bettingEndsAt = round.bettingEndsAt;
     _clockOffset   = round.serverNow.difference(DateTime.now().toUtc());
+    _resultPollTimer?.cancel();
+    _resultPollTimer   = null;
+    _waitingForResult  = false;
     _settling          = false;
     _winFoodId         = null;
     _winFoodIcon       = null;
     _winFoodName       = null;
     _winMult           = null;
     _betsByFood        = {};
-    _betBusyFoodId     = null;
+    _betBusyFoods      = {};
     _balanceBeforeSpin = null;
     _spinDelta         = null;
 
@@ -299,16 +306,18 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   // ─────────────────────────────────────────────────────────────────────────
   // Betting — tap food = place bet immediately
   //
-  // Multiple bets on DIFFERENT foods are allowed until the round closes.
-  // Only one in-flight bet at a time (_betBusyFoodId != null).
+  // Multiple bets on DIFFERENT foods are allowed concurrently.
+  // Same-food taps are debounced per-food (_betBusyFoods).
   // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _tapFood(int index) async {
     if (_phase != _Phase.betting) return;
-    if (_betBusyFoodId != null) return; // another bet in flight
     if (index >= _foods.length) return;
 
     final food = _foods[index];
+
+    // Per-food debounce: block only the same food while its RPC is in-flight.
+    if (_betBusyFoods.contains(food.foodId)) return;
 
     if (_balance < _betAmount) {
       _showSnack(_ar ? 'رصيد غير كافٍ' : 'Insufficient coins');
@@ -318,7 +327,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     debugPrint('[HungryCat] bet tap food=${food.foodId} amount=$_betAmount');
     HapticFeedback.lightImpact();
 
-    setState(() => _betBusyFoodId = food.foodId);
+    setState(() => _betBusyFoods.add(food.foodId));
 
     try {
       final result = await _service.placeGlobalBet(
@@ -336,7 +345,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
         _balance = result.newBalance;
         _betsByFood[food.foodId] =
             (_betsByFood[food.foodId] ?? 0) + _betAmount;
-        _betBusyFoodId = null;
+        _betBusyFoods.remove(food.foodId);
       });
       _showSnack(_ar
           ? '✅ تم الرهان على ${food.name}!'
@@ -344,7 +353,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     } catch (e) {
       debugPrint('[HungryCat] bet failed reason=$e');
       if (!mounted) return;
-      setState(() => _betBusyFoodId = null);
+      setState(() => _betBusyFoods.remove(food.foodId));
       _showSnack(_ar ? _friendlyErrorAr('$e') : _friendlyError('$e'));
     }
   }
@@ -361,6 +370,10 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     _sounds.playSpinStart();
     _runFreeSpin();
 
+    // Start fallback poll immediately — fires every 4s to check if the round
+    // has been settled server-side (covers realtime lag and RPC failures).
+    _startResultPoll();
+
     try {
       final result = await _service.settleGlobalRound(_roundId!);
       if (!mounted) return;
@@ -371,9 +384,37 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
         result.winningMultiplier,
       );
     } catch (e, st) {
-      debugPrint('[HungryCat] settle failed: $e\n$st');
-      // Realtime will still deliver the result.
+      debugPrint('[HungryCat] settle RPC failed: $e\n$st');
+      // Poll fallback and realtime subscription will deliver the result.
     }
+  }
+
+  /// Polls the round state every 4 seconds as a fallback for missed realtime
+  /// events.  Stops automatically when a winner is applied or phase changes.
+  void _startResultPoll() {
+    _resultPollTimer?.cancel();
+    _resultPollTimer = Timer.periodic(const Duration(seconds: 4), (t) async {
+      if (!mounted || _winFoodId != null || _phase != _Phase.spinning) {
+        t.cancel();
+        return;
+      }
+      try {
+        final round = await _service.getOrCreateRound();
+        if (!mounted) return;
+        if (round.isSettled && _winFoodId == null) {
+          debugPrint('[HungryCat] poll found settled round winFood=${round.winningFoodId}');
+          t.cancel();
+          _applyWinner(
+            round.winningFoodId,
+            round.winningFoodIcon,
+            round.winningFoodName,
+            round.winningMultiplier,
+          );
+        }
+      } catch (e) {
+        debugPrint('[HungryCat] result poll error: $e');
+      }
+    });
   }
 
   void _applyWinner(
@@ -391,26 +432,40 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _runFreeSpin() async {
-    // 15-second hard timeout on result wait
-    final deadline = DateTime.now().add(const Duration(seconds: 15));
+    // Hard timeout: 30s. After 6s with no result we show "Settling result…"
+    // so the user knows we're still working, not stuck.
+    final deadline      = DateTime.now().add(const Duration(seconds: 30));
+    final settlingAfter = DateTime.now().add(const Duration(seconds: 6));
+
     while (mounted && _winFoodId == null && _phase == _Phase.spinning) {
-      if (DateTime.now().isAfter(deadline)) {
-        debugPrint('[HungryCat] spin timeout — no winner after 15s');
+      final now = DateTime.now();
+      if (now.isAfter(deadline)) {
+        debugPrint('[HungryCat] spin timeout — no winner after 30s');
+        _resultPollTimer?.cancel();
         if (mounted) {
           setState(() {
+            _waitingForResult = false;
             _phase    = _Phase.error;
             _errorMsg = _ar
-                ? 'انتهت مهلة تحميل النتيجة. حاول مجدداً.'
-                : 'Result timed out. Please retry.';
+                ? 'تأخر في تحميل النتيجة. اضغط إعادة المحاولة.'
+                : 'Result is taking too long. Tap Retry to reload.';
           });
         }
         return;
+      }
+      // After 6s without a result, show "Settling…" label in the phase bar.
+      if (!_waitingForResult && now.isAfter(settlingAfter)) {
+        if (mounted) setState(() => _waitingForResult = true);
       }
       await Future.delayed(const Duration(milliseconds: 70));
       if (!mounted || _phase != _Phase.spinning) return;
       setState(() => _highlighted = (_highlighted + 1) % _displayFoodCount);
     }
     if (!mounted || _phase != _Phase.spinning) return;
+
+    _resultPollTimer?.cancel();
+    _resultPollTimer  = null;
+    _waitingForResult = false;
 
     final target = _findWinnerIndex();
     await _runLandingAnimation(target);
@@ -695,7 +750,9 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
         bg = urgent ? const Color(0xFF3D0A0A) : const Color(0xFF0D2B0D);
         fg = urgent ? const Color(0xFFFF5555) : const Color(0xFF4ADE80);
       case _Phase.spinning:
-        label = _ar ? '🎰 جارٍ الدوران...' : '🎰 Spinning...';
+        label = _waitingForResult
+            ? (_ar ? '⏳ جارٍ احتساب النتيجة...' : '⏳ Settling result...')
+            : (_ar ? '🎰 جارٍ الدوران...' : '🎰 Spinning...');
         bg = const Color(0xFF1A1A3D);
         fg = const Color(0xFFA78BFA);
       case _Phase.settled:
@@ -824,14 +881,14 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     final isWinner = _phase == _Phase.settled && _winFoodId != null
         && i == _findWinnerIndex();
     final foodId   = i < _foods.length ? _foods[i].foodId : '';
-    final isBusy   = foodId.isNotEmpty && foodId == _betBusyFoodId;
+    final isBusy   = foodId.isNotEmpty && _betBusyFoods.contains(foodId);
     final isSelected = _betsByFood.containsKey(foodId) && foodId.isNotEmpty;
     final betAmount  = _betsByFood[foodId] ?? 0;
 
-    // Tappable: betting phase only, no bet currently in-flight
+    // Tappable: betting phase only, this specific food not already in-flight
     final canTap = _phase == _Phase.betting
         && i < _foods.length
-        && _betBusyFoodId == null;
+        && !_betBusyFoods.contains(foodId);
 
     Widget bubble = AnimatedBuilder(
       animation: _pulseAnim,
@@ -1044,14 +1101,14 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
         children: [
           _buildBetStatus(),
           const SizedBox(height: 8),
-          _buildBetChips(locked: !active || _betBusyFoodId != null),
+          _buildBetChips(locked: !active),
         ],
       ),
     );
   }
 
   Widget _buildBetStatus() {
-    if (_betBusyFoodId != null) {
+    if (_betBusyFoods.isNotEmpty) {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
