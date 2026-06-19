@@ -122,6 +122,27 @@ class FollowService {
     return _safeCount(column: 'follower_id', value: userId);
   }
 
+  /// Counts mutual follows (friends) for [userId].
+  Future<int> friendsCount(String userId) async {
+    try {
+      final client = SupabaseService.requiredClient;
+      final followingData = await client
+          .from('user_follows')
+          .select('following_id')
+          .eq('follower_id', userId);
+      final followingIds =
+          (followingData as List<dynamic>).map((e) => e['following_id'] as String).toSet();
+      if (followingIds.isEmpty) return 0;
+      return await client
+          .from('user_follows')
+          .count()
+          .eq('following_id', userId)
+          .inFilter('follower_id', followingIds.toList());
+    } catch (_) {
+      return 0;
+    }
+  }
+
   Future<int> _safeCount({
     required String column,
     required String value,

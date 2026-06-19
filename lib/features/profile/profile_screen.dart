@@ -21,7 +21,7 @@ import '../rooms/utils/vip_room_features.dart';
 import '../rooms/services/rooms_service.dart';
 import '../rooms/screens/room_details_screen.dart';
 import '../profile_hub/models/profile_hub_models.dart';
-import '../profile_hub/screens/my_level_screen.dart';
+import '../profile_hub/screens/level_center_screen.dart';
 import '../profile_hub/services/level_service.dart';
 import 'models/avatar_frame.dart';
 import 'screens/follow_list_screen.dart';
@@ -114,6 +114,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<AvatarFrame> avatarFrames = const [];
   int followersCount = 0;
   int followingCount = 0;
+  int friendsCount = 0;
   int giftsReceivedCount = 0;
   int visitorsCount = 0;
   UserWallet? wallet;
@@ -189,10 +190,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       int followers = 0;
       int following = 0;
+      int friends = 0;
       try {
         followers = await _followService.followersCount(user.id);
         following = await _followService.followingCount(user.id);
-      } catch (_) {}
+        friends = await _followService.friendsCount(user.id);
+        debugPrint('[FollowStats] followers=$followers following=$following friends=$friends');
+      } catch (e) {
+        debugPrint('[FollowStats] failed to load follow stats: $e');
+      }
 
       final gifts = await _safeGiftCount(user.id);
       final loadedWallet = await _safeEnsureWallet(user.id);
@@ -208,16 +214,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         profile = data;
         avatarFrames = frames;
-        followersCount = _intFromProfile(
-          data,
-          'followers_count',
-          fallback: followers,
-        );
-        followingCount = _intFromProfile(
-          data,
-          'following_count',
-          fallback: following,
-        );
+        followersCount = followers;
+        followingCount = following;
+        friendsCount = friends;
         giftsReceivedCount = _intFromProfile(
           data,
           'gifts_received_count',
@@ -374,7 +373,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _openLevels() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => MyLevelScreen(isArabic: context.isArabic),
+        builder: (_) => LevelCenterScreen(isArabic: context.isArabic),
       ),
     );
     // Refresh level in case XP was earned while on My Level screen
@@ -931,7 +930,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       isArabic: isArabic,
                       followers: followersCount,
                       following: followingCount,
-                      gifts: giftsReceivedCount,
+                      friends: friendsCount,
                       onFollowersTap: uid == null
                           ? null
                           : () => Navigator.of(context).push(
@@ -1411,7 +1410,7 @@ class _ProfileStatsRow extends StatelessWidget {
     required this.isArabic,
     required this.followers,
     required this.following,
-    required this.gifts,
+    required this.friends,
     this.onFollowersTap,
     this.onFollowingTap,
   });
@@ -1419,7 +1418,7 @@ class _ProfileStatsRow extends StatelessWidget {
   final bool isArabic;
   final int followers;
   final int following;
-  final int gifts;
+  final int friends;
   final VoidCallback? onFollowersTap;
   final VoidCallback? onFollowingTap;
 
@@ -1443,10 +1442,10 @@ class _ProfileStatsRow extends StatelessWidget {
       child: Row(
         textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
         children: [
-          // Friends (gifts received as closest proxy)
+          // Friends (mutual follows)
           ProfileStatItem(
-            value: gifts,
-            label: isArabic ? 'Ø§Ù„Ø£ØµØ¯Ù‚Ø§Ø¡' : 'Friends',
+            value: friends,
+            label: isArabic ? 'الأصدقاء' : 'Friends',
             tappable: false,
           ),
           _StatDivider(),
@@ -1455,7 +1454,7 @@ class _ProfileStatsRow extends StatelessWidget {
             onTap: onFollowingTap,
             child: ProfileStatItem(
               value: following,
-              label: isArabic ? 'Ø§Ù„Ù…ØªØ§Ø¨ÙŽØ¹ÙˆÙ†' : 'Following',
+              label: isArabic ? 'المتابَعون' : 'Following',
               tappable: onFollowingTap != null,
             ),
           ),
@@ -1465,7 +1464,7 @@ class _ProfileStatsRow extends StatelessWidget {
             onTap: onFollowersTap,
             child: ProfileStatItem(
               value: followers,
-              label: isArabic ? 'Ø§Ù„Ù…ØªØ§Ø¨Ø¹ÙˆÙ†' : 'Followers',
+              label: isArabic ? 'المتابِعون' : 'Followers',
               tappable: onFollowersTap != null,
             ),
           ),
