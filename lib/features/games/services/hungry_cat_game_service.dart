@@ -146,7 +146,7 @@ class HungryCatGameService {
     return HungryCatGlobalRound.fromJson(data);
   }
 
-  Future<int> placeGlobalBet({
+  Future<({String betId, int newBalance})> placeGlobalBet({
     required String roundId,
     required String foodId,
     required int amount,
@@ -159,7 +159,10 @@ class HungryCatGameService {
         'p_amount':   amount,
       },
     ) as Map<String, dynamic>;
-    return (data['new_balance'] as int?) ?? 0;
+    return (
+      betId:      data['bet_id']?.toString() ?? '',
+      newBalance: (data['new_balance'] as int?) ?? 0,
+    );
   }
 
   Future<HungryCatGlobalRound> settleGlobalRound(String roundId) async {

@@ -170,6 +170,8 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
 
       if (_roundId != null) _subscribeToRound(_roundId!);
 
+      debugPrint('[RocketCrash] round loaded roundId=$_roundId phase=$phase balance=$balance');
+
       // Schedule betting-end transition
       if (phase == 'betting') {
         _scheduleBettingEnd(bettingEndsAtMs, serverNowMs);
@@ -310,7 +312,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
     _settling = true;
     try {
       await _service.settleRocketRound(roundId);
-      debugPrint('[RocketCrash] settled round $roundId');
+      debugPrint('[RocketCrash] crash result roundId=$roundId');
       // Realtime fires the crashed update; also schedule next round as fallback.
       Future.delayed(const Duration(milliseconds: 4200), _loadNextRound);
     } catch (e) {
@@ -414,7 +416,8 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
       }
 
       HapticFeedback.lightImpact();
-      debugPrint('[RocketCrash] bet placed slot=$slotIndex id=$betId');
+      debugPrint('[RocketCrash] bet placed betId=$betId amount=$amount');
+      debugPrint('[RocketCrash] wallet updated coins=$newBalance');
       _post('BET_ACCEPTED', {
         'slotIndex' : slotIndex,
         'betId'     : betId,
@@ -498,11 +501,15 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
     final slotIndex = _parseInt(payload['slotIndex']);
     final betId     = payload['betId']?.toString();
 
+    debugPrint('[RocketCashout] request slot=$slotIndex betId=$betId');
+
     if (betId == null || betId.isEmpty) {
+      debugPrint('[RocketCashout] rejected: no_bet_id slot=$slotIndex');
       _post('CASHOUT_REJECTED', {'slotIndex': slotIndex, 'code': 'no_bet_id'});
       return;
     }
     if (_settledBetIds.contains(betId)) {
+      debugPrint('[RocketCashout] rejected: already_settled betId=$betId');
       _post('CASHOUT_REJECTED', {'slotIndex': slotIndex, 'code': 'already_settled'});
       return;
     }
@@ -511,10 +518,12 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
       final Map<String, dynamic> result;
       if (_roundId != null) {
         // Server-calculated multiplier — ignores JS-provided value for security.
+        debugPrint('[RocketCashout] calling server RPC betId=$betId');
         result = await _service.cashOutRocketBet(betId);
       } else {
         // Legacy local path: trust client-provided multiplier.
         final multiplier = _parseDouble(payload['multiplier']);
+        debugPrint('[RocketCashout] legacy local cashout betId=$betId mult=$multiplier');
         result = await _service.cashoutLocal(betId, multiplier);
       }
       if (!mounted) return;
@@ -522,6 +531,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
       final status = result['status']?.toString();
       if (status == 'lost') {
         _settledBetIds.add(betId);
+        debugPrint('[RocketCashout] rejected: round_crashed betId=$betId');
         _post('CASHOUT_REJECTED', {'slotIndex': slotIndex, 'code': 'round_crashed'});
         return;
       }
@@ -533,7 +543,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
           result['cashout_multiplier'] ?? result['multiplier'] ?? payload['multiplier'] ?? 1.0);
 
       HapticFeedback.mediumImpact();
-      debugPrint('[RocketCrash] cashout ok slot=$slotIndex ×$actualMult win=$winAmount');
+      debugPrint('[RocketCashout] accepted slot=$slotIndex ×$actualMult win=$winAmount balance=$newBalance');
       _post('CASHOUT_ACCEPTED', {
         'slotIndex' : slotIndex,
         'betId'     : betId,
@@ -543,7 +553,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      debugPrint('[RocketCrash] cashout error: $e');
+      debugPrint('[RocketCashout] error slot=$slotIndex: $e');
       _post('CASHOUT_REJECTED', {'slotIndex': slotIndex, 'code': _mapError('$e')});
     }
   }
@@ -566,6 +576,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
     try {
       final balance = await _service.fetchBalance();
       if (!mounted) return;
+      debugPrint('[RocketCrash] wallet updated coins=$balance');
       _post('WALLET_UPDATED', {'balance': balance});
     } catch (_) {}
   }

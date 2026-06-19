@@ -564,6 +564,7 @@ function startFlightLoop() {
     if (G.mult - lastTickM >= 0.5) { SFX.flightTick(G.mult); lastTickM = G.mult; }
     G.slots.forEach((s,i) => {
       if (s.state==='armed' && s.mode==='auto' && s.betId && !s.cashing && G.mult >= s.autoT) {
+        console.log('[RocketCrash] auto cashout trigger betId=' + s.betId + ' target=' + s.autoT + ' current=' + G.mult.toFixed(2));
         doCashout(i);
       }
     });
@@ -621,6 +622,7 @@ function doCrash() {
   G.mult     = G.crashAt;
   _explodeTs = performance.now();
   SFX.crash();
+  console.log('[RocketCrash] crash result roundId=' + (G.roundId || 'local') + ' crashPoint=' + G.crashAt.toFixed(2));
   setMult(G.crashAt, 'crashed');
   setPhase('CRASHED @ ' + G.crashAt.toFixed(2) + 'x', '');
 
@@ -672,7 +674,7 @@ function slotTap(i) {
     else if (s.state === 'armed') cancelBet(i);
   } else if (G.phase === 'flying') {
     // Part A: allow manual cashout in both manual AND auto mode
-    if (s.state === 'armed' && !s.cashing) doCashout(i);
+    if (s.state === 'armed' && !s.cashing) doCashoutManual(i);
   }
 }
 
@@ -724,6 +726,11 @@ function doCashout(i) {
   s.cashing = true;
   renderSlots();
   postToFlutter('REQUEST_CASHOUT_CREDIT', { slotIndex:i, betId:s.betId, multiplier:G.mult });
+}
+
+function doCashoutManual(i) {
+  console.log('[RocketCrash] manual cashout tap betId=' + (G.slots[i].betId || 'none') + ' mult=' + G.mult.toFixed(2));
+  doCashout(i);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1066,7 +1073,7 @@ function renderSlots() {
         { btn.textContent='Bet Next Round'; btn.classList.add('locked'); btn.disabled=true; }
       else if (s.state==='armed' && !s.cashing)
         // Part A: show cashout in both manual and auto modes
-        { btn.textContent='💰 CASH OUT'+(s.mode==='auto'?' (auto:'+s.autoT.toFixed(2)+'×)':''); btn.classList.add('cashout'); }
+        { btn.textContent='💰 CASH OUT'+(s.mode==='auto'?' @'+s.autoT.toFixed(2)+'×':''); btn.classList.add('cashout'); }
       else if (s.state==='cashing')
         { btn.textContent='Processing…'; btn.classList.add('locked'); btn.disabled=true; }
       else if (s.state==='won') {

@@ -63,8 +63,9 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
 
   // ── User bet state ───────────────────────────────────────────────────────
   String? _selectedFoodId;
-  int     _betAmount    = 100;
-  bool    _betPlaced    = false;
+  int     _betAmount = 100;
+  bool    _betPlaced = false;
+  bool    _betBusy   = false; // true while API call is in flight
 
   // ── Animation ────────────────────────────────────────────────────────────
   int  _highlighted = 0;
@@ -145,25 +146,26 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     }
   }
 
-  /// Applies a freshly loaded or arrived round to local state and starts the
-  /// countdown timer.  Works for both initial load and next-round transitions.
+  /// Applies a freshly loaded or arrived round to local state.
   void _applyRound(HungryCatGlobalRound round) {
     _countdownTimer?.cancel();
 
-    _roundId      = round.roundId;
-    _roundNumber  = round.roundNumber;
+    _roundId       = round.roundId;
+    _roundNumber   = round.roundNumber;
     _bettingEndsAt = round.bettingEndsAt;
-    _clockOffset  = round.serverNow.difference(DateTime.now().toUtc());
-    _settling     = false;
-    _winFoodId    = null;
-    _winFoodIcon  = null;
-    _winFoodName  = null;
-    _winMult      = null;
-    _betPlaced    = false;
+    _clockOffset   = round.serverNow.difference(DateTime.now().toUtc());
+    _settling      = false;
+    _winFoodId     = null;
+    _winFoodIcon   = null;
+    _winFoodName   = null;
+    _winMult       = null;
+    _betPlaced     = false;
+    _betBusy       = false;
     _selectedFoodId = null;
 
+    debugPrint('[HungryCat] round loaded roundId=$_roundId roundNumber=$_roundNumber');
+
     if (round.isSettled) {
-      // Joined a round that already settled — show result then move on
       _winFoodId   = round.winningFoodId;
       _winFoodIcon = round.winningFoodIcon;
       _winFoodName = round.winningFoodName;
@@ -233,43 +235,65 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
         ? null
         : (row['winning_multiplier'] as num).toDouble();
 
-    // Only act if we haven't already received the winner via direct RPC
+    debugPrint('[HungryCat] result roundId=$_roundId winningFood=$foodId');
+
     if (_winFoodId == null) {
       _applyWinner(foodId, foodIcon, foodName, mult);
     }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Betting
+  // Betting — tap food = immediate bet
   // ─────────────────────────────────────────────────────────────────────────
 
-  Future<void> _placeBet() async {
-    if (_phase != _Phase.betting || _selectedFoodId == null || _betPlaced) return;
+  Future<void> _tapFood(int index) async {
+    if (_phase != _Phase.betting) return;
+    if (_betPlaced || _betBusy) return;
+    if (index >= _foods.length) return;
+
     if (_balance < _betAmount) {
       _showSnack(_ar ? 'رصيد غير كافٍ' : 'Insufficient coins');
       return;
     }
+
+    final foodId   = _foods[index].foodId;
+    final foodName = _foods[index].name;
+
+    debugPrint('[HungryCat] bet tap food=$foodId amount=$_betAmount');
     HapticFeedback.lightImpact();
+
+    setState(() {
+      _selectedFoodId = foodId;
+      _betBusy        = true;
+    });
+
     try {
-      final newBalance = await _service.placeGlobalBet(
+      final result = await _service.placeGlobalBet(
         roundId: _roundId!,
-        foodId:  _selectedFoodId!,
+        foodId:  foodId,
         amount:  _betAmount,
       );
       if (!mounted) return;
+
+      debugPrint('[HungryCat] bet placed betId=${result.betId}');
+      debugPrint('[HungryCat] wallet updated coins=${result.newBalance}');
+
       setState(() {
-        _balance   = newBalance;
+        _balance   = result.newBalance;
         _betPlaced = true;
+        _betBusy   = false;
       });
       _showSnack(_ar
-          ? '✅ تم الرهان على ${_foodName(_selectedFoodId!)}!'
-          : '✅ Bet placed on ${_foodName(_selectedFoodId!)}!');
-    } catch (e, st) {
-      debugPrint('[HungryCat] placeBet failed: $e\n$st');
+          ? '✅ تم الرهان على $foodName!'
+          : '✅ Bet placed on $foodName!');
+    } catch (e) {
+      debugPrint('[HungryCat] bet failed reason=$e');
       if (!mounted) return;
-      _showSnack(_ar
-          ? _friendlyErrorAr('$e')
-          : _friendlyError('$e'));
+      setState(() {
+        _selectedFoodId = null;
+        _betBusy        = false;
+      });
+      _showSnack(_ar ? _friendlyErrorAr('$e') : _friendlyError('$e'));
     }
   }
 
@@ -282,7 +306,6 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     _settling = true;
     setState(() => _phase = _Phase.spinning);
 
-    // Run free-spin animation while waiting for the result
     _runFreeSpin();
 
     try {
@@ -296,11 +319,10 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
       );
     } catch (e, st) {
       debugPrint('[HungryCat] settle failed: $e\n$st');
-      // Realtime will still deliver the result; no UI error needed here.
+      // Realtime will still deliver the result.
     }
   }
 
-  /// Sets the winner and runs the landing animation.
   void _applyWinner(
     String? foodId, String? foodIcon, String? foodName, double? mult,
   ) {
@@ -308,7 +330,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     _winFoodIcon = foodIcon;
     _winFoodName = foodName;
     _winMult     = mult;
-    // _runFreeSpin() is polling _winFoodId; it will transition to landing.
+    // _runFreeSpin polls _winFoodId and transitions to landing.
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -316,7 +338,6 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _runFreeSpin() async {
-    // Fast loop until winner is known
     while (mounted && _winFoodId == null && _phase == _Phase.spinning) {
       await Future.delayed(const Duration(milliseconds: 70));
       if (!mounted || _phase != _Phase.spinning) return;
@@ -324,12 +345,10 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     }
     if (!mounted || _phase != _Phase.spinning) return;
 
-    // Slow-landing animation to the winner slot
     final target = _findWinnerIndex();
     await _runLandingAnimation(target);
     if (!mounted) return;
 
-    // Pulse the winner bubble
     HapticFeedback.mediumImpact();
     for (int i = 0; i < 3; i++) {
       if (!mounted) break;
@@ -338,11 +357,12 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     }
     if (!mounted) return;
 
-    // Fetch updated balance (we may have won)
-    _balance = await _service.fetchCoinBalance();
+    final newBalance = await _service.fetchCoinBalance();
     if (!mounted) return;
+    debugPrint('[HungryCat] payout amount=${newBalance - _balance}');
+    debugPrint('[HungryCat] wallet updated coins=$newBalance');
+    _balance = newBalance;
 
-    // Load fresh global history
     try {
       final hist = await _service.getGlobalHistory();
       if (mounted) _history = hist.take(20).toList();
@@ -358,12 +378,12 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   Future<void> _runLandingAnimation(int target) async {
     final n    = _displayFoodCount;
     final dist = (target - _highlighted + n) % n;
-    final steps = dist == 0 ? n : dist; // always spin forward to land
+    final steps = dist == 0 ? n : dist;
 
     for (int i = 0; i < steps; i++) {
       if (!mounted) return;
       final progress = i / steps;
-      final ms = (70 + progress * 230).toInt(); // 70 → 300 ms
+      final ms = (70 + progress * 230).toInt();
       await Future.delayed(Duration(milliseconds: ms));
       if (!mounted) return;
       setState(() => _highlighted = (_highlighted + 1) % n);
@@ -375,7 +395,6 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     for (int i = 0; i < _foods.length; i++) {
       if (_foods[i].foodId == _winFoodId) return i;
     }
-    // Fallback: closest multiplier
     double best = double.maxFinite;
     int idx = 0;
     final m = _winMult ?? 0;
@@ -399,7 +418,6 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
       _applyRound(round);
     } catch (e, st) {
       debugPrint('[HungryCat] nextRound failed: $e\n$st');
-      // Retry after a brief pause
       await Future.delayed(const Duration(seconds: 2));
       _loadNextRound();
     }
@@ -426,7 +444,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
 
   String _foodName(String foodId) {
     for (final f in _foods) {
-      if (f.foodId == foodId) return _ar ? f.name : f.name;
+      if (f.foodId == foodId) return f.name;
     }
     return foodId;
   }
@@ -438,7 +456,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     if (e.contains('round_not_found'))     return 'Round not found — refreshing';
     if (e.contains('invalid_food'))        return 'Invalid food selection';
     if (e.contains('not_authenticated'))   return 'Please log in again';
-    if (e.contains('duplicate'))           return 'Duplicate request, try again';
+    if (e.contains('duplicate_bet'))       return 'You already bet this round';
     return 'Something went wrong. Please try again.';
   }
 
@@ -449,7 +467,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     if (e.contains('round_not_found'))     return 'لم يُوجد الجولة — جارٍ التحديث';
     if (e.contains('invalid_food'))        return 'اختيار طعام غير صالح';
     if (e.contains('not_authenticated'))   return 'يرجى تسجيل الدخول من جديد';
-    if (e.contains('duplicate'))           return 'طلب مكرر، حاول مجدداً';
+    if (e.contains('duplicate_bet'))       return 'رهنت بالفعل في هذه الجولة';
     return 'حدث خطأ. حاول مجدداً.';
   }
 
@@ -630,9 +648,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
               padding: const EdgeInsets.only(right: 8),
               child: SizedBox(
                 width: 12, height: 12,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2, color: fg,
-                ),
+                child: CircularProgressIndicator(strokeWidth: 2, color: fg),
               ),
             ),
           Text(
@@ -691,10 +707,15 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     final isActive = i == _highlighted;
     final isWinner = _phase == _Phase.settled && _winFoodId != null
         && i == _findWinnerIndex();
-    final isSelected = _phase == _Phase.betting
-        && _foods.isNotEmpty
+    final isSelected = _foods.isNotEmpty
         && i < _foods.length
         && _foods[i].foodId == _selectedFoodId;
+
+    // Tappable only during betting when no bet is placed/busy yet
+    final canTap = _phase == _Phase.betting
+        && i < _foods.length
+        && !_betPlaced
+        && !_betBusy;
 
     final bubble = AnimatedBuilder(
       animation: _pulseAnim,
@@ -708,6 +729,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
         isActive:   isActive,
         isWinner:   isWinner,
         isSelected: isSelected,
+        isBusy:     isSelected && _betBusy,
       ),
     );
 
@@ -724,15 +746,14 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
       ),
     );
 
-    // Make tappable during betting phase
     Widget child = Column(
       mainAxisSize: MainAxisSize.min,
       children: [bubble, const SizedBox(height: 2), label],
     );
 
-    if (_phase == _Phase.betting && i < _foods.length) {
+    if (canTap) {
       child = GestureDetector(
-        onTap: () => setState(() => _selectedFoodId = _foods[i].foodId),
+        onTap: () => _tapFood(i),
         child: child,
       );
     }
@@ -741,7 +762,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
       left:   left,
       top:    top,
       width:  bubSize,
-      height: bubSize + 24, // extra for label
+      height: bubSize + 24,
       child:  child,
     );
   }
@@ -881,10 +902,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
               ),
             ),
             child: Center(
-              child: Text(
-                h.foodIcon,
-                style: const TextStyle(fontSize: 20),
-              ),
+              child: Text(h.foodIcon, style: const TextStyle(fontSize: 20)),
             ),
           );
         },
@@ -902,33 +920,52 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (_selectedFoodId == null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Text(
-                _ar ? 'اختر طعاماً للرهان عليه 👆' : 'Tap a food to select it 👆',
-                style: const TextStyle(color: Colors.white54, fontSize: 12),
-              ),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Text(
-                _ar
-                    ? 'مختار: ${_foodName(_selectedFoodId!)} ✅'
-                    : 'Selected: ${_foodName(_selectedFoodId!)} ✅',
-                style: const TextStyle(
-                  color: Color(0xFF34D399),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          _buildBetChips(),
+          _buildBetStatus(),
           const SizedBox(height: 8),
-          _buildBetButton(),
+          _buildBetChips(),
         ],
       ),
+    );
+  }
+
+  Widget _buildBetStatus() {
+    if (_betBusy) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(
+            width: 12, height: 12,
+            child: CircularProgressIndicator(
+              strokeWidth: 2, color: Color(0xFFF0C15A),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            _ar ? 'جارٍ الرهان...' : 'Placing bet...',
+            style: const TextStyle(
+              color: Color(0xFFF0C15A),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      );
+    }
+    if (_betPlaced) {
+      return Text(
+        _ar
+            ? '✅ تم الرهان على ${_foodName(_selectedFoodId!)} • ${_formatCoins(_betAmount)} 🪙'
+            : '✅ Bet placed on ${_foodName(_selectedFoodId!)} • ${_formatCoins(_betAmount)} 🪙',
+        style: const TextStyle(
+          color: Color(0xFF34D399),
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      );
+    }
+    return Text(
+      _ar ? 'اضغط على طعام للمراهنة 👆' : 'Tap a food to bet 👆',
+      style: const TextStyle(color: Colors.white54, fontSize: 12),
     );
   }
 
@@ -938,30 +975,33 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
       child: Row(
         children: _kBetChips.map((chip) {
           final sel = chip == _betAmount;
+          final locked = _betPlaced || _betBusy;
           return GestureDetector(
-            onTap: _betPlaced ? null : () => setState(() => _betAmount = chip),
+            onTap: locked ? null : () => setState(() => _betAmount = chip),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               margin: const EdgeInsets.only(right: 8),
               padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(30),
-                gradient: sel
+                gradient: sel && !locked
                     ? const LinearGradient(
                         colors: [Color(0xFFF0C15A), Color(0xFFD4A017)],
                       )
                     : null,
-                color: sel ? null : Colors.white.withValues(alpha: 0.06),
+                color: sel && !locked ? null : Colors.white.withValues(alpha: 0.06),
                 border: Border.all(
-                  color: sel
+                  color: sel && !locked
                       ? const Color(0xFFF0C15A)
                       : Colors.white.withValues(alpha: 0.14),
                 ),
               ),
               child: Text(
-                '${sel ? '🪙 ' : ''}${_formatCoins(chip)}',
+                '${sel && !locked ? '🪙 ' : ''}${_formatCoins(chip)}',
                 style: TextStyle(
-                  color: sel ? const Color(0xFF1A0533) : Colors.white70,
+                  color: sel && !locked
+                      ? const Color(0xFF1A0533)
+                      : Colors.white.withValues(alpha: locked ? 0.3 : 0.7),
                   fontWeight: FontWeight.w800,
                   fontSize: 13,
                 ),
@@ -969,49 +1009,6 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
             ),
           );
         }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildBetButton() {
-    final canBet = _selectedFoodId != null && !_betPlaced && _balance >= _betAmount;
-    final label  = _betPlaced
-        ? (_ar ? '✅ تم الرهان' : '✅ Bet placed')
-        : canBet
-            ? (_ar
-                ? 'راهن بـ ${_formatCoins(_betAmount)} 🪙'
-                : 'Bet ${_formatCoins(_betAmount)} 🪙')
-            : _selectedFoodId == null
-                ? (_ar ? 'اختر طعاماً أولاً' : 'Select a food first')
-                : (_ar ? 'رصيد غير كافٍ' : 'Insufficient coins');
-
-    return GestureDetector(
-      onTap: canBet ? _placeBet : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        height: 50,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: canBet
-              ? const LinearGradient(
-                  colors: [Color(0xFFF0C15A), Color(0xFFD4A017)],
-                )
-              : null,
-          color: canBet ? null : Colors.white.withValues(alpha: 0.06),
-          boxShadow: canBet
-              ? [const BoxShadow(
-                  color: Color(0x55F0C15A), blurRadius: 14, offset: Offset(0, 4))]
-              : null,
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: TextStyle(
-            color: canBet ? const Color(0xFF1A0533) : Colors.white38,
-            fontSize: 15,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
       ),
     );
   }
@@ -1086,6 +1083,7 @@ class _HungryCatBubble extends StatelessWidget {
     required this.isActive,
     required this.isWinner,
     required this.isSelected,
+    required this.isBusy,
   });
 
   final String emoji;
@@ -1093,6 +1091,7 @@ class _HungryCatBubble extends StatelessWidget {
   final bool   isActive;
   final bool   isWinner;
   final bool   isSelected;
+  final bool   isBusy;
 
   @override
   Widget build(BuildContext context) {
@@ -1132,8 +1131,20 @@ class _HungryCatBubble extends StatelessWidget {
               ]
             : null,
       ),
-      child: Center(
-        child: Text(emoji, style: TextStyle(fontSize: size * 0.44)),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Text(emoji, style: TextStyle(fontSize: size * 0.44)),
+          if (isBusy)
+            SizedBox(
+              width: size * 0.55,
+              height: size * 0.55,
+              child: const CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Color(0xFF34D399),
+              ),
+            ),
+        ],
       ),
     );
   }
