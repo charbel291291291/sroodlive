@@ -104,6 +104,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   // Cached so we don't call permission_handler on every mic-seat change.
   bool? _micPermissionGranted;
   int _moderatorCount = 0;
+  bool _isCurrentUserModerator = false;
   String? _roleBusyUserId;
   String? _activeAnnouncementText;
 
@@ -359,14 +360,16 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     switch (state) {
       case AppLifecycleState.paused:
       case AppLifecycleState.inactive:
-        // Screen off / home pressed Ã¢â‚¬â€ do NOT disconnect. The Android foreground
-        // service and LiveKit native SDK keep the audio session alive.
-        debugPrint('[Room] ${_roomTs()} app $state Ã¢â‚¬â€ keeping audio alive');
+        // Screen off / home pressed -- do NOT disconnect or mute. The Android
+        // foreground service (microphone + mediaPlayback types) keeps the mic
+        // active so other participants continue hearing the user.
+        debugPrint('[VoiceLifecycle] state=$state keepAudio=true');
+        debugPrint('[VoiceLifecycle] background audio preserved');
         break;
       case AppLifecycleState.resumed:
-        debugPrint('[Room] ${_roomTs()} app resumed Ã¢â‚¬â€ checking audio state');
+        debugPrint('[VoiceLifecycle] state=resumed');
         if (!_connectedAudio || !_liveKitRoomService.isConnected) {
-          debugPrint('[Room] ${_roomTs()} audio dropped Ã¢â‚¬â€ reconnecting silentlyÃ¢â‚¬Â¦');
+          debugPrint('[VoiceLifecycle] audio dropped while backgrounded -- reconnecting');
           unawaited(_reconnectAudio());
         }
         break;
@@ -1060,7 +1063,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   Future<void> _loadModeratorCount() async {
     try {
       final mods = await const RoomManagementService().getModerators(widget.room.id);
-      if (mounted) setState(() => _moderatorCount = mods.length);
+      if (mounted) {
+        setState(() {
+          _moderatorCount = mods.length;
+          _isCurrentUserModerator = mods.any((m) => m.userId == _currentUserId);
+        });
+      }
     } catch (_) {}
   }
 
@@ -1402,7 +1410,24 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     ReactionPickerSheet.show(context, onPick: _sendReaction);
   }
 
-  void _openToolsSheet() {
+  Future<void> _openToolsSheet() async {
+    // If the current user is not in the member list yet (heartbeat timing race),
+    // refresh once before opening so permissions are accurate.
+    if (_myMember == null && !_iAmRoomOwner) {
+      await _loadMembers(showLoading: false);
+      if (!mounted) return;
+    }
+
+    final isOwner = _iAmRoomOwner;
+    final isHost = _iAmHost;
+    final isModerator = _isCurrentUserModerator;
+    debugPrint(
+      '[RoomPerm] currentUserId=$_currentUserId ownerId=${widget.room.ownerId} '
+      'memberRole=${_myMember?.role} isOwner=$isOwner isHost=$isHost '
+      'isModerator=$isModerator',
+    );
+
+    if (!mounted) return;
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -1410,8 +1435,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       builder: (_) => RoomToolsSheet(
         room: _currentRoom,
         isArabic: context.isArabic,
-        isOwner: _iAmRoomOwner,
-        isHost: _iAmHost,
+        isOwner: isOwner,
+        isHost: isHost,
+        isModerator: isModerator,
         moderatorCount: _moderatorCount,
         onClearChat: _clearChat,
         onMaxSeatsChanged: (seats) {
@@ -2449,6 +2475,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     if (mc != null) unawaited(SupabaseService.requiredClient.removeChannel(mc));
     if (gc != null) unawaited(SupabaseService.requiredClient.removeChannel(gc));
     if (ms != null) unawaited(SupabaseService.requiredClient.removeChannel(ms));
+    debugPrint('[VoiceLifecycle] disconnect reason=user_left');
     await _liveKitRoomService.disconnect();
     unawaited(VoiceRoomForegroundService.stop());
   }
@@ -2767,7 +2794,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     });
 
     late final Timer timer;
-    timer = Timer(const Duration(seconds: 4), () {
+    timer = Timer(const Duration(seconds: 5), () {
       _giftEventTimers.remove(timer);
 
       if (!mounted) return;
@@ -3016,34 +3043,25 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             ),
             onPressed: _openInbox,
           ),
-          if (_iAmRoomOwner)
-            IconButton(
-              icon: const Icon(Icons.manage_accounts_rounded),
-              tooltip: context.isArabic ? '\u0625\u062f\u0627\u0631\u0629 \u0627\u0644\u063a\u0631\u0641\u0629' : 'Manage Room',
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.black.withValues(alpha: 0.35),
-              ),
-              onPressed: () async {
-                final result = await Navigator.of(context).push<Map<String, String?>>(
-                  MaterialPageRoute(
-                    builder: (_) => RoomOwnerManagementScreen(
-                      room: _currentRoom,
-                      isArabic: context.isArabic,
+          // Red exit button \u2014 top-right, always visible
+          IconButton(
+            icon: _leaving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
                     ),
-                  ),
-                );
-                if (result != null && mounted) {
-                  setState(() {
-                    if (result.containsKey('cover_url')) {
-                      _roomCoverUrl = result['cover_url'];
-                    }
-                    if (result.containsKey('avatar_url')) {
-                      _roomAvatarUrl = result['avatar_url'];
-                    }
-                  });
-                }
-              },
+                  )
+                : const Icon(Icons.logout_rounded),
+            tooltip: context.isArabic ? '\u0645\u063a\u0627\u062f\u0631\u0629 \u0627\u0644\u063a\u0631\u0641\u0629' : 'Leave Room',
+            style: IconButton.styleFrom(
+              backgroundColor: const Color(0xFFFF5C7A).withValues(alpha: 0.85),
+              foregroundColor: Colors.white,
             ),
+            onPressed: _leaving ? null : _leaveRoom,
+          ),
           const SizedBox(width: 8),
         ],
       ),
@@ -3192,6 +3210,59 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
           ),
 
           // \u2500\u2500 3. Gift floating event overlay \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+          // ── Floating Manage Room button (owner-only, right side below AppBar) ──────────
+          if (_iAmRoomOwner)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + kToolbarHeight + 8,
+              right: 12,
+              child: Material(
+                color: Colors.transparent,
+                child: Tooltip(
+                  message: context.isArabic ? 'إدارة الغرفة' : 'Manage Room',
+                  child: InkWell(
+                    onTap: () async {
+                      final result = await Navigator.of(context).push<Map<String, String?>>(
+                        MaterialPageRoute(
+                          builder: (_) => RoomOwnerManagementScreen(
+                            room: _currentRoom,
+                            isArabic: context.isArabic,
+                          ),
+                        ),
+                      );
+                      if (result != null && mounted) {
+                        setState(() {
+                          if (result.containsKey('cover_url')) {
+                            _roomCoverUrl = result['cover_url'];
+                          }
+                          if (result.containsKey('avatar_url')) {
+                            _roomAvatarUrl = result['avatar_url'];
+                          }
+                        });
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(24),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.black.withValues(alpha: 0.55),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          width: 1,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.manage_accounts_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
           _GiftEventOverlay(
               events: _giftEvents, isArabic: context.isArabic),
 
@@ -5011,43 +5082,29 @@ class _LiveSeatBubble extends StatelessWidget {
                         ),
                       ),
 
-                      // 4. Mic status badge ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â bottom-right of avatar ring.
-                      //    Red = muted, green = live. 22 px for clear tap area.
-                      Positioned(
-                        bottom: 1,
-                        right: 1,
-                        child: Container(
-                          width: 22,
-                          height: 22,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: seat.isMuted
-                                ? const Color(0xFFE63946)
-                                : const Color(0xFF22C55E),
-                            border: Border.all(
-                              color: Colors.black.withValues(alpha: 0.90),
-                              width: 1.8,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: (seat.isMuted
-                                        ? const Color(0xFFE63946)
-                                        : const Color(0xFF22C55E))
-                                    .withValues(alpha: 0.60),
-                                blurRadius: 8,
-                                spreadRadius: 0,
+                      // 4. Mic-muted badge -- only shown when muted, small premium dot.
+                      if (seat.isMuted)
+                        Positioned(
+                          bottom: 1,
+                          right: 1,
+                          child: Container(
+                            width: 18,
+                            height: 18,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xCCB71C1C),
+                              border: Border.all(
+                                color: Colors.black.withValues(alpha: 0.85),
+                                width: 1.4,
                               ),
-                            ],
-                          ),
-                          child: Icon(
-                            seat.isMuted
-                                ? Icons.mic_off_rounded
-                                : Icons.mic_rounded,
-                            color: Colors.white,
-                            size: 12,
+                            ),
+                            child: const Icon(
+                              Icons.mic_off_rounded,
+                              color: Colors.white,
+                              size: 11,
+                            ),
                           ),
                         ),
-                      ),
 
                     ],
                   ),
@@ -6125,7 +6182,7 @@ class _GiftEventOverlay extends StatelessWidget {
       child: Align(
         alignment: Alignment.topCenter,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 74, 18, 0),
+          padding: const EdgeInsets.fromLTRB(18, 120, 18, 0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: events
@@ -8017,6 +8074,7 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
                     : TextDirection.ltr,
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
+                  // 1. Mic
                   _QuickActionBtn(
                     icon: widget.isOnMic
                         ? (widget.micEnabled
@@ -8031,26 +8089,23 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
                         : null,
                     opacity: widget.isOnMic ? 1.0 : 0.40,
                   ),
-                  _QuickActionBtn(
-                    icon: Icons.tune_rounded,
-                    color: Colors.white.withValues(alpha: 0.85),
-                    onTap: widget.onMoreTap,
-                  ),
-                  _QuickActionBtn(
-                    icon: Icons.card_giftcard_rounded,
-                    color: kGold,
-                    onTap: widget.onGiftTap,
-                  ),
+                  // 2. Emoji
                   _QuickActionBtn(
                     icon: Icons.emoji_emotions_outlined,
                     color: Colors.white.withValues(alpha: 0.85),
                     onTap: () => widget.onReactionTap(),
                   ),
+                  // 3. Gift
                   _QuickActionBtn(
-                    icon: Icons.logout_rounded,
-                    color: const Color(0xFFFF5C7A),
-                    busy: widget.leaving,
-                    onTap: widget.leaving ? null : widget.onLeaveRoom,
+                    icon: Icons.card_giftcard_rounded,
+                    color: kGold,
+                    onTap: widget.onGiftTap,
+                  ),
+                  // 4. Settings / Tools
+                  _QuickActionBtn(
+                    icon: Icons.tune_rounded,
+                    color: Colors.white.withValues(alpha: 0.85),
+                    onTap: widget.onMoreTap,
                   ),
                 ],
               ),

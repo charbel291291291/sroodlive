@@ -35,6 +35,7 @@ class RoomToolsSheet extends StatefulWidget {
     required this.isArabic,
     required this.isOwner,
     required this.isHost,
+    required this.isModerator,
     required this.moderatorCount,
     required this.onClearChat,
     this.onMaxSeatsChanged,
@@ -54,6 +55,7 @@ class RoomToolsSheet extends StatefulWidget {
   final bool isArabic;
   final bool isOwner;
   final bool isHost;
+  final bool isModerator;
   final int moderatorCount;
   final VoidCallback onClearChat;
   final void Function(int newSeats)? onMaxSeatsChanged;
@@ -82,6 +84,9 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
   static const _kVisualKey = 'room_pref_visual';
 
   bool get _canManage => widget.isOwner || widget.isHost;
+
+  // Moderators can use a subset of tools (Clean, Kicks, Mic Mode).
+  bool get _canModerate => _canManage || widget.isModerator;
 
   @override
   void initState() {
@@ -121,10 +126,32 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
 
   // â”€â”€ Permission check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  void _requirePermission(VoidCallback onGranted) {
+  void _requirePermission(VoidCallback onGranted, {String tool = 'unknown'}) {
     if (_canManage) {
+      debugPrint('[RoomPerm] tool=$tool allowed=true reason=canManage');
       onGranted();
     } else {
+      debugPrint(
+        '[RoomPerm] tool=$tool allowed=false '
+        'isOwner=${widget.isOwner} isHost=${widget.isHost} isModerator=${widget.isModerator}',
+      );
+      _snack(
+        _t('Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ù„Ø§Ø³ØªØ®Ø¯Ø§Ù… Ù‡Ø°Ù‡ Ø§Ù„Ø£Ø¯Ø§Ø©',
+            'You do not have permission to use this tool.'),
+        isError: true,
+      );
+    }
+  }
+
+  void _requireModeratePermission(VoidCallback onGranted, {String tool = 'unknown'}) {
+    if (_canModerate) {
+      debugPrint('[RoomPerm] tool=$tool allowed=true reason=canModerate');
+      onGranted();
+    } else {
+      debugPrint(
+        '[RoomPerm] tool=$tool allowed=false '
+        'isOwner=${widget.isOwner} isHost=${widget.isHost} isModerator=${widget.isModerator}',
+      );
       _snack(
         _t('Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ù„Ø§Ø³ØªØ®Ø¯Ø§Ù… Ù‡Ø°Ù‡ Ø§Ù„Ø£Ø¯Ø§Ø©',
             'You do not have permission to use this tool.'),
@@ -174,16 +201,23 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
 
   void _openSettings() {
     HapticFeedback.lightImpact();
+    // Capture everything from context/widget BEFORE popping — once this sheet is
+    // popped the BuildContext is no longer mounted and must not be used in closures.
+    final isArabic = context.isArabic;
+    final room = widget.room;
+    final isOwner = widget.isOwner;
+    final moderatorCount = widget.moderatorCount;
     Navigator.of(context).pop();
     showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true, // anchor to root overlay, not the popped sheet route
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => RoomSettingsSheet(
-        room: widget.room,
-        isArabic: context.isArabic,
-        isOwner: widget.isOwner,
-        moderatorCount: widget.moderatorCount,
+        room: room,
+        isArabic: isArabic,
+        isOwner: isOwner,
+        moderatorCount: moderatorCount,
       ),
     );
   }
@@ -442,7 +476,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                           labelEn: 'Team PK',
                           onTap: _canManage
                               ? _openTeamPk
-                              : () => _requirePermission(() {}),
+                              : () => _requirePermission(() {}, tool: 'TeamPK'),
                           disabled: !_canManage,
                         ),
                         _ToolDef(
@@ -473,10 +507,10 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                           icon: Icons.cleaning_services_rounded,
                           labelAr: 'Ù…Ø³Ø­',
                           labelEn: 'Clean',
-                          onTap: _canManage
+                          onTap: _canModerate
                               ? _confirmClearChat
-                              : () => _requirePermission(() {}),
-                          disabled: !_canManage,
+                              : () => _requireModeratePermission(() {}, tool: 'Clean'),
+                          disabled: !_canModerate,
                         ),
                         _ToolDef(
                           icon: Icons.settings_rounded,
@@ -484,7 +518,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                           labelEn: 'Settings',
                           onTap: _canManage
                               ? _openSettings
-                              : () => _requirePermission(() {}),
+                              : () => _requirePermission(() {}, tool: 'Settings'),
                           disabled: !_canManage,
                         ),
                         _ToolDef(
@@ -505,10 +539,10 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                           icon: Icons.mic_rounded,
                           labelAr: 'Ù…ÙŠÙƒØ±ÙˆÙÙˆÙ†',
                           labelEn: 'Mic Mode',
-                          onTap: _canManage
+                          onTap: _canModerate
                               ? _openMicMode
-                              : () => _requirePermission(() {}),
-                          disabled: !_canManage,
+                              : () => _requireModeratePermission(() {}, tool: 'MicMode'),
+                          disabled: !_canModerate,
                         ),
                         _ToolDef(
                           icon: Icons.wallpaper_rounded,
@@ -521,10 +555,10 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                           labelAr: 'Ø³Ø¬Ù„ Ø§Ù„Ø·Ø±Ø¯',
                           labelEn: 'Kicks',
                           accent: const Color(0xFFE63946),
-                          onTap: _canManage
+                          onTap: _canModerate
                               ? _openKickRecord
-                              : () => _requirePermission(() {}),
-                          disabled: !_canManage,
+                              : () => _requireModeratePermission(() {}, tool: 'Kicks'),
+                          disabled: !_canModerate,
                         ),
                       ],
                     ),
