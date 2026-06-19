@@ -39,7 +39,7 @@ class HungryCatWebviewScreen extends StatefulWidget {
 }
 
 class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   final _service = const HungryCatGameService();
 
   // ── Foods / balance / history ────────────────────────────────────────────
@@ -67,6 +67,10 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   bool    _betPlaced = false;
   bool    _betBusy   = false; // true while API call is in flight
 
+  // ── Spin payout delta ────────────────────────────────────────────────────
+  int? _balanceBeforeSpin; // snapshot taken at settle trigger
+  int? _spinDelta;         // newBalance - _balanceBeforeSpin after animation
+
   // ── Animation ────────────────────────────────────────────────────────────
   int  _highlighted = 0;
   bool _settling    = false; // guard: only settle once per round
@@ -76,6 +80,8 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
 
   // ── Realtime ─────────────────────────────────────────────────────────────
   RealtimeChannel? _channel;
+  int              _reconnectAttempts = 0;
+  Timer?           _reconnectTimer;
 
   // ── Misc ─────────────────────────────────────────────────────────────────
   Timer?  _countdownTimer;
@@ -91,6 +97,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _pulseCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
@@ -103,10 +110,20 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _countdownTimer?.cancel();
+    _reconnectTimer?.cancel();
     _channel?.unsubscribe();
     _pulseCtrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('[HungryCat] app resumed — refreshing round');
+      _loadGame();
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -130,9 +147,10 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
       final round   = results[2] as HungryCatGlobalRound;
       final history = results[3] as List<HungryCatHistoryEntry>;
 
-      _foods   = foods.take(8).toList();
+      _foods   = foods.toList();
       _balance = balance;
       _history = history.take(20).toList();
+      debugPrint('[HungryCat] foods loaded count=${_foods.length}');
 
       _applyRound(round);
       _subscribeToRound(round.roundId);
@@ -154,14 +172,16 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     _roundNumber   = round.roundNumber;
     _bettingEndsAt = round.bettingEndsAt;
     _clockOffset   = round.serverNow.difference(DateTime.now().toUtc());
-    _settling      = false;
-    _winFoodId     = null;
-    _winFoodIcon   = null;
-    _winFoodName   = null;
-    _winMult       = null;
-    _betPlaced     = false;
-    _betBusy       = false;
-    _selectedFoodId = null;
+    _settling          = false;
+    _winFoodId         = null;
+    _winFoodIcon       = null;
+    _winFoodName       = null;
+    _winMult           = null;
+    _betPlaced         = false;
+    _betBusy           = false;
+    _selectedFoodId    = null;
+    _balanceBeforeSpin = null;
+    _spinDelta         = null;
 
     debugPrint('[HungryCat] round loaded roundId=$_roundId roundNumber=$_roundNumber');
 
@@ -201,8 +221,9 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   // ─────────────────────────────────────────────────────────────────────────
 
   void _subscribeToRound(String roundId) {
+    _reconnectTimer?.cancel();
     _channel?.unsubscribe();
-    _reconnecting = false;
+    setState(() => _reconnecting = false);
 
     _channel = SupabaseService.requiredClient
         .channel('hcat_global_$roundId')
@@ -219,8 +240,31 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
         )
         .subscribe((status, [err]) {
           if (!mounted) return;
-          setState(() => _reconnecting = status == RealtimeSubscribeStatus.channelError);
+          if (status == RealtimeSubscribeStatus.channelError) {
+            setState(() => _reconnecting = true);
+            _scheduleReconnect(roundId);
+          } else {
+            setState(() => _reconnecting = false);
+            _reconnectAttempts = 0;
+          }
         });
+  }
+
+  void _scheduleReconnect(String roundId) {
+    _reconnectTimer?.cancel();
+    _reconnectAttempts++;
+    if (_reconnectAttempts > 3) {
+      debugPrint('[HungryCat] realtime reconnect failed after 3 attempts — reloading game');
+      _reconnectAttempts = 0;
+      _loadGame();
+      return;
+    }
+    final delaySecs = _reconnectAttempts * 2;
+    debugPrint('[HungryCat] realtime reconnect attempt=$_reconnectAttempts in ${delaySecs}s');
+    _reconnectTimer = Timer(Duration(seconds: delaySecs), () {
+      if (!mounted) return;
+      _subscribeToRound(roundId);
+    });
   }
 
   void _onRoundUpdate(PostgresChangePayload payload) {
@@ -304,6 +348,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   Future<void> _triggerSettle() async {
     if (_settling || _phase != _Phase.betting) return;
     _settling = true;
+    _balanceBeforeSpin = _balance; // snapshot for win/loss delta
     setState(() => _phase = _Phase.spinning);
 
     _runFreeSpin();
@@ -338,7 +383,21 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _runFreeSpin() async {
+    // P1.6 — 15-second hard timeout on result wait
+    final deadline = DateTime.now().add(const Duration(seconds: 15));
     while (mounted && _winFoodId == null && _phase == _Phase.spinning) {
+      if (DateTime.now().isAfter(deadline)) {
+        debugPrint('[HungryCat] spin timeout — no winner after 15s');
+        if (mounted) {
+          setState(() {
+            _phase    = _Phase.error;
+            _errorMsg = _ar
+                ? 'انتهت مهلة تحميل النتيجة. حاول مجدداً.'
+                : 'Result timed out. Please retry.';
+          });
+        }
+        return;
+      }
       await Future.delayed(const Duration(milliseconds: 70));
       if (!mounted || _phase != _Phase.spinning) return;
       setState(() => _highlighted = (_highlighted + 1) % _displayFoodCount);
@@ -359,9 +418,9 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
 
     final newBalance = await _service.fetchCoinBalance();
     if (!mounted) return;
-    debugPrint('[HungryCat] payout amount=${newBalance - _balance}');
+    final delta = newBalance - (_balanceBeforeSpin ?? _balance);
+    debugPrint('[HungryCat] payout amount=$delta');
     debugPrint('[HungryCat] wallet updated coins=$newBalance');
-    _balance = newBalance;
 
     try {
       final hist = await _service.getGlobalHistory();
@@ -369,7 +428,11 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     } catch (_) {}
     if (!mounted) return;
 
-    setState(() => _phase = _Phase.settled);
+    setState(() {
+      _balance   = newBalance;
+      _spinDelta = delta;
+      _phase     = _Phase.settled;
+    });
     await Future.delayed(const Duration(seconds: 3));
     if (!mounted) return;
     _loadNextRound();
@@ -606,11 +669,12 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
 
     switch (_phase) {
       case _Phase.betting:
+        final urgent = _secsLeft <= 5;
         label = _ar
-            ? 'الرهان مفتوح • $_secsLeft ث'
-            : 'Betting open • ${_secsLeft}s';
-        bg = const Color(0xFF1A3D1A);
-        fg = const Color(0xFF4ADE80);
+            ? '${urgent ? '⚠️ ' : ''}الرهان مفتوح • $_secsLeft ث'
+            : '${urgent ? '⚠️ ' : ''}Betting open • ${_secsLeft}s';
+        bg = urgent ? const Color(0xFF3D0A0A) : const Color(0xFF1A3D1A);
+        fg = urgent ? const Color(0xFFFF5555) : const Color(0xFF4ADE80);
       case _Phase.spinning:
         label = _ar ? '🎰 جارٍ الدوران...' : '🎰 Spinning...';
         bg = const Color(0xFF1A1A3D);
@@ -854,17 +918,45 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
                     ),
                   ),
                 ],
-                const SizedBox(height: 4),
-                Text(
-                  _betPlaced
-                      ? (_ar ? '🎉 راجع رصيدك!' : '🎉 Check your balance!')
-                      : (_ar ? 'رهان في الجولة القادمة!' : 'Bet next round!'),
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                if (_betPlaced && _spinDelta != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    _spinDelta! > 0
+                        ? (_ar
+                            ? '🎉 ربحت ${_formatCoins(_spinDelta!)} 🪙'
+                            : '🎉 Won +${_formatCoins(_spinDelta!)} 🪙')
+                        : (_ar
+                            ? '❌ خسرت ${_formatCoins(_betAmount)} 🪙'
+                            : '❌ Lost -${_formatCoins(_betAmount)} 🪙'),
+                    style: TextStyle(
+                      color: _spinDelta! > 0
+                          ? const Color(0xFF34D399)
+                          : const Color(0xFFFF6B6B),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
-                ),
+                ] else if (!_betPlaced) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _ar ? 'رهان في الجولة القادمة!' : 'Bet next round!',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ] else ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _ar ? '🎉 راجع رصيدك!' : '🎉 Check your balance!',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
