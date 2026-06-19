@@ -645,11 +645,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     if (envelope == null || _claimingEnvelope) return;
     final envelopeId = envelope['id'] as String?;
     if (envelopeId == null) return;
-    // Sender cannot claim their own Lucky Bag.
-    if ((envelope['sender_id'] as String?) == _currentUserId) {
-      debugPrint('[L luckybag] hidden reason=sender id=$envelopeId');
-      return;
-    }
+    // Sender is allowed to claim their own Lucky Bag (same as everyone else).
     setState(() => _claimingEnvelope = true);
     try {
       final coins = await SupabaseService.requiredClient
@@ -6468,186 +6464,249 @@ class _RedEnvelopeBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final total = envelope['total_coins'] as int? ?? 0;
-    final count = envelope['envelope_count'] as int? ?? 1;
-    final claimed = envelope['claimed_count'] as int? ?? 0;
+    final total   = envelope['total_coins']   as int? ?? 0;
+    final count   = envelope['envelope_count'] as int? ?? 1;
+    final claimed = envelope['claimed_count']  as int? ?? 0;
+    final isSuper = envelope['is_super'] == true;
     final remaining = count - claimed;
+    final progress = count > 0 ? claimed / count : 0.0;
+
+    final titleText = isSuper
+        ? (isArabic ? '🔥 حقيبة الحظ الكبرى!' : '🔥 Super Lucky Bag!')
+        : (isArabic ? '🎁 حقيبة الحظ!' : '🎁 Lucky Bag!');
 
     return Material(
       color: Colors.transparent,
       child: Container(
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF8B0000), Color(0xFFBF1B0B), Color(0xFF8B0000)],
+          gradient: LinearGradient(
+            colors: isSuper
+                ? const [Color(0xFF7A0000), Color(0xFFBF3510), Color(0xFF7A0000)]
+                : const [Color(0xFF7A0000), Color(0xFFBF1B0B), Color(0xFF7A0000)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: const Color(0xFFFFD700).withValues(alpha: 0.45),
-            width: 1.5,
+            color: const Color(0xFFFFD700).withValues(alpha: isSuper ? 0.65 : 0.45),
+            width: isSuper ? 2.0 : 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFE63946).withValues(alpha: 0.45),
-              blurRadius: 20,
+              color: (isSuper ? const Color(0xFFFF6B00) : const Color(0xFFE63946))
+                  .withValues(alpha: 0.5),
+              blurRadius: 24,
               spreadRadius: -2,
             ),
             BoxShadow(
-              color: const Color(0xFFFFD700).withValues(alpha: 0.15),
-              blurRadius: 8,
+              color: const Color(0xFFFFD700).withValues(alpha: 0.18),
+              blurRadius: 10,
               spreadRadius: -4,
             ),
           ],
         ),
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-        child: Row(
-          children: [
-            // Glowing bag icon
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const RadialGradient(
-                  colors: [Color(0xFFFFE066), Color(0xFFC8850A)],
-                  radius: 0.7,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFFFD700).withValues(alpha: 0.55),
-                    blurRadius: 14,
-                    spreadRadius: 1,
-                  ),
-                ],
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.card_giftcard_rounded,
-                  size: 28,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Main row
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                child: Row(
+                  children: [
+                    // Bag icon with pulse glow
+                    _BannerBagIcon(isSuper: isSuper),
+                    const SizedBox(width: 10),
 
-            // Text block
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.card_giftcard_rounded,
-                        size: 14,
-                        color: Color(0xFFFFD700),
+                    // Text block
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: isArabic
+                            ? CrossAxisAlignment.end
+                            : CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            titleText,
+                            style: TextStyle(
+                              color: isSuper
+                                  ? const Color(0xFFFFBB40)
+                                  : const Color(0xFFFFD700),
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            isArabic
+                                ? '$total عملة · $remaining متبقية'
+                                : '$total coins · $remaining left',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.7),
+                              fontSize: 11.5,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        isArabic ? 'Ø­Ù‚ÙŠØ¨Ø© Ø§Ù„Ø­Ø¸!' : 'Lucky Bag!',
-                        style: const TextStyle(
-                          color: Color(0xFFFFD700),
-                          fontWeight: FontWeight.w900,
-                          fontSize: 14,
+                    ),
+                    const SizedBox(width: 8),
+
+                    // Claim button (everyone can tap — including sender)
+                    if (loading)
+                      const SizedBox(
+                        width: 28, height: 28,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2.5, color: Color(0xFFFFD700)),
+                      )
+                    else
+                      GestureDetector(
+                        onTap: onClaim,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 9),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: isSuper
+                                  ? const [Color(0xFFFF8C00), Color(0xFFD4380D)]
+                                  : const [Color(0xFFFFE066), Color(0xFFC8850A)],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFFFD700).withValues(alpha: 0.4),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            isArabic ? 'افتح' : 'Open',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13,
+                            ),
+                          ),
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    isArabic
-                        ? '$total | $remaining'
-                        : '$total coins | $remaining left',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.75),
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
 
-            // Sender sees a "Sent" badge; receivers see the claim button.
-            if (isSender)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1A0A00).withValues(alpha: 0.55),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: const Color(0xFFFFD700).withValues(alpha: 0.35),
-                  ),
-                ),
-                child: Text(
-                  isArabic ? 'تم الإرسال' : 'Sent',
-                  style: const TextStyle(
-                    color: Color(0xFFFFD700),
-                    fontWeight: FontWeight.w900,
-                    fontSize: 13,
-                  ),
-                ),
-              )
-            else if (loading)
-              const SizedBox(
-                width: 28,
-                height: 28,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2.5, color: Color(0xFFFFD700)),
-              )
-            else
-              GestureDetector(
-                onTap: onClaim,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 9),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFFE066), Color(0xFFC8850A)],
+                    const SizedBox(width: 8),
+                    // Dismiss
+                    GestureDetector(
+                      onTap: onDismiss,
+                      child: Icon(
+                        Icons.close_rounded,
+                        color: Colors.white.withValues(alpha: 0.45),
+                        size: 18,
+                      ),
                     ),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color:
-                            const Color(0xFFFFD700).withValues(alpha: 0.4),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.card_giftcard_rounded,
-                        size: 14,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        isArabic ? 'افتح' : 'Open',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 13,
+                  ],
+                ),
+              ),
+
+              // Progress bar (claims consumed)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: progress.clamp(0.0, 1.0),
+                        minHeight: 4,
+                        backgroundColor: Colors.white.withValues(alpha: 0.12),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          isSuper
+                              ? const Color(0xFFFF8C00)
+                              : const Color(0xFFFFD700),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      isArabic
+                          ? '$claimed / $count فتحة'
+                          : '$claimed / $count claimed',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.4),
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
                 ),
-              ),            const SizedBox(width: 8),
-
-            // Dismiss
-            GestureDetector(
-              onTap: onDismiss,
-              child: Icon(
-                Icons.close_rounded,
-                color: Colors.white.withValues(alpha: 0.5),
-                size: 18,
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Animated pulsing bag icon for the banner
+class _BannerBagIcon extends StatefulWidget {
+  const _BannerBagIcon({required this.isSuper});
+  final bool isSuper;
+
+  @override
+  State<_BannerBagIcon> createState() => _BannerBagIconState();
+}
+
+class _BannerBagIconState extends State<_BannerBagIcon>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
+    _pulse = Tween(begin: 0.88, end: 1.0)
+        .chain(CurveTween(curve: Curves.easeInOut))
+        .animate(_ctrl);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _pulse,
+      builder: (_, _) => Transform.scale(
+        scale: _pulse.value,
+        child: Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: RadialGradient(
+              colors: widget.isSuper
+                  ? const [Color(0xFFFF8C00), Color(0xFF8B2500)]
+                  : const [Color(0xFFFFE066), Color(0xFFC8850A)],
+              radius: 0.72,
             ),
-          ],
+            boxShadow: [
+              BoxShadow(
+                color: (widget.isSuper
+                        ? const Color(0xFFFF6B00)
+                        : const Color(0xFFFFD700))
+                    .withValues(alpha: 0.5 * _pulse.value),
+                blurRadius: 14,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: const Center(
+            child: Icon(Icons.card_giftcard_rounded, size: 26, color: Colors.white),
+          ),
         ),
       ),
     );

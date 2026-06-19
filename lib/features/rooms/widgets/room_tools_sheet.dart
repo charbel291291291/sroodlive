@@ -1,4 +1,6 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1453,6 +1455,7 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
   bool _loading = false;
   String? _error;
 
+  bool get _isSuper => _tab.index == 1;
   String _t(String ar, String en) => widget.isArabic ? ar : en;
 
   @override
@@ -1461,8 +1464,10 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
     _tab = TabController(length: 2, vsync: this);
     _tab.addListener(() {
       if (!_tab.indexIsChanging) return;
+      HapticFeedback.selectionClick();
       setState(() {
         _selectedCoins = _tab.index == 0 ? 777 : 9999;
+        _selectedCount = 9;
         _error = null;
       });
     });
@@ -1475,22 +1480,24 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
   }
 
   List<int> get _coinPresets =>
-      _tab.index == 0 ? _coinPresetsNormal : _coinPresetsSuper;
+      _isSuper ? _coinPresetsSuper : _coinPresetsNormal;
 
   Future<void> _send() async {
+    HapticFeedback.mediumImpact();
     setState(() { _loading = true; _error = null; });
     try {
       final result = await Supabase.instance.client
           .rpc('create_red_envelope', params: {
-        'p_room_id': widget.roomId,
+        'p_room_id':     widget.roomId,
         'p_total_coins': _selectedCoins,
-        'p_count': _selectedCount,
+        'p_count':       _selectedCount,
+        'p_is_super':    _isSuper,
       });
       if (mounted) Navigator.of(context).pop(result);
     } catch (e) {
       if (!mounted) return;
       debugPrint('[LuckyBag] send — room=${widget.roomId} '
-          'coins=$_selectedCoins count=$_selectedCount err=$e');
+          'coins=$_selectedCoins count=$_selectedCount super=$_isSuper err=$e');
       final msg = e.toString();
       final String friendly;
       if (msg.contains('insufficient_balance')) {
@@ -1506,30 +1513,55 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
     }
   }
 
+  void _openRules() {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _LuckyBagRulesSheet(isArabic: widget.isArabic),
+    );
+  }
+
+  void _openHistory() {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _LuckyBagHistorySheet(
+        roomId: widget.roomId,
+        isArabic: widget.isArabic,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom +
         MediaQuery.of(context).padding.bottom;
     final coinPresets = _coinPresets;
     final avg = (_selectedCoins / _selectedCount).round();
+    final isSuper = _isSuper;
 
     return Directionality(
       textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF2D0808), Color(0xFF1C0505), Color(0xFF120316)],
+            colors: isSuper
+                ? [const Color(0xFF3A0A0A), const Color(0xFF220505), const Color(0xFF130318)]
+                : [const Color(0xFF2D0808), const Color(0xFF1C0505), const Color(0xFF120316)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + bottomInset),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Drag handle
+              // ── Drag handle ─────────────────────────────────────────────
               Center(
                 child: Container(
                   margin: const EdgeInsets.symmetric(vertical: 12),
@@ -1541,85 +1573,125 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
                 ),
               ),
 
-              // Hero bag icon
-              Container(
-                width: 76, height: 76,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const RadialGradient(
-                    colors: [Color(0xFFFFE066), Color(0xFFC8850A)],
-                    radius: 0.75,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFFFD700).withValues(alpha: 0.5),
-                      blurRadius: 24,
-                      spreadRadius: 2,
+              // ── Header: title + Rules + History ─────────────────────────
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Spacer(),
+                  Text(
+                    _t('حقيبة الحظ', 'Lucky Bag'),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.4,
                     ),
-                  ],
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.card_giftcard_rounded,
-                    size: 40,
-                    color: Colors.white,
                   ),
-                ),
+                  const Spacer(),
+                  // Rules button
+                  _BagHeaderAction(
+                    label: _t('القواعد', 'Rules'),
+                    icon: Icons.info_outline_rounded,
+                    onTap: _openRules,
+                  ),
+                  const SizedBox(width: 8),
+                  // History button
+                  _BagHeaderAction(
+                    label: _t('السجل', 'History'),
+                    icon: Icons.history_rounded,
+                    onTap: _openHistory,
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 20),
 
-              Text(
-                _t('أرسل حقيبة الحظ', 'Send a Lucky Bag'),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
+              // ── Luxury bag illustration ──────────────────────────────────
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: _LuxuryBagWidget(
+                  key: ValueKey(isSuper),
+                  isSuper: isSuper,
+                  size: 96,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 10),
+
+              // ── Subtitle ────────────────────────────────────────────────
+              Text(
+                isSuper
+                    ? _t('أرسل حقيبة الحظ الكبرى 🔥', 'Send a Super Lucky Bag 🔥')
+                    : _t('أرسل حقيبة الحظ', 'Send a Lucky Bag'),
+                style: TextStyle(
+                  color: isSuper ? const Color(0xFFFFD700) : Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 3),
               Text(
                 _t(
                   'اضغط على حقيبة الحظ لفرصة الفوز بعملات',
-                  'Tap the Lucky Bag for a chance to win Coins',
+                  'Tap the Lucky Bag for a chance to win coins',
                 ),
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.45),
+                  color: Colors.white.withValues(alpha: 0.42),
                   fontSize: 12,
                 ),
               ),
               const SizedBox(height: 18),
 
-              // Tab selector
+              // ── Tab selector ─────────────────────────────────────────────
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.07),
                   borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.08),
+                  ),
                 ),
                 padding: const EdgeInsets.all(3),
                 child: TabBar(
                   controller: _tab,
                   indicator: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFD4380D), Color(0xFFE63946)],
+                    gradient: LinearGradient(
+                      colors: isSuper
+                          ? [const Color(0xFFD4380D), const Color(0xFFFF6B00)]
+                          : [const Color(0xFFD4380D), const Color(0xFFE63946)],
                     ),
                     borderRadius: BorderRadius.circular(11),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFE63946).withValues(alpha: 0.45),
+                        blurRadius: 10,
+                        spreadRadius: -2,
+                      ),
+                    ],
                   ),
                   indicatorSize: TabBarIndicatorSize.tab,
                   dividerColor: Colors.transparent,
                   labelColor: Colors.white,
                   unselectedLabelColor: Colors.white54,
                   labelStyle: const TextStyle(
-                      fontWeight: FontWeight.w700, fontSize: 13),
+                      fontWeight: FontWeight.w800, fontSize: 13),
                   tabs: [
                     Tab(text: _t('حقيبة الحظ', 'Lucky Bag')),
-                    Tab(text: _t('الكبرى', 'Super')),
+                    Tab(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(_t('الكبرى', 'Super')),
+                          const SizedBox(width: 4),
+                          const Text('✨', style: TextStyle(fontSize: 11)),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
               const SizedBox(height: 20),
 
-              // Coins presets
+              // ── Coins presets ─────────────────────────────────────────────
               _BagSectionLabel(
                 _t('عدد العملات', 'Coins'),
                 const Color(0xFFF0C15A),
@@ -1644,7 +1716,7 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
               ),
               const SizedBox(height: 18),
 
-              // Quantity presets
+              // ── Quantity presets ──────────────────────────────────────────
               _BagSectionLabel(
                 _t('عدد الحقائب', 'Quantity'),
                 const Color(0xFFE63946),
@@ -1667,28 +1739,24 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
                   ),
                 )).toList(),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
 
-              // Summary pill
+              // ── Summary pill ──────────────────────────────────────────────
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color:
-                        const Color(0xFFF0C15A).withValues(alpha: 0.2),
+                    color: const Color(0xFFF0C15A).withValues(alpha: 0.22),
                   ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(
-                      Icons.monetization_on_rounded,
-                      color: Color(0xFFF0C15A),
-                      size: 16,
-                    ),
+                    const Icon(Icons.monetization_on_rounded,
+                        color: Color(0xFFF0C15A), size: 15),
                     const SizedBox(width: 6),
                     Text(
                       _t(
@@ -1696,10 +1764,31 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
                         '$_selectedCoins ÷ $_selectedCount ≈ $avg per bag',
                       ),
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.65),
+                        color: Colors.white.withValues(alpha: 0.6),
                         fontSize: 12,
                       ),
                     ),
+                    if (isSuper) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                              colors: [Color(0xFFD4380D), Color(0xFFFF6B00)]),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'SUPER',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1715,98 +1804,99 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
               ],
               const SizedBox(height: 20),
 
-              // Gold send button
+              // ── Send button ───────────────────────────────────────────────
               SizedBox(
                 width: double.infinity,
                 height: 54,
-                child: _loading
-                    ? Container(
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFFFD700), Color(0xFFC8850A)],
-                          ),
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: const Center(
-                          child: SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2.5, color: Colors.white),
-                          ),
-                        ),
-                      )
-                    : GestureDetector(
-                        onTap: _send,
-                        child: Container(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: _loading
+                      ? Container(
+                          key: const ValueKey('loading'),
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [
-                                Color(0xFFFFD700),
-                                Color(0xFFC8850A)
-                              ],
+                            gradient: LinearGradient(
+                              colors: isSuper
+                                  ? [const Color(0xFFFF8C00), const Color(0xFFD4380D)]
+                                  : [const Color(0xFFFFD700), const Color(0xFFC8850A)],
                             ),
                             borderRadius: BorderRadius.circular(18),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFFFFD700)
-                                    .withValues(alpha: 0.35),
-                                blurRadius: 16,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.card_giftcard_rounded,
-                                size: 20,
-                                color: Colors.white,
+                          child: const Center(
+                            child: SizedBox(
+                              width: 22, height: 22,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2.5, color: Colors.white),
+                            ),
+                          ),
+                        )
+                      : GestureDetector(
+                          key: const ValueKey('send'),
+                          onTap: _send,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: isSuper
+                                    ? [const Color(0xFFFF8C00), const Color(0xFFD4380D)]
+                                    : [const Color(0xFFFFD700), const Color(0xFFC8850A)],
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                _t(
-                                    'إرسال حقيبة الحظ', 'Send Lucky Bag'),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w900,
+                              borderRadius: BorderRadius.circular(18),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: (isSuper
+                                          ? const Color(0xFFFF6B00)
+                                          : const Color(0xFFFFD700))
+                                      .withValues(alpha: 0.38),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 4),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: Colors.black
-                                      .withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(8),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.card_giftcard_rounded,
+                                    size: 20, color: Colors.white),
+                                const SizedBox(width: 8),
+                                Text(
+                                  isSuper
+                                      ? _t('إرسال الكبرى', 'Send Super Bag')
+                                      : _t('إرسال حقيبة الحظ', 'Send Lucky Bag'),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                  ),
                                 ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      '$_selectedCoins',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.22),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        _fmtN(_selectedCoins),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 3),
-                                    const Icon(
-                                      Icons.monetization_on_rounded,
-                                      size: 12,
-                                      color: Colors.white,
-                                    ),
-                                  ],
+                                      const SizedBox(width: 3),
+                                      const Icon(Icons.monetization_on_rounded,
+                                          size: 12, color: Colors.white),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
-                      ),
+                ),
               ),
             ],
           ),
@@ -1823,6 +1913,732 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
           : '${k.toStringAsFixed(1)}k';
     }
     return '$n';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Small header action button (Rules / History)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _BagHeaderAction extends StatelessWidget {
+  const _BagHeaderAction({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+                color: Colors.white.withValues(alpha: 0.12)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 13, color: Colors.white60),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: const TextStyle(
+                    color: Colors.white60,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Luxury red bag illustration (CustomPaint)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _LuxuryBagWidget extends StatelessWidget {
+  const _LuxuryBagWidget({
+    super.key,
+    required this.size,
+    this.isSuper = false,
+  });
+  final double size;
+  final bool isSuper;
+
+  @override
+  Widget build(BuildContext context) {
+    final totalH = size * 1.26;
+    return SizedBox(
+      width: size,
+      height: totalH,
+      child: Stack(
+        children: [
+          // Outer glow halo
+          Positioned(
+            left: size * 0.1,
+            top: size * 0.28,
+            child: Container(
+              width: size * 0.8,
+              height: size * 0.7,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: (isSuper
+                            ? const Color(0xFFFF6B00)
+                            : const Color(0xFFE63946))
+                        .withValues(alpha: 0.42),
+                    blurRadius: 36,
+                    spreadRadius: 8,
+                  ),
+                  BoxShadow(
+                    color: const Color(0xFFFFD700).withValues(alpha: 0.18),
+                    blurRadius: 24,
+                    spreadRadius: 4,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // The bag itself
+          CustomPaint(
+            size: Size(size, totalH),
+            painter: _LuxuryBagPainter(isSuper: isSuper),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LuxuryBagPainter extends CustomPainter {
+  const _LuxuryBagPainter({required this.isSuper});
+  final bool isSuper;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    // Layout fractions
+    final handleH = h * 0.20;
+    final bodyTop = handleH * 0.55;
+    final bodyH = h - bodyTop;
+    final radius = w * 0.16;
+
+    final bodyRect = RRect.fromRectAndCorners(
+      Rect.fromLTWH(0, bodyTop, w, bodyH),
+      topLeft: Radius.circular(radius * 0.45),
+      topRight: Radius.circular(radius * 0.45),
+      bottomLeft: Radius.circular(radius),
+      bottomRight: Radius.circular(radius),
+    );
+
+    // ── Body fill ────────────────────────────────────────────────────────────
+    final bodyPaint = Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(-0.25, -0.35),
+        radius: 1.15,
+        colors: isSuper
+            ? [const Color(0xFFE84820), const Color(0xFFA01008), const Color(0xFF5C0004)]
+            : [const Color(0xFFBF1B0B), const Color(0xFF8B0000), const Color(0xFF4A0000)],
+      ).createShader(Rect.fromLTWH(0, bodyTop, w, bodyH));
+    canvas.drawRRect(bodyRect, bodyPaint);
+
+    // ── Body gold border ─────────────────────────────────────────────────────
+    canvas.drawRRect(
+      bodyRect,
+      Paint()
+        ..color = const Color(0xFFFFD700).withValues(alpha: 0.55)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.6,
+    );
+
+    // ── Top rim / crease line ────────────────────────────────────────────────
+    canvas.drawLine(
+      Offset(w * 0.06, bodyTop + 1),
+      Offset(w * 0.94, bodyTop + 1),
+      Paint()
+        ..color = const Color(0xFFFFD700).withValues(alpha: 0.3)
+        ..strokeWidth = 0.8,
+    );
+
+    // ── Highlight streak (upper-left gloss) ──────────────────────────────────
+    final glossPath = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.07, bodyTop + 5, w * 0.33, bodyH * 0.18),
+        const Radius.circular(20),
+      ));
+    canvas.drawPath(
+      glossPath,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white.withValues(alpha: 0.28),
+            Colors.white.withValues(alpha: 0.0),
+          ],
+        ).createShader(Rect.fromLTWH(w * 0.07, bodyTop + 5, w * 0.33, bodyH * 0.18)),
+    );
+
+    // ── Center emblem ────────────────────────────────────────────────────────
+    final emblemCenter = Offset(w * 0.5, bodyTop + bodyH * 0.5);
+    final emblemR = w * 0.2;
+    if (isSuper) {
+      _drawDiamond(canvas, emblemCenter, emblemR);
+    } else {
+      _drawStar(canvas, emblemCenter, emblemR, emblemR * 0.42, 5);
+    }
+
+    // ── Gold handles ─────────────────────────────────────────────────────────
+    final handlePaint = Paint()
+      ..color = const Color(0xFFD4A500)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.058
+      ..strokeCap = StrokeCap.round;
+
+    // Left handle
+    final leftH = Path()
+      ..moveTo(w * 0.265, bodyTop + 1.5)
+      ..quadraticBezierTo(w * 0.20, 0, w * 0.5, 0);
+    canvas.drawPath(leftH, handlePaint);
+
+    // Right handle
+    final rightH = Path()
+      ..moveTo(w * 0.735, bodyTop + 1.5)
+      ..quadraticBezierTo(w * 0.80, 0, w * 0.5, 0);
+    canvas.drawPath(rightH, handlePaint);
+
+    // Handle inner highlight
+    final handleHighlight = Paint()
+      ..color = const Color(0xFFFFE280).withValues(alpha: 0.55)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.02
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(leftH, handleHighlight);
+    canvas.drawPath(rightH, handleHighlight);
+
+    // ── Knot / tie point ─────────────────────────────────────────────────────
+    final knotR = w * 0.062;
+    canvas.drawCircle(
+      Offset(w * 0.5, 0),
+      knotR,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [const Color(0xFFFFE066), const Color(0xFFC8850A)],
+        ).createShader(Rect.fromCircle(
+          center: Offset(w * 0.5, 0),
+          radius: knotR,
+        )),
+    );
+    canvas.drawCircle(
+      Offset(w * 0.5, 0),
+      knotR,
+      Paint()
+        ..color = const Color(0xFFA06800).withValues(alpha: 0.7)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0,
+    );
+
+    // Body-attach dots
+    for (final x in [w * 0.265, w * 0.735]) {
+      canvas.drawCircle(
+        Offset(x, bodyTop + 1.5),
+        w * 0.032,
+        Paint()
+          ..shader = RadialGradient(
+            colors: [const Color(0xFFFFE066), const Color(0xFFC8850A)],
+          ).createShader(Rect.fromCircle(
+            center: Offset(x, bodyTop + 1.5),
+            radius: w * 0.032,
+          )),
+      );
+    }
+  }
+
+  void _drawStar(Canvas canvas, Offset center, double outerR, double innerR, int points) {
+    final path = Path();
+    for (int i = 0; i < points * 2; i++) {
+      final r = i.isEven ? outerR : innerR;
+      final angle = (i * math.pi / points) - math.pi / 2;
+      final x = center.dx + r * math.cos(angle);
+      final y = center.dy + r * math.sin(angle);
+      i == 0 ? path.moveTo(x, y) : path.lineTo(x, y);
+    }
+    path.close();
+    canvas.drawPath(
+      path,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [const Color(0xFFFFE880), const Color(0xFFD4A500)],
+        ).createShader(Rect.fromCircle(center: center, radius: outerR))
+        ..style = PaintingStyle.fill,
+    );
+    // Star inner glow dot
+    canvas.drawCircle(
+      center,
+      outerR * 0.22,
+      Paint()..color = Colors.white.withValues(alpha: 0.55),
+    );
+  }
+
+  void _drawDiamond(Canvas canvas, Offset center, double r) {
+    final outerPath = Path()
+      ..moveTo(center.dx, center.dy - r)
+      ..lineTo(center.dx + r * 0.68, center.dy)
+      ..lineTo(center.dx, center.dy + r)
+      ..lineTo(center.dx - r * 0.68, center.dy)
+      ..close();
+    canvas.drawPath(
+      outerPath,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [const Color(0xFFFFE880), const Color(0xFFD4A500)],
+        ).createShader(Rect.fromLTWH(
+          center.dx - r, center.dy - r, r * 2, r * 2)),
+    );
+    // Inner facet
+    final innerPath = Path()
+      ..moveTo(center.dx, center.dy - r * 0.5)
+      ..lineTo(center.dx + r * 0.38, center.dy)
+      ..lineTo(center.dx, center.dy + r * 0.5)
+      ..lineTo(center.dx - r * 0.38, center.dy)
+      ..close();
+    canvas.drawPath(
+      innerPath,
+      Paint()..color = Colors.white.withValues(alpha: 0.5),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_LuxuryBagPainter old) => old.isSuper != isSuper;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rules sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _LuckyBagRulesSheet extends StatelessWidget {
+  const _LuckyBagRulesSheet({required this.isArabic});
+  final bool isArabic;
+
+  String _t(String ar, String en) => isArabic ? ar : en;
+
+  @override
+  Widget build(BuildContext context) {
+    final rules = isArabic
+        ? const [
+            ('🎁', 'يمكن لأي شخص في الغرفة فتح الحقيبة بما فيهم المُرسِل'),
+            ('🎲', 'توزَّع العملات بشكل عشوائي — كل فتحة تختلف عن الأخرى'),
+            ('⏱️', 'تنتهي صلاحية الحقيبة تلقائياً بعد 5 دقائق من الإرسال'),
+            ('🔒', 'يمكن لكل شخص فتح حقيبة واحدة فقط في كل مرة'),
+            ('✨', 'الحقيبة الكبرى تحمل عملات أكبر وتأثيراً بصرياً مميزاً'),
+            ('💡', 'يظهر رصيدك فوراً بعد الفتح'),
+          ]
+        : const [
+            ('🎁', 'Anyone in the room — including the sender — can open a bag'),
+            ('🎲', 'Coins are distributed randomly; each claim gets a different amount'),
+            ('⏱️', 'Bags expire automatically 5 minutes after being sent'),
+            ('🔒', 'Each person can only claim once per bag'),
+            ('✨', 'Super Lucky Bags carry larger coin amounts and premium effects'),
+            ('💡', 'Your balance updates instantly the moment you claim'),
+          ];
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF1A0A2E),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Center(
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              width: 44, height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              const Icon(Icons.info_outline_rounded,
+                  color: Color(0xFFF0C15A), size: 20),
+              const SizedBox(width: 8),
+              Text(
+                _t('قواعد حقيبة الحظ', 'Lucky Bag Rules'),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          ...rules.map((r) => Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: Directionality(
+              textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(r.$1, style: const TextStyle(fontSize: 18)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      r.$2,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 13,
+                        height: 1.45,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// History sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _LuckyBagHistorySheet extends StatefulWidget {
+  const _LuckyBagHistorySheet({
+    required this.roomId,
+    required this.isArabic,
+  });
+  final String roomId;
+  final bool isArabic;
+
+  @override
+  State<_LuckyBagHistorySheet> createState() => _LuckyBagHistorySheetState();
+}
+
+class _LuckyBagHistorySheetState extends State<_LuckyBagHistorySheet> {
+  List<_ClaimRow> _claims = [];
+  bool _loading = true;
+  String? _error;
+
+  String _t(String ar, String en) => widget.isArabic ? ar : en;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final client = Supabase.instance.client;
+
+      // Fetch recent envelopes for this room
+      final envelopesRaw = await client
+          .from('red_envelopes')
+          .select('id, total_coins, envelope_count, claimed_count, is_super, sender_id, created_at')
+          .eq('room_id', widget.roomId)
+          .order('created_at', ascending: false)
+          .limit(10);
+
+      final envelopes = List<Map<String, dynamic>>.from(envelopesRaw as List);
+      if (envelopes.isEmpty) {
+        if (mounted) setState(() { _claims = []; _loading = false; });
+        return;
+      }
+
+      final envIds = envelopes.map((e) => e['id'] as String).toList();
+
+      // Fetch claims for those envelopes with claimer profiles
+      final claimsRaw = await client
+          .from('red_envelope_claims')
+          .select('envelope_id, claimer_id, coins_received, claimed_at, profiles!claimer_id(display_name, avatar_url)')
+          .inFilter('envelope_id', envIds)
+          .order('claimed_at', ascending: false)
+          .limit(50);
+
+      final claimsData = List<Map<String, dynamic>>.from(claimsRaw as List);
+
+      // Map envelope_id → envelope info
+      final envMap = {for (final e in envelopes) e['id'] as String: e};
+
+      final rows = claimsData.map((c) {
+        final env = envMap[c['envelope_id'] as String?] ?? const <String, dynamic>{};
+        final profile = c['profiles'] as Map<String, dynamic>? ?? {};
+        return _ClaimRow(
+          claimerName: (profile['display_name'] as String?) ?? '—',
+          avatarUrl: profile['avatar_url'] as String?,
+          coinsReceived: (c['coins_received'] as num?)?.toInt() ?? 0,
+          claimedAt: DateTime.tryParse(c['claimed_at'] as String? ?? '') ?? DateTime.now(),
+          isSuper: env['is_super'] == true,
+          bagTotal: (env['total_coins'] as num?)?.toInt() ?? 0,
+        );
+      }).toList();
+
+      if (mounted) setState(() { _claims = rows; _loading = false; });
+    } catch (e) {
+      debugPrint('[LuckyBag] history load error: $e');
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.72,
+      ),
+      decoration: const BoxDecoration(
+        color: Color(0xFF160830),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: Column(
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+            child: Column(children: [
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(vertical: 12),
+                  width: 44, height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  const Icon(Icons.history_rounded,
+                      color: Color(0xFFF0C15A), size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    _t('سجل الفتح', 'Claim History'),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: _load,
+                    child: const Icon(Icons.refresh_rounded,
+                        color: Colors.white38, size: 20),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+            ]),
+          ),
+
+          const Divider(color: Colors.white10, height: 1),
+
+          // Body
+          Expanded(
+            child: _loading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                        color: Color(0xFFFFD700), strokeWidth: 2),
+                  )
+                : _error != null
+                    ? Center(
+                        child: Text(
+                          _t('حدث خطأ', 'Error loading history'),
+                          style: const TextStyle(color: Colors.white38),
+                        ),
+                      )
+                    : _claims.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.inbox_rounded,
+                                    size: 42, color: Colors.white24),
+                                const SizedBox(height: 10),
+                                Text(
+                                  _t('لا توجد فتحات بعد', 'No claims yet'),
+                                  style: const TextStyle(color: Colors.white38),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.separated(
+                            padding: EdgeInsets.fromLTRB(
+                                20, 12, 20, 12 + bottomInset),
+                            itemCount: _claims.length,
+                            separatorBuilder: (_, _) =>
+                                const Divider(color: Colors.white10, height: 1),
+                            itemBuilder: (_, i) {
+                              final row = _claims[i];
+                              return _HistoryTile(
+                                  row: row, isArabic: widget.isArabic);
+                            },
+                          ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ClaimRow {
+  const _ClaimRow({
+    required this.claimerName,
+    required this.coinsReceived,
+    required this.claimedAt,
+    required this.isSuper,
+    required this.bagTotal,
+    this.avatarUrl,
+  });
+  final String claimerName;
+  final String? avatarUrl;
+  final int coinsReceived;
+  final DateTime claimedAt;
+  final bool isSuper;
+  final int bagTotal;
+}
+
+class _HistoryTile extends StatelessWidget {
+  const _HistoryTile({required this.row, required this.isArabic});
+  final _ClaimRow row;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    final local = row.claimedAt.toLocal();
+    final timeStr = '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          // Avatar
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: const Color(0xFF2A1050),
+            backgroundImage: row.avatarUrl != null
+                ? NetworkImage(row.avatarUrl!)
+                : null,
+            child: row.avatarUrl == null
+                ? Text(
+                    row.claimerName.isNotEmpty
+                        ? row.claimerName[0].toUpperCase()
+                        : '?',
+                    style: const TextStyle(
+                        color: Color(0xFFF0C15A),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700),
+                  )
+                : null,
+          ),
+          const SizedBox(width: 10),
+
+          // Name + time
+          Expanded(
+            child: Column(
+              crossAxisAlignment: isArabic
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
+              children: [
+                Text(
+                  row.claimerName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      timeStr,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.38),
+                        fontSize: 11,
+                      ),
+                    ),
+                    if (row.isSuper) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                              colors: [Color(0xFFD4380D), Color(0xFFFF6B00)]),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'SUPER',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 8,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.6,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Coins badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF3D2200), Color(0xFF2A1500)],
+              ),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                  color: const Color(0xFFF0C15A).withValues(alpha: 0.35)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.monetization_on_rounded,
+                    size: 13, color: Color(0xFFF0C15A)),
+                const SizedBox(width: 4),
+                Text(
+                  '+${row.coinsReceived}',
+                  style: const TextStyle(
+                    color: Color(0xFFF0C15A),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
