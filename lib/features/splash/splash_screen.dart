@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/supabase/supabase_service.dart';
@@ -34,15 +35,27 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
+    // Hide status bar and navigation bar for the duration of the splash.
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     _initVideo();
     _checkSession();
   }
 
   @override
   void dispose() {
+    // Restore system overlays when the splash is torn down (covers the case
+    // where the widget is disposed without navigating, e.g. hot-restart).
+    _restoreSystemUI();
     _videoCtrl?.removeListener(_onVideoUpdate);
     _videoCtrl?.dispose();
     super.dispose();
+  }
+
+  void _restoreSystemUI() {
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.manual,
+      overlays: SystemUiOverlay.values,
+    );
   }
 
   // ── Video ──────────────────────────────────────────────────────────────────
@@ -76,10 +89,15 @@ class _SplashScreenState extends State<SplashScreen> {
   void _onVideoUpdate() {
     final ctrl = _videoCtrl;
     if (ctrl == null || _videoDone) return;
-    final pos      = ctrl.value.position;
-    final duration = ctrl.value.duration;
-    // Trigger on last frame or when player is no longer playing after reaching end
-    if (duration > Duration.zero && pos >= duration) {
+    final v        = ctrl.value;
+    final pos      = v.position;
+    final duration = v.duration;
+    if (duration <= Duration.zero) return;
+    // Fire when position reaches the end OR when playback stopped at/near end.
+    // The ">= duration" path catches normal completion; the second path catches
+    // devices where the player stops a frame short of the reported duration.
+    final nearEnd = pos >= duration - const Duration(milliseconds: 200);
+    if (pos >= duration || (nearEnd && !v.isPlaying && !v.isBuffering)) {
       _onVideoDone();
     }
   }
@@ -135,6 +153,9 @@ class _SplashScreenState extends State<SplashScreen> {
     // Gate: wait for BOTH video end AND session check.
     if (!_videoDone || _navTarget == null) return;
     if (!mounted) return;
+
+    // Restore bars before the next screen renders so it gets a normal UI.
+    _restoreSystemUI();
 
     final Widget dest = _navTarget == _NavTarget.home
         ? const HomeScreen()
@@ -202,10 +223,18 @@ class _VideoFill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: AspectRatio(
-        aspectRatio: controller.value.aspectRatio,
-        child: VideoPlayer(controller),
+    // Cover-fit: scale the video to fill the screen without black bars.
+    // FittedBox(cover) over a native-size SizedBox achieves BoxFit.cover
+    // since VideoPlayer doesn't accept a BoxFit directly.
+    final size = controller.value.size;
+    return SizedBox.expand(
+      child: FittedBox(
+        fit: BoxFit.cover,
+        child: SizedBox(
+          width:  size.width,
+          height: size.height,
+          child:  VideoPlayer(controller),
+        ),
       ),
     );
   }
