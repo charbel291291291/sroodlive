@@ -71,6 +71,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/videos/
     - assets/sounds/
     - assets/images/vip_frames/
     - assets/images/games/
