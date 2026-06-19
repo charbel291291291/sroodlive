@@ -903,6 +903,16 @@ class AdminService {
         .toList();
   }
 
+  Future<List<ModerationEvidence>> fetchReportEvidence(String reportId) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_get_report_evidence',
+      params: {'p_report_id': reportId},
+    );
+    return (data as List<dynamic>)
+        .map((item) => ModerationEvidence.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<void> updateReportStatus({
     required String reportId,
     required String status,

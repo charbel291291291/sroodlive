@@ -10,6 +10,8 @@ class RoomModerator {
     required this.canManageSchedule,
     required this.createdAt,
     this.displayName,
+    this.username,
+    this.fullName,
     this.avatarUrl,
   });
 
@@ -23,7 +25,17 @@ class RoomModerator {
   final bool canManageSchedule;
   final DateTime createdAt;
   final String? displayName;
+  final String? username;
+  final String? fullName;
   final String? avatarUrl;
+
+  /// Best available display name: display_name > username > full_name > "User"
+  String get resolvedName {
+    if (displayName != null && displayName!.trim().isNotEmpty) return displayName!.trim();
+    if (username != null && username!.trim().isNotEmpty) return username!.trim();
+    if (fullName != null && fullName!.trim().isNotEmpty) return fullName!.trim();
+    return 'User';
+  }
 
   factory RoomModerator.fromJson(Map<String, dynamic> json) {
     final profile = json['profiles'] as Map<String, dynamic>?;
@@ -38,9 +50,32 @@ class RoomModerator {
       canManageSchedule: (json['can_manage_schedule'] as bool?) ?? false,
       createdAt: DateTime.parse(json['created_at'] as String),
       displayName: profile?['display_name'] as String?,
+      username: profile?['username'] as String?,
+      fullName: profile?['full_name'] as String?,
       avatarUrl: profile?['avatar_url'] as String?,
     );
   }
+
+  RoomModerator withProfile({
+    String? displayName,
+    String? username,
+    String? fullName,
+    String? avatarUrl,
+  }) => RoomModerator(
+    id: id,
+    roomId: roomId,
+    userId: userId,
+    createdBy: createdBy,
+    canManageMics: canManageMics,
+    canMute: canMute,
+    canKick: canKick,
+    canManageSchedule: canManageSchedule,
+    createdAt: createdAt,
+    displayName: displayName ?? this.displayName,
+    username: username ?? this.username,
+    fullName: fullName ?? this.fullName,
+    avatarUrl: avatarUrl ?? this.avatarUrl,
+  );
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -70,6 +105,8 @@ class RoomModerator {
     canManageSchedule: canManageSchedule ?? this.canManageSchedule,
     createdAt: createdAt,
     displayName: displayName,
+    username: username,
+    fullName: fullName,
     avatarUrl: avatarUrl,
   );
 }

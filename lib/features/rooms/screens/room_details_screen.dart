@@ -41,7 +41,6 @@ import '../../games/screens/srood_loto_screen.dart';
 import '../../messages/screens/messages_screen.dart';
 import '../../messages/services/private_message_service.dart';
 import '../../moderation/services/moderation_service.dart';
-import 'room_owner_management_screen.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 import '../models/room_reaction.dart';
 import '../widgets/reaction_picker_sheet.dart';
@@ -105,6 +104,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   bool? _micPermissionGranted;
   int _moderatorCount = 0;
   bool _isCurrentUserModerator = false;
+  Set<String> _moderatorUserIds = {};
   String? _roleBusyUserId;
   String? _activeAnnouncementText;
 
@@ -134,6 +134,11 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   bool _showLuckyBagEntrance = false;
   int? _luckyBagWinCoins;
   final Set<String> _openedLuckyBagIds = {};
+  Timer? _bannerAutoHideTimer;
+
+  // Session-level sets — static so they survive screen re-entry within the app session.
+  static final Set<String> _sessionDismissedEnvelopeIds = {};
+  static final Set<String> _sessionClaimedEnvelopeIds   = {};
   // _loadingGifts removed ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â gift loading state is not displayed in the overlay
   bool _isSendingGift = false;
   RoomMember? _selectedMicMoveMember;
@@ -445,6 +450,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     _giftBannerTimer?.cancel();
     _giftFeedCleanupTimer?.cancel();
     _vipEntryBannerTimer?.cancel();
+    _bannerAutoHideTimer?.cancel();
     for (final timer in _giftEventTimers) {
       timer.cancel();
     }
@@ -526,17 +532,55 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       if (!mounted) return;
       final list = rows as List<dynamic>;
       if (list.isEmpty) return;
-      final row = list.first as Map<String, dynamic>;
+      final row     = list.first as Map<String, dynamic>;
+      final id      = row['id'] as String? ?? '';
       final claimed = (row['claimed_count'] as int? ?? 0);
       final total   = (row['envelope_count'] as int? ?? 1);
-      if (claimed < total) {
-        final envelopeId = row['id'] as String? ?? '';
-        debugPrint('[L luckybag] active envelope loaded id=$envelopeId sender=${row['sender_id']}');
-        setState(() => _activeRedEnvelope = row);
+      final left    = total - claimed;
+
+      debugPrint('[LuckyBag] active loaded id=$id left=$left');
+
+      if (left <= 0) {
+        debugPrint('[LuckyBag] hidden reason=empty');
+        return;
       }
+      if (_sessionDismissedEnvelopeIds.contains(id)) {
+        debugPrint('[LuckyBag] hidden reason=dismissed_session');
+        return;
+      }
+      if (_sessionClaimedEnvelopeIds.contains(id) || _openedLuckyBagIds.contains(id)) {
+        debugPrint('[LuckyBag] hidden reason=claimed');
+        return;
+      }
+      _showRedEnvelopeBanner(row);
     } catch (e) {
-      debugPrint('[RED] loadActiveRedEnvelope error: $e');
+      debugPrint('[LuckyBag] loadActiveRedEnvelope error: $e');
     }
+  }
+
+  /// Shows the Lucky Bag banner and starts the 5-second auto-hide timer.
+  void _showRedEnvelopeBanner(Map<String, dynamic> envelope) {
+    final id = envelope['id'] as String? ?? '';
+    _bannerAutoHideTimer?.cancel();
+    debugPrint('[LuckyBag] shown id=$id');
+    setState(() => _activeRedEnvelope = envelope);
+    _bannerAutoHideTimer = Timer(const Duration(seconds: 5), () {
+      if (!mounted) return;
+      debugPrint('[LuckyBag] auto hidden id=$id');
+      _sessionDismissedEnvelopeIds.add(id);
+      setState(() => _activeRedEnvelope = null);
+    });
+  }
+
+  /// Manually dismisses the Lucky Bag banner for the rest of this app session.
+  void _dismissRedEnvelope() {
+    final id = _activeRedEnvelope?['id'] as String? ?? '';
+    _bannerAutoHideTimer?.cancel();
+    if (id.isNotEmpty) {
+      debugPrint('[LuckyBag] dismissed id=$id');
+      _sessionDismissedEnvelopeIds.add(id);
+    }
+    setState(() => _activeRedEnvelope = null);
   }
 
   void _subscribeToRedEnvelopes() {
@@ -559,13 +603,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             final envelopeId = row['id'] as String? ?? '';
             final senderId = row['sender_id'] as String? ?? '';
             final iAmSender = senderId == _currentUserId;
-            debugPrint('[L luckybag] realtime insert envelope=$envelopeId sender=$senderId iAmSender=$iAmSender');
-            setState(() {
-              _activeRedEnvelope = row;
-              // Show the entrance overlay only to receivers, not the sender
-              // (sender already saw the confirmation from onRedEnvelopeCreated).
-              if (!iAmSender) _showLuckyBagEntrance = true;
-            });
+            debugPrint('[LuckyBag] realtime insert id=$envelopeId iAmSender=$iAmSender');
+            // New envelope: remove any prior session-dismissed state for this id
+            // (shouldn't happen in practice but guards against edge cases).
+            _sessionDismissedEnvelopeIds.remove(envelopeId);
+            if (!iAmSender) setState(() => _showLuckyBagEntrance = true);
+            _showRedEnvelopeBanner(row);
           },
         )
         .onPostgresChanges(
@@ -616,6 +659,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         // Optimistic credit so toolbar balance updates instantly.
         _walletCoins += coins;
         _openedLuckyBagIds.add(envelopeId);
+        _sessionClaimedEnvelopeIds.add(envelopeId);
+        _bannerAutoHideTimer?.cancel();
         _activeRedEnvelope = null;
       });
       unawaited(_loadWalletBalance());
@@ -638,8 +683,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       String friendly;
       if (msg.contains('already_claimed')) {
         friendly = context.isArabic ? 'ÙØªØ­Øª Ù‡Ø°Ù‡ Ø§Ù„Ø­Ù‚ÙŠØ¨Ø© Ù…Ø³Ø¨Ù‚Ø§Ù‹' : 'Already opened';
+        _bannerAutoHideTimer?.cancel();
         setState(() {
           _openedLuckyBagIds.add(envelopeId);
+          _sessionClaimedEnvelopeIds.add(envelopeId);
           _activeRedEnvelope = null;
         });
       } else if (msg.contains('envelope_full')) {
@@ -1067,6 +1114,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         setState(() {
           _moderatorCount = mods.length;
           _isCurrentUserModerator = mods.any((m) => m.userId == _currentUserId);
+          _moderatorUserIds = mods.map((m) => m.userId).toSet();
         });
       }
     } catch (_) {}
@@ -1457,15 +1505,15 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
           if (!mounted) return;
           final spent = (envelope['total_coins'] as num?)?.toInt() ?? 0;
           final envelopeId = envelope['id'] as String? ?? '';
-          debugPrint('[L luckybag] created sender=$_currentUserId envelope=$envelopeId');
+          debugPrint('[LuckyBag] created by sender id=$envelopeId');
+          // Allow new envelope from sender to appear even if prior bag was dismissed.
+          _sessionDismissedEnvelopeIds.remove(envelopeId);
           setState(() {
-            _activeRedEnvelope = envelope;
-            // Sender sees their own sent-confirmation banner, not the entrance
-            // overlay (which is reserved for receivers via Realtime).
             _showLuckyBagEntrance = false;
             // Optimistic decrement so toolbar balance updates instantly.
             if (spent > 0) _walletCoins = (_walletCoins - spent).clamp(0, _walletCoins);
           });
+          _showRedEnvelopeBanner(envelope);
           // Background sync to confirm real server balance.
           unawaited(_loadWalletBalance());
         },
@@ -3018,6 +3066,16 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         elevation: 0,
         scrolledUnderElevation: 0,
         foregroundColor: Colors.white,
+        automaticallyImplyLeading: false,
+        // Settings icon replaces back arrow at top-left
+        leading: IconButton(
+          icon: const Icon(Icons.settings_rounded),
+          tooltip: context.isArabic ? '\u0625\u0639\u062f\u0627\u062f\u0627\u062a \u0627\u0644\u063a\u0631\u0641\u0629' : 'Room Settings',
+          style: IconButton.styleFrom(
+            backgroundColor: Colors.black.withValues(alpha: 0.35),
+          ),
+          onPressed: _openToolsSheet,
+        ),
         title: Text(
           context.isArabic ? '\u0627\u0644\u063a\u0631\u0641\u0629' : 'Room',
           style: const TextStyle(
@@ -3043,7 +3101,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             ),
             onPressed: _openInbox,
           ),
-          // Red exit button \u2014 top-right, always visible
+          // Red exit button \u2014 opens Room Options sheet
           IconButton(
             icon: _leaving
                 ? const SizedBox(
@@ -3060,7 +3118,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
               backgroundColor: const Color(0xFFFF5C7A).withValues(alpha: 0.85),
               foregroundColor: Colors.white,
             ),
-            onPressed: _leaving ? null : _leaveRoom,
+            onPressed: _leaving ? null : () => _confirmLeave(),
           ),
           const SizedBox(width: 8),
         ],
@@ -3155,6 +3213,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                     supportByUserId: _giftSupportByUserId,
                     selectedMoveUserId: _selectedMicMoveMember?.userId,
                     speakingUserIds: _speakingUserIds,
+                    moderatorUserIds: _moderatorUserIds,
                     activePk: _activePk?.isActive == true ? _activePk : null,
                     showPkResult: _showPkResult,
                     pkResult: _showPkResult && _activePk?.isFinished == true
@@ -3210,59 +3269,6 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
           ),
 
           // \u2500\u2500 3. Gift floating event overlay \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-          // ── Floating Manage Room button (owner-only, right side below AppBar) ──────────
-          if (_iAmRoomOwner)
-            Positioned(
-              top: MediaQuery.of(context).padding.top + kToolbarHeight + 8,
-              right: 12,
-              child: Material(
-                color: Colors.transparent,
-                child: Tooltip(
-                  message: context.isArabic ? 'إدارة الغرفة' : 'Manage Room',
-                  child: InkWell(
-                    onTap: () async {
-                      final result = await Navigator.of(context).push<Map<String, String?>>(
-                        MaterialPageRoute(
-                          builder: (_) => RoomOwnerManagementScreen(
-                            room: _currentRoom,
-                            isArabic: context.isArabic,
-                          ),
-                        ),
-                      );
-                      if (result != null && mounted) {
-                        setState(() {
-                          if (result.containsKey('cover_url')) {
-                            _roomCoverUrl = result['cover_url'];
-                          }
-                          if (result.containsKey('avatar_url')) {
-                            _roomAvatarUrl = result['avatar_url'];
-                          }
-                        });
-                      }
-                    },
-                    borderRadius: BorderRadius.circular(24),
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.black.withValues(alpha: 0.55),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.18),
-                          width: 1,
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.manage_accounts_rounded,
-                        color: Colors.white,
-                        size: 22,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
           _GiftEventOverlay(
               events: _giftEvents, isArabic: context.isArabic),
 
@@ -3277,16 +3283,14 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             ),
 
           if (_activeRedEnvelope != null &&
-              !_openedLuckyBagIds.contains(_activeRedEnvelope!['id'] as String?))
+              !_openedLuckyBagIds.contains(_activeRedEnvelope!['id'] as String?) &&
+              !_sessionClaimedEnvelopeIds.contains(_activeRedEnvelope!['id'] as String?) &&
+              !_sessionDismissedEnvelopeIds.contains(_activeRedEnvelope!['id'] as String?))
             Builder(builder: (context) {
               final envelope = _activeRedEnvelope!;
               final envelopeId = envelope['id'] as String? ?? '';
               final isSender = (envelope['sender_id'] as String?) == _currentUserId;
-              if (isSender) {
-                debugPrint('[L luckybag] sender confirmation only id=$envelopeId');
-              } else {
-                debugPrint('[L luckybag] show receiver claim ui id=$envelopeId');
-              }
+              debugPrint('[LuckyBag] shown id=$envelopeId isSender=$isSender');
               return Positioned(
                 top: 80 + MediaQuery.of(context).padding.top,
                 left: 16,
@@ -3297,7 +3301,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                   loading: _claimingEnvelope,
                   isSender: isSender,
                   onClaim: _claimRedEnvelope,
-                  onDismiss: () => setState(() => _activeRedEnvelope = null),
+                  onDismiss: _dismissRedEnvelope,
                 ),
               );
             }),
@@ -3940,6 +3944,7 @@ class _LiveRoomStage extends StatelessWidget {
     required this.supportByUserId,
     required this.selectedMoveUserId,
     required this.speakingUserIds,
+    required this.moderatorUserIds,
     this.activePk,
     this.showPkResult = false,
     this.pkResult,
@@ -3963,6 +3968,7 @@ class _LiveRoomStage extends StatelessWidget {
   final Map<String, int> supportByUserId;
   final String? selectedMoveUserId;
   final Set<String> speakingUserIds;
+  final Set<String> moderatorUserIds;
   final PkSession? activePk;
   final bool showPkResult;
   final PkSession? pkResult;
@@ -4134,6 +4140,7 @@ class _LiveRoomStage extends StatelessWidget {
                 onProfileTap: onProfileTap,
                 selectedMoveUserId: selectedMoveUserId,
                 speakingUserIds: speakingUserIds,
+                moderatorUserIds: moderatorUserIds,
                 activePk: activePk,
                 seatReactions: seatReactions,
               ),
@@ -4207,6 +4214,7 @@ class _SeatGrid extends StatelessWidget {
     required this.onProfileTap,
     required this.selectedMoveUserId,
     required this.speakingUserIds,
+    required this.moderatorUserIds,
     this.activePk,
     this.seatReactions = const {},
   });
@@ -4221,6 +4229,7 @@ class _SeatGrid extends StatelessWidget {
   final ValueChanged<String> onProfileTap;
   final String? selectedMoveUserId;
   final Set<String> speakingUserIds;
+  final Set<String> moderatorUserIds;
   final PkSession? activePk;
   final Map<int, RoomReaction> seatReactions;
 
@@ -4283,6 +4292,7 @@ class _SeatGrid extends StatelessWidget {
                 isArabic: isArabic,
                 isHost: isHost,
                 isSpeaking: speakingUserIds.contains(row[c].member?.userId ?? ''),
+                isModerator: moderatorUserIds.contains(row[c].member?.userId ?? ''),
                 onEmptySeatTap: onEmptySeatTap,
                 onOccupiedSeatTap: onOccupiedSeatTap,
                 onOccupiedSeatLongPress: onOccupiedSeatLongPress,
@@ -4817,6 +4827,7 @@ class _LiveSeatBubble extends StatelessWidget {
     required this.isArabic,
     required this.isHost,
     required this.isSpeaking,
+    required this.isModerator,
     required this.onEmptySeatTap,
     required this.onOccupiedSeatTap,
     required this.onOccupiedSeatLongPress,
@@ -4830,6 +4841,7 @@ class _LiveSeatBubble extends StatelessWidget {
   final bool isArabic;
   final bool isHost;
   final bool isSpeaking;
+  final bool isModerator;
   final ValueChanged<int> onEmptySeatTap;
   final void Function(RoomMember member, int seatNumber) onOccupiedSeatTap;
   final void Function(RoomMember member, int seatNumber)
@@ -5102,6 +5114,30 @@ class _LiveSeatBubble extends StatelessWidget {
                               Icons.mic_off_rounded,
                               color: Colors.white,
                               size: 11,
+                            ),
+                          ),
+                        ),
+
+                      // 5. Moderator shield badge — top-left, hidden for host/owner.
+                      if (isModerator && !occupiedByHost)
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          child: Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFF8B26D9),
+                              border: Border.all(
+                                color: Colors.black.withValues(alpha: 0.85),
+                                width: 1.4,
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.shield_rounded,
+                              color: Colors.white,
+                              size: 9,
                             ),
                           ),
                         ),
@@ -8742,7 +8778,7 @@ class _RoomExitSheet extends StatelessWidget {
             title: _t('Ã™â€¦Ã˜ÂºÃ˜Â§Ã˜Â¯Ã˜Â±Ã˜Â© Ã˜Â§Ã™â€žÃ˜ÂºÃ˜Â±Ã™ÂÃ˜Â©', 'Exit Room'),
             subtitle: _t(
               'Ã˜Â³Ã˜ÂªÃ˜ÂºÃ˜Â§Ã˜Â¯Ã˜Â± Ã˜Â§Ã™â€žÃ˜ÂºÃ˜Â±Ã™ÂÃ˜Â© Ã™Ë†Ã˜ÂªÃ˜Â¸Ã™â€ž Ã˜Â§Ã™â€žÃ˜ÂºÃ˜Â±Ã™ÂÃ˜Â© Ã™â€¦Ã™ÂÃ˜ÂªÃ™Ë†Ã˜Â­Ã˜Â©',
-              'Leave the room Ã¢â‚¬â€ it stays open for others',
+              'Leave the room. It stays open for others.',
             ),
             onTap: () => Navigator.of(context).pop(_RoomExitAction.exit),
           ),

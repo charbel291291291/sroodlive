@@ -1203,6 +1203,45 @@ class AdminReport {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ModerationEvidence — one chat message captured at report time
+// ─────────────────────────────────────────────────────────────────────────────
+
+class ModerationEvidence {
+  const ModerationEvidence({
+    required this.id,
+    required this.isReportedUser,
+    this.messageId,
+    this.senderId,
+    this.senderDisplayName,
+    this.messageText,
+    this.messageCreatedAt,
+    this.roomId,
+  });
+
+  final String id;
+  final String? messageId;
+  final String? senderId;
+  final String? senderDisplayName;
+  final String? messageText;
+  final DateTime? messageCreatedAt;
+  final bool isReportedUser;
+  final String? roomId;
+
+  factory ModerationEvidence.fromJson(Map<String, dynamic> json) {
+    return ModerationEvidence(
+      id:                 json['id']?.toString() ?? '',
+      messageId:          json['message_id']?.toString(),
+      senderId:           json['sender_id']?.toString(),
+      senderDisplayName:  json['sender_display_name']?.toString(),
+      messageText:        json['message_text']?.toString(),
+      messageCreatedAt:   _dateValue(json['message_created_at']),
+      isReportedUser:     json['is_reported_user'] == true,
+      roomId:             json['room_id']?.toString(),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // AdminWithdrawalHistoryEntry — resolved withdrawal requests
 // Reuses AdminWithdrawalRequest — no extra model needed.
 // ─────────────────────────────────────────────────────────────────────────────

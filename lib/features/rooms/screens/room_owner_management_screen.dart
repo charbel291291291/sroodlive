@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -258,6 +260,12 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
   Future<void> _promoteModerator(String userId, String name) async {
     try {
       await _svc.addModerator(_roomId, userId);
+      // Notify the user — non-blocking, failure is logged inside service
+      unawaited(_svc.notifyModeratorAssignment(
+        userId: userId,
+        roomName: widget.room.name,
+        assigned: true,
+      ));
       await _loadModerators();
       if (mounted) setState(() {});
       _snack(_t('تم تعيين مشرف', 'Moderator added'));
@@ -267,6 +275,7 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
   }
 
   Future<void> _removeModerator(RoomModerator mod) async {
+    final modName = mod.resolvedName;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -277,8 +286,8 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
         ),
         content: Text(
           _t(
-            'هل تريد إزالة ${mod.displayName ?? mod.userId.substring(0, 8)} من المشرفين؟',
-            'Remove ${mod.displayName ?? mod.userId.substring(0, 8)} as moderator?',
+            'هل تريد إزالة $modName من المشرفين؟',
+            'Remove $modName as moderator?',
           ),
           style: const TextStyle(color: Color(0xFF9E8AB8)),
         ),
@@ -301,6 +310,12 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
     if (confirmed != true) return;
     try {
       await _svc.removeModerator(mod.id);
+      // Notify the removed moderator — non-blocking
+      unawaited(_svc.notifyModeratorAssignment(
+        userId: mod.userId,
+        roomName: widget.room.name,
+        assigned: false,
+      ));
       await _loadModerators();
       if (mounted) setState(() {});
       _snack(_t('تم إزالة المشرف', 'Moderator removed'));
@@ -1099,15 +1114,68 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
                         ),
                         child: Row(
                           children: [
-                            _Avatar(url: mod.avatarUrl),
+                            Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                _Avatar(url: mod.avatarUrl),
+                                Positioned(
+                                  right: -2,
+                                  bottom: -2,
+                                  child: Container(
+                                    width: 14,
+                                    height: 14,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: const Color(0xFF8B26D9),
+                                      border: Border.all(
+                                        color: const Color(0xFF120827),
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    child: const Icon(
+                                      Icons.shield_rounded,
+                                      color: Colors.white,
+                                      size: 8,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                             const SizedBox(width: 10),
                             Expanded(
-                              child: Text(
-                                mod.displayName ?? mod.userId.substring(0, 8),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    mod.resolvedName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF8B26D9).withValues(alpha: 0.18),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      _t('مشرف', 'Moderator'),
+                                      style: const TextStyle(
+                                        color: Color(0xFF8B26D9),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                             _permIcon(mod.canMute, Icons.mic_off_rounded),

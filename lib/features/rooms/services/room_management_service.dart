@@ -1,5 +1,4 @@
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
@@ -112,26 +111,66 @@ class RoomManagementService {
 
   Future<List<RoomModerator>> getModerators(String roomId) async {
     final client = SupabaseService.requiredClient;
+
+    // Step 1: load moderator rows (with profile join where allowed).
+    List<RoomModerator> mods;
     try {
       final data = await client
           .from('room_moderators')
-          .select('*, profiles(display_name, avatar_url)')
+          .select('*, profiles(display_name, username, full_name, avatar_url)')
           .eq('room_id', roomId)
           .order('created_at', ascending: false);
-      return (data as List<dynamic>)
+      mods = (data as List<dynamic>)
           .map((e) => RoomModerator.fromJson(e as Map<String, dynamic>))
           .toList();
     } catch (_) {
-      // Profiles join may fail if RLS is restrictive — fall back to bare query.
       final data = await client
           .from('room_moderators')
           .select()
           .eq('room_id', roomId)
           .order('created_at', ascending: false);
-      return (data as List<dynamic>)
+      mods = (data as List<dynamic>)
           .map((e) => RoomModerator.fromJson(e as Map<String, dynamic>))
           .toList();
     }
+
+    // Step 2: for any moderator whose profile is still missing, fetch separately.
+    final missingIds = mods
+        .where((m) => m.displayName == null && m.username == null && m.fullName == null)
+        .map((m) => m.userId)
+        .toSet()
+        .toList();
+
+    if (missingIds.isNotEmpty) {
+      try {
+        final profiles = await client
+            .from('profiles')
+            .select('id, display_name, username, full_name, avatar_url')
+            .inFilter('id', missingIds);
+        final profileMap = <String, Map<String, dynamic>>{
+          for (final p in profiles as List<dynamic>)
+            (p as Map<String, dynamic>)['id'] as String: p,
+        };
+        mods = mods.map((m) {
+          final p = profileMap[m.userId];
+          if (p == null) return m;
+          debugPrint('[RoomMods] resolved name=${p['display_name'] ?? p['username'] ?? p['full_name']} userId=${m.userId}');
+          return m.withProfile(
+            displayName: p['display_name'] as String?,
+            username: p['username'] as String?,
+            fullName: p['full_name'] as String?,
+            avatarUrl: p['avatar_url'] as String? ?? m.avatarUrl,
+          );
+        }).toList();
+      } catch (e) {
+        debugPrint('[RoomMods] profile fetch fallback error: $e');
+      }
+    }
+
+    for (final m in mods) {
+      debugPrint('[RoomMods] moderator userId=${m.userId} resolved name=${m.resolvedName}');
+    }
+    return mods;
   }
 
   Future<void> addModerator(String roomId, String userId) async {
@@ -144,6 +183,7 @@ class RoomManagementService {
       onConflict: 'room_id,user_id',
       ignoreDuplicates: true,
     );
+    debugPrint('[RoomMods] moderator added userId=$userId');
   }
 
   Future<void> removeModerator(String moderatorId) async {
@@ -151,6 +191,32 @@ class RoomManagementService {
         .from('room_moderators')
         .delete()
         .eq('id', moderatorId);
+    debugPrint('[RoomMods] moderator removed id=$moderatorId');
+  }
+
+  /// Sends an in-app notification to a user about moderator assignment/removal.
+  Future<void> notifyModeratorAssignment({
+    required String userId,
+    required String roomName,
+    required bool assigned,
+  }) async {
+    try {
+      final type = assigned ? 'moderator_assigned' : 'moderator_removed';
+      final title = assigned ? 'تمت ترقيتك إلى مشرف' : 'تمت إزالتك من المشرفين';
+      final body = assigned
+          ? 'أنت الآن مشرف في غرفة $roomName'
+          : 'تمت إزالتك من مشرفي غرفة $roomName';
+      await SupabaseService.requiredClient.from('notifications').insert({
+        'user_id': userId,
+        'type': type,
+        'title': title,
+        'body': body,
+        'is_read': false,
+      });
+      debugPrint('[RoomMods] notification sent type=$type userId=$userId');
+    } catch (e) {
+      debugPrint('[RoomMods] notification failed (non-fatal): $e');
+    }
   }
 
   Future<void> updateModeratorPermissions(

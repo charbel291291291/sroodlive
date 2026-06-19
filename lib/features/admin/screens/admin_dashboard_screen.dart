@@ -6735,7 +6735,7 @@ class _AgencyEditDialogState extends State<_AgencyEditDialog> {
 
 // â”€â”€ Report tile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-class _ReportTile extends StatelessWidget {
+class _ReportTile extends StatefulWidget {
   const _ReportTile({
     required this.report,
     required this.onProcess,
@@ -6746,7 +6746,32 @@ class _ReportTile extends StatelessWidget {
   final VoidCallback? onAction;
 
   @override
+  State<_ReportTile> createState() => _ReportTileState();
+}
+
+class _ReportTileState extends State<_ReportTile> {
+  final _adminService = const AdminService();
+  List<ModerationEvidence>? _evidence;
+  bool _evidenceExpanded = false;
+  bool _evidenceLoading = false;
+
+  Future<void> _loadEvidence() async {
+    if (_evidence != null) {
+      setState(() => _evidenceExpanded = !_evidenceExpanded);
+      return;
+    }
+    setState(() { _evidenceLoading = true; _evidenceExpanded = true; });
+    try {
+      final rows = await _adminService.fetchReportEvidence(widget.report.id);
+      if (mounted) setState(() { _evidence = rows; _evidenceLoading = false; });
+    } catch (_) {
+      if (mounted) setState(() { _evidence = const []; _evidenceLoading = false; });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final report = widget.report;
     final statusColor = switch (report.status) {
       'pending'         => Colors.orangeAccent,
       'reviewing'       => Colors.blueAccent,
@@ -6767,6 +6792,7 @@ class _ReportTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── Header row ───────────────────────────────────────────────────────
           Row(
             children: [
               Container(
@@ -6802,6 +6828,8 @@ class _ReportTile extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
+
+          // ── Report reason & details ───────────────────────────────────────────
           Text(
             report.reason,
             style: const TextStyle(color: _kTxt, fontSize: 13, fontWeight: FontWeight.w600),
@@ -6815,6 +6843,90 @@ class _ReportTile extends StatelessWidget {
             'Reporter: ${report.reporterName ?? report.reporterId}',
             style: const TextStyle(color: _kMuted, fontSize: 11),
           ),
+          Text(
+            'Reported: ${report.targetId}',
+            style: const TextStyle(color: _kMuted, fontSize: 11),
+          ),
+
+          // ── Evidence toggle ───────────────────────────────────────────────────
+          const SizedBox(height: 10),
+          GestureDetector(
+            onTap: _loadEvidence,
+            child: Row(
+              children: [
+                const Icon(Icons.chat_bubble_outline_rounded, size: 13, color: _kBlue),
+                const SizedBox(width: 6),
+                Text(
+                  _evidenceExpanded ? 'Hide Evidence Snapshot' : 'Show Evidence Snapshot',
+                  style: const TextStyle(color: _kBlue, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  _evidenceExpanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+                  size: 14,
+                  color: _kBlue,
+                ),
+              ],
+            ),
+          ),
+
+          if (_evidenceExpanded) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0D1117),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: _kBorder),
+              ),
+              child: _evidenceLoading
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: _kBlue),
+                        ),
+                      ),
+                    )
+                  : _evidence == null || _evidence!.isEmpty
+                      ? const Text(
+                          'No chat evidence captured.',
+                          style: TextStyle(color: _kMuted, fontSize: 12),
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.shield_outlined, size: 12, color: _kMuted),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Evidence Snapshot — ${_evidence!.length} message${_evidence!.length == 1 ? '' : 's'}',
+                                  style: const TextStyle(
+                                    color: _kMuted,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                if (_evidence!.isNotEmpty && _evidence!.first.roomId != null) ...[
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Room: ${_evidence!.first.roomId!.substring(0, 8)}…',
+                                    style: const TextStyle(color: _kMuted, fontSize: 10),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            ..._evidence!.map((e) => _EvidenceMessageRow(evidence: e)),
+                          ],
+                        ),
+            ),
+          ],
+
+          // ── Action buttons ────────────────────────────────────────────────────
           if (report.isPending || report.status == 'reviewing') ...[
             const SizedBox(height: 10),
             Wrap(
@@ -6824,32 +6936,104 @@ class _ReportTile extends StatelessWidget {
                   _ReportActionButton(
                     label: 'Reviewing',
                     color: Colors.blueAccent,
-                    onTap: () => onProcess('reviewing'),
+                    onTap: () => widget.onProcess('reviewing'),
                   ),
                 _ReportActionButton(
                   label: 'Resolve',
                   color: Colors.greenAccent,
-                  onTap: () => onProcess('resolved'),
+                  onTap: () => widget.onProcess('resolved'),
                 ),
                 _ReportActionButton(
                   label: 'Reject',
                   color: Colors.redAccent,
-                  onTap: () => onProcess('rejected'),
+                  onTap: () => widget.onProcess('rejected'),
                 ),
                 _ReportActionButton(
                   label: 'Needs Info',
                   color: Colors.purpleAccent,
-                  onTap: () => onProcess('needs_more_info'),
+                  onTap: () => widget.onProcess('needs_more_info'),
                 ),
-                if (onAction != null)
+                if (widget.onAction != null)
                   _ReportActionButton(
                     label: 'Take Action',
                     color: _kAmber,
-                    onTap: onAction!,
+                    onTap: widget.onAction!,
                   ),
               ],
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _EvidenceMessageRow extends StatelessWidget {
+  const _EvidenceMessageRow({required this.evidence});
+  final ModerationEvidence evidence;
+
+  @override
+  Widget build(BuildContext context) {
+    final isReported = evidence.isReportedUser;
+    final senderName = evidence.senderDisplayName ?? evidence.senderId?.substring(0, 8) ?? '?';
+    final timeStr = evidence.messageCreatedAt != null
+        ? '${evidence.messageCreatedAt!.hour.toString().padLeft(2, '0')}:'
+          '${evidence.messageCreatedAt!.minute.toString().padLeft(2, '0')}'
+        : '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: isReported
+            ? const Color(0xFF7F1D1D).withValues(alpha: 0.35)
+            : const Color(0xFF1E2030),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: isReported
+              ? const Color(0xFFEF4444).withValues(alpha: 0.45)
+              : Colors.transparent,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (isReported)
+            const Padding(
+              padding: EdgeInsets.only(right: 6, top: 1),
+              child: Icon(Icons.flag_rounded, size: 11, color: Color(0xFFEF4444)),
+            ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      senderName,
+                      style: TextStyle(
+                        color: isReported ? const Color(0xFFFCA5A5) : Colors.white70,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (timeStr.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      Text(timeStr, style: const TextStyle(color: _kMuted, fontSize: 10)),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  evidence.messageText ?? '',
+                  style: TextStyle(
+                    color: isReported ? const Color(0xFFFECACA) : _kTxt,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

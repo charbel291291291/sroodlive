@@ -144,23 +144,21 @@ class ModerationService {
     }
   }
 
-  /// Submit a user report. Reuses existing `submit_user_report` RPC.
+  /// Submit a user report with server-side evidence snapshot.
+  /// When [roomId] is provided, the last 10 room chat messages are captured
+  /// server-side into moderation_report_evidence. No client-side content is
+  /// trusted for evidence — the RPC reads room_messages directly.
   Future<void> submitReport({
     required String reportedUserId,
     required String? roomId,
     required String reason,
     String? description,
   }) async {
-    final details = [
-      if (roomId != null) 'room:$roomId',
-      if (description != null && description.isNotEmpty) description,
-    ].join(' | ');
-
-    await _client.rpc('submit_user_report', params: {
-      'p_target_type': 'user',
-      'p_target_id':   reportedUserId,
-      'p_reason':      reason,
-      'p_details':     details.isEmpty ? null : details,
+    await _client.rpc('submit_user_report_with_evidence', params: {
+      'p_reported_user_id': reportedUserId,
+      'p_room_id':          roomId,
+      'p_reason':           reason,
+      'p_description':      description?.isEmpty == true ? null : description,
     });
   }
 
