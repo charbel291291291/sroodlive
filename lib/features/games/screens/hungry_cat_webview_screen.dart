@@ -95,7 +95,8 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
 
   // ── Misc ─────────────────────────────────────────────────────────────────
   Timer?  _countdownTimer;
-  Timer?  _resultPollTimer; // fallback poll when realtime + settle RPC both lag
+  Timer?  _resultPollTimer;       // fallback poll when realtime + settle RPC both lag
+  Timer?  _balanceDebounceTimer;  // debounce server balance check after bets
   bool    _waitingForResult = false; // true while spinning beyond ~5s
   String? _errorMsg;
   bool    _reconnecting = false;
@@ -130,6 +131,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     WidgetsBinding.instance.removeObserver(this);
     _countdownTimer?.cancel();
     _resultPollTimer?.cancel();
+    _balanceDebounceTimer?.cancel();
     _reconnectTimer?.cancel();
     _channel?.unsubscribe();
     _pulseCtrl.dispose();
@@ -338,18 +340,23 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
       return;
     }
 
-    // Sequence number for this specific outgoing bet.
     _betSeq++;
-    final mySeq = _betSeq;
-
-    debugPrint('[HungryCat] bet tap seq=$mySeq food=${food.foodId} amount=$betAmount');
+    final mySeq    = _betSeq;
+    final tapAt    = DateTime.now();
+    debugPrint('[HungryCatBet] tap seq=$mySeq food=${food.foodId} name=${food.name} roundId=$_roundId amount=$betAmount');
+    debugPrint('[HungryCatPerf] tap received seq=$mySeq at ${tapAt.millisecondsSinceEpoch}ms');
     HapticFeedback.lightImpact();
 
-    // Increment pending count — shows spinner on bubble without blocking taps.
+    // Optimistic update: subtract immediately so the user sees the balance
+    // change before the RPC round-trip completes (~300-600ms saved).
     setState(() {
+      _balance = _balance - betAmount;
       _foodPendingCounts[food.foodId] =
           (_foodPendingCounts[food.foodId] ?? 0) + 1;
     });
+
+    final reqStart = DateTime.now();
+    debugPrint('[HungryCatPerf] bet request start seq=$mySeq at ${reqStart.millisecondsSinceEpoch}ms');
 
     try {
       final result = await _service.placeGlobalBet(
@@ -359,38 +366,79 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
       );
       if (!mounted) return;
 
-      debugPrint('[HungryCat] bet confirmed seq=$mySeq betId=${result.betId} balance=${result.newBalance}');
+      final reqEnd = DateTime.now();
+      debugPrint('[HungryCatBet] confirmed seq=$mySeq betId=${result.betId} newBalance=${result.newBalance}');
+      debugPrint('[HungryCatPerf] bet request end seq=$mySeq duration=${reqEnd.difference(reqStart).inMilliseconds}ms');
 
       _sounds.playBetPlaced();
       setState(() {
-        // Only advance the displayed balance if this response is at least as
-        // recent as the last one applied — prevents a slow earlier response
-        // from overwriting the result of a faster later one.
+        // Replace the optimistic balance with the server's authoritative value.
+        // Sequence guard prevents an earlier slow response from overwriting a
+        // more-recent one that already applied a lower balance.
         if (mySeq >= _lastAppliedBalanceSeq) {
           _lastAppliedBalanceSeq = mySeq;
           _balance = result.newBalance;
         }
         _betsByFood[food.foodId] =
             (_betsByFood[food.foodId] ?? 0) + betAmount;
-        final pending = (_foodPendingCounts[food.foodId] ?? 1) - 1;
-        if (pending <= 0) {
-          _foodPendingCounts.remove(food.foodId);
-        } else {
-          _foodPendingCounts[food.foodId] = pending;
-        }
+        _decrementPending(food.foodId);
       });
+      // Debounced server-side balance check: fires 750ms after the last
+      // confirmed bet to correct any drift from rapid out-of-order responses.
+      _scheduleDebouncedBalanceRefresh();
     } catch (e) {
-      debugPrint('[HungryCat] bet failed seq=$mySeq reason=$e');
+      final errStr = '$e';
+      debugPrint('[HungryCatBet] failed seq=$mySeq food=${food.foodId} error=$errStr');
       if (!mounted) return;
+      // Undo the optimistic subtract — the bet didn't land.
       setState(() {
-        final pending = (_foodPendingCounts[food.foodId] ?? 1) - 1;
-        if (pending <= 0) {
-          _foodPendingCounts.remove(food.foodId);
-        } else {
-          _foodPendingCounts[food.foodId] = pending;
-        }
+        _balance = _balance + betAmount;
+        _decrementPending(food.foodId);
       });
-      _showSnack(_ar ? _friendlyErrorAr('$e') : _friendlyError('$e'));
+
+      // duplicate_bet: backend unique constraint is active; bet not placed.
+      // Refresh balance silently; do NOT block future taps on this food.
+      if (errStr.contains('duplicate_bet')) {
+        debugPrint('[HungryCatBet] duplicate_bet from server — refreshing balance (constraint active on live DB)');
+        _refreshBalance();
+        return;
+      }
+
+      // Suppress transient states that aren't actionable by the user.
+      if (errStr.contains('betting_closed') ||
+          errStr.contains('betting_still_open')) {
+        return;
+      }
+
+      _showSnack(_ar ? _friendlyErrorAr(errStr) : _friendlyError(errStr));
+    }
+  }
+
+  void _decrementPending(String foodId) {
+    final pending = (_foodPendingCounts[foodId] ?? 1) - 1;
+    if (pending <= 0) {
+      _foodPendingCounts.remove(foodId);
+    } else {
+      _foodPendingCounts[foodId] = pending;
+    }
+  }
+
+  void _scheduleDebouncedBalanceRefresh() {
+    _balanceDebounceTimer?.cancel();
+    _balanceDebounceTimer = Timer(const Duration(milliseconds: 750), _refreshBalance);
+  }
+
+  Future<void> _refreshBalance() async {
+    final start = DateTime.now();
+    debugPrint('[HungryCatPerf] balance refresh start at ${start.millisecondsSinceEpoch}ms');
+    try {
+      final bal = await _service.fetchCoinBalance();
+      if (!mounted) return;
+      final end = DateTime.now();
+      debugPrint('[HungryCatPerf] balance refresh end duration=${end.difference(start).inMilliseconds}ms newBalance=$bal');
+      setState(() => _balance = bal);
+    } catch (_) {
+      // best-effort; balance will correct on next successful bet or post-result fetch
     }
   }
 
@@ -431,33 +479,49 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   /// return isSettled=false.  settleGlobalRound is idempotent: if the round is
   /// already settled it returns the winner immediately; if still open it throws
   /// betting_still_open (harmless, we keep polling).
+  // Adaptive result poll: fires at 500 ms for the first few attempts, then
+  // backs off to 4 s.  Using one-shot Timers rather than periodic so the
+  // delay is measured from the END of the previous network call, not its start.
   void _startResultPoll() {
     _resultPollTimer?.cancel();
     final pollRoundId = _roundId;
     if (pollRoundId == null) return;
+    _schedulePollAttempt(pollRoundId, attempt: 0);
+  }
 
-    _resultPollTimer = Timer.periodic(const Duration(seconds: 4), (t) async {
-      if (!mounted || _winFoodId != null || _phase != _Phase.spinning) {
-        t.cancel();
-        return;
-      }
+  void _schedulePollAttempt(String pollRoundId, {required int attempt}) {
+    // 500 ms × 4 attempts → 1 s × 2 → 2 s × 2 → 4 s thereafter
+    final delayMs = switch (attempt) {
+      0 || 1 || 2 || 3 => 500,
+      4 || 5           => 1000,
+      6 || 7           => 2000,
+      _                => 4000,
+    };
+    _resultPollTimer = Timer(Duration(milliseconds: delayMs), () async {
+      if (!mounted || _winFoodId != null || _phase != _Phase.spinning) return;
+      final pollStart = DateTime.now();
+      debugPrint('[HungryCatPerf] result poll start attempt=$attempt at ${pollStart.millisecondsSinceEpoch}ms');
       try {
         final round = await _service.settleGlobalRound(pollRoundId);
+        final pollEnd = DateTime.now();
+        debugPrint('[HungryCatPerf] result poll end attempt=$attempt duration=${pollEnd.difference(pollStart).inMilliseconds}ms');
         if (!mounted) return;
         if (round.isSettled && _winFoodId == null) {
           debugPrint('[HungryCat] poll settled round winFood=${round.winningFoodId}');
-          t.cancel();
           _applyWinner(
             round.winningFoodId,
             round.winningFoodIcon,
             round.winningFoodName,
             round.winningMultiplier,
           );
+          return; // winner found — stop polling
         }
       } catch (e) {
-        // betting_still_open → keep polling; other errors → log and retry
-        debugPrint('[HungryCat] result poll: $e');
+        // betting_still_open → keep polling; other errors → log and continue
+        debugPrint('[HungryCat] result poll attempt=$attempt: $e');
       }
+      if (!mounted || _winFoodId != null || _phase != _Phase.spinning) return;
+      _schedulePollAttempt(pollRoundId, attempt: attempt + 1);
     });
   }
 
@@ -530,23 +594,39 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     }
     if (!mounted) return;
 
-    final newBalance = await _service.fetchCoinBalance();
-    if (!mounted) return;
-    final delta = newBalance - (_balanceBeforeSpin ?? _balance);
-    debugPrint('[HungryCat] payout amount=$delta');
-    debugPrint('[HungryCat] wallet updated coins=$newBalance');
+    // Show the result screen immediately — no balance fetch blocking the render.
+    final resultAt = DateTime.now();
+    debugPrint('[HungryCatPerf] result rendered at ${resultAt.millisecondsSinceEpoch}ms');
+    setState(() => _phase = _Phase.settled); // _spinDelta stays null until balance arrives
 
-    try {
-      final hist = await _service.getGlobalHistory();
-      if (mounted) _history = hist.take(20).toList();
-    } catch (_) {}
-    if (!mounted) return;
+    // Capture round id so background callbacks don't update a new round's state.
+    final settledRoundId = _roundId;
+    final balanceBeforeSpin = _balanceBeforeSpin;
 
-    setState(() {
-      _balance   = newBalance;
-      _spinDelta = delta;
-      _phase     = _Phase.settled;
+    // Balance and history fetched in parallel; UI updates when each arrives.
+    final balStart = DateTime.now();
+    debugPrint('[HungryCatPerf] balance refresh start (post-result) at ${balStart.millisecondsSinceEpoch}ms');
+    _service.fetchCoinBalance().then((newBalance) {
+      if (!mounted || _roundId != settledRoundId) return;
+      final balEnd = DateTime.now();
+      final delta  = newBalance - (balanceBeforeSpin ?? _balance);
+      debugPrint('[HungryCat] payout amount=$delta');
+      debugPrint('[HungryCat] wallet updated coins=$newBalance');
+      debugPrint('[HungryCatPerf] balance refresh end (post-result) duration=${balEnd.difference(balStart).inMilliseconds}ms');
+      setState(() {
+        _balance   = newBalance;
+        _spinDelta = delta;
+      });
+    }).catchError((Object e) {
+      debugPrint('[HungryCat] balance fetch after result: $e');
     });
+
+    _service.getGlobalHistory().then((hist) {
+      if (mounted && _roundId == settledRoundId) {
+        setState(() => _history = hist.take(20).toList());
+      }
+    }).catchError((Object _) {});
+
     await Future.delayed(const Duration(seconds: 4));
     if (!mounted) return;
     _loadNextRound();
@@ -635,7 +715,6 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     if (e.contains('round_not_found'))     return 'Round not found — refreshing';
     if (e.contains('invalid_food'))        return 'Invalid food selection';
     if (e.contains('not_authenticated'))   return 'Please log in again';
-    if (e.contains('duplicate_bet'))       return 'Already bet on this food this round';
     return 'Something went wrong. Please try again.';
   }
 
@@ -646,7 +725,6 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     if (e.contains('round_not_found'))     return 'لم يُوجد الجولة — جارٍ التحديث';
     if (e.contains('invalid_food'))        return 'اختيار طعام غير صالح';
     if (e.contains('not_authenticated'))   return 'يرجى تسجيل الدخول من جديد';
-    if (e.contains('duplicate_bet'))       return 'رهنت بالفعل على هذا الطعام';
     return 'حدث خطأ. حاول مجدداً.';
   }
 
@@ -807,20 +885,33 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
                 ? '${_winMult!.toInt()}x'
                 : '${_winMult}x')
             : '';
-        final won  = _spinDelta != null && _spinDelta! > 0;
-        label = _hasBets
-            ? (won
+        if (_hasBets) {
+          if (_spinDelta == null) {
+            // Balance fetch still in flight — show winner without payout yet.
+            label = _ar
+                ? '🏆 $icon $name $mult'
+                : '🏆 $icon $name $mult';
+            bg = const Color(0xFF2A1A00);
+            fg = const Color(0xFFF0C15A);
+          } else {
+            final won = _spinDelta! > 0;
+            label = won
                 ? (_ar
                     ? '🏆 $icon $name $mult • ربحت ${_formatCoins(_spinDelta!)} 🪙'
                     : '🏆 $icon $name $mult • Won +${_formatCoins(_spinDelta!)} 🪙')
                 : (_ar
                     ? '❌ $icon $name $mult • خسرت ${_formatCoins(_totalBetAmount)} 🪙'
-                    : '❌ $icon $name $mult • Lost -${_formatCoins(_totalBetAmount)} 🪙'))
-            : (_ar
-                ? '🏆 الفائز: $icon $name $mult'
-                : '🏆 Winner: $icon $name $mult');
-        bg = won ? const Color(0xFF0D2B0D) : const Color(0xFF2A1A00);
-        fg = won ? const Color(0xFF4ADE80) : const Color(0xFFF0C15A);
+                    : '❌ $icon $name $mult • Lost -${_formatCoins(_totalBetAmount)} 🪙');
+            bg = won ? const Color(0xFF0D2B0D) : const Color(0xFF2A1A00);
+            fg = won ? const Color(0xFF4ADE80) : const Color(0xFFF0C15A);
+          }
+        } else {
+          label = _ar
+              ? '🏆 الفائز: $icon $name $mult'
+              : '🏆 Winner: $icon $name $mult';
+          bg = const Color(0xFF2A1A00);
+          fg = const Color(0xFFF0C15A);
+        }
       default:
         return const SizedBox.shrink();
     }
