@@ -45,7 +45,8 @@ class RocketCrashWebviewScreen extends StatefulWidget {
       _RocketCrashWebviewScreenState();
 }
 
-class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
+class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
+    with WidgetsBindingObserver {
   late final WebViewController _controller;
   final _service = const CrashGameService();
 
@@ -63,12 +64,19 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
   Timer? _bettingEndTimer;
   RealtimeChannel? _roundChannel;
 
+  // Server-local clock offset (serverNowMs - localNowMs), updated on every
+  // server response that includes server_now. Used so passive observers can
+  // send an accurate serverNowMs in realtime callbacks without trusting local
+  // clock directly.
+  double _serverTimeOffsetMs = 0;
+
   // Recent results band
   List<double> _recentResults = [];
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
@@ -101,7 +109,16 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('[RocketCrash] app resumed — refreshing round');
+      _initGame();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _bettingEndTimer?.cancel();
     _roundChannel?.unsubscribe();
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
@@ -171,9 +188,13 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
       final serverNowMs     = _toDouble(round['server_now']);
       final roundNumber     = _parseInt(round['round_number']);
 
+      if (serverNowMs > 0) {
+        _serverTimeOffsetMs = serverNowMs - DateTime.now().millisecondsSinceEpoch;
+      }
+
       if (_roundId != null) _subscribeToRound(_roundId!);
 
-      debugPrint('[RocketCrash] round loaded roundId=$_roundId phase=$phase balance=$balance');
+      debugPrint('[RocketCrash] round loaded roundId=$_roundId phase=$phase balance=$balance serverOffset=${_serverTimeOffsetMs.round()}ms');
 
       // Schedule betting-end transition
       if (phase == 'betting') {
@@ -278,7 +299,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
         'phase'          : 'flying',
         'flightStartsAtMs': fsMs,
         'crashMultiplier': cm,
-        'serverNowMs'    : DateTime.now().millisecondsSinceEpoch.toDouble(),
+        'serverNowMs'    : DateTime.now().millisecondsSinceEpoch + _serverTimeOffsetMs,
       });
     } else if (status == 'crashed') {
       final cm = _toDouble(rec['crash_multiplier']);
@@ -332,8 +353,9 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
   Future<void> _loadNextRound() async {
     if (!mounted) return;
     _bettingEndTimer?.cancel();
-    _flightStarted = false;
-    _settling      = false;
+    _flightStarted  = false;
+    _settling       = false;
+    _settledBetIds.clear();
 
     try {
       final round = await _service.getOrCreateRocketRound();
@@ -343,6 +365,10 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen> {
       final bettingEndsAtMs = _toDouble(round['betting_ends_at']);
       final serverNowMs     = _toDouble(round['server_now']);
       final roundNumber     = _parseInt(round['round_number']);
+
+      if (serverNowMs > 0) {
+        _serverTimeOffsetMs = serverNowMs - DateTime.now().millisecondsSinceEpoch;
+      }
 
       if (newId != null && newId != _roundId) {
         _roundId = newId;
