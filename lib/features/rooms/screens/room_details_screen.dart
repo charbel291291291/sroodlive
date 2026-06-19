@@ -48,6 +48,7 @@ import '../widgets/seat_reaction_overlay.dart';
 import '../../../core/services/active_room_session.dart';
 import '../../../core/services/voice_room_foreground_service.dart';
 import '../widgets/vault_pin_sheet.dart';
+import 'room_owner_management_screen.dart';
 
 // Seat sizes ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â host > occupied > empty, never the reverse.
 // Reduced ~17% from previous values to open more background space.
@@ -1456,6 +1457,22 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
   void _openReactionPicker() {
     ReactionPickerSheet.show(context, onPick: _sendReaction);
+  }
+
+  /// Opens Room Owner Management screen (Overview / Moderators / Bans / Settings).
+  /// Only accessible to the room owner or host.
+  Future<void> _openRoomManagement() async {
+    if (!(_iAmRoomOwner || _iAmHost)) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => RoomOwnerManagementScreen(
+          room: _currentRoom,
+          isArabic: context.isArabic,
+        ),
+      ),
+    );
+    // Refresh member list / moderators in case anything changed inside.
+    if (mounted) _loadMembers(showLoading: false);
   }
 
   Future<void> _openToolsSheet() async {
@@ -3067,15 +3084,17 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         scrolledUnderElevation: 0,
         foregroundColor: Colors.white,
         automaticallyImplyLeading: false,
-        // Settings icon replaces back arrow at top-left
-        leading: IconButton(
-          icon: const Icon(Icons.settings_rounded),
-          tooltip: context.isArabic ? '\u0625\u0639\u062f\u0627\u062f\u0627\u062a \u0627\u0644\u063a\u0631\u0641\u0629' : 'Room Settings',
-          style: IconButton.styleFrom(
-            backgroundColor: Colors.black.withValues(alpha: 0.35),
-          ),
-          onPressed: _openToolsSheet,
-        ),
+        // Management icon \u2014 visible only to owner/host; opens Room Management screen.
+        leading: (_iAmRoomOwner || _iAmHost)
+            ? IconButton(
+                icon: const Icon(Icons.manage_accounts_rounded),
+                tooltip: context.isArabic ? '\u0625\u062f\u0627\u0631\u0629 \u0627\u0644\u063a\u0631\u0641\u0629' : 'Room Management',
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.black.withValues(alpha: 0.35),
+                ),
+                onPressed: _openRoomManagement,
+              )
+            : null,
         title: Text(
           context.isArabic ? '\u0627\u0644\u063a\u0631\u0641\u0629' : 'Room',
           style: const TextStyle(
