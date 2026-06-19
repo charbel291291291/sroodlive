@@ -64,12 +64,18 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   double? _winMult;
 
   // ── User bet state ───────────────────────────────────────────────────────
-  /// Per-food bet totals for the current round. Updated immediately after
-  /// each successful bet RPC call.
-  Map<String, int> _betsByFood   = {};
-  /// Foods currently processing a bet RPC (per-food debounce, not global).
-  Set<String>      _betBusyFoods = {};
-  int              _betAmount    = 100;
+  /// Confirmed bet totals per food (sum of all successful bets this round).
+  Map<String, int> _betsByFood         = {};
+  /// In-flight bet count per food — nonzero while RPCs are pending.
+  /// Drives the spinner indicator on the bubble; never blocks new taps.
+  Map<String, int> _foodPendingCounts  = {};
+  /// Monotonically increasing counter, incremented on every outgoing bet.
+  int              _betSeq             = 0;
+  /// The highest sequence number whose server balance has been applied to
+  /// _balance.  Ensures out-of-order responses never show a stale higher
+  /// balance overwriting a more-recent lower one.
+  int              _lastAppliedBalanceSeq = 0;
+  int              _betAmount          = 100;
 
   // ── Spin payout delta ────────────────────────────────────────────────────
   int? _balanceBeforeSpin; // snapshot taken at settle trigger
@@ -186,17 +192,19 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     _bettingEndsAt = round.bettingEndsAt;
     _clockOffset   = round.serverNow.difference(DateTime.now().toUtc());
     _resultPollTimer?.cancel();
-    _resultPollTimer   = null;
-    _waitingForResult  = false;
-    _settling          = false;
-    _winFoodId         = null;
-    _winFoodIcon       = null;
-    _winFoodName       = null;
-    _winMult           = null;
-    _betsByFood        = {};
-    _betBusyFoods      = {};
-    _balanceBeforeSpin = null;
-    _spinDelta         = null;
+    _resultPollTimer        = null;
+    _waitingForResult       = false;
+    _settling               = false;
+    _winFoodId              = null;
+    _winFoodIcon            = null;
+    _winFoodName            = null;
+    _winMult                = null;
+    _betsByFood             = {};
+    _foodPendingCounts      = {};
+    _betSeq                 = 0;
+    _lastAppliedBalanceSeq  = 0;
+    _balanceBeforeSpin      = null;
+    _spinDelta              = null;
 
     debugPrint('[HungryCat] round loaded roundId=$_roundId roundNumber=$_roundNumber');
 
@@ -304,56 +312,84 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Betting — tap food = place bet immediately
+  // Betting — every tap fires an independent RPC, no blocking.
   //
-  // Multiple bets on DIFFERENT foods are allowed concurrently.
-  // Same-food taps are debounced per-food (_betBusyFoods).
+  // SQL design: place_hungry_cat_global_bet is a pure INSERT — each call
+  // adds a new row to hungry_cat_global_bets.  Multiple taps on the same
+  // food create multiple rows, all evaluated independently on settle.
+  // The wallet uses FOR UPDATE so concurrent deductions serialize at the DB.
+  //
+  // Client-side balance tracking uses a sequence number (_betSeq) so that
+  // out-of-order RPC responses never display a stale (higher) balance on top
+  // of a more recent (lower) one.
   // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _tapFood(int index) async {
     if (_phase != _Phase.betting) return;
     if (index >= _foods.length) return;
 
-    final food = _foods[index];
+    final food      = _foods[index];
+    final betAmount = _betAmount; // capture at tap time (chip may change mid-flight)
 
-    // Per-food debounce: block only the same food while its RPC is in-flight.
-    if (_betBusyFoods.contains(food.foodId)) return;
-
-    if (_balance < _betAmount) {
+    // Advisory client-side check — fast feedback for clearly empty wallets.
+    // Server always re-validates; this does not block legitimate rapid taps.
+    if (_balance < betAmount) {
       _showSnack(_ar ? 'رصيد غير كافٍ' : 'Insufficient coins');
       return;
     }
 
-    debugPrint('[HungryCat] bet tap food=${food.foodId} amount=$_betAmount');
+    // Sequence number for this specific outgoing bet.
+    _betSeq++;
+    final mySeq = _betSeq;
+
+    debugPrint('[HungryCat] bet tap seq=$mySeq food=${food.foodId} amount=$betAmount');
     HapticFeedback.lightImpact();
 
-    setState(() => _betBusyFoods.add(food.foodId));
+    // Increment pending count — shows spinner on bubble without blocking taps.
+    setState(() {
+      _foodPendingCounts[food.foodId] =
+          (_foodPendingCounts[food.foodId] ?? 0) + 1;
+    });
 
     try {
       final result = await _service.placeGlobalBet(
         roundId: _roundId!,
         foodId:  food.foodId,
-        amount:  _betAmount,
+        amount:  betAmount,
       );
       if (!mounted) return;
 
-      debugPrint('[HungryCat] bet placed betId=${result.betId}');
-      debugPrint('[HungryCat] wallet updated coins=${result.newBalance}');
+      debugPrint('[HungryCat] bet confirmed seq=$mySeq betId=${result.betId} balance=${result.newBalance}');
 
       _sounds.playBetPlaced();
       setState(() {
-        _balance = result.newBalance;
+        // Only advance the displayed balance if this response is at least as
+        // recent as the last one applied — prevents a slow earlier response
+        // from overwriting the result of a faster later one.
+        if (mySeq >= _lastAppliedBalanceSeq) {
+          _lastAppliedBalanceSeq = mySeq;
+          _balance = result.newBalance;
+        }
         _betsByFood[food.foodId] =
-            (_betsByFood[food.foodId] ?? 0) + _betAmount;
-        _betBusyFoods.remove(food.foodId);
+            (_betsByFood[food.foodId] ?? 0) + betAmount;
+        final pending = (_foodPendingCounts[food.foodId] ?? 1) - 1;
+        if (pending <= 0) {
+          _foodPendingCounts.remove(food.foodId);
+        } else {
+          _foodPendingCounts[food.foodId] = pending;
+        }
       });
-      _showSnack(_ar
-          ? '✅ تم الرهان على ${food.name}!'
-          : '✅ Bet placed on ${food.name}!');
     } catch (e) {
-      debugPrint('[HungryCat] bet failed reason=$e');
+      debugPrint('[HungryCat] bet failed seq=$mySeq reason=$e');
       if (!mounted) return;
-      setState(() => _betBusyFoods.remove(food.foodId));
+      setState(() {
+        final pending = (_foodPendingCounts[food.foodId] ?? 1) - 1;
+        if (pending <= 0) {
+          _foodPendingCounts.remove(food.foodId);
+        } else {
+          _foodPendingCounts[food.foodId] = pending;
+        }
+      });
       _showSnack(_ar ? _friendlyErrorAr('$e') : _friendlyError('$e'));
     }
   }
@@ -389,20 +425,27 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     }
   }
 
-  /// Polls the round state every 4 seconds as a fallback for missed realtime
-  /// events.  Stops automatically when a winner is applied or phase changes.
+  /// Polls by re-calling settle (idempotent) every 4 s as a fallback for
+  /// missed realtime events.  getOrCreateRound() must NOT be used here — it
+  /// creates a new betting round once the current one ends, so it would always
+  /// return isSettled=false.  settleGlobalRound is idempotent: if the round is
+  /// already settled it returns the winner immediately; if still open it throws
+  /// betting_still_open (harmless, we keep polling).
   void _startResultPoll() {
     _resultPollTimer?.cancel();
+    final pollRoundId = _roundId;
+    if (pollRoundId == null) return;
+
     _resultPollTimer = Timer.periodic(const Duration(seconds: 4), (t) async {
       if (!mounted || _winFoodId != null || _phase != _Phase.spinning) {
         t.cancel();
         return;
       }
       try {
-        final round = await _service.getOrCreateRound();
+        final round = await _service.settleGlobalRound(pollRoundId);
         if (!mounted) return;
         if (round.isSettled && _winFoodId == null) {
-          debugPrint('[HungryCat] poll found settled round winFood=${round.winningFoodId}');
+          debugPrint('[HungryCat] poll settled round winFood=${round.winningFoodId}');
           t.cancel();
           _applyWinner(
             round.winningFoodId,
@@ -412,7 +455,8 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
           );
         }
       } catch (e) {
-        debugPrint('[HungryCat] result poll error: $e');
+        // betting_still_open → keep polling; other errors → log and retry
+        debugPrint('[HungryCat] result poll: $e');
       }
     });
   }
@@ -880,15 +924,17 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     final isActive = i == _highlighted;
     final isWinner = _phase == _Phase.settled && _winFoodId != null
         && i == _findWinnerIndex();
-    final foodId   = i < _foods.length ? _foods[i].foodId : '';
-    final isBusy   = foodId.isNotEmpty && _betBusyFoods.contains(foodId);
+    final foodId     = i < _foods.length ? _foods[i].foodId : '';
+    final pending    = foodId.isNotEmpty
+        ? (_foodPendingCounts[foodId] ?? 0) : 0;
+    // isBusy shows a spinner on the bubble when bets are in-flight,
+    // but does NOT block tapping — canTap is independent of isBusy.
+    final isBusy     = pending > 0;
     final isSelected = _betsByFood.containsKey(foodId) && foodId.isNotEmpty;
     final betAmount  = _betsByFood[foodId] ?? 0;
 
-    // Tappable: betting phase only, this specific food not already in-flight
-    final canTap = _phase == _Phase.betting
-        && i < _foods.length
-        && !_betBusyFoods.contains(foodId);
+    // Always tappable during betting phase — no per-food blocking.
+    final canTap = _phase == _Phase.betting && i < _foods.length;
 
     Widget bubble = AnimatedBuilder(
       animation: _pulseAnim,
@@ -1108,7 +1154,14 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   }
 
   Widget _buildBetStatus() {
-    if (_betBusyFoods.isNotEmpty) {
+    final totalPending = _foodPendingCounts.values
+        .fold(0, (sum, c) => sum + c);
+
+    if (totalPending > 0) {
+      final label = totalPending == 1
+          ? (_ar ? 'جارٍ إرسال الرهان...' : 'Placing bet...')
+          : (_ar ? 'جارٍ إرسال $totalPending رهانات...'
+                 : 'Placing $totalPending bets...');
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1120,7 +1173,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
           ),
           const SizedBox(width: 8),
           Text(
-            _ar ? 'جارٍ الرهان...' : 'Placing bet...',
+            label,
             style: const TextStyle(
               color: Color(0xFFF0C15A),
               fontSize: 12,
