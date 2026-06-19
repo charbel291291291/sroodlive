@@ -1,4 +1,6 @@
-﻿import 'package:flutter/material.dart';
+import 'dart:io';
+
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -595,6 +597,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  /// Returns true when the current user may upload an animated GIF avatar.
+  /// Eligibility: VIP 8 or above, OR level 60 or above.
+  bool _canUseAnimatedAvatar() {
+    final vipLevel = _effectiveProfileVipLevel();
+    final userLevel = _userLevel?.level ?? 0;
+    return vipLevel >= 8 || userLevel >= 60;
+  }
+
   String _avatarExtension(String fileName, String? mimeType) {
     final lowerName = fileName.toLowerCase();
     if (lowerName.endsWith('.png') || mimeType == 'image/png') return 'png';
@@ -626,16 +636,93 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (user == null) throw StateError('No logged-in user found.');
 
       final picker = ImagePicker();
-      final image = await picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 82,
-        maxWidth: 900,
-        maxHeight: 900,
-      );
-      if (image == null) return;
+      // Pick without quality/resize constraints so GIF frames are not destroyed
+      // by the native layer. Static images are already compressed by the device
+      // camera app before reaching the gallery.
+      final image = await picker.pickImage(source: ImageSource.gallery);
+      if (image == null) {
+        if (mounted) setState(() => isUploadingAvatar = false);
+        return;
+      }
 
-      final Uint8List bytes = await image.readAsBytes();
       final extension = _avatarExtension(image.name, image.mimeType);
+
+      // ── Animated GIF path ──────────────────────────────────────────────────
+      if (extension == 'gif') {
+        final vipLevel = _effectiveProfileVipLevel();
+        final userLevel = _userLevel?.level ?? 0;
+        final allowed = _canUseAnimatedAvatar();
+        final reason = vipLevel >= 8
+            ? 'vip'
+            : userLevel >= 60
+                ? 'level'
+                : 'insufficient_status';
+
+        debugPrint(
+          '[AvatarGif] selected file type=gif'
+          '  vipLevel=$vipLevel userLevel=$userLevel',
+        );
+        debugPrint('[AvatarGif] allowed=$allowed reason=$reason');
+
+        if (!allowed) {
+          debugPrint('[AvatarGif] blocked reason=insufficient_status');
+          if (mounted) {
+            setState(() {
+              isUploadingAvatar = false;
+              errorMessage = isArabic
+                  ? 'صور الملف الشخصي المتحركة متاحة لـ VIP 8+ أو المستوى 60 فأعلى.'
+                  : 'Animated profile pictures are available for VIP 8+ or Level 60+.';
+            });
+          }
+          return;
+        }
+
+        // Read raw bytes directly from disk — bypasses any picker-level
+        // transcoding that could strip GIF animation frames.
+        final bytes = await File(image.path).readAsBytes();
+        final fileSizeMb = bytes.length / (1024 * 1024);
+        debugPrint('[AvatarGif] size=${fileSizeMb.toStringAsFixed(2)}MB');
+
+        if (bytes.length > 2 * 1024 * 1024) {
+          if (mounted) {
+            setState(() {
+              isUploadingAvatar = false;
+              errorMessage = isArabic
+                  ? 'حجم ملف GIF كبير جداً. الحد الأقصى 2 ميغابايت.'
+                  : 'GIF file is too large. Maximum allowed size is 2 MB.';
+            });
+          }
+          return;
+        }
+
+        final path =
+            '${user.id}/avatar_${DateTime.now().millisecondsSinceEpoch}.gif';
+        await client.storage.from('avatars').uploadBinary(
+              path,
+              bytes,
+              fileOptions: const FileOptions(contentType: 'image/gif'),
+            );
+
+        final publicUrl = client.storage.from('avatars').getPublicUrl(path);
+        final versionedUrl =
+            '$publicUrl?v=${DateTime.now().millisecondsSinceEpoch}';
+        await client.from('profiles').update({
+          'avatar_url': versionedUrl,
+          'updated_at': DateTime.now().toIso8601String(),
+        }).eq('id', user.id);
+
+        await _loadProfile();
+        if (mounted) {
+          setState(() {
+            successMessage =
+                isArabic ? 'تم تحديث الصورة.' : 'Profile image updated.';
+          });
+        }
+        return; // GIF path done
+      }
+
+      // ── Static image path (jpg / png / webp) ──────────────────────────────
+      final Uint8List bytes = await image.readAsBytes();
       final path =
           '${user.id}/avatar_${DateTime.now().millisecondsSinceEpoch}.$extension';
       final contentType = _avatarContentType(extension, image.mimeType);
@@ -659,13 +746,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .eq('id', user.id);
 
       await _loadProfile();
-      setState(() {
-        successMessage = isArabic ? 'ØªÙ… ØªØ­Ø¯ÙŠØ« Ø§Ù„ØµÙˆØ±Ø©.' : 'Profile image updated.';
-      });
+      if (mounted) {
+        setState(() {
+          successMessage =
+              isArabic ? 'تم تحديث الصورة.' : 'Profile image updated.';
+        });
+      }
     } catch (error) {
-      setState(() {
-        errorMessage = isArabic ? 'ÙØ´Ù„ Ø±ÙØ¹ Ø§Ù„ØµÙˆØ±Ø©: $error' : 'Image upload failed: $error';
-      });
+      if (mounted) {
+        setState(() {
+          errorMessage = isArabic
+              ? 'فشل رفع الصورة: $error'
+              : 'Image upload failed: $error';
+        });
+      }
     } finally {
       if (mounted) setState(() => isUploadingAvatar = false);
     }
@@ -1103,8 +1197,9 @@ class _PremiumProfileHero extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 184),
-      padding: const EdgeInsets.fromLTRB(18, 16, 16, 16),
+      constraints: const BoxConstraints(minHeight: 190),
+      // Extra bottom padding so bio line has breathing room from the card edge.
+      padding: const EdgeInsets.fromLTRB(18, 16, 14, 20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         gradient: const LinearGradient(
@@ -1141,28 +1236,28 @@ class _PremiumProfileHero extends StatelessWidget {
               ),
             ),
           ),
-          // Edit button
+          // Edit button — inset 6 px from edge so it never touches the border
           Positioned(
-            right: isArabic ? null : 0,
-            left: isArabic ? 0 : null,
-            top: 0,
+            right: isArabic ? null : 6,
+            left: isArabic ? 6 : null,
+            top: 4,
             child: InkWell(
               customBorder: const CircleBorder(),
               onTap: onEditTap,
               child: Container(
-                width: 34,
-                height: 34,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.black.withValues(alpha: 0.28),
+                  color: Colors.black.withValues(alpha: 0.30),
                   border: Border.all(
-                    color: const Color(0xFFF0C15A).withValues(alpha: 0.35),
+                    color: const Color(0xFFF0C15A).withValues(alpha: 0.42),
                   ),
                 ),
                 child: const Icon(
                   Icons.edit_rounded,
                   color: Color(0xFFF0C15A),
-                  size: 17,
+                  size: 18,
                 ),
               ),
             ),
@@ -1222,7 +1317,7 @@ class _PremiumProfileHero extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 11),
+                    const SizedBox(height: 10),
                     // Display name
                     Row(
                       textDirection:
@@ -1232,13 +1327,13 @@ class _PremiumProfileHero extends StatelessWidget {
                           child: VipUsername(
                             name: displayName,
                             vipLevel: vipLevel,
-                            fontSize: 29,
+                            fontSize: 27,
                             textAlign: textAlign,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 9),
+                    const SizedBox(height: 8),
                     // Public ID
                     if (isGoldenId)
                       GoldenIdBadge(
@@ -1253,7 +1348,7 @@ class _PremiumProfileHero extends StatelessWidget {
                         borderRadius: BorderRadius.circular(999),
                         onTap: onCopyId,
                         child: Container(
-                          height: 32,
+                          height: 28,
                           padding: const EdgeInsets.symmetric(horizontal: 10),
                           decoration: BoxDecoration(
                             color: const Color(0xFF100718).withValues(alpha: 0.7),
@@ -1284,8 +1379,8 @@ class _PremiumProfileHero extends StatelessWidget {
                               const SizedBox(width: 5),
                               Icon(
                                 Icons.copy_rounded,
-                                color: Colors.white.withValues(alpha: 0.58),
-                                size: 14,
+                                color: Colors.white.withValues(alpha: 0.55),
+                                size: 13,
                               ),
                             ],
                           ),
@@ -1297,7 +1392,7 @@ class _PremiumProfileHero extends StatelessWidget {
                       alignment:
                           isArabic ? WrapAlignment.end : WrapAlignment.start,
                       spacing: 6,
-                      runSpacing: 6,
+                      runSpacing: 5,
                       children: [
                         if (flag.isNotEmpty)
                           _ProfileBadge(
@@ -1318,8 +1413,8 @@ class _PremiumProfileHero extends StatelessWidget {
                           ),
                       ],
                     ),
-                    const SizedBox(height: 9),
-                    // Bio / subtitle
+                    const SizedBox(height: 10),
+                    // Bio / status — single line with generous height for RTL
                     Text(
                       subtitle,
                       maxLines: 1,
@@ -1329,63 +1424,114 @@ class _PremiumProfileHero extends StatelessWidget {
                         color: Color(0xFFBCAED6),
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        height: 1.1,
+                        height: 1.35,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              // Avatar with upload button
-              SizedBox(
-                width: 106,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  alignment: Alignment.center,
-                  children: [
-                    InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: onFrameTap,
-                      child: AvatarWithFrame(
-                        imageUrl: avatarUrl,
-                        radius: 48,
-                        frameKey: frameKey,
-                        vipLevel: vipLevel,
-                        showVipBadge: vipLevel > 0,
-                        compact: true,
-                      ),
-                    ),
-                    Positioned(
-                      right: 1,
-                      bottom: 1,
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: isUploadingAvatar ? null : onAvatarTap,
-                        child: Container(
-                          width: 31,
-                          height: 31,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFFF0C15A),
-                            border: Border.all(
-                              color: const Color(0xFF160B26),
-                              width: 2,
-                            ),
-                          ),
-                          child: Icon(
-                            isUploadingAvatar
-                                ? Icons.hourglass_top_rounded
-                                : Icons.camera_alt_rounded,
-                            color: const Color(0xFF160B26),
-                            size: 15,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              const SizedBox(width: 12),
+              // Avatar zone with soft premium glow
+              _buildAvatarZone(),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAvatarZone() {
+    const zoneWidth  = 108.0;
+    const glowDiam   = 100.0;
+    const cameraSize = 36.0;
+    const cameraIcon = 17.0;
+
+    return SizedBox(
+      width: zoneWidth,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          // Soft premium glow — no hard rectangular edges
+          Container(
+            width: glowDiam,
+            height: glowDiam,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  const Color(0xFF7B22CC).withValues(alpha: 0.52),
+                  const Color(0xFFC13BFF).withValues(alpha: 0.18),
+                  const Color(0xFFFF4ECD).withValues(alpha: 0.06),
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 0.44, 0.70, 1.0],
+              ),
+            ),
+          ),
+          // Subtle gold halo ring
+          Container(
+            width: glowDiam + 4,
+            height: glowDiam + 4,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: const Color(0xFFF0C15A).withValues(alpha: 0.13),
+                width: 1.0,
+              ),
+            ),
+          ),
+          // Avatar / frame — tappable to open frame picker
+          InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onFrameTap,
+            child: AvatarWithFrame(
+              imageUrl: avatarUrl,
+              radius: 46,
+              frameKey: frameKey,
+              vipLevel: vipLevel,
+              showVipBadge: vipLevel > 0,
+              compact: true,
+            ),
+          ),
+          // Camera button — anchored bottom-right, clean gradient
+          Positioned(
+            right: 2,
+            bottom: 0,
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: isUploadingAvatar ? null : onAvatarTap,
+              child: Container(
+                width: cameraSize,
+                height: cameraSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFFF5D070), Color(0xFFD4A017)],
+                  ),
+                  border: Border.all(
+                    color: const Color(0xFF160B26),
+                    width: 2.0,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFF0C15A).withValues(alpha: 0.35),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  isUploadingAvatar
+                      ? Icons.hourglass_top_rounded
+                      : Icons.camera_alt_rounded,
+                  color: const Color(0xFF160B26),
+                  size: cameraIcon,
+                ),
+              ),
+            ),
           ),
         ],
       ),
