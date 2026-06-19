@@ -13,6 +13,7 @@ class LotoSettings {
     required this.match6Prize,
     required this.progressiveJackpotEnabled,
     required this.jackpotPoolCoins,
+    required this.jackpotContributionPct,
     required this.responsibleNoticeAr,
     required this.responsibleNoticeEn,
   });
@@ -28,6 +29,7 @@ class LotoSettings {
   final int match6Prize;
   final bool progressiveJackpotEnabled;
   final int jackpotPoolCoins;
+  final double jackpotContributionPct;
   final String responsibleNoticeAr;
   final String responsibleNoticeEn;
 
@@ -43,6 +45,7 @@ class LotoSettings {
         match6Prize:                (j['match_6_prize'] as num?)?.toInt() ?? 10000000,
         progressiveJackpotEnabled:  j['progressive_jackpot_enabled'] as bool? ?? false,
         jackpotPoolCoins:           (j['jackpot_pool_coins'] as num?)?.toInt() ?? 0,
+        jackpotContributionPct:     (j['jackpot_contribution_pct'] as num?)?.toDouble() ?? 20.0,
         responsibleNoticeAr:        j['responsible_notice_ar'] as String? ?? '',
         responsibleNoticeEn:        j['responsible_notice_en'] as String? ?? '',
       );

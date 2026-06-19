@@ -549,6 +549,10 @@ class _VoidRoundTabState extends State<_VoidRoundTab> {
                   controller: _roundCtrl,
                   style: const TextStyle(
                       color: _kTxt, fontFamily: 'monospace', fontSize: 13),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                        RegExp(r'[a-fA-F0-9-]')),
+                  ],
                   decoration: InputDecoration(
                     labelText: 'Round UUID',
                     labelStyle: const TextStyle(color: _kMuted),

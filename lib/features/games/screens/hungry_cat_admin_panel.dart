@@ -18,19 +18,19 @@ const _kPurple  = Color(0xFF8B5CF6);
 const _kTxt     = Color(0xFFF1F5F9);
 const _kMuted   = Color(0xFF64748B);
 
-// The 11 valid food outcomes mirroring hungry_cat_config seed data.
-const _kFoods = [
-  (id: 'milk',        icon: '🥛', name: 'Milk',        multiplier: 1.2),
-  (id: 'cookie',      icon: '🍪', name: 'Cookie',      multiplier: 1.5),
-  (id: 'fish',        icon: '🐟', name: 'Fish',        multiplier: 2.0),
-  (id: 'chicken',     icon: '🍗', name: 'Chicken',     multiplier: 3.0),
-  (id: 'shrimp',      icon: '🍤', name: 'Shrimp',      multiplier: 4.0),
-  (id: 'burger',      icon: '🍔', name: 'Burger',      multiplier: 5.0),
-  (id: 'pizza',       icon: '🍕', name: 'Pizza',       multiplier: 8.0),
-  (id: 'cake',        icon: '🍰', name: 'Cake',        multiplier: 10.0),
-  (id: 'tuna',        icon: '🍣', name: 'Tuna',        multiplier: 12.0),
-  (id: 'ice_cream',   icon: '🍨', name: 'Ice Cream',   multiplier: 15.0),
-  (id: 'golden_fish', icon: '🐠', name: 'Golden Fish', multiplier: 25.0),
+// Fallback food list used only when the live DB config has not loaded yet.
+const _kFoodsFallback = [
+  {'food_id': 'milk',        'icon': '🥛', 'name': 'Milk',        'multiplier': 1.2},
+  {'food_id': 'cookie',      'icon': '🍪', 'name': 'Cookie',      'multiplier': 1.5},
+  {'food_id': 'fish',        'icon': '🐟', 'name': 'Fish',        'multiplier': 2.0},
+  {'food_id': 'chicken',     'icon': '🍗', 'name': 'Chicken',     'multiplier': 3.0},
+  {'food_id': 'shrimp',      'icon': '🍤', 'name': 'Shrimp',      'multiplier': 4.0},
+  {'food_id': 'burger',      'icon': '🍔', 'name': 'Burger',      'multiplier': 5.0},
+  {'food_id': 'pizza',       'icon': '🍕', 'name': 'Pizza',       'multiplier': 8.0},
+  {'food_id': 'cake',        'icon': '🍰', 'name': 'Cake',        'multiplier': 10.0},
+  {'food_id': 'tuna',        'icon': '🍣', 'name': 'Tuna',        'multiplier': 12.0},
+  {'food_id': 'ice_cream',   'icon': '🍨', 'name': 'Ice Cream',   'multiplier': 15.0},
+  {'food_id': 'golden_fish', 'icon': '🐠', 'name': 'Golden Fish', 'multiplier': 25.0},
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -173,6 +173,7 @@ class _HungryCatAdminPanelState extends State<HungryCatAdminPanel> {
           _TestToolsSection(
             config: cfg,
             svc: _svc,
+            foods: _foods,
             onRefresh: _load,
             snack: _snack,
           ),
@@ -569,12 +570,14 @@ class _TestToolsSection extends StatefulWidget {
   const _TestToolsSection({
     required this.config,
     required this.svc,
+    required this.foods,
     required this.onRefresh,
     required this.snack,
   });
 
   final HungryCatGameConfig config;
   final HungryCatAdminService svc;
+  final List<Map<String, dynamic>> foods;
   final VoidCallback onRefresh;
   final void Function(String, {bool isError}) snack;
 
@@ -700,11 +703,12 @@ class _TestToolsSectionState extends State<_TestToolsSection> {
 
   String get _outcome {
     if (_selectedOutcome == null) return '—';
-    final f = _kFoods.firstWhere(
-      (e) => e.id == _selectedOutcome,
-      orElse: () => (id: '', icon: '', name: _selectedOutcome!, multiplier: 0),
+    final foods = widget.foods.isNotEmpty ? widget.foods : _kFoodsFallback;
+    final f = foods.firstWhere(
+      (e) => (e['food_id'] ?? e['id']) == _selectedOutcome,
+      orElse: () => {'food_id': '', 'icon': '', 'name': _selectedOutcome!, 'multiplier': 0},
     );
-    return '${f.icon}  ${f.name} ×${f.multiplier}';
+    return '${f['icon']}  ${f['name']} ×${f['multiplier']}';
   }
 
   Future<void> _clearForced() async {
@@ -864,18 +868,20 @@ class _TestToolsSectionState extends State<_TestToolsSection> {
                 underline: const SizedBox.shrink(),
                 hint: const Text('Select outcome...',
                     style: TextStyle(color: _kMuted)),
-                items: _kFoods.map((f) {
+                items: (widget.foods.isNotEmpty ? widget.foods : _kFoodsFallback).map((f) {
+                  final id   = (f['food_id'] ?? f['id'] ?? '') as String;
+                  final icon = (f['icon'] ?? '') as String;
+                  final name = (f['name'] ?? id) as String;
+                  final mult = f['multiplier'];
                   return DropdownMenuItem<String>(
-                    value: f.id,
+                    value: id,
                     child: Row(
                       children: [
-                        Text(f.icon,
-                            style: const TextStyle(fontSize: 18)),
+                        Text(icon, style: const TextStyle(fontSize: 18)),
                         const SizedBox(width: 10),
-                        Text(f.name,
-                            style: const TextStyle(color: _kTxt)),
+                        Text(name, style: const TextStyle(color: _kTxt)),
                         const Spacer(),
-                        Text('×${f.multiplier}',
+                        Text('×$mult',
                             style: const TextStyle(
                                 color: _kGold, fontSize: 12)),
                       ],

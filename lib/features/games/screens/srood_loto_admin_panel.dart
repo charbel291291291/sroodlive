@@ -100,7 +100,7 @@ class _SroodLotoAdminPanelState extends State<SroodLotoAdminPanel> {
         _match5               = s.match5Prize;
         _match6               = s.match6Prize;
         _progressiveJackpot   = s.progressiveJackpotEnabled;
-        _jackpotPct           = s.jackpotPoolCoins.toDouble();
+        _jackpotPct           = s.jackpotContributionPct;
         _currentDraw          = data.draw != null ? {
           'id':             data.draw!.id,
           'draw_number':    data.draw!.drawNumber,

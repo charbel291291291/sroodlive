@@ -1,5 +1,4 @@
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
@@ -707,17 +706,7 @@ class AdminService {
     int days = 30,
     String? title,
   }) async {
-    // Use centralized grant_vip RPC (falls back to admin_grant_vip if unavailable)
     try {
-      await SupabaseService.requiredClient.rpc(
-        'grant_vip',
-        params: {
-          'p_user_id': userId,
-          'p_vip_level': vipLevel,
-          'p_duration_days': days,
-        },
-      );
-    } catch (_) {
       await SupabaseService.requiredClient.rpc(
         'admin_grant_vip',
         params: {
@@ -727,6 +716,9 @@ class AdminService {
           'p_title': title,
         },
       );
+    } catch (e) {
+      debugPrint('[AdminService] grantVip error: $e');
+      rethrow;
     }
   }
 
@@ -936,7 +928,11 @@ class AdminService {
     required String contentType,
   }) async {
     final client = SupabaseService.requiredClient;
-    final path = 'banners/${DateTime.now().millisecondsSinceEpoch}_$filename';
+    // Strip directory components and allow only safe characters.
+    final baseName = filename.split(RegExp(r'[/\\]')).last;
+    final safe = baseName.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+    final safeName = safe.isEmpty ? 'banner.jpg' : safe;
+    final path = 'banners/${DateTime.now().millisecondsSinceEpoch}_$safeName';
     await client.storage
         .from('admin-assets')
         .uploadBinary(
