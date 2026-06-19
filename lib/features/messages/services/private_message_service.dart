@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../../../core/supabase/supabase_service.dart';
 import '../../profile/services/follow_service.dart';
 import '../models/private_conversation.dart';
@@ -154,6 +156,12 @@ class PrivateMessageService {
         .order('updated_at', ascending: false);
 
     final rows = data as List<dynamic>;
+
+    final convIds = rows
+        .map((item) => (item as Map<String, dynamic>)['id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toList();
+
     final otherIds = rows
         .map((item) {
           final row = item as Map<String, dynamic>;
@@ -194,30 +202,133 @@ class PrivateMessageService {
       if (cid.isNotEmpty) unreadMap[cid] = (unreadMap[cid] ?? 0) + 1;
     }
 
-    return rows.map((item) {
-      final row = item as Map<String, dynamic>;
-      final one = row['user_one_id']?.toString() ?? '';
-      final two = row['user_two_id']?.toString() ?? '';
-      final otherId = one == user.id ? two : one;
-      final profile = profiles[otherId];
-      final nickname = _safeDisplayName(profile);
-      final convId = row['id']?.toString() ?? '';
+    // Load per-user conversation states (pin / archive / delete).
+    final stateMap = <String, Map<String, dynamic>>{};
+    if (convIds.isNotEmpty) {
+      try {
+        final stateData = await client
+            .from('private_conversation_states')
+            .select()
+            .eq('user_id', user.id)
+            .inFilter('conversation_id', convIds);
+        for (final item in stateData as List<dynamic>) {
+          final s = item as Map<String, dynamic>;
+          stateMap[s['conversation_id'].toString()] = s;
+        }
+      } catch (e) {
+        debugPrint('[InboxState] states not available: $e');
+      }
+    }
 
-      return PrivateConversationPreview(
-        conversationId: convId,
-        otherUserId: otherId,
-        otherNickname: nickname,
-        otherAvatarUrl: profile?['avatar_url']?.toString(),
-        otherFrameId: profile?['selected_avatar_frame_key']?.toString(),
-        otherVipLevel: _effectiveVipLevel(profile),
-        lastMessage: row['last_message']?.toString(),
-        lastMessageAt: DateTime.tryParse(
-          row['last_message_at']?.toString() ?? '',
-        ),
-        unreadCount: unreadMap[convId] ?? 0,
-      );
-    }).toList();
+    // Auto-unarchive conversations that received new messages while archived.
+    final toUnarchive = <String>[];
+    for (final entry in stateMap.entries) {
+      final archived = entry.value['is_archived'] == true;
+      final unread = (unreadMap[entry.key] ?? 0) > 0;
+      if (archived && unread) toUnarchive.add(entry.key);
+    }
+    for (final convId in toUnarchive) {
+      stateMap[convId]!['is_archived'] = false;
+      _upsertState(convId, {'is_archived': false, 'archived_at': null})
+          .catchError((e) => debugPrint('[InboxState] unarchive error: $e'));
+    }
+
+    final previews = rows
+        .map((item) {
+          final row = item as Map<String, dynamic>;
+          final one = row['user_one_id']?.toString() ?? '';
+          final two = row['user_two_id']?.toString() ?? '';
+          final otherId = one == user.id ? two : one;
+          final profile = profiles[otherId];
+          final nickname = _safeDisplayName(profile);
+          final convId = row['id']?.toString() ?? '';
+          final state = stateMap[convId];
+
+          // Hide deleted or archived conversations.
+          if (state?['is_deleted'] == true) return null;
+          if (state?['is_archived'] == true) return null;
+
+          return PrivateConversationPreview(
+            conversationId: convId,
+            otherUserId: otherId,
+            otherNickname: nickname,
+            otherAvatarUrl: profile?['avatar_url']?.toString(),
+            otherFrameId: profile?['selected_avatar_frame_key']?.toString(),
+            otherVipLevel: _effectiveVipLevel(profile),
+            lastMessage: row['last_message']?.toString(),
+            lastMessageAt: DateTime.tryParse(
+              row['last_message_at']?.toString() ?? '',
+            ),
+            unreadCount: unreadMap[convId] ?? 0,
+            isPinned: state?['is_pinned'] == true,
+          );
+        })
+        .whereType<PrivateConversationPreview>()
+        .toList();
+
+    // Pinned conversations float to the top; order within each group is
+    // preserved (already sorted by updated_at desc from the server).
+    previews.sort((a, b) {
+      if (a.isPinned == b.isPinned) return 0;
+      return a.isPinned ? -1 : 1;
+    });
+
+    return previews;
   }
+
+  // ---------------------------------------------------------------------------
+  // Per-user conversation state helpers
+  // ---------------------------------------------------------------------------
+
+  Future<void> _upsertState(
+    String conversationId,
+    Map<String, dynamic> fields,
+  ) async {
+    final client = SupabaseService.requiredClient;
+    final uid = client.auth.currentUser?.id;
+    if (uid == null) throw StateError('Not authenticated');
+
+    await client.from('private_conversation_states').upsert(
+      {
+        'conversation_id': conversationId,
+        'user_id': uid,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+        ...fields,
+      },
+      onConflict: 'conversation_id,user_id',
+    );
+  }
+
+  Future<void> pinConversation(String conversationId) => _upsertState(
+        conversationId,
+        {
+          'is_pinned': true,
+          'pinned_at': DateTime.now().toUtc().toIso8601String(),
+        },
+      );
+
+  Future<void> unpinConversation(String conversationId) => _upsertState(
+        conversationId,
+        {'is_pinned': false, 'pinned_at': null},
+      );
+
+  Future<void> archiveConversation(String conversationId) => _upsertState(
+        conversationId,
+        {
+          'is_archived': true,
+          'archived_at': DateTime.now().toUtc().toIso8601String(),
+        },
+      );
+
+  /// Hides the conversation only for the calling user; the other participant
+  /// is unaffected.
+  Future<void> deleteConversationForMe(String conversationId) => _upsertState(
+        conversationId,
+        {
+          'is_deleted': true,
+          'deleted_at': DateTime.now().toUtc().toIso8601String(),
+        },
+      );
 
   /// Mark all unread messages in [conversationId] as read for the current user.
   Future<void> markConversationRead(String conversationId) async {

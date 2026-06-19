@@ -9,6 +9,7 @@ class PrivateConversationPreview {
     this.lastMessage,
     this.lastMessageAt,
     this.unreadCount = 0,
+    this.isPinned = false,
   });
 
   final String conversationId;
@@ -22,5 +23,6 @@ class PrivateConversationPreview {
   final String? lastMessage;
   final DateTime? lastMessageAt;
   final int unreadCount;
+  final bool isPinned;
 }
 
