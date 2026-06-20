@@ -358,7 +358,8 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
     // ── Wired to existing data (read-only) ──────────────────────────────────
     final level = widget.currentVipLevel.clamp(0, 9);
     final activeLevel = level <= 0 ? 1 : level;
-    final nextLevel = (activeLevel + 1).clamp(1, 9);
+    final isMax = level >= 9;
+    final nextLevel = (level + 1).clamp(1, 9);
 
     // Real privilege counts from VipPrivileges (never hardcoded).
     final unlocked = VipPrivileges.unlockedFor(level).length;
@@ -374,11 +375,14 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
     final progress =
         monthlyTarget > 0 ? (monthlyExp / monthlyTarget).clamp(0.0, 1.0) : 0.0;
 
-    final reqText =
-        '${_v2Fmt(reqExp)} recharge EXP to unlock VIP $nextLevel';
+    // Max level (VIP 9) never shows an "unlock next" requirement.
+    final reqText = isMax
+        ? 'Max VIP level reached'
+        : '${_v2Fmt(reqExp)} recharge EXP to unlock VIP $nextLevel';
     final monthText = '${_v2Fmt(monthlyExp)} / ${_v2Fmt(monthlyTarget)} EXP';
-    final awayText =
-        '${_v2Fmt(away)} EXP away from VIP $nextLevel perks';
+    final awayText = isMax
+        ? 'Max VIP unlocked - maintain your monthly recharge'
+        : '${_v2Fmt(away)} EXP away from VIP $nextLevel perks';
 
     return RefreshIndicator(
       color: _kGold,
@@ -390,7 +394,7 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
           const SizedBox(height: 4),
           _Vip2Crest(level: activeLevel),
           const SizedBox(height: 18),
-          _Vip2Rail(activeLevel: activeLevel),
+          _Vip2Rail(currentLevel: level),
           const SizedBox(height: 18),
           Center(child: _Vip2Pill(text: reqText)),
           const SizedBox(height: 18),
@@ -403,7 +407,7 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
           const SizedBox(height: 22),
           _Vip2SectionDivider(label: 'Privileges', counter: '$unlocked / $total'),
           const SizedBox(height: 14),
-          const _Vip2PerkGrid(),
+          _Vip2PerkGrid(currentLevel: level),
           if (!_adminLoading &&
               (_adminRole.hasPermission(kPermVipGrant) ||
                   _adminRole.isOSuperAdmin ||
@@ -2950,34 +2954,49 @@ class _Vip2Crest extends StatelessWidget {
 enum _Vip2NodeState { owned, active, locked }
 
 class _Vip2Rail extends StatelessWidget {
-  const _Vip2Rail({required this.activeLevel});
-  final int activeLevel;
+  const _Vip2Rail({required this.currentLevel});
+  final int currentLevel;
+
+  _Vip2NodeState _stateFor(int level) {
+    if (currentLevel > 0 && level < currentLevel) return _Vip2NodeState.owned;
+    if (level == currentLevel) return _Vip2NodeState.active;
+    return _Vip2NodeState.locked;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final owned = (activeLevel - 1).clamp(0, 9);
-    final locked = (activeLevel + 1).clamp(1, 9);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _node(level: owned, state: _Vip2NodeState.owned),
-        _connector(filled: true),
-        _node(level: activeLevel, state: _Vip2NodeState.active),
-        _connector(filled: false),
-        _node(level: locked, state: _Vip2NodeState.locked),
-      ],
+    // Full VIP 1..9 path, horizontally scrollable so VIP 9 (max) never has to
+    // fake a locked duplicate "next" node. Each level's state derives from
+    // currentLevel: < = owned, == = active, > = locked. currentLevel 0 => all
+    // locked (no fake active node).
+    return SizedBox(
+      height: 86,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        itemCount: 17, // 9 nodes + 8 interleaved connectors
+        itemBuilder: (_, i) {
+          if (i.isOdd) {
+            // Connector after node level (i ~/ 2)+1; gold once the node to its
+            // right (level (i ~/ 2)+2) is owned or active.
+            final rightLevel = (i ~/ 2) + 2;
+            return _connector(filled: rightLevel <= currentLevel);
+          }
+          final level = (i ~/ 2) + 1;
+          return _node(level: level, state: _stateFor(level));
+        },
+      ),
     );
   }
 
-  Widget _connector({required bool filled}) => Expanded(
-    child: Padding(
-      padding: const EdgeInsets.only(top: 26),
-      child: Container(
-        height: 3,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(99),
-          color: filled ? _v2GoldDim : const Color(0x33E8C25A),
-        ),
+  Widget _connector({required bool filled}) => Padding(
+    padding: const EdgeInsets.only(top: 25),
+    child: Container(
+      width: 16,
+      height: 3,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(99),
+        color: filled ? _v2GoldDim : const Color(0x33E8C25A),
       ),
     ),
   );
@@ -3295,21 +3314,24 @@ class _Vip2SectionDivider extends StatelessWidget {
 }
 
 class _Vip2PerkGrid extends StatelessWidget {
-  const _Vip2PerkGrid();
+  const _Vip2PerkGrid({required this.currentLevel});
+  final int currentLevel;
 
-  // Phase V1: static demo perks + static unlocked flags (matches V4 mockup).
-  // Phase V4 will bind these to VipPrivileges.unlockedFor / lockedFor.
-  static const List<(IconData, String, bool)> _perks = [
-    (Icons.workspace_premium_rounded, 'Exclusive Badge', true),
-    (Icons.crop_portrait_rounded, 'Avatar Frame', true),
-    (Icons.chat_bubble_rounded, 'Chat Bubble', true),
-    (Icons.auto_awesome_rounded, 'Entrance Effect', true),
-    (Icons.graphic_eq_rounded, 'Mic Glow', false),
-    (Icons.image_rounded, 'Profile Background', false),
-    (Icons.text_fields_rounded, 'Name Color', false),
-    (Icons.star_rounded, 'Room Highlight', false),
-    (Icons.directions_car_rounded, 'VIP Ride', false),
-    (Icons.card_giftcard_rounded, 'Exclusive Gifts', false),
+  // Phase V1: static demo perks with a representative min VIP level each.
+  // Unlocked state is derived from currentLevel (>= minLevel => unlocked), so
+  // VIP 9 shows every perk unlocked and VIP 0 shows them all locked. All cards
+  // stay visible regardless of state.
+  static const List<(IconData, String, int)> _perks = [
+    (Icons.workspace_premium_rounded, 'Exclusive Badge', 1),
+    (Icons.crop_portrait_rounded, 'Avatar Frame', 1),
+    (Icons.chat_bubble_rounded, 'Chat Bubble', 1),
+    (Icons.auto_awesome_rounded, 'Entrance Effect', 1),
+    (Icons.graphic_eq_rounded, 'Mic Glow', 1),
+    (Icons.image_rounded, 'Profile Background', 4),
+    (Icons.star_rounded, 'Room Highlight', 5),
+    (Icons.text_fields_rounded, 'Name Color', 6),
+    (Icons.directions_car_rounded, 'VIP Ride', 7),
+    (Icons.card_giftcard_rounded, 'Exclusive Gifts', 8),
   ];
 
   @override
@@ -3322,7 +3344,11 @@ class _Vip2PerkGrid extends StatelessWidget {
     childAspectRatio: 1.25,
     children: [
       for (final p in _perks)
-        _Vip2PerkCard(icon: p.$1, label: p.$2, unlocked: p.$3),
+        _Vip2PerkCard(
+          icon: p.$1,
+          label: p.$2,
+          unlocked: currentLevel >= p.$3,
+        ),
     ],
   );
 }
