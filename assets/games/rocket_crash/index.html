@@ -10,15 +10,18 @@ html,body{width:100%;height:100%;overflow:hidden;background:#020818;font-family:
 
 /* ── root layout ── */
 #root{display:flex;flex-direction:column;height:100%;max-height:100dvh}
-#topbar{flex:0 0 auto;padding:6px 10px 0}
+#topbar{flex:0 0 auto;padding:calc(env(safe-area-inset-top,0px) + 10px) 10px 0}
 #game-area{flex:1 1 0;display:flex;min-height:0;overflow:hidden;position:relative}
-#bottom{flex:0 0 auto;padding:4px 6px env(safe-area-inset-bottom,6px);background:linear-gradient(0deg,#020818 85%,transparent)}
+#bottom{flex:0 0 auto;padding:6px 6px calc(env(safe-area-inset-bottom,0px) + 12px);background:linear-gradient(0deg,#020818 85%,transparent)}
 
 /* ── top bar ── */
 #title-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
 #back-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.09);border:none;color:#fff;font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1}
 #game-title{font-size:17px;font-weight:900;letter-spacing:1px;background:linear-gradient(90deg,#00d4ff,#7b2fff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-#round-lbl{margin-left:auto;font-size:10px;color:#5ec8ff;font-weight:700}
+#round-lbl{margin-left:auto;font-size:10px;color:#5ec8ff;font-weight:900;letter-spacing:.3px;background:rgba(6,20,44,.82);border:1px solid rgba(94,200,255,.28);border-radius:999px;padding:5px 8px;white-space:nowrap;box-shadow:0 0 14px rgba(0,212,255,.12)}
+#round-lbl.waiting{color:#ffd97a;border-color:rgba(255,217,122,.42);background:rgba(42,31,5,.72)}
+#round-lbl.flying{color:#5ee8ff;border-color:rgba(0,212,255,.45);background:rgba(0,42,58,.62)}
+#round-lbl.crashed{color:#ff8b8b;border-color:rgba(255,70,70,.48);background:rgba(55,6,14,.68)}
 #sound-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.07);border:none;color:#fff;font-size:14px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 
 /* balance strip */
@@ -27,7 +30,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#020818;font-family:
 #bal-lbl{font-size:10px;color:rgba(255,255,255,.38);font-weight:700}
 
 /* history */
-#hist-row{display:flex;gap:4px;overflow-x:auto;padding-bottom:3px;scrollbar-width:none;min-height:20px}
+#hist-row{display:flex;gap:4px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;min-height:20px}
 #hist-row::-webkit-scrollbar{display:none}
 .hchip{flex-shrink:0;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:800;border:1px solid transparent;cursor:default}
 .hlow {background:rgba(220,50,50,.2);border-color:#dc3232;color:#ff7070}
@@ -36,13 +39,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:#020818;font-family:
 .hmega{background:rgba(130,0,255,.2);border-color:#8200ff;color:#c87aff}
 
 /* ── left feed ── */
-#feed{width:36%;max-width:138px;overflow-y:auto;padding:4px 3px 4px 4px;scrollbar-width:none;display:flex;flex-direction:column;gap:3px}
+#feed{width:29%;max-width:106px;max-height:178px;overflow:hidden;padding:4px 2px 4px 4px;scrollbar-width:none;display:flex;flex-direction:column;gap:3px}
 #feed::-webkit-scrollbar{display:none}
-.fi{display:flex;align-items:center;gap:4px;background:rgba(255,255,255,.04);border-radius:9px;padding:4px 5px;flex-shrink:0;border:1px solid rgba(255,255,255,.05)}
-.fav{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;flex-shrink:0}
+.fi{display:flex;align-items:center;gap:4px;background:rgba(255,255,255,.035);border-radius:8px;padding:3px 4px;flex-shrink:0;border:1px solid rgba(255,255,255,.05);min-height:27px}
+.fav{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;flex-shrink:0}
 .finf{flex:1;min-width:0}
-.fbet{font-size:9px;color:#7a9ab8;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fwin{font-size:10px;font-weight:900;white-space:nowrap}
+.fbet{font-size:8px;color:#7a9ab8;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fwin{font-size:9px;font-weight:900;white-space:nowrap}
 .fwin.won{color:#5affb0}.fwin.lost{color:#ff5555}.fwin.live{color:#ffd97a}
 
 /* ── canvas area ── */
@@ -55,7 +58,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#020818;font-family:
 #mult-val.flying {color:#00d4ff;text-shadow:0 0 36px #00d4ff80}
 #mult-val.crashed{color:#ff3a3a;text-shadow:0 0 36px #ff3a3a80}
 #mult-val.waiting{color:#ffd97a;text-shadow:0 0 24px #ffd97a60}
-#mult-lbl{font-size:11px;color:rgba(255,255,255,.5);font-weight:700;letter-spacing:2px;margin-top:2px}
+#mult-lbl{font-size:9px;color:rgba(255,255,255,.38);font-weight:700;letter-spacing:1.4px;margin-top:3px}
 
 /* phase text */
 #phase-wrap{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;z-index:11;min-width:200px}
@@ -77,7 +80,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#020818;font-family:
 #win-toast .wt-amt{font-size:13px;color:rgba(255,255,255,.7);margin-top:1px}
 
 /* error toast */
-#err-toast{position:absolute;left:50%;bottom:14%;transform:translateX(-50%);background:rgba(180,0,0,.7);border:1px solid #ff4444;border-radius:10px;padding:7px 16px;font-size:12px;font-weight:800;color:#ffaaaa;z-index:25;opacity:0;transition:opacity .2s;white-space:nowrap;pointer-events:none}
+#err-toast{position:absolute;left:50%;bottom:14%;transform:translateX(-50%);background:rgba(65,10,18,.88);border:1px solid #ff5555;border-radius:10px;padding:7px 14px;font-size:12px;font-weight:800;color:#ffc0c0;z-index:25;opacity:0;transition:opacity .2s;white-space:nowrap;pointer-events:none;box-shadow:0 8px 26px rgba(0,0,0,.35)}
 #err-toast.show{opacity:1}
 
 /* ── panels ── */
@@ -109,6 +112,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#020818;font-family:
 .auto-inp{flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.13);border-radius:6px;padding:3px 5px;color:#fff;font-size:11px;font-weight:800;text-align:center;width:0;min-width:0}
 
 /* action button */
+.slot-label{font-size:10px;font-weight:900;color:rgba(255,255,255,.54);letter-spacing:.35px;text-align:center;min-height:12px}
+.panel.p-armed .slot-label{color:#ffd97a}
+.panel.p-cashed .slot-label{color:#5affb0}
+.panel.p-lost .slot-label{color:#ff9090}
 .abtn{width:100%;padding:10px 4px;border-radius:10px;font-size:13px;font-weight:900;border:none;cursor:pointer;letter-spacing:.4px;transition:background .2s,box-shadow .2s;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .abtn:active:not(:disabled){filter:brightness(.88)}
 .abtn.bet    {background:linear-gradient(135deg,#1a6fff,#0044cc);color:#fff;box-shadow:0 4px 14px rgba(0,100,255,.35)}
@@ -124,7 +131,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:#020818;font-family:
 .panel.fly .amt-row,
 .panel.fly .chips,
 .panel.fly .auto-row{display:none!important}
-.panel.fly .abtn{padding:18px 4px;font-size:16px;border-radius:14px;margin-top:0}
+.panel.fly .slot-label{display:block;font-size:11px;margin-bottom:2px}
+.panel.fly .abtn{min-height:58px;padding:9px 4px;font-size:15px;border-radius:14px;margin-top:0;line-height:1.12}
+.abtn .btn-kicker{display:block;font-size:9px;font-weight:900;letter-spacing:.5px;opacity:.72;margin-bottom:3px}
+.abtn .btn-main{display:block;font-size:15px;font-weight:950}
+.abtn .btn-sub{display:block;font-size:10px;font-weight:800;opacity:.78;margin-top:3px}
 @keyframes pg{from{box-shadow:0 4px 12px rgba(0,200,100,.3)}to{box-shadow:0 4px 24px rgba(0,255,120,.65)}}
 </style>
 </head>
@@ -201,6 +212,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#020818;font-family:
           <input class="auto-inp" id="at0" type="number" min="1.01" max="100" step="0.01" value="2.00">
           <span class="auto-lbl">x</span>
         </div>
+        <div class="slot-label" id="slot-label0">Bet 1 • 100</div>
         <button class="abtn bet" id="btn0" onclick="slotTap(0)">BET 1</button>
       </div>
       <!-- SLOT 1 -->
@@ -226,6 +238,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#020818;font-family:
           <input class="auto-inp" id="at1" type="number" min="1.01" max="100" step="0.01" value="2.00">
           <span class="auto-lbl">x</span>
         </div>
+        <div class="slot-label" id="slot-label1">Bet 2 • 500</div>
         <button class="abtn bet" id="btn1" onclick="slotTap(1)">BET 2</button>
       </div>
     </div>
@@ -239,9 +252,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:#020818;font-family:
 // ═══════════════════════════════════════════════════════════════════════════
 const WAIT_SECS      = 8;
 const CRASH_DELAY_MS = 4000;
+const MAX_FEED_ITEMS = 6;
 const AMT_STEPS      = [100,200,500,1000,2000,5000,10000,20000,50000];
 const FAKE_NAMES     = ['Ali','Sara','Omar','Nora','Fahad','Layla','Khalid','Maha','Yusuf','Rana'];
 const AVT_COLORS     = ['#7b2fff','#ff5caa','#1a6fff','#ff8c00','#00c864','#e63946','#00b4d8'];
+const DEBUG          = false; // set true to enable verbose hot-loop logs
 
 // ═══════════════════════════════════════════════════════════════════════════
 // STATE
@@ -260,17 +275,22 @@ const G = {
   hasRealFeed: false,
   // Server sync
   roundId:           null,  // uuid from server
+  serverSynced:      false, // true when Flutter has attached a global round
   serverFlightStartMs: 0,   // epoch ms when flight began (server time)
   clockOffset:         0,   // serverNowMs - Date.now() at last calibration
   bettingEndsAtMs:     0,   // epoch ms for betting deadline
+  serverCrashWaitLogged: false,
   // Timers
   waitTmr:  null,
   waitSecs: WAIT_SECS,
   rafId:    null,
+  fakeFeedTmr: null,   // handle for the fake-player setInterval
+  flightLoopActive: false, // true while a flightStep chain is running
+  rafRunning: false,       // true once the single RAF loop has been started
   // Slots
   slots: [
-    { mode:'manual', amount:100,  state:'idle', betId:null, autoT:2.0, winAmt:0, cashing:false },
-    { mode:'manual', amount:500,  state:'idle', betId:null, autoT:2.0, winAmt:0, cashing:false },
+    { mode:'manual', amount:100,  state:'idle', betId:null, roundId:null, autoT:2.0, winAmt:0, cashing:false },
+    { mode:'manual', amount:500,  state:'idle', betId:null, roundId:null, autoT:2.0, winAmt:0, cashing:false },
   ],
 };
 
@@ -344,9 +364,38 @@ let _shakeEnd = 0;
 let _explodeTs = 0;
 let _flightPath = []; // {x,y} trail points
 
+// ── Cached DOM references (populated after DOMContentLoaded / immediately) ──
+const _DOM = {
+  multVal   : document.getElementById('mult-val'),
+  phaseTxt  : document.getElementById('phase-txt'),
+  phaseSub  : document.getElementById('phase-sub'),
+  cdFill    : document.getElementById('cdown-fill'),
+  roundLbl  : document.getElementById('round-lbl'),
+  balVal    : document.getElementById('bal-val'),
+  histRow   : document.getElementById('hist-row'),
+  feed      : document.getElementById('feed'),
+  winToast  : document.getElementById('win-toast'),
+  wtMult    : document.getElementById('wt-mult'),
+  wtAmt     : document.getElementById('wt-amt'),
+  errToast  : document.getElementById('err-toast'),
+  soundBtn  : document.getElementById('sound-btn'),
+  // Per-slot caches built once renderSlots is first called
+  panel : [document.getElementById('panel0'), document.getElementById('panel1')],
+  btn   : [document.getElementById('btn0'),   document.getElementById('btn1')],
+  amtEl : [document.getElementById('amt0'),   document.getElementById('amt1')],
+  slotLbl:[document.getElementById('slot-label0'), document.getElementById('slot-label1')],
+  autoRow:[document.getElementById('ar0'),    document.getElementById('ar1')],
+  mMan  : [document.getElementById('m0-m'),   document.getElementById('m1-m')],
+  mAuto : [document.getElementById('m0-a'),   document.getElementById('m1-a')],
+};
+
+const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+const STAR_COUNT = isMobile ? 35 : 70;
+const TRAIL_MAX  = isMobile ? 60 : 120;
+
 function initStars() {
   _stars = [];
-  for (let i=0;i<70;i++) _stars.push({x:Math.random(),y:Math.random(),r:Math.random()*1.3+.3,sp:Math.random()*.25+.05});
+  for (let i=0;i<STAR_COUNT;i++) _stars.push({x:Math.random(),y:Math.random(),r:Math.random()*1.3+.3,sp:Math.random()*.25+.05});
 }
 
 function resizeCvs() {
@@ -369,6 +418,14 @@ function rocketPos() {
     y: H * .88 - progress * H * .76,
     progress,
   };
+}
+
+function _startRaf() {
+  if (G.rafRunning) return;
+  G.rafRunning = true;
+  if (DEBUG) console.log('[RocketCrash] startup animation started once');
+  cancelAnimationFrame(G.rafId);
+  G.rafId = requestAnimationFrame(drawFrame);
 }
 
 function drawFrame(ts) {
@@ -428,7 +485,7 @@ function drawFrame(ts) {
     if (G.phase==='flying') {
       if (!_flightPath.length || Math.abs(ry - _flightPath[_flightPath.length-1].y)>3) {
         _flightPath.push({x:rx,y:ry});
-        if (_flightPath.length>120) _flightPath.shift();
+        if (_flightPath.length>TRAIL_MAX) _flightPath.shift();
       }
     }
 
@@ -483,7 +540,8 @@ function drawFrame(ts) {
     }
   }
 }
-requestAnimationFrame(drawFrame);
+// RAF is deferred — started in INIT_GAME handler to avoid heavy animation
+// before the server round arrives.
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CRASH GENERATOR
@@ -514,7 +572,7 @@ function startWaiting() {
   _flightPath = [];
   _explodeTs  = 0;
 
-  document.getElementById('round-lbl').textContent = 'Round #' + G.round;
+  updateRoundChip();
   setMult(1.00,'waiting');
   setPhase('PLACE YOUR BETS', G.waitSecs + 's');
   setCdown(1.0);
@@ -522,7 +580,7 @@ function startWaiting() {
 
   G.slots.forEach(s => {
     if (['won','lost','idle'].includes(s.state)) {
-      s.state='idle'; s.betId=null; s.winAmt=0; s.cashing=false;
+      s.state='idle'; s.betId=null; s.roundId=null; s.winAmt=0; s.cashing=false;
     }
   });
   renderSlots();
@@ -555,21 +613,34 @@ function getCurrentMult() {
 
 // Core flight animation loop (called by startFlight and handleRoundState).
 function startFlightLoop() {
+  // Guard: prevent a second parallel flightStep chain if called again while flying.
+  if (G.flightLoopActive) return;
+  G.flightLoopActive = true;
+
   let lastTickM = G.mult || 1.0;
   const FLY_INTERVAL = 50;
   function flightStep() {
-    if (G.phase !== 'flying') return;
+    if (G.phase !== 'flying') {
+      G.flightLoopActive = false;
+      return;
+    }
     G.mult = getCurrentMult();
     setMult(G.mult, 'flying');
     if (G.mult - lastTickM >= 0.5) { SFX.flightTick(G.mult); lastTickM = G.mult; }
     G.slots.forEach((s,i) => {
       if (s.state==='armed' && s.mode==='auto' && s.betId && !s.cashing && G.mult >= s.autoT) {
-        console.log('[RocketCrash] auto cashout trigger betId=' + s.betId + ' target=' + s.autoT + ' current=' + G.mult.toFixed(2));
+        if (DEBUG) console.log('[RocketCrash] auto cashout trigger betId=' + s.betId + ' target=' + s.autoT + ' current=' + G.mult.toFixed(2));
         doCashout(i);
       }
     });
-    if (G.mult >= G.crashAt) {
+    if (G.serverSynced) {
+      if (!G.serverCrashWaitLogged && DEBUG) {
+        console.log('[RocketCrash] ignoring local crash check because serverSynced=true');
+        G.serverCrashWaitLogged = true;
+      }
+    } else if (G.mult >= G.crashAt) {
       if (G.roundId) postToFlutter('REQUEST_SETTLE_ROUND', {roundId: G.roundId});
+      G.flightLoopActive = false;
       doCrash();
       return;
     }
@@ -579,6 +650,7 @@ function startFlightLoop() {
 }
 
 function _doStartFlight() {
+  G.flightLoopActive = false; // reset so startFlightLoop guard allows entry
   G.phase   = 'flying';
   G.mult    = 1.00;
   G.startTs = performance.now();
@@ -586,14 +658,15 @@ function _doStartFlight() {
   setPhase('', '');
   setCdown(0);
   SFX.launch();
-  G.slots.forEach(s => { if (s.state==='pending') { s.state='idle'; s.betId=null; } });
+  updateRoundChip();
+  G.slots.forEach(s => { if (s.state==='pending') { s.state='idle'; s.betId=null; s.roundId=null; } });
   renderSlots();
   startFlightLoop();
 }
 
 function startFlight() {
   // Reject pending slots that didn't receive BET_ACCEPTED in time
-  G.slots.forEach(s => { if (s.state==='pending') { s.state='idle'; s.betId=null; } });
+  G.slots.forEach(s => { if (s.state==='pending') { s.state='idle'; s.betId=null; s.roundId=null; } });
   renderSlots();
   setPhase('LAUNCHING…', '');
   setCdown(0);
@@ -602,14 +675,18 @@ function startFlight() {
     // Server-driven: ask Flutter to call start_rocket_crash_flight RPC.
     // Flutter responds with SET_ROUND_STATE {phase:'flying'}.
     postToFlutter('REQUEST_START_FLIGHT', {roundId: G.roundId});
-    // Local fallback: if no server response in 3s, start with local crash point.
+    // Local fallback only exists for legacy mode. Server mode must wait for
+    // Flutter/realtime because the backend owns the round result.
     setTimeout(() => {
-      if (G.phase === 'waiting') {
+      if (G.phase === 'waiting' && !G.serverSynced) {
         G.crashAt = genCrash();
         G.serverFlightStartMs = 0;
         _doStartFlight();
       }
     }, 3000);
+  } else if (G.serverSynced) {
+    console.log('[RocketCrash] waiting for server round id before flight');
+    setPhase('SYNCING ROUND', '');
   } else {
     G.crashAt = genCrash();
     G.serverFlightStartMs = 0;
@@ -618,10 +695,15 @@ function startFlight() {
 }
 
 function doCrash() {
+  if (G.serverSynced) {
+    console.log('[RocketCrash] ignoring local crash because serverSynced=true');
+    return;
+  }
   G.phase    = 'crashed';
   G.mult     = G.crashAt;
   _explodeTs = performance.now();
   SFX.crash();
+  updateRoundChip();
   console.log('[RocketCrash] crash result roundId=' + (G.roundId || 'local') + ' crashPoint=' + G.crashAt.toFixed(2));
   setMult(G.crashAt, 'crashed');
   setPhase('CRASHED @ ' + G.crashAt.toFixed(2) + 'x', '');
@@ -634,7 +716,7 @@ function doCrash() {
         addFeedLost(i, s.amount);
         // Global round: server settle handles marking bets lost.
         // Legacy local mode only:
-        if (!G.roundId) {
+        if (!G.serverSynced) {
           postToFlutter('REQUEST_BET_LOST', { slotIndex:i, betId:s.betId, crashMultiplier:G.crashAt });
         }
       }
@@ -645,9 +727,10 @@ function doCrash() {
 
   if (G.roundId) {
     // Flutter will send SET_ROUND_STATE {phase:'betting'} after settling.
-    // Safety fallback: if no new round arrives in CRASH_DELAY_MS + 5s, revert to local.
+    // Safety fallback for legacy local mode only. Server mode must wait for
+    // Flutter/realtime so the client never creates an authoritative round.
     setTimeout(() => {
-      if (G.phase === 'crashed') {
+      if (G.phase === 'crashed' && !G.serverSynced) {
         G.roundId = null;
         startWaiting();
       }
@@ -658,8 +741,12 @@ function doCrash() {
 }
 
 function addHistory(v) {
+  if (G.serverSynced) {
+    if (DEBUG) console.log('[RocketCrash] skipped local addHistory in serverSynced mode');
+    return;
+  }
   G.history.unshift(v);
-  if (G.history.length > 14) G.history.pop();
+  if (G.history.length > 20) G.history.length = 20;
   renderHistory();
 }
 
@@ -689,16 +776,23 @@ function armBet(i) {
   }
   s.state  = 'pending';
   s.betId  = null;
+  s.roundId = null;
   s.cashing= false;
   renderSlots();
   SFX.arm();
   if (G.roundId) {
+    console.log('[RocketCrash] sending REQUEST_PLACE_BET slot=' + i + ' amount=' + s.amount + ' roundId=' + G.roundId + ' auto=' + (s.mode === 'auto' ? s.autoT : 'none'));
     postToFlutter('REQUEST_PLACE_BET', {
       slotIndex: i,
       amount: s.amount,
       roundId: G.roundId,
       autoCashoutMultiplier: s.mode === 'auto' ? s.autoT : null,
     });
+  } else if (G.serverSynced) {
+    s.state = 'idle';
+    renderSlots();
+    showErr('Round not ready');
+    console.log('[RocketCrash] blocked bet: server round id missing');
   } else {
     postToFlutter('REQUEST_BET_DEBIT', { slotIndex:i, amount:s.amount });
   }
@@ -713,7 +807,7 @@ function cancelBet(i) {
     renderSlots();
     postToFlutter('REQUEST_BET_REFUND', { slotIndex:i, betId:s.betId });
   } else {
-    s.state = 'idle'; s.betId = null;
+    s.state = 'idle'; s.betId = null; s.roundId = null;
     renderSlots();
   }
 }
@@ -725,6 +819,7 @@ function doCashout(i) {
   if (s.state !== 'armed' || !s.betId || s.cashing) return;
   s.cashing = true;
   renderSlots();
+  console.log('[RocketCrash] sending REQUEST_CASHOUT_CREDIT slot=' + i + ' betId=' + s.betId + ' mult=' + G.mult.toFixed(2));
   postToFlutter('REQUEST_CASHOUT_CREDIT', { slotIndex:i, betId:s.betId, multiplier:G.mult });
 }
 
@@ -736,25 +831,35 @@ function doCashoutManual(i) {
 // ═══════════════════════════════════════════════════════════════════════════
 // FLUTTER → WEB MESSAGE HANDLER
 // ═══════════════════════════════════════════════════════════════════════════
+let lastAppliedRoundKey = '';
+
 // ─── handleRoundState: sync JS phase to a server round snapshot ─────────────
 function handleRoundState(round) {
   if (!round) return;
   if (round.serverNowMs) G.clockOffset = round.serverNowMs - Date.now();
   G.roundId = round.roundId || G.roundId;
+  G.serverSynced = G.serverSynced || !!G.roundId || round.serverSynced === true;
 
   const phase = round.phase || round.status || '';
+  const roundKey = `${G.roundId}:${phase}:${round.roundNumber || 0}`;
+  if (roundKey === lastAppliedRoundKey) {
+    if (DEBUG) console.log('[RocketCrash] skip duplicate round state key=' + roundKey);
+    return;
+  }
+  lastAppliedRoundKey = roundKey;
+  if (DEBUG) console.log('[RocketCrash] apply round state key=' + roundKey);
 
   if (phase === 'betting') {
     G.mult    = 1.00;
     G.crashAt = 2.00;
     G.serverFlightStartMs = 0;
+    G.serverCrashWaitLogged = false;
     _flightPath = [];
     _explodeTs  = 0;
 
     const rn = round.roundNumber || (G.round + 1);
     if (rn !== G.round) {
       G.round = rn;
-      document.getElementById('round-lbl').textContent = 'Round #' + G.round;
     }
 
     clearInterval(G.waitTmr);
@@ -764,7 +869,7 @@ function handleRoundState(round) {
     // Reset resolved slots; preserve armed slots that still have betIds
     G.slots.forEach(s => {
       if (['won','lost','idle'].includes(s.state)) {
-        s.state='idle'; s.betId=null; s.winAmt=0; s.cashing=false;
+        s.state='idle'; s.betId=null; s.roundId=null; s.winAmt=0; s.cashing=false;
       }
     });
 
@@ -774,6 +879,7 @@ function handleRoundState(round) {
         if (i < G.slots.length && bet && bet.betId) {
           G.slots[i].state = 'armed';
           G.slots[i].betId  = bet.betId;
+          G.slots[i].roundId = G.roundId;
           G.slots[i].amount = bet.amount || G.slots[i].amount;
           G.slots[i].mode   = bet.autoCashout ? 'auto' : 'manual';
           G.slots[i].autoT  = bet.autoCashout || 2.0;
@@ -782,6 +888,7 @@ function handleRoundState(round) {
     }
 
     G.phase = 'waiting';
+    updateRoundChip();
     const nowMs    = Date.now() + G.clockOffset;
     const msLeft   = (round.bettingEndsAtMs || 0) - nowMs;
     G.waitSecs     = Math.max(0, Math.ceil(msLeft / 1000));
@@ -793,7 +900,12 @@ function handleRoundState(round) {
     G.waitTmr = setInterval(waitTick, 1000);
 
   } else if (phase === 'flying') {
-    const cm  = round.crashMultiplier || 2.00;
+    const hasCrashMultiplier = round.crashMultiplier !== null &&
+      round.crashMultiplier !== undefined &&
+      round.crashMultiplier !== '';
+    const cm = hasCrashMultiplier && Number.isFinite(Number(round.crashMultiplier))
+      ? Number(round.crashMultiplier)
+      : (G.serverSynced ? Infinity : 2.00);
     const fsMs = round.flightStartsAtMs || (Date.now() + G.clockOffset);
     G.crashAt = cm;
     G.serverFlightStartMs = fsMs;
@@ -806,6 +918,7 @@ function handleRoundState(round) {
           if (i < G.slots.length && bet && bet.betId) {
             G.slots[i].state = 'armed';
             G.slots[i].betId  = bet.betId;
+            G.slots[i].roundId = G.roundId;
             G.slots[i].amount = bet.amount || G.slots[i].amount;
             G.slots[i].mode   = bet.autoCashout ? 'auto' : 'manual';
             G.slots[i].autoT  = bet.autoCashout || 2.0;
@@ -815,12 +928,13 @@ function handleRoundState(round) {
 
       // Check if already past crash point (joined after crash)
       const m = getCurrentMult();
-      if (m >= G.crashAt) {
+      if (!G.serverSynced && Number.isFinite(G.crashAt) && m >= G.crashAt) {
         G.crashAt = m;
         doCrash();
         return;
       }
 
+      G.flightLoopActive = false; // reset so startFlightLoop guard allows entry
       G.phase   = 'flying';
       G.mult    = getCurrentMult();
       G.startTs = performance.now(); // fallback if serverFlightStartMs lost
@@ -829,17 +943,22 @@ function handleRoundState(round) {
       setPhase('', '');
       setCdown(0);
       SFX.launch();
+      updateRoundChip();
       renderSlots();
       startFlightLoop();
     }
 
   } else if (phase === 'crashed') {
     if (G.phase !== 'crashed') {
-      G.crashAt  = round.crashMultiplier || G.crashAt;
+      const hasCrashMultiplier = round.crashMultiplier !== null &&
+        round.crashMultiplier !== undefined &&
+        round.crashMultiplier !== '';
+      G.crashAt  = hasCrashMultiplier && Number.isFinite(Number(round.crashMultiplier)) ? Number(round.crashMultiplier) : G.crashAt;
       G.mult     = G.crashAt;
       G.phase    = 'crashed';
       _explodeTs = performance.now();
       SFX.crash();
+      updateRoundChip();
       setMult(G.crashAt, 'crashed');
       setPhase('CRASHED @ ' + G.crashAt.toFixed(2) + 'x', '');
       G.slots.forEach(s => {
@@ -856,7 +975,7 @@ function handleRoundState(round) {
 function handleBetsUpdate(bets) {
   if (!bets || !bets.length) return;
   G.hasRealFeed = true;
-  G.feedItems = bets.map(b => ({
+  G.feedItems = bets.slice(0, MAX_FEED_ITEMS).map(b => ({
     name    : b.displayName || 'Player',
     color   : b.isOwn ? '#00c864' : AVT_COLORS[Math.abs((b.displayName||'').charCodeAt(0)||0) % AVT_COLORS.length],
     betAmt  : b.betAmount || 0,
@@ -870,9 +989,16 @@ window.onSroodMessage = function(msg) {
   const { type, payload } = msg;
   switch(type) {
     case 'INIT_GAME':
+      if (DEBUG) console.log('[RocketCrash] startup sync begin');
+      _startRaf(); // start the single RAF loop now that server data is arriving
       G.balance = payload.balance || 0;
       G.locale  = payload.locale  || 'en';
       G.soundOn = payload.sound   !== false;
+      G.serverSynced = payload.serverSynced === true || G.serverSynced;
+      if (G.serverSynced) {
+        clearInterval(G.fakeFeedTmr);
+        G.fakeFeedTmr = null;
+      }
       updateSoundBtn();
       updateBal();
       if (payload.error === 'wallet_error') {
@@ -880,8 +1006,9 @@ window.onSroodMessage = function(msg) {
       }
       if (payload.round) {
         // Pre-load history from server
-        if (payload.round.history && payload.round.history.length) {
-          G.history = payload.round.history.map(v => parseFloat(v) || 1.0);
+        if (Array.isArray(payload.round.history)) {
+          G.history = payload.round.history.map(Number).filter(v => v > 0).slice(0, 20);
+          if (DEBUG) console.log('[RocketCrash] INIT_GAME history len=' + G.history.length);
           renderHistory();
         }
         handleRoundState(payload.round);
@@ -895,8 +1022,9 @@ window.onSroodMessage = function(msg) {
       break;
 
     case 'HISTORY_UPDATE':
-      if (payload.history && payload.history.length) {
-        G.history = payload.history.map(v => parseFloat(v) || 1.0);
+      if (Array.isArray(payload.history)) {
+        G.history = payload.history.map(Number).filter(v => v > 0).slice(0, 20);
+        if (DEBUG) console.log('[RocketCrash] HISTORY_UPDATE len=' + G.history.length);
         renderHistory();
       }
       break;
@@ -913,8 +1041,12 @@ window.onSroodMessage = function(msg) {
     case 'BET_ACCEPTED': {
       const i = payload.slotIndex;
       const s = G.slots[i];
+      if (!s) break;
+      console.log('[RocketCrash] received BET_ACCEPTED slot=' + i + ' betId=' + payload.betId + ' roundId=' + (payload.roundId || G.roundId || 'none'));
       s.state = 'armed';
       s.betId = payload.betId;
+      s.roundId = payload.roundId || G.roundId || s.roundId;
+      if (s.roundId) G.roundId = s.roundId;
       if (payload.newBalance != null) G.balance = payload.newBalance;
       updateBal();
       addFeedBet(i, s.amount);
@@ -924,11 +1056,17 @@ window.onSroodMessage = function(msg) {
 
     case 'BET_REJECTED': {
       const i = payload.slotIndex;
-      G.slots[i].state = 'idle';
-      G.slots[i].betId = null;
+      const s = G.slots[i];
+      if (!s) break;
+      console.log('[RocketCrash] received BET_REJECTED slot=' + i + ' code=' + (payload.code || 'unknown'));
+      s.state = 'idle';
+      s.betId = null;
+      s.roundId = null;
       const code = payload.code || '';
-      showErr(code === 'insufficient_coins' ? 'Not enough coins' :
-              code === 'not_authenticated'  ? 'Please sign in' : 'Bet failed');
+      showErr(payload.userMessage ||
+              (code === 'insufficient_coins' ? 'Not enough coins' :
+               code === 'not_authenticated'  ? 'Please sign in' :
+               code === 'server_not_ready'    ? 'Round not ready' : 'Bet failed'));
       renderSlots();
       break;
     }
@@ -937,6 +1075,7 @@ window.onSroodMessage = function(msg) {
       const i = payload.slotIndex;
       G.slots[i].state  = 'idle';
       G.slots[i].betId  = null;
+      G.slots[i].roundId = null;
       G.slots[i].cashing = false;
       if (payload.newBalance != null) G.balance = payload.newBalance;
       updateBal();
@@ -961,6 +1100,7 @@ window.onSroodMessage = function(msg) {
       s.state   = 'won';
       s.winAmt  = win;
       s.betId   = null;
+      s.roundId = null;
       s.cashing = false;
       if (payload.newBalance != null) G.balance = payload.newBalance;
       updateBal();
@@ -978,7 +1118,11 @@ window.onSroodMessage = function(msg) {
       // Revert to armed if still flying so player can retry
       if (G.phase === 'flying' && s.state !== 'lost') s.state = 'armed';
       renderSlots();
-      showErr('Cashout failed – tap again');
+      const code = payload.code || '';
+      showErr(code === 'round_crashed' || code === 'round_already_crashed' ? 'Too late' :
+              code === 'lost' || code === 'bet_lost' ? 'Cashout missed' :
+              code === 'network_error' || code === '' ? 'Cashout failed, try again' :
+              payload.userMessage || 'Cashout failed, try again');
       break;
     }
   }
@@ -988,32 +1132,41 @@ window.onSroodMessage = function(msg) {
 // UI HELPERS
 // ═══════════════════════════════════════════════════════════════════════════
 function setMult(v, cls) {
-  const el = document.getElementById('mult-val');
-  el.textContent = v.toFixed(2) + 'x';
-  el.className = cls;
+  _DOM.multVal.textContent = v.toFixed(2) + 'x';
+  _DOM.multVal.className = cls;
 }
 
 function setPhase(main, sub) {
-  document.getElementById('phase-txt').textContent = main;
-  document.getElementById('phase-sub').textContent = sub;
+  _DOM.phaseTxt.textContent = main;
+  _DOM.phaseSub.textContent = sub;
 }
 
 function setCdown(ratio) { // 1=full, 0=empty
-  document.getElementById('cdown-fill').style.width = (ratio * 100) + '%';
+  _DOM.cdFill.style.width = (ratio * 100) + '%';
 }
 
 function updateBal() {
-  document.getElementById('bal-val').textContent = G.balance.toLocaleString();
+  _DOM.balVal.textContent = G.balance.toLocaleString();
+}
+
+function updateRoundChip() {
+  const phase = G.phase === 'waiting' ? 'BETTING' :
+    G.phase === 'flying' ? 'FLYING' :
+    G.phase === 'crashed' ? 'CRASHED' : 'SYNCING';
+  const round = G.round > 0 ? 'Round #' + G.round : 'Round --';
+  _DOM.roundLbl.textContent = 'LIVE • ' + round + ' • ' + phase;
+  _DOM.roundLbl.className = G.phase === 'waiting' ? 'waiting' :
+    G.phase === 'flying' ? 'flying' :
+    G.phase === 'crashed' ? 'crashed' : '';
 }
 
 function renderHistory() {
-  const row = document.getElementById('hist-row');
-  row.innerHTML = '';
-  G.history.forEach(v => {
+  _DOM.histRow.innerHTML = '';
+  G.history.slice(0, 20).forEach(v => {
     const c = document.createElement('span');
     c.className = 'hchip ' + (v < 1.5 ? 'hlow' : v < 3 ? 'hmid' : v < 10 ? 'hhigh' : 'hmega');
     c.textContent = v.toFixed(2) + 'x';
-    row.appendChild(c);
+    _DOM.histRow.appendChild(c);
   });
 }
 
@@ -1021,14 +1174,21 @@ function renderSlots() {
   const inFlight = G.phase === 'flying' || G.phase === 'crashed';
 
   G.slots.forEach((s,i) => {
-    const panel   = document.getElementById('panel'+i);
-    const btn     = document.getElementById('btn'+i);
-    const amtEl   = document.getElementById('amt'+i);
-    const autoRow = document.getElementById('ar'+i);
-    const mManual = document.getElementById('m'+i+'-m');
-    const mAuto   = document.getElementById('m'+i+'-a');
+    const panel   = _DOM.panel[i];
+    const btn     = _DOM.btn[i];
+    const amtEl   = _DOM.amtEl[i];
+    const slotLbl = _DOM.slotLbl[i];
+    const autoRow = _DOM.autoRow[i];
+    const mManual = _DOM.mMan[i];
+    const mAuto   = _DOM.mAuto[i];
 
     amtEl.textContent = fmtAmt(s.amount);
+    if (slotLbl) {
+      const state = s.state === 'armed' || s.state === 'cashing' ? 'ACTIVE' :
+        s.state === 'won' ? 'CASHED' :
+        s.state === 'lost' ? 'LOST' : 'READY';
+      slotLbl.textContent = 'Bet ' + (i+1) + ' • ' + fmtAmt(s.amount) + ' • ' + state;
+    }
 
     // ── sync mode toggle classes ──────────────────────────────────────────
     if (mManual) mManual.classList.toggle('on', s.mode === 'manual');
@@ -1102,21 +1262,19 @@ function renderSlots() {
 
 let _winToastTmr = null;
 function showWin(mult, amt) {
-  const el = document.getElementById('win-toast');
-  document.getElementById('wt-mult').textContent = '×' + mult.toFixed(2);
-  document.getElementById('wt-amt').textContent  = '+' + fmtAmt(amt) + ' coins';
-  el.classList.add('show');
+  _DOM.wtMult.textContent = '×' + mult.toFixed(2);
+  _DOM.wtAmt.textContent  = '+' + fmtAmt(amt) + ' coins';
+  _DOM.winToast.classList.add('show');
   clearTimeout(_winToastTmr);
-  _winToastTmr = setTimeout(() => el.classList.remove('show'), 2800);
+  _winToastTmr = setTimeout(() => _DOM.winToast.classList.remove('show'), 2800);
 }
 
 let _errTmr = null;
 function showErr(msg) {
-  const el = document.getElementById('err-toast');
-  el.textContent = msg;
-  el.classList.add('show');
+  _DOM.errToast.textContent = msg;
+  _DOM.errToast.classList.add('show');
   clearTimeout(_errTmr);
-  _errTmr = setTimeout(() => el.classList.remove('show'), 2500);
+  _errTmr = setTimeout(() => _DOM.errToast.classList.remove('show'), 2500);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1135,14 +1293,14 @@ function adjAmt(i, dir) {
   const cur = AMT_STEPS.indexOf(s.amount);
   const ni = cur<0 ? (dir>0?1:0) : Math.max(0, Math.min(AMT_STEPS.length-1, cur+dir));
   s.amount = AMT_STEPS[ni];
-  document.getElementById('amt'+i).textContent = fmtAmt(s.amount);
+  renderSlots();
   SFX.tap();
 }
 
 function setAmt(i, v) {
   if (G.slots[i].state !== 'idle') return;
   G.slots[i].amount = v;
-  document.getElementById('amt'+i).textContent = fmtAmt(v);
+  renderSlots();
   SFX.tap();
 }
 
@@ -1158,7 +1316,7 @@ function toggleSound() {
   postToFlutter('SET_SOUND_SETTING', {enabled: G.soundOn});
 }
 function updateSoundBtn() {
-  document.getElementById('sound-btn').textContent = G.soundOn ? '🔊' : '🔇';
+  _DOM.soundBtn.textContent = G.soundOn ? '🔊' : '🔇';
 }
 
 function closeGame() { postToFlutter('GAME_CLOSED', {}); }
@@ -1168,17 +1326,23 @@ function closeGame() { postToFlutter('GAME_CLOSED', {}); }
 // ═══════════════════════════════════════════════════════════════════════════
 function addFeedItem(name,color,betAmt,winMult,state) {
   G.feedItems.unshift({name,color,betAmt,winMult,state});
-  if (G.feedItems.length > 10) G.feedItems.pop();
+  if (G.feedItems.length > MAX_FEED_ITEMS) G.feedItems.pop();
   renderFeed();
 }
 function addFeedBet(i,amt)       { addFeedItem('Bet '+(i+1),'#1a6fff',amt,null,'live'); }
 function addFeedWon(i,amt,mult)  { addFeedItem('Bet '+(i+1),'#00c864',amt,mult,'won'); }
 function addFeedLost(i,amt)      { addFeedItem('Bet '+(i+1),'#e63946',amt,null,'lost'); }
 
+// Fingerprint for diff-check to avoid full innerHTML rebuild on no-change calls.
+let _feedFingerprint = '';
 function renderFeed() {
-  const feed = document.getElementById('feed');
-  feed.innerHTML = '';
-  G.feedItems.forEach(item => {
+  const items = G.feedItems.slice(0, MAX_FEED_ITEMS);
+  const fp = items.map(f => f.name + f.state + (f.winMult||0)).join('|');
+  if (fp === _feedFingerprint) return; // nothing changed — skip DOM work
+  _feedFingerprint = fp;
+
+  _DOM.feed.innerHTML = '';
+  items.forEach(item => {
     const d = document.createElement('div'); d.className='fi';
     const ini = item.name[0].toUpperCase();
     d.innerHTML =
@@ -1187,28 +1351,36 @@ function renderFeed() {
         `<div class="fbet">${item.name}: ${fmtAmt(item.betAmt)}</div>`+
         `<div class="fwin ${item.state}">${item.state==='won'?'×'+item.winMult.toFixed(2)+' ✓':item.state==='lost'?'LOST':'...'}</div>`+
       `</div>`;
-    feed.appendChild(d);
+    _DOM.feed.appendChild(d);
   });
 }
 
 // inject fake players only when no real server feed is available
 const _FAKE_AMTS=[100,200,500,1000,2000,5000];
-setInterval(()=>{
-  if (G.hasRealFeed) return; // real feed from server — no fakes needed
-  if (G.phase==='waiting') {
-    const n=FAKE_NAMES[Math.floor(Math.random()*FAKE_NAMES.length)];
-    const c=AVT_COLORS[Math.floor(Math.random()*AVT_COLORS.length)];
-    const a=_FAKE_AMTS[Math.floor(Math.random()*_FAKE_AMTS.length)];
-    addFeedItem(n,c,a,null,'live');
-  } else if (G.phase==='flying') {
-    const live = G.feedItems.filter(f=>f.state==='live');
-    if (live.length && Math.random()<.35) {
-      const pick = live[Math.floor(Math.random()*live.length)];
-      pick.state='won'; pick.winMult=G.mult;
-      renderFeed();
-    }
+function _startFakeFeedTimer() {
+  if (G.serverSynced) {
+    if (DEBUG) console.log('[RocketCrash] fake feed disabled in serverSynced mode');
+    return;
   }
-}, 1600);
+  if (G.fakeFeedTmr != null) clearInterval(G.fakeFeedTmr);
+  G.fakeFeedTmr = setInterval(()=>{
+    if (G.hasRealFeed) return; // real feed from server — no fakes needed
+    if (G.phase==='waiting') {
+      const n=FAKE_NAMES[Math.floor(Math.random()*FAKE_NAMES.length)];
+      const c=AVT_COLORS[Math.floor(Math.random()*AVT_COLORS.length)];
+      const a=_FAKE_AMTS[Math.floor(Math.random()*_FAKE_AMTS.length)];
+      addFeedItem(n,c,a,null,'live');
+    } else if (G.phase==='flying') {
+      const live = G.feedItems.filter(f=>f.state==='live');
+      if (live.length && Math.random()<.35) {
+        const pick = live[Math.floor(Math.random()*live.length)];
+        pick.state='won'; pick.winMult=G.mult;
+        renderFeed();
+      }
+    }
+  }, 1600);
+}
+_startFakeFeedTimer();
 
 // ═══════════════════════════════════════════════════════════════════════════
 // FLUTTER BRIDGE
@@ -1226,6 +1398,7 @@ function postToFlutter(type, payload) {
   try { const s=localStorage.getItem('rc_snd'); if(s!==null) G.soundOn=s==='1'; } catch(e){}
   updateSoundBtn();
   updateBal();
+  updateRoundChip();
   setMult(1.00,'waiting');
   setPhase('CONNECTING…','');
   renderSlots();

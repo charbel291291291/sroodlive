@@ -1,5 +1,6 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -51,7 +52,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
   final _service = const CrashGameService();
 
   bool _pageLoaded = false;
-  bool _pageError  = false;
+  bool _pageError = false;
   String? _pageErrorMsg;
 
   // True while _initGame() is awaiting RPCs; prevents concurrent re-entry.
@@ -60,13 +61,6 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
   // True once _roundId and _currentRoundNumber have been assigned from the
   // server. Financial actions (bet/refund/cashout) are rejected until true.
   bool _serverRoundReady = false;
-
-  // Realtime channel health - drives the LIVE dot in the status bar.
-  bool _realtimeConnected = false;
-
-  // Round display state - drives the status bar overlay.
-  int    _displayRoundNumber = 0;
-  String _displayPhase       = 'betting';
 
   // Bet idempotency guard. BetIds are added BEFORE the financial RPC awaits
   // and are NEVER removed on error, so a network timeout cannot open a
@@ -77,25 +71,48 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
   String? _roundId;
   int _currentRoundNumber = 0;
   RealtimeChannel? _roundChannel;
+  Timer? _roundRefreshDebounce;
+  bool _roundRefreshInFlight = false;
+  // When a refresh is requested while one is already running, we remember it
+  // here so the latest server state is never dropped (instead of returning).
+  bool _refreshPending = false;
+  String? _refreshPendingReason;
+  bool _loggedEmptyRealtimePayload = false;
+
+  // Periodic reconciliation poll. Realtime can be unreliable on mobile
+  // (backgrounding, dropped sockets); this guarantees the client converges to
+  // the true server round even if no realtime event arrives. Runs only while
+  // the screen is foregrounded.
+  Timer? _reconcilePoll;
+
+  // Rounds for which a settle_rocket_crash_round RPC is currently in flight.
+  // Prevents the client from spamming the settle RPC for the same stuck round.
+  final Set<String> _settleInFlightRoundIds = {};
+
+  // Throttle _sendBetFeed: skip if same roundId called within 2 s.
+  String? _lastBetFeedRoundId;
+  int _lastBetFeedMs = 0;
+
+  // Debounce _refreshHistory: only fire 3 s after the last crashed event.
+  Timer? _historyDebounce;
 
   // Server-local clock offset (serverNowMs - localNowMs), set on every
   // successful init. Used so realtime callbacks can send an accurate
   // serverNowMs without trusting the local clock alone.
   double _serverTimeOffsetMs = 0;
 
-  // History for the top results band.
-  List<double> _recentResults = [];
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: Color(0xFF020818),
-      systemNavigationBarIconBrightness: Brightness.light,
-    ));
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        systemNavigationBarColor: Color(0xFF020818),
+        systemNavigationBarIconBrightness: Brightness.light,
+      ),
+    );
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0xFF020818))
@@ -103,21 +120,23 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
         'SroodBridge',
         onMessageReceived: (msg) => _onWebMessage(msg.message),
       )
-      ..setNavigationDelegate(NavigationDelegate(
-        onPageFinished: (_) {
-          if (!mounted) return;
-          setState(() => _pageLoaded = true);
-        },
-        onWebResourceError: (e) {
-          if (e.isForMainFrame == false) return;
-          if (!mounted) return;
-          setState(() {
-            _pageLoaded   = true;
-            _pageError    = true;
-            _pageErrorMsg = e.description;
-          });
-        },
-      ))
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (_) {
+            if (!mounted) return;
+            setState(() => _pageLoaded = true);
+          },
+          onWebResourceError: (e) {
+            if (e.isForMainFrame == false) return;
+            if (!mounted) return;
+            setState(() {
+              _pageLoaded = true;
+              _pageError = true;
+              _pageErrorMsg = e.description;
+            });
+          },
+        ),
+      )
       ..loadFlutterAsset('assets/games/rocket_crash/index.html');
   }
 
@@ -126,16 +145,22 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     if (state == AppLifecycleState.resumed) {
       debugPrint('[RocketCrash] app resumed - refreshing round');
       _initGame();
+    } else if (state == AppLifecycleState.paused) {
+      // Stop polling while backgrounded; _initGame() restarts it on resume.
+      _reconcilePoll?.cancel();
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _roundRefreshDebounce?.cancel();
+    _historyDebounce?.cancel();
+    _reconcilePoll?.cancel();
     _disposeRoundChannel();
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      systemNavigationBarColor: Colors.transparent,
-    ));
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(systemNavigationBarColor: Colors.transparent),
+    );
     super.dispose();
   }
 
@@ -162,7 +187,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     } catch (_) {
       return;
     }
-    final type    = msg['type']    as String?               ?? '';
+    final type = msg['type'] as String? ?? '';
     final payload = msg['payload'] as Map<String, dynamic>? ?? {};
 
     debugPrint('[RocketCrash] <- $type');
@@ -181,9 +206,9 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
       case 'REQUEST_BET_LOST':
         _handleBetLost(payload);
       case 'REQUEST_START_FLIGHT':
-        break; // no-op: backend (pg_cron) drives flight start
+        await _handleStartFlight(payload);
       case 'REQUEST_SETTLE_ROUND':
-        break; // no-op: backend (pg_cron) drives settlement
+        await _handleSettleRound(payload);
       case 'REQUEST_WALLET_REFRESH':
         await _refreshBalance();
       case 'SET_SOUND_SETTING':
@@ -199,45 +224,56 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     // Guard: prevent concurrent re-entry on rapid app resume or duplicate GAME_READY.
     if (_isInitializing) return;
     final isArabic = context.isArabic;
-    if (SupabaseService.requiredClient.auth.currentUser == null) return;
+    if (SupabaseService.requiredClient.auth.currentUser == null) {
+      return;
+    }
 
     // Set directly for the security guard, then setState for UI.
-    _isInitializing   = true;
+    _isInitializing = true;
     _serverRoundReady = false;
-    if (mounted) setState(() { _isInitializing = true; _serverRoundReady = false; });
+    if (mounted) {
+      setState(() {
+        _isInitializing = true;
+        _serverRoundReady = false;
+      });
+    }
 
     try {
       final balance = await _service.fetchBalance();
-      final round   = await _service.getOrCreateRocketRound();
+      final round = await _service.getOrCreateRocketRound();
       final history = await _service.getRocketResults();
 
       _roundId = round['round_id']?.toString();
-      final phase            = round['status']?.toString() ?? 'betting';
-      final bettingEndsAtMs  = _parseTimestampMs(round['betting_ends_at']);
+      final phase = round['status']?.toString() ?? 'betting';
+      final bettingEndsAtMs = _parseTimestampMs(round['betting_ends_at']);
       final flightStartsAtMs = _parseTimestampMs(round['flight_starts_at']);
-      final serverNowMs      = _toDouble(round['server_now']);
-      final roundNumber      = _parseInt(round['round_number']);
+      final serverNowMs = _toDouble(round['server_now']);
+      final roundNumber = _parseInt(round['round_number']);
+      final crashMultiplier = _toDouble(round['crash_multiplier']);
 
       if (serverNowMs > 0) {
-        _serverTimeOffsetMs = serverNowMs - DateTime.now().millisecondsSinceEpoch;
+        _serverTimeOffsetMs =
+            serverNowMs - DateTime.now().millisecondsSinceEpoch;
       }
       _currentRoundNumber = roundNumber;
 
       // Server round is now valid; financial actions are unblocked.
-      _serverRoundReady = _roundId != null && roundNumber > 0;
+      _serverRoundReady =
+          _roundId != null && roundNumber > 0 && phase != 'crashed';
 
       final histValues = history
           .map((h) => _toDouble(h['crash_multiplier']))
           .where((v) => v > 0)
+          .take(20)
           .toList();
+
+      debugPrint('[RocketCrash] INIT_GAME history len=${histValues.length}');
 
       // Update all UI-driving state in one batch.
       if (mounted) {
         setState(() {
-          _serverRoundReady   = _roundId != null && roundNumber > 0;
-          _displayRoundNumber = roundNumber;
-          _displayPhase       = phase;
-          _recentResults      = histValues.take(15).toList();
+          _serverRoundReady =
+              _roundId != null && roundNumber > 0 && phase != 'crashed';
         });
       }
 
@@ -245,33 +281,38 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
       _disposeRoundChannel();
       _subscribeToRounds();
 
-      debugPrint('[RocketCrash] round loaded roundId=$_roundId phase=$phase '
-          'balance=$balance serverOffset=${_serverTimeOffsetMs.round()}ms '
-          'histCount=${histValues.length}');
+      debugPrint(
+        '[RocketCrash] round loaded roundId=$_roundId phase=$phase '
+        'balance=$balance serverOffset=${_serverTimeOffsetMs.round()}ms '
+        'histCount=${histValues.length}',
+      );
+
+      final roundPayload = <String, dynamic>{
+        'roundId': _roundId,
+        'roundNumber': roundNumber,
+        'phase': phase,
+        'serverSynced': true,
+        'bettingEndsAtMs': bettingEndsAtMs,
+        'flightStartsAtMs': flightStartsAtMs,
+        'serverNowMs': serverNowMs,
+        'history': histValues,
+        'myBets': [null, null],
+        // Tells JS the user joined mid-flight so it can show a graceful state.
+        'midRoundJoin': phase == 'flying',
+      };
+      if (phase == 'crashed') {
+        roundPayload['crashMultiplier'] = crashMultiplier;
+      }
 
       _post('INIT_GAME', {
-        'balance'      : balance,
-        'locale'       : isArabic ? 'ar' : 'en',
-        'sound'        : true,
-        'serverSynced' : true,
-        'round'        : {
-          'roundId'         : _roundId,
-          'roundNumber'     : roundNumber,
-          'phase'           : phase,
-          'bettingEndsAtMs' : bettingEndsAtMs,
-          'flightStartsAtMs': flightStartsAtMs,
-          // Never expose crash_multiplier before the round has crashed.
-          'crashMultiplier' : null,
-          'serverNowMs'     : serverNowMs,
-          'history'         : histValues,
-          'myBets'          : [null, null],
-          // Tells JS the user joined mid-flight so it can show a graceful state.
-          'midRoundJoin'    : phase == 'flying',
-        },
+        'balance': balance,
+        'locale': isArabic ? 'ar' : 'en',
+        'sound': true,
+        'serverSynced': true,
+        'round': roundPayload,
       });
 
       if (_roundId != null) _sendBetFeed(_roundId!);
-
     } catch (e, st) {
       debugPrint('[RocketCrash] init error: $e\n$st');
       _serverRoundReady = false;
@@ -279,13 +320,20 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
       if (!mounted) return;
       _post('INIT_GAME', {
         'balance': 0,
-        'locale' : isArabic ? 'ar' : 'en',
-        'sound'  : true,
-        'error'  : 'wallet_error',
+        'locale': isArabic ? 'ar' : 'en',
+        'sound': true,
+        // Keep serverSynced true even on error so the WebView shows a syncing
+        // state and never falls back to the local simulation. The
+        // reconciliation poll (started below) will deliver a real round.
+        'serverSynced': true,
+        'error': 'wallet_error',
       });
     } finally {
       _isInitializing = false;
       if (mounted) setState(() => _isInitializing = false);
+      // Always run the reconciliation poll, even after an init error, so the
+      // client keeps trying to converge on the live server round.
+      _startReconcilePoll();
     }
   }
 
@@ -294,6 +342,229 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
   // Estimated server time in ms - used for animation timing.
   double get _serverNowMs =>
       DateTime.now().millisecondsSinceEpoch + _serverTimeOffsetMs;
+
+  void _refreshRoundFromServer(String reason) {
+    if (!mounted) return;
+    if (SupabaseService.requiredClient.auth.currentUser == null) return;
+
+    debugPrint('[RocketCrash] refreshing round from server reason=$reason');
+    _roundRefreshDebounce?.cancel();
+    _roundRefreshDebounce = Timer(
+      const Duration(milliseconds: 800),
+      () => _runRoundRefresh(reason),
+    );
+  }
+
+  // Fetches the live round and forwards it to the WebView. If a refresh is
+  // already running, the request is remembered (not dropped) and re-run once
+  // the current one finishes, so the latest server state is never missed.
+  Future<void> _runRoundRefresh(String reason) async {
+    if (!mounted) return;
+    if (_roundRefreshInFlight) {
+      _refreshPending = true;
+      _refreshPendingReason = reason;
+      return;
+    }
+    _roundRefreshInFlight = true;
+    try {
+      final round = await _service.getOrCreateRocketRound();
+      if (!mounted) return;
+
+      final roundId = round['round_id']?.toString();
+      final phase = round['status']?.toString() ?? 'betting';
+      final bettingEndsAtMs = _parseTimestampMs(round['betting_ends_at']);
+      final flightStartsAtMs = _parseTimestampMs(round['flight_starts_at']);
+      final serverNowMs = _toDouble(round['server_now']);
+      final roundNumber = _parseInt(round['round_number']);
+      final crashMultiplier = _toDouble(round['crash_multiplier']);
+
+      if (serverNowMs > 0) {
+        _serverTimeOffsetMs =
+            serverNowMs - DateTime.now().millisecondsSinceEpoch;
+      }
+
+      final prevRoundNumber = _currentRoundNumber;
+      _roundId = roundId;
+      _currentRoundNumber = roundNumber;
+      _serverRoundReady =
+          roundId != null && roundNumber > 0 && phase != 'crashed';
+
+      setState(() {
+        _serverRoundReady =
+            roundId != null && roundNumber > 0 && phase != 'crashed';
+      });
+
+      debugPrint(
+        '[RocketCrash] refreshed round phase=$phase roundId=$roundId '
+        'rNum=$roundNumber reason=$reason',
+      );
+
+      final payload = <String, dynamic>{
+        'roundId': roundId,
+        'roundNumber': roundNumber,
+        'phase': phase,
+        'serverSynced': true,
+        'bettingEndsAtMs': bettingEndsAtMs,
+        'flightStartsAtMs': flightStartsAtMs,
+        'serverNowMs': serverNowMs > 0 ? serverNowMs : _serverNowMs,
+        'midRoundJoin': phase == 'flying',
+      };
+      if (phase == 'crashed') {
+        payload['crashMultiplier'] = crashMultiplier;
+      }
+
+      _post('SET_ROUND_STATE', payload);
+      debugPrint('[RocketCrash] -> SET_ROUND_STATE refreshed');
+
+      if (roundId != null) _sendBetFeed(roundId);
+
+      // Refresh the last-20 history whenever a round just crashed or a newer
+      // round has appeared (the previous round therefore crashed). This is the
+      // fallback for the realtime 'crashed' branch when realtime is unreliable.
+      if (phase == 'crashed' ||
+          (prevRoundNumber > 0 && roundNumber > prevRoundNumber)) {
+        _refreshHistory();
+      }
+
+      // Safety settlement: if the round is still 'flying' but, by the server's
+      // own crash point and flight start time, it should already have crashed
+      // (e.g. cron settlement stalled - DB showed crash_multiplier 1.05 stuck
+      // flying for 13s), drive the existing settle RPC once. The server stays
+      // authoritative: it computes payouts; we only ask it to settle.
+      if (phase == 'flying' &&
+          roundId != null &&
+          crashMultiplier > 0 &&
+          flightStartsAtMs > 0) {
+        final nowMs = serverNowMs > 0 ? serverNowMs : _serverNowMs;
+        final elapsedSec = (nowMs - flightStartsAtMs) / 1000.0;
+        if (elapsedSec > 0) {
+          final currentMult = math.exp(0.055 * elapsedSec);
+          if (currentMult >= crashMultiplier) {
+            debugPrint(
+              '[RocketCrash] stuck flying detected round=$roundId '
+              'currentMult=${currentMult.toStringAsFixed(2)} '
+              'crashMult=${crashMultiplier.toStringAsFixed(2)} - settling',
+            );
+            _trySettleStuckRound(roundId);
+          }
+        }
+      }
+    } catch (e, st) {
+      debugPrint('[RocketCrash] refreshRound error reason=$reason: $e\n$st');
+    } finally {
+      _roundRefreshInFlight = false;
+      // Re-run if another refresh was requested while this one was in flight.
+      if (_refreshPending) {
+        _refreshPending = false;
+        final pendingReason = _refreshPendingReason ?? reason;
+        _refreshPendingReason = null;
+        _runRoundRefresh(pendingReason);
+      }
+    }
+  }
+
+  // Drives the betting -> flying transition. The JS sends REQUEST_START_FLIGHT
+  // when the betting countdown ends; we call the existing server RPC (the
+  // server commits the crash point and flight start time - we never decide it).
+  Future<void> _handleStartFlight(Map<String, dynamic> payload) async {
+    final roundId = payload['roundId']?.toString() ?? _roundId;
+    if (roundId == null || roundId.isEmpty) {
+      debugPrint('[RocketCrash] start flight rejected: no roundId');
+      return;
+    }
+    try {
+      final result = await _service.startRocketFlight(roundId);
+      if (!mounted) return;
+
+      final flightStartsAtMs = _parseTimestampMs(result['flight_starts_at']);
+      final serverNowMs = _toDouble(result['server_now']);
+      if (serverNowMs > 0) {
+        _serverTimeOffsetMs =
+            serverNowMs - DateTime.now().millisecondsSinceEpoch;
+      }
+
+      _roundId = roundId;
+      _serverRoundReady = true;
+      setState(() => _serverRoundReady = true);
+
+      debugPrint(
+        '[RocketCrash] start flight ok round=$roundId fsMs=$flightStartsAtMs',
+      );
+
+      // Forward the flying state to JS. crash_multiplier is intentionally NOT
+      // sent: the JS must never know the crash point before the round crashes
+      // (server authority / no JS-decided payouts).
+      _post('SET_ROUND_STATE', {
+        'roundId': roundId,
+        'roundNumber': _currentRoundNumber,
+        'phase': 'flying',
+        'serverSynced': true,
+        'bettingEndsAtMs': null,
+        'flightStartsAtMs': flightStartsAtMs > 0 ? flightStartsAtMs : null,
+        'serverNowMs': serverNowMs > 0 ? serverNowMs : _serverNowMs,
+        'midRoundJoin': false,
+      });
+
+      _sendBetFeed(roundId);
+      // Reconcile against the server shortly after, in case the round had
+      // already advanced (e.g. another client started it first).
+      _refreshRoundFromServer('start_flight_after_rpc');
+    } catch (e) {
+      if (!mounted) return;
+      debugPrint('[RocketCrash] start flight error round=$roundId: $e');
+      _refreshRoundFromServer('start_flight_error');
+    }
+  }
+
+  // Drives settlement of a round via the existing server RPC. The server
+  // auto-cashes qualifying bets, marks the rest lost, and flips the round to
+  // 'crashed'. We never compute payouts here.
+  Future<void> _handleSettleRound(Map<String, dynamic> payload) async {
+    final roundId = payload['roundId']?.toString() ?? _roundId;
+    if (roundId == null || roundId.isEmpty) return;
+    if (_settleInFlightRoundIds.contains(roundId)) return;
+    _settleInFlightRoundIds.add(roundId);
+    debugPrint('[RocketCrash] settle requested round=$roundId');
+    try {
+      await _service.settleRocketRound(roundId);
+    } catch (e) {
+      debugPrint('[RocketCrash] settle round error round=$roundId: $e');
+    } finally {
+      _settleInFlightRoundIds.remove(roundId);
+      _refreshRoundFromServer('settle_round_after_rpc');
+    }
+  }
+
+  // Settles a round that the client has determined is overdue (still flying
+  // past its crash point). Guarded so the settle RPC is not spammed.
+  Future<void> _trySettleStuckRound(String roundId) async {
+    if (_settleInFlightRoundIds.contains(roundId)) return;
+    _settleInFlightRoundIds.add(roundId);
+    debugPrint('[RocketCrash] settling stuck flying round=$roundId');
+    try {
+      await _service.settleRocketRound(roundId);
+    } catch (e) {
+      debugPrint('[RocketCrash] settle stuck round error round=$roundId: $e');
+    } finally {
+      _settleInFlightRoundIds.remove(roundId);
+      _refreshRoundFromServer('settle_stuck_flying');
+    }
+  }
+
+  // Starts (or restarts) the periodic reconciliation poll. Cheap insurance
+  // against unreliable realtime: every 2 s the client re-reads the live round
+  // and converges the WebView to it, so it can never get stuck on
+  // LAUNCHING/FLYING if a realtime phase-transition event is missed.
+  void _startReconcilePoll() {
+    _reconcilePoll?.cancel();
+    _reconcilePoll = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (!mounted) {
+        _reconcilePoll?.cancel();
+        return;
+      }
+      _refreshRoundFromServer('poll');
+    });
+  }
 
   // Whole-table subscription - follows new betting rounds (INSERT) and phase
   // transitions (UPDATE) without per-round resubscription.
@@ -309,100 +580,170 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
         )
         .subscribe((status, [err]) {
           debugPrint('[RocketCrash] realtime $status ${err ?? ''}');
-          final connected = status == RealtimeSubscribeStatus.subscribed;
-          if (mounted) setState(() => _realtimeConnected = connected);
         });
   }
 
   void _onAnyRoundChange(PostgresChangePayload payload) {
     if (!mounted) return;
-    final rec    = payload.newRecord;
+
+    if (payload.newRecord.isEmpty && payload.oldRecord.isEmpty) {
+      if (!_loggedEmptyRealtimePayload) {
+        debugPrint(
+          '[RocketCrash] empty realtime payload, refreshing from server',
+        );
+        _loggedEmptyRealtimePayload = true;
+      }
+      _refreshRoundFromServer('empty_realtime_payload');
+      return;
+    }
+
+    final rec = payload.newRecord.isNotEmpty
+        ? payload.newRecord
+        : payload.oldRecord;
+
     final status = rec['status']?.toString();
-    final rNum   = _parseInt(rec['round_number']);
-    debugPrint('[RocketCrash] round change status=$status rNum=$rNum');
+    final rNum = _parseInt(rec['round_number']);
+    final rowId = rec['id']?.toString();
+
+    debugPrint(
+      '[RocketCrash] round change status=$status rNum=$rNum '
+      'id=$rowId newKeys=${payload.newRecord.keys.toList()} '
+      'oldKeys=${payload.oldRecord.keys.toList()}',
+    );
+
+    if (status == null || status.isEmpty || rNum <= 0 || rowId == null) {
+      debugPrint('[RocketCrash] malformed realtime payload, refreshing');
+      _refreshRoundFromServer('malformed_realtime_payload');
+      return;
+    }
 
     if (status == 'betting') {
-      // Only adopt strictly newer rounds. Same-round UPDATE events are ignored
-      // to prevent spurious _settledBetIds.clear() during an active round.
       if (rNum <= _currentRoundNumber) return;
-      final newId           = rec['id']?.toString();
+
       final bettingEndsAtMs = _parseTimestampMs(rec['betting_ends_at']);
-      _roundId            = newId;
+
+      _roundId = rowId;
       _currentRoundNumber = rNum;
-      _serverRoundReady   = newId != null;
+      _serverRoundReady = true;
       _settledBetIds.clear();
+
       setState(() {
-        _serverRoundReady   = newId != null;
-        _displayRoundNumber = rNum;
-        _displayPhase       = 'betting';
+        _serverRoundReady = true;
       });
+
       _post('SET_ROUND_STATE', {
-        'roundId'        : newId,
-        'roundNumber'    : rNum,
-        'phase'          : 'betting',
+        'roundId': rowId,
+        'roundNumber': rNum,
+        'phase': 'betting',
+        'serverSynced': true,
         'bettingEndsAtMs': bettingEndsAtMs,
-        'serverNowMs'    : _serverNowMs,
+        'flightStartsAtMs': null,
+        'serverNowMs': _serverNowMs,
+        'midRoundJoin': false,
       });
-      if (newId != null) _sendBetFeed(newId);
 
+      _sendBetFeed(rowId);
     } else if (status == 'flying') {
-      // Allow same-round forward transition; reject stale old-round events.
       if (rNum < _currentRoundNumber) return;
+
       final fsMs = _parseTimestampMs(rec['flight_starts_at']);
-      setState(() => _displayPhase = 'flying');
-      // Never forward crash_multiplier during flight - reveal only on crashed.
-      _post('SET_ROUND_STATE', {
-        'roundId'         : rec['id'],
-        'phase'           : 'flying',
-        'flightStartsAtMs': fsMs > 0 ? fsMs : null,
-        'crashMultiplier' : null,
-        'serverNowMs'     : _serverNowMs,
+      final bettingEndsAtMs = _parseTimestampMs(rec['betting_ends_at']);
+
+      _roundId = rowId;
+      _currentRoundNumber = rNum;
+      _serverRoundReady = true;
+
+      setState(() {
+        _serverRoundReady = true;
       });
 
-    } else if (status == 'crashed') {
-      // Allow same-round forward transition; reject stale old-round events.
-      if (rNum < _currentRoundNumber) return;
-      // Backend has revealed the crash point - safe to forward now.
-      final cm = _toDouble(rec['crash_multiplier']);
-      setState(() => _displayPhase = 'crashed');
       _post('SET_ROUND_STATE', {
-        'roundId'        : rec['id'],
-        'phase'          : 'crashed',
+        'roundId': rowId,
+        'roundNumber': rNum,
+        'phase': 'flying',
+        'serverSynced': true,
+        'bettingEndsAtMs': bettingEndsAtMs,
+        'flightStartsAtMs': fsMs > 0 ? fsMs : null,
+        'serverNowMs': _serverNowMs,
+        'midRoundJoin': true,
+      });
+
+      _sendBetFeed(rowId);
+    } else if (status == 'crashed') {
+      if (rNum < _currentRoundNumber) return;
+
+      final cm = _toDouble(rec['crash_multiplier']);
+      final bettingEndsAtMs = _parseTimestampMs(rec['betting_ends_at']);
+      final fsMs = _parseTimestampMs(rec['flight_starts_at']);
+
+      _roundId = rowId;
+      _currentRoundNumber = rNum;
+      _serverRoundReady = false;
+
+      setState(() {
+        _serverRoundReady = false;
+      });
+
+      _post('SET_ROUND_STATE', {
+        'roundId': rowId,
+        'roundNumber': rNum,
+        'phase': 'crashed',
+        'serverSynced': true,
+        'bettingEndsAtMs': bettingEndsAtMs,
+        'flightStartsAtMs': fsMs > 0 ? fsMs : null,
+        'serverNowMs': _serverNowMs,
+        'midRoundJoin': false,
         'crashMultiplier': cm,
       });
+
       _refreshHistory();
     }
   }
 
-  Future<void> _refreshHistory() async {
-    try {
-      final history = await _service.getRocketResults();
-      if (!mounted) return;
-      final histValues = history
-          .map((h) => _toDouble(h['crash_multiplier']))
-          .where((v) => v > 0)
-          .toList();
-      _post('HISTORY_UPDATE', {'history': histValues});
-      setState(() => _recentResults = histValues.take(15).toList());
-    } catch (e) {
-      debugPrint('[RocketCrash] refreshHistory error: $e');
-    }
+  // Debounced: waits 3 s after the last crashed event before fetching history.
+  void _refreshHistory() {
+    _historyDebounce?.cancel();
+    _historyDebounce = Timer(const Duration(seconds: 3), () async {
+      try {
+        final history = await _service.getRocketResults();
+        if (!mounted) return;
+        final histValues = history
+            .map((h) => _toDouble(h['crash_multiplier']))
+            .where((v) => v > 0)
+            .toList();
+        _post('HISTORY_UPDATE', {'history': histValues});
+      } catch (e) {
+        debugPrint('[RocketCrash] refreshHistory error: $e');
+      }
+    });
   }
 
+  // Throttled: at most one RPC call per roundId per 2 s.
   Future<void> _sendBetFeed(String roundId) async {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (roundId == _lastBetFeedRoundId && nowMs - _lastBetFeedMs < 2000) {
+      return;
+    }
+    _lastBetFeedRoundId = roundId;
+    _lastBetFeedMs = nowMs;
+
     try {
       final bets = await _service.getRocketRoundBets(roundId);
       if (!mounted) return;
       _post('BETS_UPDATE', {
-        'bets': bets.map((b) => {
-          'displayName'           : b['display_name'],
-          'betAmount'             : b['bet_amount'],
-          'autoCashoutMultiplier' : b['auto_cashout_multiplier'],
-          'cashoutMultiplier'     : b['cashout_multiplier'],
-          'winAmount'             : b['win_amount'],
-          'status'                : b['status'],
-          'isOwn'                 : b['is_own'] ?? false,
-        }).toList(),
+        'bets': bets
+            .map(
+              (b) => {
+                'displayName': b['display_name'],
+                'betAmount': b['bet_amount'],
+                'autoCashoutMultiplier': b['auto_cashout_multiplier'],
+                'cashoutMultiplier': b['cashout_multiplier'],
+                'winAmount': b['win_amount'],
+                'status': b['status'],
+                'isOwn': b['is_own'] ?? false,
+              },
+            )
+            .toList(),
       });
     } catch (e) {
       debugPrint('[RocketCrash] betFeed error: $e');
@@ -412,40 +753,44 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
   // -- Wallet handlers -------------------------------------------------------
 
   Future<void> _handlePlaceBet(Map<String, dynamic> payload) async {
-    final slotIndex   = _parseInt(payload['slotIndex']);
-    final amount      = _parseInt(payload['amount']);
-    final roundId     = payload['roundId']?.toString() ?? _roundId;
+    final slotIndex = _parseInt(payload['slotIndex']);
+    final amount = _parseInt(payload['amount']);
+    final roundId = payload['roundId']?.toString() ?? _roundId;
     final autoCashout = payload['autoCashoutMultiplier'] is num
         ? (payload['autoCashoutMultiplier'] as num).toDouble()
         : null;
 
     if (!_serverRoundReady || roundId == null) {
       _post('BET_REJECTED', {
-        'slotIndex'  : slotIndex,
-        'code'       : 'server_not_ready',
+        'slotIndex': slotIndex,
+        'code': 'server_not_ready',
         'userMessage': _friendlyCode('server_not_ready'),
       });
       return;
     }
     if (amount <= 0) {
       _post('BET_REJECTED', {
-        'slotIndex'  : slotIndex,
-        'code'       : 'invalid_amount',
+        'slotIndex': slotIndex,
+        'code': 'invalid_amount',
         'userMessage': _friendlyCode('invalid_amount'),
       });
       return;
     }
 
     try {
-      final result     = await _service.placeRocketBet(roundId, amount, autoCashout);
+      final result = await _service.placeRocketBet(
+        roundId,
+        amount,
+        autoCashout,
+      );
       if (!mounted) return;
-      final betId      = result['bet_id']?.toString();
+      final betId = result['bet_id']?.toString();
       final newBalance = _parseInt(result['new_balance']);
 
       if (betId == null || betId.isEmpty) {
         _post('BET_REJECTED', {
-          'slotIndex'  : slotIndex,
-          'code'       : 'no_bet_id',
+          'slotIndex': slotIndex,
+          'code': 'no_bet_id',
           'userMessage': _friendlyCode('network_error'),
         });
         return;
@@ -454,21 +799,21 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
       HapticFeedback.lightImpact();
       debugPrint('[RocketCrash] bet placed betId=$betId amount=$amount');
       _post('BET_ACCEPTED', {
-        'slotIndex' : slotIndex,
-        'betId'     : betId,
-        'amount'    : amount,
+        'slotIndex': slotIndex,
+        'betId': betId,
+        'roundId': roundId,
+        'amount': amount,
         'newBalance': newBalance,
       });
 
       _sendBetFeed(roundId);
-
     } catch (e) {
       if (!mounted) return;
       debugPrint('[RocketCrash] placeBet error: $e');
       final code = _mapError('$e');
       _post('BET_REJECTED', {
-        'slotIndex'  : slotIndex,
-        'code'       : code,
+        'slotIndex': slotIndex,
+        'code': code,
         'userMessage': _friendlyCode(code),
       });
     }
@@ -479,8 +824,8 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     // Reject legacy debit path once the server round is active.
     if (_serverRoundReady) {
       _post('BET_REJECTED', {
-        'slotIndex'  : slotIndex,
-        'code'       : 'use_place_bet',
+        'slotIndex': slotIndex,
+        'code': 'use_place_bet',
         'userMessage': _friendlyCode('server_not_ready'),
       });
       return;
@@ -488,30 +833,30 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     final amount = _parseInt(payload['amount']);
     if (amount <= 0) {
       _post('BET_REJECTED', {
-        'slotIndex'  : slotIndex,
-        'code'       : 'invalid_amount',
+        'slotIndex': slotIndex,
+        'code': 'invalid_amount',
         'userMessage': _friendlyCode('invalid_amount'),
       });
       return;
     }
     try {
-      final result     = await _service.armBet(amount, slotIndex: slotIndex);
+      final result = await _service.armBet(amount, slotIndex: slotIndex);
       if (!mounted) return;
-      final betId      = result['bet_id']?.toString();
+      final betId = result['bet_id']?.toString();
       final newBalance = _parseInt(result['new_balance']);
       if (betId == null || betId.isEmpty) {
         _post('BET_REJECTED', {
-          'slotIndex'  : slotIndex,
-          'code'       : 'no_bet_id',
+          'slotIndex': slotIndex,
+          'code': 'no_bet_id',
           'userMessage': _friendlyCode('network_error'),
         });
         return;
       }
       HapticFeedback.lightImpact();
       _post('BET_ACCEPTED', {
-        'slotIndex' : slotIndex,
-        'betId'     : betId,
-        'amount'    : amount,
+        'slotIndex': slotIndex,
+        'betId': betId,
+        'amount': amount,
         'newBalance': newBalance,
       });
     } catch (e) {
@@ -519,8 +864,8 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
       debugPrint('[RocketCrash] armBet error: $e');
       final code = _mapError('$e');
       _post('BET_REJECTED', {
-        'slotIndex'  : slotIndex,
-        'code'       : code,
+        'slotIndex': slotIndex,
+        'code': code,
         'userMessage': _friendlyCode(code),
       });
     }
@@ -528,28 +873,28 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
 
   Future<void> _handleBetRefund(Map<String, dynamic> payload) async {
     final slotIndex = _parseInt(payload['slotIndex']);
-    final betId     = payload['betId']?.toString();
+    final betId = payload['betId']?.toString();
 
     if (!_serverRoundReady) {
       _post('REFUND_REJECTED', {
-        'slotIndex'  : slotIndex,
-        'code'       : 'server_not_ready',
+        'slotIndex': slotIndex,
+        'code': 'server_not_ready',
         'userMessage': _friendlyCode('server_not_ready'),
       });
       return;
     }
     if (betId == null || betId.isEmpty) {
       _post('REFUND_REJECTED', {
-        'slotIndex'  : slotIndex,
-        'code'       : 'no_bet_id',
+        'slotIndex': slotIndex,
+        'code': 'no_bet_id',
         'userMessage': _friendlyCode('network_error'),
       });
       return;
     }
     if (_settledBetIds.contains(betId)) {
       _post('REFUND_REJECTED', {
-        'slotIndex'  : slotIndex,
-        'code'       : 'already_settled',
+        'slotIndex': slotIndex,
+        'code': 'already_settled',
         'userMessage': _friendlyCode('already_settled'),
       });
       return;
@@ -561,23 +906,23 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     _settledBetIds.add(betId);
 
     try {
-      final result         = await _service.refundBet(betId);
+      final result = await _service.refundBet(betId);
       if (!mounted) return;
-      final newBalance     = _parseInt(result['new_balance']);
+      final newBalance = _parseInt(result['new_balance']);
       final refundedAmount = _parseInt(result['refunded_amount']);
       _post('REFUND_ACCEPTED', {
-        'slotIndex'     : slotIndex,
-        'betId'         : betId,
+        'slotIndex': slotIndex,
+        'betId': betId,
         'refundedAmount': refundedAmount,
-        'newBalance'    : newBalance,
+        'newBalance': newBalance,
       });
     } catch (e) {
       if (!mounted) return;
       debugPrint('[RocketCrash] refund error: $e');
       final code = _mapError('$e');
       _post('REFUND_REJECTED', {
-        'slotIndex'  : slotIndex,
-        'code'       : code,
+        'slotIndex': slotIndex,
+        'code': code,
         'userMessage': _friendlyCode(code),
       });
     }
@@ -585,7 +930,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
 
   Future<void> _handleCashout(Map<String, dynamic> payload) async {
     final slotIndex = _parseInt(payload['slotIndex']);
-    final betId     = payload['betId']?.toString();
+    final betId = payload['betId']?.toString();
 
     debugPrint('[RocketCashout] request slot=$slotIndex betId=$betId');
 
@@ -593,8 +938,8 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     if (!_serverRoundReady || _roundId == null) {
       debugPrint('[RocketCashout] rejected: server_not_ready slot=$slotIndex');
       _post('CASHOUT_REJECTED', {
-        'slotIndex'  : slotIndex,
-        'code'       : 'server_not_ready',
+        'slotIndex': slotIndex,
+        'code': 'server_not_ready',
         'userMessage': _friendlyCode('server_not_ready'),
       });
       return;
@@ -602,8 +947,8 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     if (betId == null || betId.isEmpty) {
       debugPrint('[RocketCashout] rejected: no_bet_id slot=$slotIndex');
       _post('CASHOUT_REJECTED', {
-        'slotIndex'  : slotIndex,
-        'code'       : 'no_bet_id',
+        'slotIndex': slotIndex,
+        'code': 'no_bet_id',
         'userMessage': _friendlyCode('network_error'),
       });
       return;
@@ -611,8 +956,8 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     if (_settledBetIds.contains(betId)) {
       debugPrint('[RocketCashout] rejected: already_settled betId=$betId');
       _post('CASHOUT_REJECTED', {
-        'slotIndex'  : slotIndex,
-        'code'       : 'already_settled',
+        'slotIndex': slotIndex,
+        'code': 'already_settled',
         'userMessage': _friendlyCode('already_settled'),
       });
       return;
@@ -632,14 +977,14 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
       if (status == 'lost') {
         debugPrint('[RocketCashout] rejected: round_crashed betId=$betId');
         _post('CASHOUT_REJECTED', {
-          'slotIndex'  : slotIndex,
-          'code'       : 'round_crashed',
+          'slotIndex': slotIndex,
+          'code': 'round_crashed',
           'userMessage': _friendlyCode('round_crashed'),
         });
         return;
       }
 
-      final winAmount  = _parseInt(result['win_amount']);
+      final winAmount = _parseInt(result['win_amount']);
       final newBalance = _parseInt(result['new_balance']);
       // Use only server-returned multiplier.
       final actualMult = _parseDouble(
@@ -647,21 +992,24 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
       );
 
       HapticFeedback.mediumImpact();
-      debugPrint('[RocketCashout] accepted slot=$slotIndex x$actualMult win=$winAmount balance=$newBalance');
+      debugPrint(
+        '[RocketCashout] accepted slot=$slotIndex x$actualMult win=$winAmount balance=$newBalance',
+      );
       _post('CASHOUT_ACCEPTED', {
-        'slotIndex' : slotIndex,
-        'betId'     : betId,
-        'winAmount' : winAmount,
+        'slotIndex': slotIndex,
+        'betId': betId,
+        'winAmount': winAmount,
         'multiplier': actualMult,
         'newBalance': newBalance,
       });
+      _refreshBalance();
     } catch (e) {
       if (!mounted) return;
       debugPrint('[RocketCashout] error slot=$slotIndex: $e');
       final code = _mapError('$e');
       _post('CASHOUT_REJECTED', {
-        'slotIndex'  : slotIndex,
-        'code'       : code,
+        'slotIndex': slotIndex,
+        'code': code,
         'userMessage': _friendlyCode(code),
       });
     }
@@ -745,17 +1093,17 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
   }
 
   String _mapError(String e) {
-    if (e.contains('insufficient_coins'))    return 'insufficient_coins';
-    if (e.contains('not_authenticated'))     return 'not_authenticated';
-    if (e.contains('already_settled'))       return 'already_settled';
-    if (e.contains('bet_not_found'))         return 'bet_not_found';
-    if (e.contains('not_refundable'))        return 'not_refundable';
-    if (e.contains('round_not_found'))       return 'round_not_found';
-    if (e.contains('betting_closed'))        return 'betting_closed';
-    if (e.contains('game_disabled'))         return 'game_disabled';
-    if (e.contains('round_not_flying'))      return 'round_not_flying';
+    if (e.contains('insufficient_coins')) return 'insufficient_coins';
+    if (e.contains('not_authenticated')) return 'not_authenticated';
+    if (e.contains('already_settled')) return 'already_settled';
+    if (e.contains('bet_not_found')) return 'bet_not_found';
+    if (e.contains('not_refundable')) return 'not_refundable';
+    if (e.contains('round_not_found')) return 'round_not_found';
+    if (e.contains('betting_closed')) return 'betting_closed';
+    if (e.contains('game_disabled')) return 'game_disabled';
+    if (e.contains('round_not_flying')) return 'round_not_flying';
     if (e.contains('round_already_crashed')) return 'round_already_crashed';
-    if (e.contains('invalid_auto_cashout'))  return 'invalid_auto_cashout';
+    if (e.contains('invalid_auto_cashout')) return 'invalid_auto_cashout';
     return 'network_error';
   }
 
@@ -763,21 +1111,56 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
   String _friendlyCode(String code) {
     final ar = widget.isArabic;
     switch (code) {
-      case 'insufficient_coins':    return ar ? 'Ø±ØµÙŠØ¯ ØºÙŠØ± ÙƒØ§ÙÙ' : 'Insufficient coins';
-      case 'not_authenticated':     return ar ? 'ÙŠØ±Ø¬Ù‰ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ù…Ø¬Ø¯Ø¯Ø§Ù‹' : 'Please sign in again';
-      case 'already_settled':       return ar ? 'ØªÙ…Øª Ø§Ù„Ø¹Ù…Ù„ÙŠØ© Ù…Ø³Ø¨Ù‚Ø§Ù‹' : 'Already processed';
-      case 'bet_not_found':         return ar ? 'Ø§Ù„Ø±Ù‡Ø§Ù† ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯' : 'Bet not found';
-      case 'not_refundable':        return ar ? 'Ù„Ø§ ÙŠÙ…ÙƒÙ† Ø§Ø³ØªØ±Ø¯Ø§Ø¯ Ù‡Ø°Ø§ Ø§Ù„Ø±Ù‡Ø§Ù†' : 'Bet is not refundable';
-      case 'round_not_found':       return ar ? 'Ø§Ù„Ø¬ÙˆÙ„Ø© ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯Ø©' : 'Round not found';
-      case 'betting_closed':        return ar ? 'Ø§Ù†ØªÙ‡Ù‰ ÙˆÙ‚Øª Ø§Ù„Ø±Ù‡Ø§Ù†' : 'Betting is closed';
-      case 'game_disabled':         return ar ? 'Ø§Ù„Ù„Ø¹Ø¨Ø© ØºÙŠØ± Ù…ØªØ§Ø­Ø© Ø­Ø§Ù„ÙŠØ§Ù‹' : 'Game is currently unavailable';
-      case 'round_not_flying':      return ar ? 'Ø§Ù„ØµØ§Ø±ÙˆØ® Ù„Ù… ÙŠÙ†Ø·Ù„Ù‚ Ø¨Ø¹Ø¯' : 'Round is not in flight';
-      case 'round_already_crashed': return ar ? 'Ø§Ù†Ù‡Ø§Ø± Ø§Ù„ØµØ§Ø±ÙˆØ® Ø¨Ø§Ù„ÙØ¹Ù„' : 'Rocket already crashed';
-      case 'invalid_auto_cashout':  return ar ? 'Ù…Ø¶Ø§Ø¹Ù Ø§Ù„Ø³Ø­Ø¨ Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠ ØºÙŠØ± ØµØ§Ù„Ø­' : 'Invalid auto cashout multiplier';
-      case 'round_crashed':         return ar ? 'Ø§Ù†Ù‡Ø§Ø± Ø§Ù„ØµØ§Ø±ÙˆØ® Ù‚Ø¨Ù„ Ø§Ù„Ø³Ø­Ø¨' : 'Rocket crashed before cashout';
-      case 'server_not_ready':      return ar ? 'Ø¬Ø§Ø±ÙŠ Ø§Ù„Ù…Ø²Ø§Ù…Ù†Ø©ØŒ ÙŠØ±Ø¬Ù‰ Ø§Ù„Ø§Ù†ØªØ¸Ø§Ø±...' : 'Syncing with server...';
-      case 'invalid_amount':        return ar ? 'Ù…Ø¨Ù„Øº Ø§Ù„Ø±Ù‡Ø§Ù† ØºÙŠØ± ØµØ§Ù„Ø­' : 'Invalid bet amount';
-      default:                      return ar ? 'Ø­Ø¯Ø« Ø®Ø·Ø£ØŒ ÙŠØ±Ø¬Ù‰ Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø© Ù…Ø¬Ø¯Ø¯Ø§Ù‹' : 'Something went wrong, please retry';
+      case 'insufficient_coins':
+        return ar ? 'Ø±ØµÙŠØ¯ ØºÙŠØ± ÙƒØ§ÙÙ' : 'Insufficient coins';
+      case 'not_authenticated':
+        return ar
+            ? 'ÙŠØ±Ø¬Ù‰ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ù…Ø¬Ø¯Ø¯Ø§Ù‹'
+            : 'Please sign in again';
+      case 'already_settled':
+        return ar ? 'ØªÙ…Øª Ø§Ù„Ø¹Ù…Ù„ÙŠØ© Ù…Ø³Ø¨Ù‚Ø§Ù‹' : 'Already processed';
+      case 'bet_not_found':
+        return ar ? 'Ø§Ù„Ø±Ù‡Ø§Ù† ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯' : 'Bet not found';
+      case 'not_refundable':
+        return ar
+            ? 'Ù„Ø§ ÙŠÙ…ÙƒÙ† Ø§Ø³ØªØ±Ø¯Ø§Ø¯ Ù‡Ø°Ø§ Ø§Ù„Ø±Ù‡Ø§Ù†'
+            : 'Bet is not refundable';
+      case 'round_not_found':
+        return ar ? 'Ø§Ù„Ø¬ÙˆÙ„Ø© ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯Ø©' : 'Round not found';
+      case 'betting_closed':
+        return ar ? 'Ø§Ù†ØªÙ‡Ù‰ ÙˆÙ‚Øª Ø§Ù„Ø±Ù‡Ø§Ù†' : 'Betting is closed';
+      case 'game_disabled':
+        return ar
+            ? 'Ø§Ù„Ù„Ø¹Ø¨Ø© ØºÙŠØ± Ù…ØªØ§Ø­Ø© Ø­Ø§Ù„ÙŠØ§Ù‹'
+            : 'Game is currently unavailable';
+      case 'round_not_flying':
+        return ar
+            ? 'Ø§Ù„ØµØ§Ø±ÙˆØ® Ù„Ù… ÙŠÙ†Ø·Ù„Ù‚ Ø¨Ø¹Ø¯'
+            : 'Round is not in flight';
+      case 'round_already_crashed':
+        return ar
+            ? 'Ø§Ù†Ù‡Ø§Ø± Ø§Ù„ØµØ§Ø±ÙˆØ® Ø¨Ø§Ù„ÙØ¹Ù„'
+            : 'Rocket already crashed';
+      case 'invalid_auto_cashout':
+        return ar
+            ? 'Ù…Ø¶Ø§Ø¹Ù Ø§Ù„Ø³Ø­Ø¨ Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠ ØºÙŠØ± ØµØ§Ù„Ø­'
+            : 'Invalid auto cashout multiplier';
+      case 'round_crashed':
+        return ar
+            ? 'Ø§Ù†Ù‡Ø§Ø± Ø§Ù„ØµØ§Ø±ÙˆØ® Ù‚Ø¨Ù„ Ø§Ù„Ø³Ø­Ø¨'
+            : 'Rocket crashed before cashout';
+      case 'server_not_ready':
+        return ar
+            ? 'Ø¬Ø§Ø±ÙŠ Ø§Ù„Ù…Ø²Ø§Ù…Ù†Ø©ØŒ ÙŠØ±Ø¬Ù‰ Ø§Ù„Ø§Ù†ØªØ¸Ø§Ø±...'
+            : 'Syncing with server...';
+      case 'invalid_amount':
+        return ar
+            ? 'Ù…Ø¨Ù„Øº Ø§Ù„Ø±Ù‡Ø§Ù† ØºÙŠØ± ØµØ§Ù„Ø­'
+            : 'Invalid bet amount';
+      default:
+        return ar
+            ? 'Ø­Ø¯Ø« Ø®Ø·Ø£ØŒ ÙŠØ±Ø¬Ù‰ Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø© Ù…Ø¬Ø¯Ø¯Ø§Ù‹'
+            : 'Something went wrong, please retry';
     }
   }
 
@@ -785,8 +1168,6 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
 
   @override
   Widget build(BuildContext context) {
-    final showSyncBanner = _pageLoaded && (_isInitializing || !_serverRoundReady);
-
     return PopScope(
       canPop: true,
       child: Scaffold(
@@ -797,16 +1178,8 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
             fit: StackFit.expand,
             children: [
               WebViewWidget(controller: _controller),
-              _TopStatusBar(
-                results        : _recentResults,
-                isArabic       : widget.isArabic,
-                roundNumber    : _displayRoundNumber,
-                phase          : _displayPhase,
-                isConnected    : _realtimeConnected,
-                isSyncing      : showSyncBanner,
-              ),
               if (!_pageLoaded) _buildLoading(),
-              if (_pageError)   _buildError(),
+              if (_pageError) _buildError(),
             ],
           ),
         ),
@@ -834,9 +1207,11 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
             ),
             const SizedBox(height: 28),
             const SizedBox(
-              width: 36, height: 36,
+              width: 36,
+              height: 36,
               child: CircularProgressIndicator(
-                color: Color(0xFF00D4FF), strokeWidth: 2.5,
+                color: Color(0xFF00D4FF),
+                strokeWidth: 2.5,
               ),
             ),
             const SizedBox(height: 16),
@@ -916,15 +1291,18 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
                     ),
                     onPressed: () {
                       setState(() {
-                        _pageLoaded   = false;
-                        _pageError    = false;
+                        _pageLoaded = false;
+                        _pageError = false;
                         _pageErrorMsg = null;
                       });
                       _controller.loadFlutterAsset(
-                          'assets/games/rocket_crash/index.html');
+                        'assets/games/rocket_crash/index.html',
+                      );
                     },
                     child: Text(
-                      widget.isArabic ? 'Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø©' : 'Try again',
+                      widget.isArabic
+                          ? 'Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø©'
+                          : 'Try again',
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
@@ -963,222 +1341,5 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     return widget.isArabic
         ? 'ØªØ¹Ø°Ø± ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ù„Ø¹Ø¨Ø©. ÙŠØ±Ø¬Ù‰ Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø© Ù…Ø¬Ø¯Ø¯Ø§Ù‹.'
         : 'Failed to load the game. Please try again.';
-  }
-}
-
-// -- Top status bar -----------------------------------------------------------
-// Combines LIVE status (connection dot + round # + phase chip) with the
-// scrollable history of recent crash multipliers. Replaces _RecentResultsBand.
-
-class _TopStatusBar extends StatelessWidget {
-  const _TopStatusBar({
-    required this.results,
-    required this.isArabic,
-    required this.roundNumber,
-    required this.phase,
-    required this.isConnected,
-    required this.isSyncing,
-  });
-
-  final List<double> results;
-  final bool         isArabic;
-  final int          roundNumber;
-  final String       phase;
-  final bool         isConnected;
-  final bool         isSyncing;
-
-  // Premium color scale for history chips.
-  // < 2x  muted blue-gray
-  // 2-10x amber
-  // 10-50x soft purple
-  // >= 50x gold
-  Color _chipColor(double m) {
-    if (m < 2.0)  return const Color(0xFF78909C);
-    if (m < 10.0) return const Color(0xFFFFAB40);
-    if (m < 50.0) return const Color(0xFFCE93D8);
-    return const Color(0xFFFFD700);
-  }
-
-  Color get _phaseColor {
-    switch (phase) {
-      case 'flying':  return const Color(0xFFFFAB40);
-      case 'crashed': return const Color(0xFFEF5350);
-      default:        return const Color(0xFF66BB6A);
-    }
-  }
-
-  String _phaseLabel(bool ar) {
-    switch (phase) {
-      case 'flying':  return ar ? 'ÙŠØ·ÙŠØ±' : 'Flying';
-      case 'crashed': return ar ? 'ØªØ­Ø·Ù…' : 'Crashed';
-      default:        return ar ? 'Ø±Ù‡Ø§Ù†' : 'Betting';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      top: 0, left: 0, right: 0,
-      child: Container(
-        height: 40,
-        color: Colors.black.withValues(alpha: 0.68),
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: isSyncing
-            ? _buildSyncRow(context)
-            : _buildLiveRow(context),
-      ),
-    );
-  }
-
-  Widget _buildSyncRow(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        SizedBox(
-          width: 13, height: 13,
-          child: CircularProgressIndicator(
-            color: const Color(0xFFFFAB40).withValues(alpha: 0.9),
-            strokeWidth: 1.8,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          isArabic ? 'Ø¬Ø§Ø±ÙŠ Ù…Ø²Ø§Ù…Ù†Ø© Ø§Ù„Ø¬ÙˆÙ„Ø© Ø§Ù„Ø­ÙŠØ©...' : 'Syncing live round...',
-          style: const TextStyle(
-            color: Color(0xFFFFAB40),
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLiveRow(BuildContext context) {
-    return Row(
-      children: [
-        // Connection dot + LIVE label.
-        _LiveDot(connected: isConnected),
-        const SizedBox(width: 4),
-        if (roundNumber > 0) ...[
-          Text(
-            '#$roundNumber',
-            style: const TextStyle(
-              color: Color(0xFF90A4AE),
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(width: 5),
-        ],
-        // Phase chip.
-        _PhaseChip(label: _phaseLabel(isArabic), color: _phaseColor),
-        const SizedBox(width: 6),
-        // Divider.
-        Container(
-          width: 1, height: 16,
-          color: Colors.white.withValues(alpha: 0.12),
-        ),
-        const SizedBox(width: 4),
-        // History multipliers.
-        Expanded(
-          child: results.isEmpty
-              ? const SizedBox.shrink()
-              : ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  reverse: isArabic,
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  itemCount: results.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 5),
-                  itemBuilder: (_, i) {
-                    final m = results[i];
-                    final c = _chipColor(m);
-                    return Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                          color  : c.withValues(alpha: 0.13),
-                          borderRadius: BorderRadius.circular(5),
-                          border : Border.all(
-                              color: c.withValues(alpha: 0.4), width: 0.8),
-                        ),
-                        child: Text(
-                          '${m.toStringAsFixed(2)}x',
-                          style: TextStyle(
-                            color      : c,
-                            fontSize   : 10,
-                            fontWeight : FontWeight.w700,
-                            letterSpacing: 0.2,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-        ),
-      ],
-    );
-  }
-}
-
-class _LiveDot extends StatelessWidget {
-  const _LiveDot({required this.connected});
-  final bool connected;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = connected ? const Color(0xFF66BB6A) : const Color(0xFF78909C);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 7, height: 7,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: color,
-            boxShadow: connected
-                ? [BoxShadow(color: color.withValues(alpha: 0.6), blurRadius: 5)]
-                : null,
-          ),
-        ),
-        const SizedBox(width: 3),
-        Text(
-          connected ? 'LIVE' : 'SYNC',
-          style: TextStyle(
-            color     : color,
-            fontSize  : 9,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.6,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PhaseChip extends StatelessWidget {
-  const _PhaseChip({required this.label, required this.color});
-  final String label;
-  final Color  color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color       : color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(4),
-        border      : Border.all(color: color.withValues(alpha: 0.45), width: 0.8),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color     : color,
-          fontSize  : 9,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
   }
 }
