@@ -13,6 +13,7 @@ import '../../profile/screens/user_profile_screen.dart';
 import '../models/room_user_profile.dart';
 import '../services/room_user_profile_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
+import '../../wealth/widgets/wealth_badge_widget.dart';
 
 // ── Public entry point ────────────────────────────────────────────────────────
 
@@ -1136,6 +1137,13 @@ class _HeaderContent extends StatelessWidget {
                       icon: Icons.military_tech_rounded,
                       label: 'Noble ${profile.nobleLevel}',
                       textColor: textColor,
+                    ),
+                  // Wealth badge
+                  if (profile.wealthLevel > 1)
+                    WealthBadgeWidget(
+                      wealthLevel: profile.wealthLevel,
+                      tierNumber: profile.wealthTierNumber,
+                      size: WealthBadgeSize.small,
                     ),
                 ],
               ),

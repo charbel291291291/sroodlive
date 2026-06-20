@@ -1,5 +1,6 @@
 import '../../../core/config/supabase_config.dart';
 import '../../../core/supabase/supabase_service.dart';
+import '../../wealth/services/wealth_service.dart';
 import '../models/room_user_profile.dart';
 import 'follow_service.dart';
 
@@ -7,6 +8,7 @@ class RoomUserProfileService {
   const RoomUserProfileService();
 
   static const FollowService _followService = FollowService();
+  static const WealthService _wealthService = WealthService();
 
   Future<RoomUserProfile> fetchUserProfile(String userId) async {
     final client = SupabaseService.requiredClient;
@@ -23,6 +25,15 @@ class RoomUserProfileService {
       column: 'receiver_id',
       value: userId,
     );
+
+    // Fetch wealth level for badge display (non-fatal - defaults to level 1).
+    int wealthLevel = 1;
+    int wealthTierNumber = 1;
+    try {
+      final w = await _wealthService.getUserWealth(userId);
+      wealthLevel = w.wealthLevel;
+      wealthTierNumber = w.tierNumber;
+    } catch (_) {}
 
     return RoomUserProfile(
       userId: userId,
@@ -47,6 +58,8 @@ class RoomUserProfileService {
       giftReceivedCount: gifts,
       charmScore: gifts,
       nobleLevel: 0,
+      wealthLevel: wealthLevel,
+      wealthTierNumber: wealthTierNumber,
       isFollowedByMe: await _followService.isFollowing(userId),
     );
   }

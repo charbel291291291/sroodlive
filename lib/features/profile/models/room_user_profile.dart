@@ -24,6 +24,8 @@ class RoomUserProfile {
     this.giftReceivedCount = 0,
     this.charmScore = 0,
     this.nobleLevel = 0,
+    this.wealthLevel = 1,
+    this.wealthTierNumber = 1,
     this.isFollowedByMe = false,
     this.isBlockedByMe = false,
   });
@@ -50,6 +52,8 @@ class RoomUserProfile {
   final int giftReceivedCount;
   final int charmScore;
   final int nobleLevel;
+  final int wealthLevel;
+  final int wealthTierNumber;
   final bool isFollowedByMe;
   final bool isBlockedByMe;
 
@@ -107,6 +111,8 @@ class RoomUserProfile {
       giftReceivedCount: giftReceivedCount,
       charmScore: charmScore,
       nobleLevel: nobleLevel,
+      wealthLevel: wealthLevel,
+      wealthTierNumber: wealthTierNumber,
       isFollowedByMe: isFollowedByMe ?? this.isFollowedByMe,
       isBlockedByMe: isBlockedByMe,
     );

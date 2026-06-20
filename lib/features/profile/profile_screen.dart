@@ -31,6 +31,7 @@ import 'screens/follow_list_screen.dart';
 import 'services/follow_service.dart';
 import 'widgets/country_picker_sheet.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
+import '../wealth/screens/wealth_center_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({required this.isArabic, super.key});
@@ -384,6 +385,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final refreshed = await const LevelService().getMyLevel();
       if (mounted) setState(() => _userLevel = refreshed);
     } catch (_) {}
+  }
+
+  Future<void> _openWealthCenter() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => WealthCenterScreen(isArabic: context.isArabic),
+      ),
+    );
   }
 
   Future<void> _confirmLogout() async {
@@ -1079,6 +1088,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onLevels: _openLevels,
                       onMyRoom: _openMyRoom,
                       roomLoading: _roomLoading,
+                      onWealthCenter: _openWealthCenter,
                       onSettings: () => _openProfileHub(
                         SettingsScreen(isArabic: isArabic),
                       ),
@@ -1967,6 +1977,7 @@ class _QuickActionsGrid extends StatelessWidget {
     required this.onMyRoom,
     required this.onSettings,
     required this.roomLoading,
+    required this.onWealthCenter,
   });
 
   final bool isArabic;
@@ -1977,6 +1988,7 @@ class _QuickActionsGrid extends StatelessWidget {
   final VoidCallback onMyRoom;
   final VoidCallback onSettings;
   final bool roomLoading;
+  final VoidCallback onWealthCenter;
 
   @override
   Widget build(BuildContext context) {
@@ -2010,6 +2022,12 @@ class _QuickActionsGrid extends StatelessWidget {
         label: isArabic ? 'غرفتي' : 'My Room',
         onTap: onMyRoom,
         gradientColors: const [Color(0xFF8B26D9), Color(0xFF4A1478)],
+      ),
+      _FeatureTileData(
+        icon: Icons.diamond_rounded,
+        label: isArabic ? 'مركز الثروة' : 'Wealth',
+        onTap: onWealthCenter,
+        gradientColors: const [Color(0xFFFFD700), Color(0xFF8B26D9)],
       ),
       _FeatureTileData(
         icon: Icons.settings_rounded,
