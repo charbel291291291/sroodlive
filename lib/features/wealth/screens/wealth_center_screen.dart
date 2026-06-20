@@ -26,21 +26,33 @@ class _WealthCenterScreenState extends State<WealthCenterScreen> {
   }
 
   Future<void> _load() async {
+    // Fetch wealth and rules independently so a missing user_wealth row,
+    // wealth_level_rules table, or RPC (e.g. schema drift / undeployed
+    // migration) degrades gracefully to safe defaults instead of failing the
+    // whole screen.
+    UserWealth wealth;
     try {
-      final results = await Future.wait([
-        _service.getMyWealth(),
-        _service.getWealthRules(),
-      ]);
-      if (!mounted) return;
-      setState(() {
-        _wealth  = results[0] as UserWealth;
-        _rules   = results[1] as List<WealthLevelRule>;
-        _loading = false;
-      });
+      wealth = await _service.getMyWealth();
     } catch (e) {
-      if (!mounted) return;
-      setState(() { _error = e.toString(); _loading = false; });
+      debugPrint('[WealthCenter] getMyWealth failed, using default: $e');
+      wealth = UserWealth.empty; // Wealth Level 1 / Bronze
     }
+
+    List<WealthLevelRule> rules;
+    try {
+      rules = await _service.getWealthRules();
+    } catch (e) {
+      debugPrint('[WealthCenter] getWealthRules failed, using empty: $e');
+      rules = const [];
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _wealth = wealth;
+      _rules = rules;
+      _error = null;
+      _loading = false;
+    });
   }
 
   @override
@@ -53,7 +65,10 @@ class _WealthCenterScreenState extends State<WealthCenterScreen> {
           if (_loading)
             const SliverFillRemaining(
               child: Center(
-                child: CircularProgressIndicator(color: Color(0xFFFFD700), strokeWidth: 2.5),
+                child: CircularProgressIndicator(
+                  color: Color(0xFFFFD700),
+                  strokeWidth: 2.5,
+                ),
               ),
             )
           else if (_error != null)
@@ -66,12 +81,18 @@ class _WealthCenterScreenState extends State<WealthCenterScreen> {
                     const SizedBox(height: 12),
                     Text(
                       widget.isArabic ? 'فشل التحميل' : 'Failed to load',
-                      style: const TextStyle(color: Color(0xFF9E9E9E), fontSize: 15),
+                      style: const TextStyle(
+                        color: Color(0xFF9E9E9E),
+                        fontSize: 15,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     TextButton(
                       onPressed: () {
-                        setState(() { _error = null; _loading = true; });
+                        setState(() {
+                          _error = null;
+                          _loading = true;
+                        });
                         _load();
                       },
                       child: Text(widget.isArabic ? 'اعادة المحاولة' : 'Retry'),
@@ -108,7 +129,10 @@ class _WealthCenterScreenState extends State<WealthCenterScreen> {
       backgroundColor: const Color(0xFF0A0615),
       surfaceTintColor: Colors.transparent,
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_rounded, color: Color(0xFFFFD700)),
+        icon: const Icon(
+          Icons.arrow_back_ios_rounded,
+          color: Color(0xFFFFD700),
+        ),
         onPressed: () => Navigator.of(context).maybePop(),
       ),
       title: Text(
@@ -210,10 +234,14 @@ class _WealthCenterScreenState extends State<WealthCenterScreen> {
               decoration: BoxDecoration(
                 color: const Color(0xFFFFD700).withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.4)),
+                border: Border.all(
+                  color: const Color(0xFFFFD700).withValues(alpha: 0.4),
+                ),
               ),
               child: Text(
-                widget.isArabic ? 'وصلت للمستوى الاقصى - Legend 100' : 'Max Level Reached - Legend 100',
+                widget.isArabic
+                    ? 'وصلت للمستوى الاقصى - Legend 100'
+                    : 'Max Level Reached - Legend 100',
                 style: const TextStyle(
                   color: Color(0xFFFFD700),
                   fontSize: 13,
@@ -257,7 +285,9 @@ class _WealthCenterScreenState extends State<WealthCenterScreen> {
           if (!w.isMaxLevel) ...[
             const SizedBox(height: 8),
             _StatRow(
-              label: widget.isArabic ? 'المتبقي للمستوى التالي' : 'Remaining for Next Level',
+              label: widget.isArabic
+                  ? 'المتبقي للمستوى التالي'
+                  : 'Remaining for Next Level',
               value: _fmtXp(w.xpToNextLevel ?? 0),
               icon: Icons.trending_up_rounded,
               color: const Color(0xFF00D4FF),
@@ -270,7 +300,9 @@ class _WealthCenterScreenState extends State<WealthCenterScreen> {
 
   Widget _buildHowToEarnSection() {
     return _Section(
-      title: widget.isArabic ? 'كيف ترفع مستوى ثروتك' : 'How to Level Up Wealth',
+      title: widget.isArabic
+          ? 'كيف ترفع مستوى ثروتك'
+          : 'How to Level Up Wealth',
       isArabic: widget.isArabic,
       child: Column(
         children: [
@@ -297,11 +329,17 @@ class _WealthCenterScreenState extends State<WealthCenterScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFF0F2A1A),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFF2ECC71).withValues(alpha: 0.3)),
+              border: Border.all(
+                color: const Color(0xFF2ECC71).withValues(alpha: 0.3),
+              ),
             ),
             child: Row(
               children: [
-                const Icon(Icons.info_outline_rounded, color: Color(0xFF2ECC71), size: 16),
+                const Icon(
+                  Icons.info_outline_rounded,
+                  color: Color(0xFF2ECC71),
+                  size: 16,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -324,42 +362,72 @@ class _WealthCenterScreenState extends State<WealthCenterScreen> {
 
   Widget _buildWhereBadgesSection() {
     final locations = widget.isArabic
-        ? ['الملف الشخصي', 'قائمة المستخدمين في الغرفة', 'بطاقة الملف المصغرة', 'التصنيفات']
+        ? [
+            'الملف الشخصي',
+            'قائمة المستخدمين في الغرفة',
+            'بطاقة الملف المصغرة',
+            'التصنيفات',
+          ]
         : ['Profile', 'Room user list', 'Mini profile card', 'Rankings'];
     return _Section(
-      title: widget.isArabic ? 'اين تظهر شارة الثروة' : 'Where Wealth Badge Appears',
+      title: widget.isArabic
+          ? 'اين تظهر شارة الثروة'
+          : 'Where Wealth Badge Appears',
       isArabic: widget.isArabic,
       child: Wrap(
         spacing: 8,
         runSpacing: 8,
-        children: locations.map((loc) => Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: const Color(0xFF3D1F6E).withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFF8B26D9).withValues(alpha: 0.4)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.place_rounded, color: Color(0xFFFFD700), size: 14),
-              const SizedBox(width: 4),
-              Text(loc, style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 12)),
-            ],
-          ),
-        )).toList(),
+        children: locations
+            .map(
+              (loc) => Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3D1F6E).withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: const Color(0xFF8B26D9).withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.place_rounded,
+                      color: Color(0xFFFFD700),
+                      size: 14,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      loc,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+            .toList(),
       ),
     );
   }
 
   Widget _buildTierTable() {
     return _Section(
-      title: widget.isArabic ? 'جدول المستويات (100 مستوى)' : 'Tier Table (100 Levels)',
+      title: widget.isArabic
+          ? 'جدول المستويات (100 مستوى)'
+          : 'Tier Table (100 Levels)',
       isArabic: widget.isArabic,
       child: Column(
         children: WealthTier.values.map((tier) {
           final isCurrentTier = (_wealth?.tierNumber ?? 1) == tier.number;
-          final firstRule = _rules.where((r) => r.tierNumber == tier.number).firstOrNull;
+          final firstRule = _rules
+              .where((r) => r.tierNumber == tier.number)
+              .firstOrNull;
           final color = tier.color;
 
           return Container(
@@ -385,7 +453,10 @@ class _WealthCenterScreenState extends State<WealthCenterScreen> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: color.withValues(alpha: 0.18),
-                    border: Border.all(color: color.withValues(alpha: 0.6), width: 1.5),
+                    border: Border.all(
+                      color: color.withValues(alpha: 0.6),
+                      width: 1.5,
+                    ),
                   ),
                   child: Center(
                     child: Text(
@@ -434,7 +505,10 @@ class _WealthCenterScreenState extends State<WealthCenterScreen> {
                 if (isCurrentTier)
                   Container(
                     margin: const EdgeInsets.only(left: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: color.withValues(alpha: 0.25),
                       borderRadius: BorderRadius.circular(6),
@@ -458,8 +532,8 @@ class _WealthCenterScreenState extends State<WealthCenterScreen> {
 
   String _fmtXp(int xp) {
     if (xp >= 1000000000) return '${(xp / 1000000000).toStringAsFixed(1)}B';
-    if (xp >= 1000000)    return '${(xp / 1000000).toStringAsFixed(1)}M';
-    if (xp >= 1000)       return '${(xp / 1000).toStringAsFixed(1)}K';
+    if (xp >= 1000000) return '${(xp / 1000000).toStringAsFixed(1)}M';
+    if (xp >= 1000) return '${(xp / 1000).toStringAsFixed(1)}K';
     return '$xp';
   }
 }
@@ -467,7 +541,11 @@ class _WealthCenterScreenState extends State<WealthCenterScreen> {
 // ── Sub-widgets ───────────────────────────────────────────────────────────────
 
 class _XpBar extends StatelessWidget {
-  const _XpBar({required this.wealth, required this.color, required this.isArabic});
+  const _XpBar({
+    required this.wealth,
+    required this.color,
+    required this.isArabic,
+  });
   final UserWealth wealth;
   final Color color;
   final bool isArabic;
@@ -488,13 +566,20 @@ class _XpBar extends StatelessWidget {
               isArabic
                   ? 'المستوى ${wealth.wealthLevel}'
                   : 'Level ${wealth.wealthLevel}',
-              style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             Text(
               isArabic
                   ? 'المستوى ${wealth.nextLevel ?? wealth.wealthLevel}'
                   : 'Level ${wealth.nextLevel ?? wealth.wealthLevel}',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.4),
+                fontSize: 11,
+              ),
             ),
           ],
         ),
@@ -514,11 +599,17 @@ class _XpBar extends StatelessWidget {
           children: [
             Text(
               '$fmtXp XP',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 10),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.5),
+                fontSize: 10,
+              ),
             ),
             Text(
               '$fmtNext XP',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 10),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.5),
+                fontSize: 10,
+              ),
             ),
           ],
         ),
@@ -528,14 +619,18 @@ class _XpBar extends StatelessWidget {
 
   static String _fmt(int xp) {
     if (xp >= 1000000000) return '${(xp / 1000000000).toStringAsFixed(1)}B';
-    if (xp >= 1000000)    return '${(xp / 1000000).toStringAsFixed(1)}M';
-    if (xp >= 1000)       return '${(xp / 1000).toStringAsFixed(1)}K';
+    if (xp >= 1000000) return '${(xp / 1000000).toStringAsFixed(1)}M';
+    if (xp >= 1000) return '${(xp / 1000).toStringAsFixed(1)}K';
     return '$xp';
   }
 }
 
 class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.child, required this.isArabic});
+  const _Section({
+    required this.title,
+    required this.child,
+    required this.isArabic,
+  });
   final String title;
   final Widget child;
   final bool isArabic;
@@ -602,12 +697,19 @@ class _StatRow extends StatelessWidget {
         Expanded(
           child: Text(
             label,
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 13,
+            ),
           ),
         ),
         Text(
           value,
-          style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w800),
+          style: TextStyle(
+            color: color,
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ],
     );

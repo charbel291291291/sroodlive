@@ -156,11 +156,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return;
       }
 
-      final data = (await client
-          .from('profiles')
-          .select()
-          .eq('id', user.id)
-          .maybeSingle()) ?? <String, dynamic>{};
+      final data =
+          (await client
+              .from('profiles')
+              .select()
+              .eq('id', user.id)
+              .maybeSingle()) ??
+          <String, dynamic>{};
       var frames = _fallbackAvatarFrames;
 
       try {
@@ -199,7 +201,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         followers = await _followService.followersCount(user.id);
         following = await _followService.followingCount(user.id);
         friends = await _followService.friendsCount(user.id);
-        debugPrint('[FollowStats] followers=$followers following=$following friends=$friends');
+        debugPrint(
+          '[FollowStats] followers=$followers following=$following friends=$friends',
+        );
       } catch (e) {
         debugPrint('[FollowStats] failed to load follow stats: $e');
       }
@@ -210,7 +214,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       UserLevel? loadedLevel;
       try {
         loadedLevel = await const LevelService().getMyLevel();
-        debugPrint('[LevelSync] loaded level=${loadedLevel.level} xp=${loadedLevel.xp}');
+        debugPrint(
+          '[LevelSync] loaded level=${loadedLevel.level} xp=${loadedLevel.xp}',
+        );
       } catch (e) {
         debugPrint('[LevelSync] failed to load level: $e');
       }
@@ -313,10 +319,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
       await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => RoomDetailsScreen(
-            room: result.room,
-            isArabic: context.isArabic,
-          ),
+          builder: (_) =>
+              RoomDetailsScreen(room: result.room, isArabic: context.isArabic),
         ),
       );
     } catch (e) {
@@ -336,7 +340,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _openStore() async {
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => StoreScreen(isArabic: context.isArabic)),
+      MaterialPageRoute(
+        builder: (_) => StoreScreen(isArabic: context.isArabic),
+      ),
     );
     if (mounted) await _loadProfile();
   }
@@ -403,7 +409,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: Text(
           context.isArabic ? 'تسجيل الخروج' : 'Sign Out',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w900,
+          ),
           textAlign: context.isArabic ? TextAlign.right : TextAlign.left,
         ),
         content: Text(
@@ -541,8 +550,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: DropdownButtonFormField<String>(
                             initialValue: selectedGender,
                             decoration: InputDecoration(
-                              labelText:
-                                  context.isArabic ? 'الجنس' : 'Gender',
+                              labelText: context.isArabic ? 'الجنس' : 'Gender',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(18),
                               ),
@@ -665,8 +673,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final reason = vipLevel >= 8
             ? 'vip'
             : userLevel >= 60
-                ? 'level'
-                : 'insufficient_status';
+            ? 'level'
+            : 'insufficient_status';
 
         debugPrint(
           '[AvatarGif] selected file type=gif'
@@ -707,7 +715,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         final path =
             '${user.id}/avatar_${DateTime.now().millisecondsSinceEpoch}.gif';
-        await client.storage.from('avatars').uploadBinary(
+        await client.storage
+            .from('avatars')
+            .uploadBinary(
               path,
               bytes,
               fileOptions: const FileOptions(contentType: 'image/gif'),
@@ -716,16 +726,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final publicUrl = client.storage.from('avatars').getPublicUrl(path);
         final versionedUrl =
             '$publicUrl?v=${DateTime.now().millisecondsSinceEpoch}';
-        await client.from('profiles').update({
-          'avatar_url': versionedUrl,
-          'updated_at': DateTime.now().toIso8601String(),
-        }).eq('id', user.id);
+        await client
+            .from('profiles')
+            .update({
+              'avatar_url': versionedUrl,
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', user.id);
 
         await _loadProfile();
         if (mounted) {
           setState(() {
-            successMessage =
-                isArabic ? 'تم تحديث الصورة.' : 'Profile image updated.';
+            successMessage = isArabic
+                ? 'تم تحديث الصورة.'
+                : 'Profile image updated.';
           });
         }
         return; // GIF path done
@@ -737,7 +751,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           '${user.id}/avatar_${DateTime.now().millisecondsSinceEpoch}.$extension';
       final contentType = _avatarContentType(extension, image.mimeType);
 
-      await client.storage.from('avatars').uploadBinary(
+      await client.storage
+          .from('avatars')
+          .uploadBinary(
             path,
             bytes,
             fileOptions: FileOptions(contentType: contentType),
@@ -758,8 +774,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await _loadProfile();
       if (mounted) {
         setState(() {
-          successMessage =
-              isArabic ? 'تم تحديث الصورة.' : 'Profile image updated.';
+          successMessage = isArabic
+              ? 'تم تحديث الصورة.'
+              : 'Profile image updated.';
         });
       }
     } catch (error) {
@@ -832,8 +849,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       await _loadProfile();
       setState(() {
-        successMessage =
-            context.isArabic ? 'تم حفظ إطار الصورة.' : 'Avatar frame saved.';
+        successMessage = context.isArabic
+            ? 'تم حفظ إطار الصورة.'
+            : 'Avatar frame saved.';
       });
     } catch (error) {
       setState(() {
@@ -910,8 +928,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         await client
             .from('profiles')
             .update({
-              'username':
-                  currentUsername.isEmpty ? displayName : currentUsername,
+              'username': currentUsername.isEmpty
+                  ? displayName
+                  : currentUsername,
               'display_name': displayName,
               'updated_at': DateTime.now().toIso8601String(),
             })
@@ -920,8 +939,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       await _loadProfile();
       setState(() {
-        successMessage =
-            isArabic ? 'تم حفظ الملف الشخصي.' : 'Profile saved.';
+        successMessage = isArabic ? 'تم حفظ الملف الشخصي.' : 'Profile saved.';
       });
     } catch (error) {
       setState(() {
@@ -947,15 +965,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
             colors: [Color(0xFF12061F), Color(0xFF07030D), Color(0xFF050208)],
           ),
         ),
-        child: const SafeArea(child: Center(child: CircularProgressIndicator())),
+        child: const SafeArea(
+          child: Center(child: CircularProgressIndicator()),
+        ),
       );
     }
 
     final currentUserId =
         SupabaseService.requiredClient.auth.currentUser?.id ?? '';
     final avatarUrl = profile?['avatar_url']?.toString();
-    final selectedAvatarFrameKey =
-        profile?['selected_avatar_frame_key']?.toString();
+    final selectedAvatarFrameKey = profile?['selected_avatar_frame_key']
+        ?.toString();
     final publicUserId = _profileText(
       'public_user_id',
       fallback: currentUserId.length >= 8
@@ -971,8 +991,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final goldenIdFrame = profile?['golden_id_frame']?.toString() ?? 'classic';
     final coins = wallet?.coinsBalance ?? 0;
     final diamonds = wallet?.diamondsBalance ?? 0;
-    final level = _userLevel?.level ?? _intFromProfile(profile ?? {}, 'level', fallback: 1);
-    debugPrint('[LevelSync] display level=$level (rpc=${_userLevel?.level}, profile=${_intFromProfile(profile ?? {}, 'level', fallback: 1)})');
+    final level =
+        _userLevel?.level ??
+        _intFromProfile(profile ?? {}, 'level', fallback: 1);
+    debugPrint(
+      '[LevelSync] display level=$level (rpc=${_userLevel?.level}, profile=${_intFromProfile(profile ?? {}, 'level', fallback: 1)})',
+    );
     final country = _profileText('country');
     final gender = _profileText('gender');
     final bio = _profileText('bio');
@@ -1001,9 +1025,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               backgroundColor: const Color(0xFF1A0D33),
               child: SingleChildScrollView(
                 padding: EdgeInsets.fromLTRB(
-                16, 12, 16,
-                MediaQuery.of(context).padding.bottom + 32 + 80,
-              ),
+                  16,
+                  12,
+                  16,
+                  MediaQuery.of(context).padding.bottom + 32 + 80,
+                ),
                 child: Column(
                   children: [
                     // 1. Premium Profile Header
@@ -1038,25 +1064,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onFollowersTap: uid == null
                           ? null
                           : () => Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => FollowListScreen(
-                                    userId: uid,
-                                    isFollowers: true,
-                                    isArabic: isArabic,
-                                  ),
+                              MaterialPageRoute<void>(
+                                builder: (_) => FollowListScreen(
+                                  userId: uid,
+                                  isFollowers: true,
+                                  isArabic: isArabic,
                                 ),
                               ),
+                            ),
                       onFollowingTap: uid == null
                           ? null
                           : () => Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => FollowListScreen(
-                                    userId: uid,
-                                    isFollowers: false,
-                                    isArabic: isArabic,
-                                  ),
+                              MaterialPageRoute<void>(
+                                builder: (_) => FollowListScreen(
+                                  userId: uid,
+                                  isFollowers: false,
+                                  isArabic: isArabic,
                                 ),
                               ),
+                            ),
                     ),
                     const SizedBox(height: 14),
 
@@ -1089,9 +1115,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onMyRoom: _openMyRoom,
                       roomLoading: _roomLoading,
                       onWealthCenter: _openWealthCenter,
-                      onSettings: () => _openProfileHub(
-                        SettingsScreen(isArabic: isArabic),
-                      ),
+                      onSettings: () =>
+                          _openProfileHub(SettingsScreen(isArabic: isArabic)),
                     ),
 
                     // Notices
@@ -1114,10 +1139,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 14),
 
                     // 6. Daily Check-in Card
-                    _DailyCheckinCard(
-                      isArabic: isArabic,
-                      onTap: _openCheckin,
-                    ),
+                    _DailyCheckinCard(isArabic: isArabic, onTap: _openCheckin),
                     const SizedBox(height: 14),
 
                     // 7. Love / Relationship Card
@@ -1136,10 +1158,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 14),
 
                     // 9. Logout
-                    _LogoutButton(
-                      isArabic: isArabic,
-                      onTap: _confirmLogout,
-                    ),
+                    _LogoutButton(isArabic: isArabic, onTap: _confirmLogout),
                   ],
                 ),
               ),
@@ -1199,12 +1218,15 @@ class _PremiumProfileHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textAlign = isArabic ? TextAlign.right : TextAlign.left;
-    final crossAxisAlignment =
-        isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    final crossAxisAlignment = isArabic
+        ? CrossAxisAlignment.end
+        : CrossAxisAlignment.start;
     final flag = _countryFlag(country);
     final subtitle = bio.isNotEmpty
         ? bio
-        : (isArabic ? 'أهلاً بك في سرود لايف.' : 'Welcome to ${AppConfig.instance.appDisplayName}.');
+        : (isArabic
+              ? 'أهلاً بك في سرود لايف.'
+              : 'Welcome to ${AppConfig.instance.appDisplayName}.');
 
     return Container(
       width: double.infinity,
@@ -1307,8 +1329,9 @@ class _PremiumProfileHero extends StatelessWidget {
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
-                        textDirection:
-                            isArabic ? TextDirection.rtl : TextDirection.ltr,
+                        textDirection: isArabic
+                            ? TextDirection.rtl
+                            : TextDirection.ltr,
                         children: [
                           const Icon(
                             Icons.workspace_premium_rounded,
@@ -1331,8 +1354,9 @@ class _PremiumProfileHero extends StatelessWidget {
                     const SizedBox(height: 10),
                     // Display name
                     Row(
-                      textDirection:
-                          isArabic ? TextDirection.rtl : TextDirection.ltr,
+                      textDirection: isArabic
+                          ? TextDirection.rtl
+                          : TextDirection.ltr,
                       children: [
                         Expanded(
                           child: VipUsername(
@@ -1362,10 +1386,14 @@ class _PremiumProfileHero extends StatelessWidget {
                           height: 28,
                           padding: const EdgeInsets.symmetric(horizontal: 10),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF100718).withValues(alpha: 0.7),
+                            color: const Color(
+                              0xFF100718,
+                            ).withValues(alpha: 0.7),
                             borderRadius: BorderRadius.circular(999),
                             border: Border.all(
-                              color: const Color(0xFFF0C15A).withValues(alpha: 0.22),
+                              color: const Color(
+                                0xFFF0C15A,
+                              ).withValues(alpha: 0.22),
                             ),
                           ),
                           child: Row(
@@ -1400,16 +1428,14 @@ class _PremiumProfileHero extends StatelessWidget {
                     const SizedBox(height: 10),
                     // Badges row
                     Wrap(
-                      alignment:
-                          isArabic ? WrapAlignment.end : WrapAlignment.start,
+                      alignment: isArabic
+                          ? WrapAlignment.end
+                          : WrapAlignment.start,
                       spacing: 6,
                       runSpacing: 5,
                       children: [
                         if (flag.isNotEmpty)
-                          _ProfileBadge(
-                            label: flag,
-                            highlighted: false,
-                          ),
+                          _ProfileBadge(label: flag, highlighted: false),
                         if (vipLevel > 0) VipBadge(vipLevel: vipLevel),
                         _ProfileBadge(
                           icon: Icons.military_tech_rounded,
@@ -1452,8 +1478,8 @@ class _PremiumProfileHero extends StatelessWidget {
   }
 
   Widget _buildAvatarZone() {
-    const zoneWidth  = 108.0;
-    const glowDiam   = 100.0;
+    const zoneWidth = 108.0;
+    const glowDiam = 100.0;
     const cameraSize = 36.0;
     const cameraIcon = 17.0;
 
@@ -1789,9 +1815,7 @@ class WalletBalanceCard extends StatelessWidget {
             end: Alignment.bottomRight,
             colors: colors,
           ),
-          border: Border.all(
-            color: glowColor.withValues(alpha: 0.45),
-          ),
+          border: Border.all(color: glowColor.withValues(alpha: 0.45)),
           boxShadow: [
             BoxShadow(
               color: glowColor.withValues(alpha: 0.28),
@@ -2011,12 +2035,10 @@ class _QuickActionsGrid extends StatelessWidget {
         onTap: onBackpack,
         gradientColors: const [Color(0xFFFFD978), Color(0xFFFF9500)],
       ),
-      _FeatureTileData(
-        icon: Icons.military_tech_rounded,
-        label: isArabic ? 'المستويات' : 'Levels',
-        onTap: onLevels,
-        gradientColors: const [Color(0xFFF0C15A), Color(0xFF9B59B6)],
-      ),
+      // TODO(charm): old generic Levels tile hidden for now. It may return
+      // later as the "Charm" (received-support) progression. _openLevels(),
+      // onLevels, the LevelCenterScreen import, and the profile header Lv badge
+      // are intentionally kept so it can be re-enabled without rebuilding it.
       _FeatureTileData(
         icon: roomLoading ? Icons.hourglass_top_rounded : Icons.home_rounded,
         label: isArabic ? 'غرفتي' : 'My Room',
@@ -2081,10 +2103,7 @@ class _FeatureTileData {
 }
 
 class _ProfileFeatureTile extends StatelessWidget {
-  const _ProfileFeatureTile({
-    required this.data,
-    required this.isArabic,
-  });
+  const _ProfileFeatureTile({required this.data, required this.isArabic});
 
   final _FeatureTileData data;
   final bool isArabic;
@@ -2120,11 +2139,7 @@ class _ProfileFeatureTile extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Icon(
-                    data.icon,
-                    color: Colors.white,
-                    size: 24,
-                  ),
+                  child: Icon(data.icon, color: Colors.white, size: 24),
                 ),
               ],
             ),
@@ -2208,10 +2223,7 @@ class _AccountSection extends StatelessWidget {
 // -----------------------------------------------------------------------------
 
 class _DailyCheckinCard extends StatelessWidget {
-  const _DailyCheckinCard({
-    required this.isArabic,
-    required this.onTap,
-  });
+  const _DailyCheckinCard({required this.isArabic, required this.onTap});
 
   final bool isArabic;
   final VoidCallback onTap;
@@ -2467,8 +2479,7 @@ class _SectionCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
             child: Row(
-              textDirection:
-                  isArabic ? TextDirection.rtl : TextDirection.ltr,
+              textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
               children: [
                 Icon(icon, color: const Color(0xFFF0C15A), size: 16),
                 const SizedBox(width: 6),
@@ -2604,10 +2615,7 @@ class ProfileListRow extends StatelessWidget {
 // -----------------------------------------------------------------------------
 
 class _LogoutButton extends StatelessWidget {
-  const _LogoutButton({
-    required this.isArabic,
-    required this.onTap,
-  });
+  const _LogoutButton({required this.isArabic, required this.onTap});
 
   final bool isArabic;
   final VoidCallback onTap;
@@ -2762,16 +2770,14 @@ class _ProfileNotice extends StatelessWidget {
             : const Color(0xFFFF5C7A).withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color:
-              isSuccess ? const Color(0xFF2ECC71) : const Color(0xFFFF5C7A),
+          color: isSuccess ? const Color(0xFF2ECC71) : const Color(0xFFFF5C7A),
         ),
       ),
       child: Text(
         message,
         textAlign: isArabic ? TextAlign.right : TextAlign.left,
         style: TextStyle(
-          color:
-              isSuccess ? const Color(0xFF2ECC71) : const Color(0xFFFF5C7A),
+          color: isSuccess ? const Color(0xFF2ECC71) : const Color(0xFFFF5C7A),
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -2860,8 +2866,7 @@ class _AvatarFramePickerSheet extends StatelessWidget {
               _AvatarFramePickerTile(
                 avatarUrl: avatarUrl,
                 frame: null,
-                selected:
-                    selectedFrameKey == null || selectedFrameKey!.isEmpty,
+                selected: selectedFrameKey == null || selectedFrameKey!.isEmpty,
                 unlocked: true,
                 vipLevel: vipLevel,
                 isArabic: isArabic,
@@ -2888,8 +2893,9 @@ class _AvatarFramePickerSheet extends StatelessWidget {
               ),
               _AvatarFrameGroup(
                 title: 'VIP',
-                frames:
-                    frames.where((frame) => frame.category == 'vip').toList(),
+                frames: frames
+                    .where((frame) => frame.category == 'vip')
+                    .toList(),
                 selectedFrameKey: selectedFrameKey,
                 avatarUrl: avatarUrl,
                 vipLevel: vipLevel,
@@ -3011,8 +3017,7 @@ class _AvatarFramePickerTile extends StatelessWidget {
           color: selected ? const Color(0xFF2D1247) : const Color(0xFF12091D),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color:
-                selected ? const Color(0xFFF0C15A) : const Color(0xFF4A3470),
+            color: selected ? const Color(0xFFF0C15A) : const Color(0xFF4A3470),
           ),
         ),
         child: Column(
@@ -3066,4 +3071,3 @@ String _formatCount(int value) {
   if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}K';
   return value.toString();
 }
-
