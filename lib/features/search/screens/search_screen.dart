@@ -213,7 +213,7 @@ class _SearchScreenState extends State<SearchScreen>
                 onChanged: _onQueryChanged,
                 decoration: InputDecoration(
                   hintText: isArabic
-                      ? 'Ø§Ø¨Ø­Ø« Ø¹Ù† Ø£Ø´Ø®Ø§Øµ Ø£Ùˆ ØºØ±Ù...'
+                      ? 'ابحث عن أشخاص أو غرف...'
                       : 'Search people or rooms...',
                   hintStyle: const TextStyle(
                     color: Color(0xFF6E5A8A),
@@ -270,12 +270,12 @@ class _SearchScreenState extends State<SearchScreen>
         tabs: [
           Tab(
             text: isArabic
-                ? 'Ø£Ø´Ø®Ø§Øµ (${_userResults.length})'
+                ? 'أشخاص (${_userResults.length})'
                 : 'People (${_userResults.length})',
           ),
           Tab(
             text: isArabic
-                ? 'ØºØ±Ù (${_roomResults.length})'
+                ? 'غرف (${_roomResults.length})'
                 : 'Rooms (${_roomResults.length})',
           ),
         ],
@@ -287,7 +287,7 @@ class _SearchScreenState extends State<SearchScreen>
     if (items.isEmpty) {
       return Center(
         child: Text(
-          isArabic ? 'Ù„Ø§ ØªÙˆØ¬Ø¯ Ù†ØªØ§Ø¦Ø¬' : 'No results',
+          isArabic ? 'لا توجد نتائج' : 'No results',
           style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 15),
         ),
       );
@@ -310,7 +310,7 @@ class _SearchScreenState extends State<SearchScreen>
           const SizedBox(height: 16),
           Text(
             isArabic
-                ? 'Ø§Ø¨Ø­Ø« Ø¹Ù† Ø£Ø´Ø®Ø§Øµ Ø£Ùˆ ØºØ±Ù'
+                ? 'ابحث عن أشخاص أو غرف'
                 : 'Search for people or rooms',
             style: const TextStyle(
               color: Color(0xFF9E91B8),
@@ -336,7 +336,7 @@ class _SearchScreenState extends State<SearchScreen>
           const SizedBox(height: 14),
           Text(
             isArabic
-                ? 'Ù„Ø§ ØªÙˆØ¬Ø¯ Ù†ØªØ§Ø¦Ø¬ Ù„Ù€ "$_query"'
+                ? 'لا توجد نتائج لـ "$_query"'
                 : 'No results for "$_query"',
             textAlign: TextAlign.center,
             style: const TextStyle(
