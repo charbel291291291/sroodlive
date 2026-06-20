@@ -22,15 +22,15 @@ import 'room_settings_sheet.dart';
 import '../models/room.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// RoomToolsSheet â€” premium tools bottom sheet for live rooms.
+// --------------------
+// RoomToolsSheet - premium tools bottom sheet for live rooms.
 //
 // Overflow fix: SafeArea is NOT used as a wrapper. Instead we read
 // MediaQuery.viewPadding.bottom (device navigation bar inset) and add it
 // explicitly to the scroll content bottom padding. This avoids the 1.1 px
 // overflow that happens when SafeArea pads the sheet before the Column
 // computes its height.
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------
 
 class RoomToolsSheet extends StatefulWidget {
   const RoomToolsSheet({
@@ -126,7 +126,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
 
   String _t(String ar, String en) => context.isArabic ? ar : en;
 
-  // â”€â”€ Permission check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Permission check ------------------------------------------------------
 
   void _requirePermission(VoidCallback onGranted, {String tool = 'unknown'}) {
     if (_canManage) {
@@ -138,7 +138,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
         'isOwner=${widget.isOwner} isHost=${widget.isHost} isModerator=${widget.isModerator}',
       );
       _snack(
-        _t('Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ù„Ø§Ø³ØªØ®Ø¯Ø§Ù… Ù‡Ø°Ù‡ Ø§Ù„Ø£Ø¯Ø§Ø©',
+        _t('ليس لديك صلاحية لاستخدام هذه الأداة',
             'You do not have permission to use this tool.'),
         isError: true,
       );
@@ -155,14 +155,14 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
         'isOwner=${widget.isOwner} isHost=${widget.isHost} isModerator=${widget.isModerator}',
       );
       _snack(
-        _t('Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ù„Ø§Ø³ØªØ®Ø¯Ø§Ù… Ù‡Ø°Ù‡ Ø§Ù„Ø£Ø¯Ø§Ø©',
+        _t('ليس لديك صلاحية لاستخدام هذه الأداة',
             'You do not have permission to use this tool.'),
         isError: true,
       );
     }
   }
 
-  // â”€â”€ Snack helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Snack helper ----------------------------------------------------------
 
   void _snack(String msg, {bool isError = false}) {
     ScaffoldMessenger.of(context)
@@ -185,7 +185,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
       ));
   }
 
-  // â”€â”€ Coming Soon mini-sheet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Coming Soon mini-sheet ------------------------------------------------
 
   void _showComingSoon(String featureAr, String featureEn) {
     HapticFeedback.lightImpact();
@@ -199,7 +199,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
     );
   }
 
-  // â”€â”€ Navigation helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Navigation helpers ----------------------------------------------------
 
   void _openSettings() {
     HapticFeedback.lightImpact();
@@ -226,7 +226,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
 
   void _openGameCenter() {
     HapticFeedback.lightImpact();
-    // Capture isArabic before popping â€” context will be defunct afterwards.
+    // Capture isArabic before popping - context will be defunct afterwards.
     final isArabic = context.isArabic;
     Navigator.of(context).pop(); // close tools sheet
     // useRootNavigator: true so the sheet is anchored to the root navigator,
@@ -304,19 +304,19 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
         backgroundColor: const Color(0xFF1A0D33),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
-          _t('Ù…Ø³Ø­ Ø§Ù„Ø¯Ø±Ø¯Ø´Ø©', 'Clear Chat'),
+          _t('مسح الدردشة', 'Clear Chat'),
           style: const TextStyle(
               color: Colors.white, fontWeight: FontWeight.w800),
         ),
         content: Text(
-          _t('Ù‡Ù„ Ø£Ù†Øª Ù…ØªØ£ÙƒØ¯ Ø£Ù†Ùƒ ØªØ±ÙŠØ¯ Ù…Ø³Ø­ Ø¬Ù…ÙŠØ¹ Ø±Ø³Ø§Ø¦Ù„ Ø§Ù„Ø¯Ø±Ø¯Ø´Ø©ØŸ',
+          _t('هل أنت متأكد أنك تريد مسح جميع رسائل الدردشة؟',
               'Are you sure you want to clear all chat messages?'),
           style: TextStyle(color: Colors.white.withValues(alpha: 0.75)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(_t('Ø¥Ù„ØºØ§Ø¡', 'Cancel'),
+            child: Text(_t('إلغاء', 'Cancel'),
                 style: const TextStyle(color: Color(0xFF9E91B8))),
           ),
           FilledButton(
@@ -330,7 +330,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
               Navigator.of(context).pop(); // close tools sheet
               widget.onClearChat();
             },
-            child: Text(_t('Ù…Ø³Ø­', 'Clear')),
+            child: Text(_t('مسح', 'Clear')),
           ),
         ],
       ),
@@ -365,7 +365,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(context.isArabic
-              ? 'Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ø£Ø­Ø¯ Ø¹Ù„Ù‰ Ø§Ù„Ù…Ø§ÙŠÙƒ'
+              ? 'لا يوجد أحد على المايك'
               : 'No one is on mic'),
           backgroundColor: const Color(0xFF231440),
         ),
@@ -422,7 +422,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
   }
 
 
-  // â”€â”€ Build â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Build -----------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -447,22 +447,22 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
           children: [
             // Drag handle
             _Handle(),
-            // Scrollable content â€” bottom padding includes nav-bar inset
+            // Scrollable content - bottom padding includes nav-bar inset
             Flexible(
               child: SingleChildScrollView(
                 padding: EdgeInsets.fromLTRB(16, 4, 16, 20 + bottomInset),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Section A â€“ Interactive
-                    _SectionLabel(_t('Ù…ÙŠØ²Ø§Øª ØªÙØ§Ø¹Ù„ÙŠØ©', 'Interactive')),
+                    // Section A - Interactive
+                    _SectionLabel(_t('ميزات تفاعلية', 'Interactive')),
                     const SizedBox(height: 10),
                     _ToolGrid(
                       isArabic: isArabic,
                       items: [
                         _ToolDef(
                           icon: Icons.groups_2_rounded,
-                          labelAr: 'Ø¨ÙŠ ÙƒÙŠ',
+                          labelAr: 'بي كي',
                           labelEn: 'Team PK',
                           onTap: _canManage
                               ? _openTeamPk
@@ -478,7 +478,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                         ),
                         _ToolDef(
                           icon: Icons.sports_esports_rounded,
-                          labelAr: 'Ø£Ù„Ø¹Ø§Ø¨',
+                          labelAr: 'ألعاب',
                           labelEn: 'Game',
                           accent: const Color(0xFFF0C15A),
                           onTap: _openGameCenter,
@@ -487,15 +487,15 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Section B â€“ Management
-                    _SectionLabel(_t('Ø£Ø¯ÙˆØ§Øª Ø§Ù„Ø¥Ø¯Ø§Ø±Ø©', 'Management')),
+                    // Section B - Management
+                    _SectionLabel(_t('أدوات الإدارة', 'Management')),
                     const SizedBox(height: 10),
                     _ToolGrid(
                       isArabic: isArabic,
                       items: [
                         _ToolDef(
                           icon: Icons.cleaning_services_rounded,
-                          labelAr: 'Ù…Ø³Ø­',
+                          labelAr: 'مسح',
                           labelEn: 'Clean',
                           onTap: _canModerate
                               ? _confirmClearChat
@@ -504,7 +504,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                         ),
                         _ToolDef(
                           icon: Icons.settings_rounded,
-                          labelAr: 'Ø§Ù„Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª',
+                          labelAr: 'الإعدادات',
                           labelEn: 'Settings',
                           onTap: _canManage
                               ? _openSettings
@@ -513,21 +513,21 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                         ),
                         _ToolDef(
                           icon: Icons.music_note_rounded,
-                          labelAr: 'Ù…ÙˆØ³ÙŠÙ‚Ù‰',
+                          labelAr: 'موسيقى',
                           labelEn: 'Music',
                           accent: const Color(0xFFC875FF),
                           onTap: _openMusic,
                         ),
                         _ToolDef(
                           icon: Icons.graphic_eq_rounded,
-                          labelAr: 'ØµÙˆØª',
+                          labelAr: 'صوت',
                           labelEn: 'Voice',
                           onTap: () =>
-                              _showComingSoon('Ù…Ø¤Ø«Ø± ØµÙˆØªÙŠ', 'Voice Effect'),
+                              _showComingSoon('مؤثر صوتي', 'Voice Effect'),
                         ),
                         _ToolDef(
                           icon: Icons.mic_rounded,
-                          labelAr: 'Ù…ÙŠÙƒØ±ÙˆÙÙˆÙ†',
+                          labelAr: 'ميكروفون',
                           labelEn: 'Mic Mode',
                           onTap: _canModerate
                               ? _openMicMode
@@ -536,7 +536,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                         ),
                         _ToolDef(
                           icon: Icons.wallpaper_rounded,
-                          labelAr: 'Ø§Ù„Ø®Ù„ÙÙŠØ©',
+                          labelAr: 'الخلفية',
                           labelEn: 'Background',
                           onTap: _openBackground,
                         ),
@@ -544,8 +544,8 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Section C â€“ Other
-                    _SectionLabel(_t('Ø£Ø¯ÙˆØ§Øª Ø£Ø®Ø±Ù‰', 'Other')),
+                    // Section C - Other
+                    _SectionLabel(_t('أدوات أخرى', 'Other')),
                     const SizedBox(height: 10),
                     _ToolGrid(
                       isArabic: isArabic,
@@ -554,7 +554,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                           icon: _soundOn
                               ? Icons.volume_up_rounded
                               : Icons.volume_off_rounded,
-                          labelAr: _soundOn ? 'Ø§Ù„ØµÙˆØª' : 'ÙƒØªÙ…',
+                          labelAr: _soundOn ? 'الصوت' : 'كتم',
                           labelEn: _soundOn ? 'Sound' : 'Muted',
                           accent: _soundOn
                               ? const Color(0xFF1A8CB0)
@@ -566,7 +566,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                           icon: _visualOn
                               ? Icons.auto_awesome_rounded
                               : Icons.auto_awesome_outlined,
-                          labelAr: _visualOn ? 'Ù…Ø¤Ø«Ø±Ø§Øª' : 'Ø¨Ø¯ÙˆÙ† Ù…Ø¤Ø«Ø±Ø§Øª',
+                          labelAr: _visualOn ? 'مؤثرات' : 'بدون مؤثرات',
                           labelEn: _visualOn ? 'Visual' : 'Visual Off',
                           accent: _visualOn
                               ? const Color(0xFF8B26D9)
@@ -587,9 +587,9 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------
 // Tool definition data class
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------
 
 class _ToolDef {
   const _ToolDef({
@@ -611,12 +611,12 @@ class _ToolDef {
   final bool disabled;
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Tool grid â€” uses Wrap instead of GridView to avoid aspect-ratio overflow.
-// Each tile has a fixed 56Ã—56 icon box and a 1-line label below it.
-// Total tile height â‰ˆ 56 + 5 + 15 = 76 px, so 5 columns at ~64 px wide each
+// --------------------
+// Tool grid - uses Wrap instead of GridView to avoid aspect-ratio overflow.
+// Each tile has a fixed 56x56 icon box and a 1-line label below it.
+// Total tile height ≈ 56 + 5 + 15 = 76 px, so 5 columns at ~64 px wide each
 // never overflows the grid cell.
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------
 
 class _ToolGrid extends StatelessWidget {
   const _ToolGrid({required this.items, required this.isArabic});
@@ -627,7 +627,7 @@ class _ToolGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
-      // 5 columns with 8 px gaps â†’ each tile width
+      // 5 columns with 8 px gaps -> each tile width
       const cols = 5;
       const gap = 8.0;
       final tileW = (constraints.maxWidth - gap * (cols - 1)) / cols;
@@ -649,9 +649,9 @@ class _ToolGrid extends StatelessWidget {
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Individual tool tile â€” premium nav-footer style
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------
+// Individual tool tile - premium nav-footer style
+// --------------------
 
 class _ToolTile extends StatefulWidget {
   const _ToolTile({required this.def, required this.label});
@@ -760,7 +760,7 @@ class _ToolTileState extends State<_ToolTile>
                 ),
               ),
               const SizedBox(height: 5),
-              // Label â€” always 1 line, ellipsis
+              // Label - always 1 line, ellipsis
               Text(
                 widget.label,
                 textAlign: TextAlign.center,
@@ -784,9 +784,9 @@ class _ToolTileState extends State<_ToolTile>
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------
 // Helper sub-widgets
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------
 
 class _Handle extends StatelessWidget {
   @override
@@ -826,13 +826,13 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------
 // Coming Soon sheet
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------
 // Shown when a PK is already active and host opens the tool again.
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------
 
 class _PkActiveOptionsSheet extends StatelessWidget {
   const _PkActiveOptionsSheet({
@@ -862,7 +862,7 @@ class _PkActiveOptionsSheet extends StatelessWidget {
           _Handle(),
           const SizedBox(height: 14),
           Text(
-            t ? 'Ù…Ù†Ø§ÙØ³Ø© Ù†Ø´Ø·Ø©' : 'PK is Live',
+            t ? 'منافسة نشطة' : 'PK is Live',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 17,
@@ -871,7 +871,7 @@ class _PkActiveOptionsSheet extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            t ? 'Ø§Ù„Ù…Ù†Ø§ÙØ³Ø© Ø¬Ø§Ø±ÙŠØ© Ø§Ù„Ø¢Ù†' : 'A battle is currently in progress.',
+            t ? 'المنافسة جارية الآن' : 'A battle is currently in progress.',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.5),
               fontSize: 12,
@@ -889,7 +889,7 @@ class _PkActiveOptionsSheet extends StatelessWidget {
               ),
               onPressed: onCancel,
               child: Text(
-                t ? 'Ø¥Ù„ØºØ§Ø¡ Ø§Ù„Ù…Ù†Ø§ÙØ³Ø©' : 'Cancel PK',
+                t ? 'إلغاء المنافسة' : 'Cancel PK',
                 style: const TextStyle(fontWeight: FontWeight.w800),
               ),
             ),
@@ -898,7 +898,7 @@ class _PkActiveOptionsSheet extends StatelessWidget {
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: Text(
-              t ? 'Ø±Ø¬ÙˆØ¹' : 'Go Back',
+              t ? 'رجوع' : 'Go Back',
               style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
             ),
           ),
@@ -908,9 +908,9 @@ class _PkActiveOptionsSheet extends StatelessWidget {
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Mic Mode Sheet â€” picks 6 / 9 / 12 mic seats and updates rooms.max_seats
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------
+// Mic Mode Sheet - picks 6 / 9 / 12 mic seats and updates rooms.max_seats
+// --------------------
 
 class _MicModeSheet extends StatefulWidget {
   const _MicModeSheet({
@@ -930,9 +930,9 @@ class _MicModeSheet extends StatefulWidget {
 
 class _MicModeSheetState extends State<_MicModeSheet> {
   static const _options = [
-    (seats: 6,  ar: 'Ù¦ Ù…Ù‚Ø§Ø¹Ø¯',  en: '6 Seats',  descAr: 'Ù…Ù†Ø§Ø³Ø¨ Ù„Ù„ØºØ±Ù Ø§Ù„ØµØºÙŠØ±Ø©',       descEn: 'Best for small rooms'),
-    (seats: 9,  ar: 'Ù© Ù…Ù‚Ø§Ø¹Ø¯',  en: '9 Seats',  descAr: 'ØªÙˆØ§Ø²Ù† Ù…Ø«Ø§Ù„ÙŠ',                descEn: 'Balanced experience'),
-    (seats: 12, ar: 'Ù¡Ù¢ Ù…Ù‚Ø¹Ø¯', en: '12 Seats', descAr: 'Ù„Ù„ØºØ±Ù Ø§Ù„ÙƒØ¨ÙŠØ±Ø© ÙˆØ§Ù„Ø­ÙÙ„Ø§Øª',    descEn: 'Large rooms & events'),
+    (seats: 6,  ar: '٦ مقاعد',  en: '6 Seats',  descAr: 'مناسب للغرف الصغيرة',       descEn: 'Best for small rooms'),
+    (seats: 9,  ar: '٩ مقاعد',  en: '9 Seats',  descAr: 'توازن مثالي',                descEn: 'Balanced experience'),
+    (seats: 12, ar: '١٢ مقعد', en: '12 Seats', descAr: 'للغرف الكبيرة والحفلات',    descEn: 'Large rooms & events'),
   ];
 
   late int _selected;
@@ -964,7 +964,7 @@ class _MicModeSheetState extends State<_MicModeSheet> {
           _saving = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_t('ÙØ´Ù„ ØªØ­Ø¯ÙŠØ« Ø§Ù„Ù…Ù‚Ø§Ø¹Ø¯', 'Failed to update seats')),
+          content: Text(_t('فشل تحديث المقاعد', 'Failed to update seats')),
           backgroundColor: const Color(0xFF2A0F1A),
         ));
       }
@@ -990,13 +990,13 @@ class _MicModeSheetState extends State<_MicModeSheet> {
           _Handle(),
           const SizedBox(height: 8),
           Text(
-            _t('Ø¹Ø¯Ø¯ Ù…Ù‚Ø§Ø¹Ø¯ Ø§Ù„Ù…ÙŠÙƒØ±ÙˆÙÙˆÙ†', 'Mic Seats'),
+            _t('عدد مقاعد الميكروفون', 'Mic Seats'),
             style: const TextStyle(
                 color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),
           Text(
-            _t('ÙŠØ¤Ø«Ø± Ø¹Ù„Ù‰ Ø¬Ù…ÙŠØ¹ Ø§Ù„Ù…Ø´Ø§Ø±ÙƒÙŠÙ† ÙÙŠ Ø§Ù„ØºØ±ÙØ©',
+            _t('يؤثر على جميع المشاركين في الغرفة',
                 'Affects all participants in the room'),
             style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.45), fontSize: 12),
@@ -1097,9 +1097,9 @@ class _MicModeSheetState extends State<_MicModeSheet> {
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Background Sheet â€” gradient presets (local) + custom image upload (global)
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------
+// Background Sheet - gradient presets (local) + custom image upload (global)
+// --------------------
 
 class _BackgroundSheet extends StatefulWidget {
   const _BackgroundSheet({
@@ -1121,10 +1121,10 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
   static const _kBgKey = 'room_pref_background';
 
   static const _themes = [
-    (ar: 'Ù„ÙŠÙ„ÙŠ ÙƒÙ„Ø§Ø³ÙŠÙƒÙŠ', en: 'Classic Night', colors: [Color(0xFF231440), Color(0xFF160C2F), Color(0xFF0C0619)]),
-    (ar: 'Ø´ÙÙ‚ Ø£Ø±Ø¬ÙˆØ§Ù†ÙŠ', en: 'Purple Dusk',   colors: [Color(0xFF2D1B69), Color(0xFF11998e), Color(0xFF1A0D33)]),
-    (ar: 'Ù†Ø§Ø± Ø°Ù‡Ø¨ÙŠØ©',   en: 'Golden Flame',  colors: [Color(0xFF3D1C02), Color(0xFF7B3F00), Color(0xFF1A0900)]),
-    (ar: 'Ø³Ù…Ø§Ø¡ Ø²Ø±Ù‚Ø§Ø¡', en: 'Deep Ocean',     colors: [Color(0xFF0A1628), Color(0xFF1A3A5C), Color(0xFF0D1F35)]),
+    (ar: 'ليلي كلاسيكي', en: 'Classic Night', colors: [Color(0xFF231440), Color(0xFF160C2F), Color(0xFF0C0619)]),
+    (ar: 'شفق أرجواني', en: 'Purple Dusk',   colors: [Color(0xFF2D1B69), Color(0xFF11998e), Color(0xFF1A0D33)]),
+    (ar: 'نار ذهبية',   en: 'Golden Flame',  colors: [Color(0xFF3D1C02), Color(0xFF7B3F00), Color(0xFF1A0900)]),
+    (ar: 'سماء زرقاء', en: 'Deep Ocean',     colors: [Color(0xFF0A1628), Color(0xFF1A3A5C), Color(0xFF0D1F35)]),
   ];
 
   int _selectedTheme = 0;
@@ -1267,7 +1267,7 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
           _Handle(),
           const SizedBox(height: 8),
           Text(
-            _t('Ø®Ù„ÙÙŠØ© Ø§Ù„ØºØ±ÙØ©', 'Room Background'),
+            _t('خلفية الغرفة', 'Room Background'),
             style: const TextStyle(
                 color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
           ),
@@ -1278,11 +1278,11 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
                 color: Colors.white.withValues(alpha: 0.45), fontSize: 12),
           ),
           const SizedBox(height: 20),
-          // â”€â”€ Gradient presets â”€â”€
+          // -- Gradient presets --
           Align(
             alignment: AlignmentDirectional.centerStart,
             child: Text(
-              _t('Ø£Ù„ÙˆØ§Ù†', 'COLORS').toUpperCase(),
+              _t('ألوان', 'COLORS').toUpperCase(),
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.40),
                 fontSize: 10,
@@ -1355,11 +1355,11 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
             },
           ),
           const SizedBox(height: 20),
-          // â”€â”€ Custom image upload â”€â”€
+          // -- Custom image upload --
           Align(
             alignment: AlignmentDirectional.centerStart,
             child: Text(
-              _t('ØµÙˆØ±Ø© Ù…Ø®ØµØµØ©', 'CUSTOM IMAGE').toUpperCase(),
+              _t('صورة مخصصة', 'CUSTOM IMAGE').toUpperCase(),
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.40),
                 fontSize: 10,
@@ -1413,7 +1413,7 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        _t('ØµÙˆØ±Ø© Ù…Ø®ØµØµØ© Ù†Ø´Ø·Ø©', 'Custom image active'),
+                        _t('صورة مخصصة نشطة', 'Custom image active'),
                         style: const TextStyle(
                             color: Color(0xFFF0C15A),
                             fontSize: 11,
@@ -1447,8 +1447,8 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
                     )
                   : const Icon(Icons.add_photo_alternate_rounded, size: 20),
               label: Text(_uploading
-                  ? _t('Ø¬Ø§Ø±ÙŠ Ø§Ù„Ø±ÙØ¹...', 'Uploading...')
-                  : _t('Ø±ÙØ¹ ØµÙˆØ±Ø© Ù…Ø®ØµØµØ©', 'Upload Custom Image')),
+                  ? _t('جاري الرفع...', 'Uploading...')
+                  : _t('رفع صورة مخصصة', 'Upload Custom Image')),
             ),
           ),
           const SizedBox(height: 4),
@@ -1459,7 +1459,7 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------
 // Red Envelope create sheet
 // ─────────────────────────────────────────────────────────────────────────────
 // Lucky Bag sheet — premium send UI (backed by red_envelopes table)
@@ -2871,7 +2871,7 @@ class _ComingSoonSheet extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             isArabic
-                ? 'Ù‡Ø°Ù‡ Ø§Ù„Ù…ÙŠØ²Ø© Ù‚ÙŠØ¯ Ø§Ù„ØªØ·ÙˆÙŠØ± ÙˆØ³ØªÙƒÙˆÙ† Ù…ØªØ§Ø­Ø© Ù‚Ø±ÙŠØ¨Ø§Ù‹.'
+                ? 'هذه الميزة قيد التطوير وستكون متاحة قريباً.'
                 : 'This feature is under development and will be available soon.',
             textAlign: TextAlign.center,
             style: TextStyle(
@@ -2891,7 +2891,7 @@ class _ComingSoonSheet extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
               onPressed: () => Navigator.of(context).pop(),
-              child: Text(isArabic ? 'Ø­Ø³Ù†Ø§Ù‹' : 'Got it'),
+              child: Text(isArabic ? 'حسناً' : 'Got it'),
             ),
           ),
         ],
@@ -2900,16 +2900,16 @@ class _ComingSoonSheet extends StatelessWidget {
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------
 // Game Center sheet
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --------------------
 
 class _GameCenterSheet extends StatelessWidget {
   const _GameCenterSheet({required this.isArabic});
 
   final bool isArabic;
 
-  String get _title => isArabic ? 'Ù…Ø±ÙƒØ² Ø§Ù„Ø£Ù„Ø¹Ø§Ø¨' : 'Game Center';
+  String get _title => isArabic ? 'مركز الألعاب' : 'Game Center';
 
   @override
   Widget build(BuildContext context) {
@@ -2917,49 +2917,49 @@ class _GameCenterSheet extends StatelessWidget {
     final games = [
       _GameEntry(
         icon: Icons.rocket_launch_rounded,
-        labelAr: 'ØµØ§Ø±ÙˆØ®',
+        labelAr: 'صاروخ',
         labelEn: 'Rocket Crash',
         accent: const Color(0xFFE63946),
         screen: CrashGameScreen(isArabic: isArabic),
       ),
       _GameEntry(
         icon: Icons.casino_rounded,
-        labelAr: 'Ø¹Ø¬Ù„Ø© Ø§Ù„Ø­Ø¸',
+        labelAr: 'عجلة الحظ',
         labelEn: 'Spin Wheel',
         accent: const Color(0xFFF0C15A),
         screen: SpinWheelScreen(isArabic: isArabic),
       ),
       _GameEntry(
         icon: Icons.pets_rounded,
-        labelAr: 'Ø§Ù„Ù‚Ø· Ø§Ù„Ø¬Ø§Ø¦Ø¹',
+        labelAr: 'القط الجائع',
         labelEn: 'Hungry Cat',
         accent: const Color(0xFF4ADE80),
         screen: HungryCatWebviewScreen(isArabic: isArabic),
       ),
       _GameEntry(
         icon: Icons.stairs_rounded,
-        labelAr: 'Ø§Ù„Ø³Ù„Ù… Ø§Ù„Ø°Ù‡Ø¨ÙŠ',
+        labelAr: 'السلم الذهبي',
         labelEn: 'Gold Ladder',
         accent: const Color(0xFFFFD978),
         screen: GoldLadderQuizScreen(isArabic: isArabic),
       ),
       _GameEntry(
         icon: Icons.grain_rounded,
-        labelAr: 'Ø³Ø­Ø¨ Ø³Ø±ÙˆØ¯',
+        labelAr: 'سحب سرود',
         labelEn: 'Srood Draw',
         accent: const Color(0xFFF0C15A),
         screen: SroodLotoScreen(isArabic: isArabic),
       ),
       _GameEntry(
         icon: Icons.inventory_2_rounded,
-        labelAr: 'ÙƒÙ†Ø² Ø³Ø±ÙˆØ¯',
+        labelAr: 'كنز سرود',
         labelEn: 'Srood Treasure',
         accent: const Color(0xFFF0C15A),
         screen: SroodTreasureScreen(isArabic: isArabic),
       ),
       _GameEntry(
         icon: Icons.emoji_events_rounded,
-        labelAr: 'ØªØ­Ø¯ÙŠ Ø§Ù„ÙƒØ§Ø±ÙŠØ²Ù…Ø§',
+        labelAr: 'تحدي الكاريزما',
         labelEn: 'Charisma Challenge',
         accent: const Color(0xFFFFD700),
         screen: CharismaChallengeScreen(isArabic: isArabic),
