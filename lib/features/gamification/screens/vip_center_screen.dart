@@ -17,27 +17,27 @@ import 'package:srood_live/core/extensions/locale_extension.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 
-const _kBg         = Color(0xFF07030D);
-const _kCard       = Color(0xFF12091D);
+const _kBg = Color(0xFF07030D);
+const _kCard = Color(0xFF12091D);
 const _kCardBorder = Color(0xFF2A1845);
-const _kGold       = Color(0xFFF0C15A);
-const _kSubtext    = Color(0xFF7A6890);
-const _kText       = Color(0xFFD8CFEA);
+const _kGold = Color(0xFFF0C15A);
+const _kSubtext = Color(0xFF7A6890);
+const _kText = Color(0xFFD8CFEA);
 const _kPurpleDeep = Color(0xFF4B168C);
-const _kPurpleMid  = Color(0xFF8B26D9);
-const _kGreen      = Color(0xFF2ECC71);
-const _kRed        = Color(0xFFFF5C7A);
+const _kPurpleMid = Color(0xFF8B26D9);
+const _kGreen = Color(0xFF2ECC71);
+const _kRed = Color(0xFFFF5C7A);
 
 // ── VIP Center 2.0 (Srood VIP Prestige) ──────────────────────────────────────
 // Phase V1: presentational reskin. Flip this flag to false to instantly fall
 // back to the legacy VIP Center layout (kept fully intact below).
 final bool _kUseVip2Shell = true;
 
-const _v2Gold    = Color(0xFFF7E2A0);
+const _v2Gold = Color(0xFFF7E2A0);
 const _v2GoldDim = Color(0xFFE8C25A);
-const _v2Lilac   = Color(0xFFB7AAE0);
-const _v2Sub     = Color(0xFF9C8FCB);
-const _v2Green   = Color(0xFF86E0B6);
+const _v2Lilac = Color(0xFFB7AAE0);
+const _v2Sub = Color(0xFF9C8FCB);
+const _v2Green = Color(0xFF86E0B6);
 
 /// Comma-groups an integer for display (1234567 -> "1,234,567").
 String _v2Fmt(int n) {
@@ -99,13 +99,13 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
       final plans = await _service.getVipPlans();
       if (!mounted) return;
       setState(() {
-        _plans   = plans;
+        _plans = plans;
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error   = e.toString();
+        _error = e.toString();
         _loading = false;
       });
       return;
@@ -226,7 +226,9 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
           ),
           const SizedBox(height: 24),
           _SectionLabel(
-            label: context.isArabic ? 'استكشاف مستويات VIP' : 'Explore VIP Tiers',
+            label: context.isArabic
+                ? 'استكشاف مستويات VIP'
+                : 'Explore VIP Tiers',
             isArabic: context.isArabic,
           ),
           const SizedBox(height: 10),
@@ -240,17 +242,19 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
             level: _selectedTier,
             isArabic: context.isArabic,
             planName: _planNameForLevel(_selectedTier),
-            isCurrent: _selectedTier == widget.currentVipLevel &&
+            isCurrent:
+                _selectedTier == widget.currentVipLevel &&
                 widget.currentVipLevel > 0,
           ),
           const SizedBox(height: 16),
-          _BenefitsList(
-            level: _selectedTier,
-            isArabic: context.isArabic,
-          ),
+          _BenefitsList(level: _selectedTier, isArabic: context.isArabic),
           const SizedBox(height: 20),
           _ContactAdminButton(isArabic: context.isArabic),
-          if (!_adminLoading && (_adminRole.hasPermission(kPermVipGrant) || _adminRole.isOSuperAdmin || _adminRole.isPSuperAdmin || _adminRole.isSuperAdmin)) ...[
+          if (!_adminLoading &&
+              (_adminRole.hasPermission(kPermVipGrant) ||
+                  _adminRole.isOSuperAdmin ||
+                  _adminRole.isPSuperAdmin ||
+                  _adminRole.isSuperAdmin)) ...[
             const SizedBox(height: 24),
             _AdminVipPanel(isArabic: context.isArabic),
           ],
@@ -299,20 +303,20 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Srood VIP Prestige',
+                'VIP',
                 style: TextStyle(
                   color: _v2Gold,
-                  fontSize: 16,
+                  fontSize: 20,
                   fontWeight: FontWeight.w900,
-                  letterSpacing: 0.5,
+                  letterSpacing: 2,
                 ),
               ),
               SizedBox(height: 2),
               Text(
-                'ROYAL CENTER',
+                'PRESTIGE CENTER',
                 style: TextStyle(
                   color: _v2Lilac,
-                  fontSize: 10,
+                  fontSize: 9,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 3,
                 ),
@@ -354,70 +358,138 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
       );
   }
 
+  // Real per-tier unlock price (coins) from the vip_plans rules. 0 if unknown.
+  int _priceForLevel(int level) {
+    for (final p in _plans) {
+      if ((p['level'] as int?) == level) {
+        final v = p['price_coins'];
+        if (v is int) return v;
+        if (v is num) return v.toInt();
+        if (v is String) return int.tryParse(v) ?? 0;
+      }
+    }
+    return 0;
+  }
+
   Widget _buildVip2Body() {
-    // ── Wired to existing data (read-only) ──────────────────────────────────
-    final level = widget.currentVipLevel.clamp(0, 9);
-    final activeLevel = level <= 0 ? 1 : level;
-    final isMax = level >= 9;
-    final nextLevel = (level + 1).clamp(1, 9);
+    // owned = the user's real VIP level; sel = the tier being previewed via the
+    // carousel (user tap/swipe). The whole hero/lock/requirement/perks follow
+    // the SELECTED tier, while ownership state is computed against `owned`.
+    final owned = widget.currentVipLevel.clamp(0, 9);
+    final sel = _selectedTier.clamp(1, 9);
 
-    // Real privilege counts from VipPrivileges (never hardcoded).
-    final unlocked = VipPrivileges.unlockedFor(level).length;
-    final total = unlocked + VipPrivileges.lockedFor(level).length;
+    final isCurrent = sel == owned && owned > 0; // exactly the active tier
+    final isOwned = owned > 0 && sel <= owned; // reached (this or a lower tier)
+    final isLocked = sel > owned; // not yet reached
+    final isMaxSel = sel >= 9;
 
-    // Real recharge-EXP figures when get_my_vip is loaded; demo fallback in V1.
+    // Real privileges granted at the SELECTED tier (never hardcoded).
+    final unlocked = VipPrivileges.unlockedFor(sel).length;
+    final total = unlocked + VipPrivileges.lockedFor(sel).length;
+
+    // Real per-tier unlock requirement from vip_plans (coins). No fabrication:
+    // if a plan has no price we show a neutral prompt instead of a fake number.
+    final price = _priceForLevel(sel);
+    final reqText = isCurrent
+        ? 'Your current tier - VIP $sel'
+        : isOwned
+        ? 'VIP $sel unlocked'
+        : isMaxSel
+        ? (price > 0
+              ? '${_v2Fmt(price)} coins to reach VIP 9 (max)'
+              : 'Top tier - VIP 9')
+        : (price > 0
+              ? '${_v2Fmt(price)} coins required to unlock VIP $sel'
+              : 'Recharge to unlock VIP $sel');
+
+    // Bottom card recharge progress reflects the user's REAL monthly recharge
+    // (about the owned tier), independent of the previewed tier.
     final vip = _userVip;
-    final reqExp = vip?.expToNextTier ?? 300000;
     final monthlyExp = vip?.monthlyExp ?? 0;
     final monthlyTarget = vip?.monthlyMaintainExp ?? 100000;
-    final away =
-        (monthlyTarget - monthlyExp) > 0 ? (monthlyTarget - monthlyExp) : 0;
-    final progress =
-        monthlyTarget > 0 ? (monthlyExp / monthlyTarget).clamp(0.0, 1.0) : 0.0;
-
-    // Max level (VIP 9) never shows an "unlock next" requirement.
-    final reqText = isMax
-        ? 'Max VIP level reached'
-        : '${_v2Fmt(reqExp)} recharge EXP to unlock VIP $nextLevel';
+    final away = (monthlyTarget - monthlyExp) > 0
+        ? (monthlyTarget - monthlyExp)
+        : 0;
+    final progress = monthlyTarget > 0
+        ? (monthlyExp / monthlyTarget).clamp(0.0, 1.0)
+        : 0.0;
     final monthText = '${_v2Fmt(monthlyExp)} / ${_v2Fmt(monthlyTarget)} EXP';
-    final awayText = isMax
-        ? 'Max VIP unlocked - maintain your monthly recharge'
-        : '${_v2Fmt(away)} EXP away from VIP $nextLevel perks';
+    final awayText = owned >= 9
+        ? 'Max VIP reached - maintain your monthly recharge'
+        : '${_v2Fmt(away)} EXP away from your monthly target';
 
-    return RefreshIndicator(
-      color: _kGold,
-      backgroundColor: const Color(0xFF1B102A),
-      onRefresh: _load,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-        children: [
-          const SizedBox(height: 4),
-          _Vip2Crest(level: activeLevel),
-          const SizedBox(height: 18),
-          _Vip2Rail(currentLevel: level),
-          const SizedBox(height: 18),
-          Center(child: _Vip2Pill(text: reqText)),
-          const SizedBox(height: 18),
-          _Vip2RechargeCard(
-            monthText: monthText,
-            awayText: awayText,
-            progress: progress.toDouble(),
-            onUpgrade: _onVip2UpgradeTap,
+    // Button label follows the selected-vs-owned state.
+    final btnLabel = isLocked
+        ? (owned == 0 ? 'Activate' : 'Upgrade')
+        : (owned >= 9 ? 'Recharge to Maintain' : 'Manage');
+
+    return Stack(
+      children: [
+        RefreshIndicator(
+          color: _kGold,
+          backgroundColor: const Color(0xFF1B102A),
+          onRefresh: _load,
+          // Bottom padding leaves room for the sticky recharge card.
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 250),
+            children: [
+              const SizedBox(height: 4),
+              _Vip2Crest(level: sel),
+              const SizedBox(height: 10),
+              Center(
+                child: _Vip2LockPill(
+                  state: isCurrent
+                      ? _Vip2OwnState.active
+                      : isOwned
+                      ? _Vip2OwnState.owned
+                      : _Vip2OwnState.locked,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Center(child: _Vip2Pill(text: reqText)),
+              const SizedBox(height: 14),
+              _Vip2Rail(
+                selectedLevel: sel,
+                ownedLevel: owned,
+                onSelect: (l) => setState(() => _selectedTier = l),
+              ),
+              const SizedBox(height: 18),
+              _Vip2SectionDivider(
+                label: 'Privileges',
+                counter: '$unlocked / $total',
+              ),
+              const SizedBox(height: 14),
+              _Vip2PerkGrid(selectedLevel: sel),
+              if (!_adminLoading &&
+                  (_adminRole.hasPermission(kPermVipGrant) ||
+                      _adminRole.isOSuperAdmin ||
+                      _adminRole.isPSuperAdmin ||
+                      _adminRole.isSuperAdmin)) ...[
+                const SizedBox(height: 24),
+                _AdminVipPanel(isArabic: context.isArabic),
+              ],
+            ],
           ),
-          const SizedBox(height: 22),
-          _Vip2SectionDivider(label: 'Privileges', counter: '$unlocked / $total'),
-          const SizedBox(height: 14),
-          _Vip2PerkGrid(currentLevel: level),
-          if (!_adminLoading &&
-              (_adminRole.hasPermission(kPermVipGrant) ||
-                  _adminRole.isOSuperAdmin ||
-                  _adminRole.isPSuperAdmin ||
-                  _adminRole.isSuperAdmin)) ...[
-            const SizedBox(height: 24),
-            _AdminVipPanel(isArabic: context.isArabic),
-          ],
-        ],
-      ),
+        ),
+        // Sticky bottom recharge / activation card. The outer SafeArea already
+        // lifts content above the Android nav bar; small extra padding keeps it
+        // clear on all devices.
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+            child: _Vip2RechargeCard(
+              monthText: monthText,
+              awayText: awayText,
+              progress: progress.toDouble(),
+              buttonLabel: btnLabel,
+              onUpgrade: _onVip2UpgradeTap,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -529,8 +601,9 @@ class _CurrentStatusCard extends StatelessWidget {
               children: [
                 // Status badge row
                 Row(
-                  textDirection:
-                      isArabic ? TextDirection.rtl : TextDirection.ltr,
+                  textDirection: isArabic
+                      ? TextDirection.rtl
+                      : TextDirection.ltr,
                   children: [
                     if (_isActive)
                       _StatusPill(
@@ -699,7 +772,8 @@ class _VipProgressSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UserVip? vip = userVip;
-    final bool hasExp = vip != null && (vip.rechargeExp > 0 || vip.vipLevel > 0);
+    final bool hasExp =
+        vip != null && (vip.rechargeExp > 0 || vip.vipLevel > 0);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
@@ -709,8 +783,9 @@ class _VipProgressSection extends StatelessWidget {
         border: Border.all(color: _kCardBorder),
       ),
       child: Column(
-        crossAxisAlignment:
-            isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: isArabic
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
         children: [
           // ── Header ──────────────────────────────────────────────────────────
           Row(
@@ -788,8 +863,12 @@ class _VipProgressSection extends StatelessWidget {
             _ExpStatRow(
               icon: Icons.rocket_launch_rounded,
               text: vipLevel <= 0
-                  ? (isArabic ? 'ابدأ رحلة VIP بالشحن' : 'Start your VIP journey by recharging')
-                  : (isArabic ? 'استمر بالشحن للحفاظ على VIP' : 'Keep recharging to maintain your VIP'),
+                  ? (isArabic
+                        ? 'ابدأ رحلة VIP بالشحن'
+                        : 'Start your VIP journey by recharging')
+                  : (isArabic
+                        ? 'استمر بالشحن للحفاظ على VIP'
+                        : 'Keep recharging to maintain your VIP'),
               color: _kSubtext,
               isArabic: isArabic,
             ),
@@ -819,8 +898,9 @@ class _VipExpBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-    crossAxisAlignment:
-        isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+    crossAxisAlignment: isArabic
+        ? CrossAxisAlignment.end
+        : CrossAxisAlignment.start,
     children: [
       // Lifetime EXP + Monthly EXP stat row
       Row(
@@ -917,8 +997,9 @@ class _ExpStat extends StatelessWidget {
       border: Border.all(color: color.withValues(alpha: 0.2)),
     ),
     child: Column(
-      crossAxisAlignment:
-          isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: isArabic
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
         Row(
           textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
@@ -983,8 +1064,9 @@ class _ExpProgressBar extends StatelessWidget {
     final pctText = '${(clampedProgress * 100).toStringAsFixed(0)}%';
 
     return Column(
-      crossAxisAlignment:
-          isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: isArabic
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
         // Label + percentage
         Row(
@@ -1006,9 +1088,7 @@ class _ExpProgressBar extends StatelessWidget {
             Text(
               isMet && metLabel != null ? metLabel! : pctText,
               style: TextStyle(
-                color: isMet
-                    ? const Color(0xFF22C55E)
-                    : gradientColors.last,
+                color: isMet ? const Color(0xFF22C55E) : gradientColors.last,
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
               ),
@@ -1134,7 +1214,11 @@ class _VipSettingsButton extends StatelessWidget {
         child: Row(
           textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
           children: [
-            const Icon(Icons.settings_rounded, color: Color(0xFF5DDCFF), size: 20),
+            const Icon(
+              Icons.settings_rounded,
+              color: Color(0xFF5DDCFF),
+              size: 20,
+            ),
             const SizedBox(width: 12),
             Text(
               isArabic ? 'إعدادات VIP' : 'VIP Settings',
@@ -1145,7 +1229,11 @@ class _VipSettingsButton extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            const Icon(Icons.chevron_right_rounded, color: Colors.white54, size: 20),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Colors.white54,
+              size: 20,
+            ),
           ],
         ),
       ),
@@ -1231,8 +1319,8 @@ class _VipTierCard extends StatelessWidget {
             color: isSelected
                 ? tier.border
                 : isCurrent
-                    ? tier.border.withValues(alpha: 0.55)
-                    : tier.start.withValues(alpha: 0.25),
+                ? tier.border.withValues(alpha: 0.55)
+                : tier.start.withValues(alpha: 0.25),
             width: isSelected ? 1.8 : 1,
           ),
           boxShadow: isSelected
@@ -1337,7 +1425,10 @@ class _TierPreviewCard extends StatelessWidget {
               VipFramedAvatar(size: 72, vipLevel: level),
               if (isCurrent)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: _kGold,
                     borderRadius: BorderRadius.circular(8),
@@ -1387,8 +1478,9 @@ class _TierPreviewCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Row(
-                  textDirection:
-                      isArabic ? TextDirection.rtl : TextDirection.ltr,
+                  textDirection: isArabic
+                      ? TextDirection.rtl
+                      : TextDirection.ltr,
                   children: [
                     _ColorDot(
                       color: spec.glowColor,
@@ -1486,22 +1578,22 @@ class _BenefitsList extends StatelessWidget {
 
   // Icon mapping for known privilege keys
   static const Map<VipPrivilegeKey, IconData> _icons = {
-    VipPrivilegeKey.profileGlow:       Icons.flare_rounded,
-    VipPrivilegeKey.vipBadge:          Icons.verified_rounded,
-    VipPrivilegeKey.vipFrame:          Icons.crop_portrait_rounded,
-    VipPrivilegeKey.micWave:           Icons.graphic_eq_rounded,
-    VipPrivilegeKey.entranceEffect:    Icons.auto_awesome_rounded,
-    VipPrivilegeKey.kickProtection:    Icons.shield_outlined,
-    VipPrivilegeKey.kickConfirmation:  Icons.gavel_rounded,
-    VipPrivilegeKey.strongAntiKick:    Icons.shield_rounded,
-    VipPrivilegeKey.notBeingFollowed:  Icons.person_off_rounded,
-    VipPrivilegeKey.antiEnteringRoom:  Icons.meeting_room_rounded,
-    VipPrivilegeKey.privateBrowsing:   Icons.visibility_off_rounded,
-    VipPrivilegeKey.doNotDisturb:      Icons.notifications_off_rounded,
-    VipPrivilegeKey.antiKick:          Icons.block_rounded,
-    VipPrivilegeKey.invisibility:      Icons.blur_on_rounded,
+    VipPrivilegeKey.profileGlow: Icons.flare_rounded,
+    VipPrivilegeKey.vipBadge: Icons.verified_rounded,
+    VipPrivilegeKey.vipFrame: Icons.crop_portrait_rounded,
+    VipPrivilegeKey.micWave: Icons.graphic_eq_rounded,
+    VipPrivilegeKey.entranceEffect: Icons.auto_awesome_rounded,
+    VipPrivilegeKey.kickProtection: Icons.shield_outlined,
+    VipPrivilegeKey.kickConfirmation: Icons.gavel_rounded,
+    VipPrivilegeKey.strongAntiKick: Icons.shield_rounded,
+    VipPrivilegeKey.notBeingFollowed: Icons.person_off_rounded,
+    VipPrivilegeKey.antiEnteringRoom: Icons.meeting_room_rounded,
+    VipPrivilegeKey.privateBrowsing: Icons.visibility_off_rounded,
+    VipPrivilegeKey.doNotDisturb: Icons.notifications_off_rounded,
+    VipPrivilegeKey.antiKick: Icons.block_rounded,
+    VipPrivilegeKey.invisibility: Icons.blur_on_rounded,
     VipPrivilegeKey.sendRoomChatImage: Icons.image_rounded,
-    VipPrivilegeKey.silentEntry:       Icons.volume_off_rounded,
+    VipPrivilegeKey.silentEntry: Icons.volume_off_rounded,
   };
 
   static IconData _iconFor(VipPrivilegeKey key) =>
@@ -1510,13 +1602,11 @@ class _BenefitsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final unlocked = VipPrivileges.unlockedFor(level);
-    final locked   = VipPrivileges.lockedFor(level);
-    final total    = unlocked.length + locked.length;
+    final locked = VipPrivileges.lockedFor(level);
+    final total = unlocked.length + locked.length;
 
     // Tier color for the header counter — use the viewed tier, fall back to gold
-    final headerColor = level > 0
-        ? VipTierColors.of(level).border
-        : _kGold;
+    final headerColor = level > 0 ? VipTierColors.of(level).border : _kGold;
 
     return Container(
       decoration: BoxDecoration(
@@ -1533,8 +1623,11 @@ class _BenefitsList extends StatelessWidget {
             child: Row(
               textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
               children: [
-                Icon(Icons.workspace_premium_rounded,
-                    color: headerColor, size: 17),
+                Icon(
+                  Icons.workspace_premium_rounded,
+                  color: headerColor,
+                  size: 17,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   isArabic ? 'المزايا' : 'Benefits',
@@ -1547,13 +1640,16 @@ class _BenefitsList extends StatelessWidget {
                 const SizedBox(width: 8),
                 // unlocked / total counter
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: headerColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(99),
-                    border:
-                        Border.all(color: headerColor.withValues(alpha: 0.35)),
+                    border: Border.all(
+                      color: headerColor.withValues(alpha: 0.35),
+                    ),
                   ),
                   child: Text(
                     '${unlocked.length} / $total',
@@ -1671,9 +1767,9 @@ class _BenefitRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label    = isArabic ? spec.labelAr : spec.label;
-    final desc     = isArabic ? spec.descriptionAr : spec.description;
-    final reqTier  = VipTierColors.of(spec.minVipLevel);
+    final label = isArabic ? spec.labelAr : spec.label;
+    final desc = isArabic ? spec.descriptionAr : spec.description;
+    final reqTier = VipTierColors.of(spec.minVipLevel);
 
     // Icon container color: tier-tinted when unlocked, plain grey when locked
     final iconBg = unlocked
@@ -1757,13 +1853,13 @@ class _BenefitRow extends StatelessWidget {
             else
               // "Requires VIP X+" chip using that tier's color
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
                   color: reqTier.start.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(99),
                   border: Border.all(
-                      color: reqTier.border.withValues(alpha: 0.45)),
+                    color: reqTier.border.withValues(alpha: 0.45),
+                  ),
                 ),
                 child: Text(
                   isArabic
@@ -1853,7 +1949,11 @@ class _ContactAdminButton extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 22),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: Colors.white,
+            size: 22,
+          ),
         ],
       ),
     );
@@ -1885,15 +1985,15 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
 
   // ── Golden ID ─────────────────────────────────────────────────────────────
   bool _goldenEnabled = true;
-  final _goldenIdController      = TextEditingController();
+  final _goldenIdController = TextEditingController();
   final _goldenDurationController = TextEditingController();
   String _goldenStyle = 'gold';
   String _goldenFrame = 'classic';
 
   // ── Country Flag Style ────────────────────────────────────────────────────
-  final _countryCodeController     = TextEditingController();
-  final _countryNameController     = TextEditingController();
-  final _flagDurationController    = TextEditingController();
+  final _countryCodeController = TextEditingController();
+  final _countryNameController = TextEditingController();
+  final _flagDurationController = TextEditingController();
   String _flagStyle = 'normal';
   String _flagFrame = 'classic';
 
@@ -1980,13 +2080,23 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
   Future<void> _grantVip() async {
     final user = _selectedUser;
     if (user == null) {
-      _setResult(isArabic ? 'اختر مستخدماً أولاً' : 'Select a valid user first', error: true);
+      _setResult(
+        isArabic ? 'اختر مستخدماً أولاً' : 'Select a valid user first',
+        error: true,
+      );
       return;
     }
     final days = int.tryParse(_durationController.text.trim()) ?? 30;
-    setState(() { _busy = true; _result = null; });
+    setState(() {
+      _busy = true;
+      _result = null;
+    });
     try {
-      await VipService().grantVip(userId: user.userId, vipLevel: _grantLevel, durationDays: days);
+      await VipService().grantVip(
+        userId: user.userId,
+        vipLevel: _grantLevel,
+        durationDays: days,
+      );
       _setResult(
         isArabic
             ? 'تم منح VIP $_grantLevel لـ${user.title} لمدة $days يوم'
@@ -2002,14 +2112,22 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
   Future<void> _revokeVip() async {
     final user = _selectedUser;
     if (user == null) {
-      _setResult(isArabic ? 'اختر مستخدماً أولاً' : 'Select a valid user first', error: true);
+      _setResult(
+        isArabic ? 'اختر مستخدماً أولاً' : 'Select a valid user first',
+        error: true,
+      );
       return;
     }
-    setState(() { _busy = true; _result = null; });
+    setState(() {
+      _busy = true;
+      _result = null;
+    });
     try {
       await VipService().revokeVip(user.userId);
       _setResult(
-        isArabic ? 'تم إلغاء VIP لـ${user.title}' : 'VIP revoked for ${user.title}',
+        isArabic
+            ? 'تم إلغاء VIP لـ${user.title}'
+            : 'VIP revoked for ${user.title}',
       );
     } catch (e) {
       _setResult(e.toString(), error: true);
@@ -2021,7 +2139,10 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
   Future<void> _applyGoldenId() async {
     final user = _selectedUser;
     if (user == null) {
-      _setResult(isArabic ? 'اختر مستخدماً أولاً' : 'Select a valid user first', error: true);
+      _setResult(
+        isArabic ? 'اختر مستخدماً أولاً' : 'Select a valid user first',
+        error: true,
+      );
       return;
     }
     if (_goldenEnabled && _goldenIdController.text.trim().isEmpty) {
@@ -2034,7 +2155,10 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
     final publicId = _goldenIdController.text.trim();
     final daysText = _goldenDurationController.text.trim();
     final days = daysText.isEmpty ? null : int.tryParse(daysText);
-    setState(() { _busy = true; _result = null; });
+    setState(() {
+      _busy = true;
+      _result = null;
+    });
     try {
       await VipService().setCustomGoldenId(
         userId: user.userId,
@@ -2047,16 +2171,27 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
       _setResult(
         _goldenEnabled
             ? (isArabic
-                ? 'تم تحديث Golden ID إلى $publicId'
-                : 'Golden ID updated to $publicId')
-            : (isArabic ? 'تم إلغاء Golden ID لـ${user.title}' : 'Golden ID removed for ${user.title}'),
+                  ? 'تم تحديث Golden ID إلى $publicId'
+                  : 'Golden ID updated to $publicId')
+            : (isArabic
+                  ? 'تم إلغاء Golden ID لـ${user.title}'
+                  : 'Golden ID removed for ${user.title}'),
       );
     } catch (e) {
       final msg = e.toString();
       if (msg.contains('golden_id_taken')) {
-        _setResult(isArabic ? 'هذا الـ Golden ID مستخدم بالفعل.' : 'This Golden ID is already used.', error: true);
-      } else if (msg.contains('invalid_golden_id_style') || msg.contains('invalid_golden_id_frame')) {
-        _setResult(isArabic ? 'نمط Golden ID غير صالح.' : 'Invalid Golden ID style.', error: true);
+        _setResult(
+          isArabic
+              ? 'هذا الـ Golden ID مستخدم بالفعل.'
+              : 'This Golden ID is already used.',
+          error: true,
+        );
+      } else if (msg.contains('invalid_golden_id_style') ||
+          msg.contains('invalid_golden_id_frame')) {
+        _setResult(
+          isArabic ? 'نمط Golden ID غير صالح.' : 'Invalid Golden ID style.',
+          error: true,
+        );
       } else {
         _setResult(msg, error: true);
       }
@@ -2068,21 +2203,27 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
   Future<void> _applyCountryFlagStyle() async {
     final user = _selectedUser;
     if (user == null) {
-      _setResult(isArabic ? 'اختر مستخدماً أولاً' : 'Select a valid user first', error: true);
+      _setResult(
+        isArabic ? 'اختر مستخدماً أولاً' : 'Select a valid user first',
+        error: true,
+      );
       return;
     }
-    final code    = _countryCodeController.text.trim();
-    final name    = _countryNameController.text.trim();
+    final code = _countryCodeController.text.trim();
+    final name = _countryNameController.text.trim();
     final daysStr = _flagDurationController.text.trim();
-    final days    = daysStr.isEmpty ? null : int.tryParse(daysStr);
-    setState(() { _busy = true; _result = null; });
+    final days = daysStr.isEmpty ? null : int.tryParse(daysStr);
+    setState(() {
+      _busy = true;
+      _result = null;
+    });
     try {
       await _adminService.setUserCountryFlagStyle(
-        userId:      user.userId,
+        userId: user.userId,
         countryCode: code.isEmpty ? null : code,
         countryName: name.isEmpty ? null : name,
-        style:       _flagStyle,
-        frame:       _flagFrame,
+        style: _flagStyle,
+        frame: _flagFrame,
         durationDays: days,
       );
       _setResult(
@@ -2109,7 +2250,10 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
 
   void _setResult(String msg, {bool error = false}) {
     if (!mounted) return;
-    setState(() { _result = msg; _resultIsError = error; });
+    setState(() {
+      _result = msg;
+      _resultIsError = error;
+    });
   }
 
   void _noUserResult() => _setResult(
@@ -2130,7 +2274,9 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
         border: Border.all(color: const Color(0xFF3D0C6B)),
       ),
       child: Column(
-        crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: isArabic
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
         children: [
           // ── Header ─────────────────────────────────────────────────────
           Row(
@@ -2142,12 +2288,20 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
                   color: _kPurpleDeep.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.shield_rounded, color: _kGold, size: 20),
+                child: const Icon(
+                  Icons.shield_rounded,
+                  color: _kGold,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 10),
               Text(
                 isArabic ? 'لوحة إدارة VIP' : 'VIP Admin Panel',
-                style: const TextStyle(color: _kGold, fontSize: 15, fontWeight: FontWeight.w900),
+                style: const TextStyle(
+                  color: _kGold,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ],
           ),
@@ -2167,7 +2321,9 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
               Expanded(
                 child: _AdminField(
                   controller: _searchController,
-                  label: isArabic ? 'UUID أو معرّف ذهبي أو اسم مستخدم' : 'UUID / Golden ID / username / name',
+                  label: isArabic
+                      ? 'UUID أو معرّف ذهبي أو اسم مستخدم'
+                      : 'UUID / Golden ID / username / name',
                   isArabic: isArabic,
                 ),
               ),
@@ -2184,10 +2340,18 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
                   ),
                   child: _searching
                       ? const SizedBox(
-                          width: 18, height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: _kGold),
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: _kGold,
+                          ),
                         )
-                      : const Icon(Icons.search_rounded, color: _kGold, size: 18),
+                      : const Icon(
+                          Icons.search_rounded,
+                          color: _kGold,
+                          size: 18,
+                        ),
                 ),
               ),
               if (_selectedUser != null) ...[
@@ -2201,7 +2365,11 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: _kRed.withValues(alpha: 0.3)),
                     ),
-                    child: const Icon(Icons.close_rounded, color: _kRed, size: 18),
+                    child: const Icon(
+                      Icons.close_rounded,
+                      color: _kRed,
+                      size: 18,
+                    ),
                   ),
                 ),
               ],
@@ -2211,8 +2379,13 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           // ── Search results ──────────────────────────────────────────────
           if (_searchResults.isNotEmpty) ...[
             const SizedBox(height: 8),
-            ...(_searchResults.map((u) => _UserResultCard(
-                  user: u, isArabic: isArabic, onTap: () => _selectUser(u)))),
+            ...(_searchResults.map(
+              (u) => _UserResultCard(
+                user: u,
+                isArabic: isArabic,
+                onTap: () => _selectUser(u),
+              ),
+            )),
           ],
 
           // ── Selected user ───────────────────────────────────────────────
@@ -2226,13 +2399,19 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           const SizedBox(height: 16),
 
           // ── Grant / Revoke ──────────────────────────────────────────────
-          _SubLabel(label: isArabic ? 'منح / إلغاء VIP' : 'Grant / Revoke VIP', isArabic: isArabic),
+          _SubLabel(
+            label: isArabic ? 'منح / إلغاء VIP' : 'Grant / Revoke VIP',
+            isArabic: isArabic,
+          ),
           const SizedBox(height: 8),
 
           Row(
             textDirection: dir,
             children: [
-              Text(isArabic ? 'المستوى:' : 'Level:', style: const TextStyle(color: _kText, fontSize: 13)),
+              Text(
+                isArabic ? 'المستوى:' : 'Level:',
+                style: const TextStyle(color: _kText, fontSize: 13),
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: SizedBox(
@@ -2252,7 +2431,9 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
                           decoration: BoxDecoration(
                             color: sel ? _kGold : _kCard,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: sel ? _kGold : _kCardBorder),
+                            border: Border.all(
+                              color: sel ? _kGold : _kCardBorder,
+                            ),
                           ),
                           child: Center(
                             child: Text(
@@ -2320,7 +2501,10 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           Row(
             textDirection: dir,
             children: [
-              Text(isArabic ? 'تفعيل' : 'Enable', style: const TextStyle(color: _kText, fontSize: 13)),
+              Text(
+                isArabic ? 'تفعيل' : 'Enable',
+                style: const TextStyle(color: _kText, fontSize: 13),
+              ),
               Switch(
                 value: _goldenEnabled,
                 onChanged: (v) => setState(() => _goldenEnabled = v),
@@ -2331,7 +2515,9 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
               Expanded(
                 child: _AdminField(
                   controller: _goldenDurationController,
-                  label: isArabic ? 'أيام (فارغ = دائم)' : 'Days (blank = permanent)',
+                  label: isArabic
+                      ? 'أيام (فارغ = دائم)'
+                      : 'Days (blank = permanent)',
                   isArabic: isArabic,
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -2344,7 +2530,9 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
             // Golden ID number field
             _AdminField(
               controller: _goldenIdController,
-              label: isArabic ? 'رقم / نص الـ Golden ID' : 'Golden ID number or text',
+              label: isArabic
+                  ? 'رقم / نص الـ Golden ID'
+                  : 'Golden ID number or text',
               isArabic: isArabic,
             ),
             const SizedBox(height: 12),
@@ -2353,7 +2541,14 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
             _SubLabel(label: isArabic ? 'النمط' : 'Style', isArabic: isArabic),
             const SizedBox(height: 6),
             _GoldenChipRow(
-              options: const ['gold', 'diamond', 'royal', 'neon', 'fire', 'purple'],
+              options: const [
+                'gold',
+                'diamond',
+                'royal',
+                'neon',
+                'fire',
+                'purple',
+              ],
               selected: _goldenStyle,
               onSelect: (v) => setState(() => _goldenStyle = v),
             ),
@@ -2363,7 +2558,14 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
             _SubLabel(label: isArabic ? 'الإطار' : 'Frame', isArabic: isArabic),
             const SizedBox(height: 6),
             _GoldenChipRow(
-              options: const ['classic', 'crown', 'wings', 'glow', 'shield', 'luxury'],
+              options: const [
+                'classic',
+                'crown',
+                'wings',
+                'glow',
+                'shield',
+                'luxury',
+              ],
               selected: _goldenFrame,
               onSelect: (v) => setState(() => _goldenFrame = v),
             ),
@@ -2398,7 +2600,9 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
               Expanded(
                 child: _AdminField(
                   controller: _countryCodeController,
-                  label: isArabic ? 'رمز البلد (LB، AO، AE)' : 'Country code (LB, AO, AE)',
+                  label: isArabic
+                      ? 'رمز البلد (LB، AO، AE)'
+                      : 'Country code (LB, AO, AE)',
                   isArabic: isArabic,
                 ),
               ),
@@ -2425,7 +2629,15 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           _SubLabel(label: isArabic ? 'النمط' : 'Style', isArabic: isArabic),
           const SizedBox(height: 6),
           _GoldenChipRow(
-            options: const ['normal', 'gold', 'diamond', 'royal', 'neon', 'fire', 'purple'],
+            options: const [
+              'normal',
+              'gold',
+              'diamond',
+              'royal',
+              'neon',
+              'fire',
+              'purple',
+            ],
             selected: _flagStyle,
             onSelect: (v) => setState(() => _flagStyle = v),
           ),
@@ -2458,10 +2670,14 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: (_resultIsError ? _kRed : _kGreen).withValues(alpha: 0.1),
+                color: (_resultIsError ? _kRed : _kGreen).withValues(
+                  alpha: 0.1,
+                ),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: (_resultIsError ? _kRed : _kGreen).withValues(alpha: 0.4),
+                  color: (_resultIsError ? _kRed : _kGreen).withValues(
+                    alpha: 0.4,
+                  ),
                 ),
               ),
               child: Text(
@@ -2484,7 +2700,11 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
 // ── Search result card ────────────────────────────────────────────────────────
 
 class _UserResultCard extends StatelessWidget {
-  const _UserResultCard({required this.user, required this.isArabic, required this.onTap});
+  const _UserResultCard({
+    required this.user,
+    required this.isArabic,
+    required this.onTap,
+  });
   final AdminUserSummary user;
   final bool isArabic;
   final VoidCallback onTap;
@@ -2507,22 +2727,37 @@ class _UserResultCard extends StatelessWidget {
             CircleAvatar(
               radius: 18,
               backgroundColor: _kPurpleDeep,
-              backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
+              backgroundImage: user.avatarUrl != null
+                  ? NetworkImage(user.avatarUrl!)
+                  : null,
               child: user.avatarUrl == null
-                  ? const Icon(Icons.person_rounded, color: Colors.white, size: 18)
+                  ? const Icon(
+                      Icons.person_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    )
                   : null,
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
-                crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                crossAxisAlignment: isArabic
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
                 children: [
-                  Text(user.title,
-                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+                  Text(
+                    user.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   if (user.publicUserId != null || user.username != null)
                     Text(
                       [
-                        if (user.publicUserId != null) 'ID: ${user.publicUserId}',
+                        if (user.publicUserId != null)
+                          'ID: ${user.publicUserId}',
                         if (user.username != null) '@${user.username}',
                       ].join('  '),
                       style: const TextStyle(color: _kSubtext, fontSize: 11),
@@ -2550,8 +2785,14 @@ class _UserResultCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(color: _kGold.withValues(alpha: 0.4)),
                 ),
-                child: Text('VIP ${user.vipLevel}',
-                    style: const TextStyle(color: _kGold, fontSize: 10, fontWeight: FontWeight.w900)),
+                child: Text(
+                  'VIP ${user.vipLevel}',
+                  style: const TextStyle(
+                    color: _kGold,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ),
             const SizedBox(width: 6),
             const Icon(Icons.chevron_right_rounded, color: _kSubtext, size: 16),
@@ -2585,37 +2826,68 @@ class _SelectedUserCard extends StatelessWidget {
           CircleAvatar(
             radius: 20,
             backgroundColor: _kPurpleDeep,
-            backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
+            backgroundImage: user.avatarUrl != null
+                ? NetworkImage(user.avatarUrl!)
+                : null,
             child: user.avatarUrl == null
-                ? const Icon(Icons.person_rounded, color: Colors.white, size: 20)
+                ? const Icon(
+                    Icons.person_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  )
                 : null,
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
-              crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isArabic
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 Row(
-                  textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+                  textDirection: isArabic
+                      ? TextDirection.rtl
+                      : TextDirection.ltr,
                   children: [
-                    const Icon(Icons.check_circle_rounded, color: _kGreen, size: 14),
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      color: _kGreen,
+                      size: 14,
+                    ),
                     const SizedBox(width: 4),
                     Expanded(
-                      child: Text(user.title,
-                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900),
-                          overflow: TextOverflow.ellipsis),
+                      child: Text(
+                        user.title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     if (user.vipLevel > 0) ...[
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: _kGold.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(5),
-                          border: Border.all(color: _kGold.withValues(alpha: 0.4)),
+                          border: Border.all(
+                            color: _kGold.withValues(alpha: 0.4),
+                          ),
                         ),
-                        child: Text('VIP ${user.vipLevel}',
-                            style: const TextStyle(color: _kGold, fontSize: 10, fontWeight: FontWeight.w900)),
+                        child: Text(
+                          'VIP ${user.vipLevel}',
+                          style: const TextStyle(
+                            color: _kGold,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
                       ),
                     ],
                   ],
@@ -2661,19 +2933,19 @@ class _GoldenChipRow extends StatelessWidget {
   final ValueChanged<String> onSelect;
 
   static const _styleColors = <String, Color>{
-    'normal':  Color(0xFF9E9E9E),
-    'gold':    Color(0xFFF0C15A),
+    'normal': Color(0xFF9E9E9E),
+    'gold': Color(0xFFF0C15A),
     'diamond': Color(0xFF8ECFEE),
-    'royal':   Color(0xFFAB6FE8),
-    'neon':    Color(0xFF00FFCC),
-    'fire':    Color(0xFFFF6A00),
-    'purple':  Color(0xFF8B5CF6),
+    'royal': Color(0xFFAB6FE8),
+    'neon': Color(0xFF00FFCC),
+    'fire': Color(0xFFFF6A00),
+    'purple': Color(0xFF8B5CF6),
     'classic': Color(0xFFF0C15A),
-    'crown':   Color(0xFFFFC107),
-    'wings':   Color(0xFF64B5F6),
-    'glow':    Color(0xFFE040FB),
-    'shield':  Color(0xFF66BB6A),
-    'luxury':  Color(0xFFFFD700),
+    'crown': Color(0xFFFFC107),
+    'wings': Color(0xFF64B5F6),
+    'glow': Color(0xFFE040FB),
+    'shield': Color(0xFF66BB6A),
+    'luxury': Color(0xFFFFD700),
   };
 
   @override
@@ -2778,7 +3050,10 @@ class _AdminField extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: _kGold),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
         isDense: true,
       ),
     );
@@ -2951,131 +3226,250 @@ class _Vip2Crest extends StatelessWidget {
   }
 }
 
-enum _Vip2NodeState { owned, active, locked }
+enum _Vip2OwnState { owned, active, locked }
 
-class _Vip2Rail extends StatelessWidget {
-  const _Vip2Rail({required this.currentLevel});
-  final int currentLevel;
+// Small status pill shown under the main crest (lock when previewing a tier the
+// user has not reached, otherwise an owned/active indicator).
+class _Vip2LockPill extends StatelessWidget {
+  const _Vip2LockPill({required this.state});
+  final _Vip2OwnState state;
 
-  _Vip2NodeState _stateFor(int level) {
-    if (currentLevel > 0 && level < currentLevel) return _Vip2NodeState.owned;
-    if (level == currentLevel) return _Vip2NodeState.active;
-    return _Vip2NodeState.locked;
+  @override
+  Widget build(BuildContext context) {
+    late final IconData icon;
+    late final Color color;
+    late final String label;
+    switch (state) {
+      case _Vip2OwnState.active:
+        icon = Icons.verified_rounded;
+        color = _v2Gold;
+        label = 'Active';
+        break;
+      case _Vip2OwnState.owned:
+        icon = Icons.check_circle_rounded;
+        color = _v2Green;
+        label = 'Owned';
+        break;
+      case _Vip2OwnState.locked:
+        icon = Icons.lock_rounded;
+        color = _v2Sub;
+        label = 'Locked';
+        break;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 15),
+          const SizedBox(width: 7),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Swipeable VIP 1..9 carousel. The centered page is large; neighbours scale
+// down and dim. Swiping or tapping a node selects that tier (onSelect), which
+// drives the whole screen. State per node derives from ownedLevel.
+class _Vip2Rail extends StatefulWidget {
+  const _Vip2Rail({
+    required this.selectedLevel,
+    required this.ownedLevel,
+    required this.onSelect,
+  });
+  final int selectedLevel;
+  final int ownedLevel;
+  final ValueChanged<int> onSelect;
+
+  @override
+  State<_Vip2Rail> createState() => _Vip2RailState();
+}
+
+class _Vip2RailState extends State<_Vip2Rail> {
+  late PageController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = PageController(
+      viewportFraction: 0.30,
+      initialPage: (widget.selectedLevel - 1).clamp(0, 8),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _Vip2Rail old) {
+    super.didUpdateWidget(old);
+    // Keep the carousel in sync if selection changed elsewhere (e.g. node tap).
+    if (widget.selectedLevel != old.selectedLevel && _ctrl.hasClients) {
+      final target = (widget.selectedLevel - 1).clamp(0, 8);
+      final current = (_ctrl.page ?? _ctrl.initialPage.toDouble()).round();
+      if (current != target) {
+        _ctrl.animateToPage(
+          target,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Full VIP 1..9 path, horizontally scrollable so VIP 9 (max) never has to
-    // fake a locked duplicate "next" node. Each level's state derives from
-    // currentLevel: < = owned, == = active, > = locked. currentLevel 0 => all
-    // locked (no fake active node).
     return SizedBox(
-      height: 86,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        itemCount: 17, // 9 nodes + 8 interleaved connectors
-        itemBuilder: (_, i) {
-          if (i.isOdd) {
-            // Connector after node level (i ~/ 2)+1; gold once the node to its
-            // right (level (i ~/ 2)+2) is owned or active.
-            final rightLevel = (i ~/ 2) + 2;
-            return _connector(filled: rightLevel <= currentLevel);
-          }
-          final level = (i ~/ 2) + 1;
-          return _node(level: level, state: _stateFor(level));
-        },
-      ),
-    );
-  }
-
-  Widget _connector({required bool filled}) => Padding(
-    padding: const EdgeInsets.only(top: 25),
-    child: Container(
-      width: 16,
-      height: 3,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(99),
-        color: filled ? _v2GoldDim : const Color(0x33E8C25A),
-      ),
-    ),
-  );
-
-  Widget _node({required int level, required _Vip2NodeState state}) {
-    final isActive = state == _Vip2NodeState.active;
-    final size = isActive ? 54.0 : 40.0;
-
-    Widget inner;
-    Color border;
-    Color labelColor;
-    String stateText;
-
-    switch (state) {
-      case _Vip2NodeState.owned:
-        border = _v2GoldDim;
-        labelColor = _v2Green;
-        stateText = 'owned';
-        inner = const Icon(Icons.check_rounded, color: _v2Green, size: 18);
-        break;
-      case _Vip2NodeState.active:
-        border = _v2Gold;
-        labelColor = _v2Gold;
-        stateText = 'active';
-        inner = Text(
-          '$level',
-          style: const TextStyle(
-            color: Color(0xFFFFF6D4),
-            fontSize: 16,
-            fontWeight: FontWeight.w900,
-          ),
-        );
-        break;
-      case _Vip2NodeState.locked:
-        border = const Color(0x73E8C25A);
-        labelColor = _v2Sub;
-        stateText = 'locked';
-        inner = const Icon(Icons.lock_rounded, color: _v2Sub, size: 16);
-        break;
-    }
-
-    return Column(
-      children: [
-        Container(
-          width: size,
-          height: size,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: isActive ? const Color(0xFF2E1D66) : const Color(0x14FFFFFF),
-            border: Border.all(color: border, width: isActive ? 2.2 : 1.4),
-            boxShadow: isActive
-                ? [
-                    BoxShadow(
-                      color: _v2Gold.withValues(alpha: 0.35),
-                      blurRadius: 16,
-                      spreadRadius: 1,
+      height: 126,
+      child: Stack(
+        children: [
+          // Curved arc behind the level nodes.
+          const Positioned.fill(child: CustomPaint(painter: _Vip2ArcPainter())),
+          PageView.builder(
+            controller: _ctrl,
+            itemCount: 9,
+            onPageChanged: (i) => widget.onSelect(i + 1),
+            itemBuilder: (_, i) {
+              final level = i + 1;
+              return AnimatedBuilder(
+                animation: _ctrl,
+                builder: (_, _) {
+                  final page = _ctrl.hasClients && _ctrl.page != null
+                      ? _ctrl.page!
+                      : (widget.selectedLevel - 1).toDouble();
+                  final dist = (page - i).abs().clamp(0.0, 1.0);
+                  final scale = 1.0 - dist * 0.30;
+                  final opacity = 1.0 - dist * 0.45;
+                  return Center(
+                    child: Opacity(
+                      opacity: opacity,
+                      child: Transform.scale(scale: scale, child: _node(level)),
                     ),
-                  ]
-                : null,
+                  );
+                },
+              );
+            },
           ),
-          child: inner,
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'VIP $level',
-          style: TextStyle(
-            color: labelColor,
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        Text(
-          stateText,
-          style: TextStyle(color: labelColor, fontSize: 9.5),
-        ),
-      ],
+        ],
+      ),
     );
   }
+
+  Widget _node(int level) {
+    final owned = widget.ownedLevel;
+    final isSel = level == widget.selectedLevel;
+    final isOwned = owned > 0 && level <= owned;
+
+    final border = isSel
+        ? _v2Gold
+        : isOwned
+        ? _v2GoldDim
+        : const Color(0x73E8C25A);
+    final labelColor = isSel
+        ? _v2Gold
+        : isOwned
+        ? _v2Green
+        : _v2Sub;
+    final stateText = isOwned ? 'owned' : 'locked';
+
+    final Widget inner = isOwned
+        ? const Icon(Icons.check_rounded, color: _v2Green, size: 20)
+        : Text(
+            '$level',
+            style: TextStyle(
+              color: isSel ? const Color(0xFFFFF6D4) : _v2Sub,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          );
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        if (level != widget.selectedLevel && _ctrl.hasClients) {
+          _ctrl.animateToPage(
+            level - 1,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isSel ? const Color(0xFF2E1D66) : const Color(0x14FFFFFF),
+              border: Border.all(color: border, width: isSel ? 2.4 : 1.4),
+              boxShadow: isSel
+                  ? [
+                      BoxShadow(
+                        color: _v2Gold.withValues(alpha: 0.38),
+                        blurRadius: 18,
+                        spreadRadius: 1,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: inner,
+          ),
+          const SizedBox(height: 7),
+          Text(
+            'VIP $level',
+            style: TextStyle(
+              color: labelColor,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          Text(stateText, style: TextStyle(color: labelColor, fontSize: 9.5)),
+        ],
+      ),
+    );
+  }
+}
+
+// Shallow upward arc drawn behind the carousel nodes for a premium "path" feel.
+class _Vip2ArcPainter extends CustomPainter {
+  const _Vip2ArcPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0x33E8C25A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    final y = size.height * 0.42;
+    final path = Path()
+      ..moveTo(0, y)
+      ..quadraticBezierTo(size.width / 2, y - 28, size.width, y);
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _Vip2ArcPainter oldDelegate) => false;
 }
 
 class _Vip2Pill extends StatelessWidget {
@@ -3117,11 +3511,13 @@ class _Vip2RechargeCard extends StatelessWidget {
     required this.monthText,
     required this.awayText,
     required this.progress,
+    required this.buttonLabel,
     required this.onUpgrade,
   });
   final String monthText;
   final String awayText;
   final double progress;
+  final String buttonLabel;
   final VoidCallback onUpgrade;
 
   @override
@@ -3160,8 +3556,11 @@ class _Vip2RechargeCard extends StatelessWidget {
                   ),
                   border: Border.all(color: _v2Gold, width: 2),
                 ),
-                child:
-                    const Icon(Icons.star_rounded, color: Colors.white, size: 22),
+                child: const Icon(
+                  Icons.star_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -3184,8 +3583,11 @@ class _Vip2RechargeCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.diamond_outlined,
-                  color: Color(0xFF8FC4F2), size: 28),
+              const Icon(
+                Icons.diamond_outlined,
+                color: Color(0xFF8FC4F2),
+                size: 28,
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -3222,8 +3624,11 @@ class _Vip2RechargeCard extends StatelessWidget {
           const SizedBox(height: 9),
           Row(
             children: [
-              const Icon(Icons.north_east_rounded,
-                  color: Color(0xFF8FC4F2), size: 13),
+              const Icon(
+                Icons.north_east_rounded,
+                color: Color(0xFF8FC4F2),
+                size: 13,
+              ),
               const SizedBox(width: 6),
               Flexible(
                 child: Text(
@@ -3256,14 +3661,18 @@ class _Vip2RechargeCard extends StatelessWidget {
                   ),
                 ],
               ),
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.bolt_rounded, color: Color(0xFF3A1F02), size: 20),
-                  SizedBox(width: 8),
+                  const Icon(
+                    Icons.bolt_rounded,
+                    color: Color(0xFF3A1F02),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
                   Text(
-                    'Upgrade Now',
-                    style: TextStyle(
+                    buttonLabel,
+                    style: const TextStyle(
                       color: Color(0xFF3A1F02),
                       fontSize: 16,
                       fontWeight: FontWeight.w900,
@@ -3302,10 +3711,7 @@ class _Vip2SectionDivider extends StatelessWidget {
         ),
       ),
       const SizedBox(width: 7),
-      Text(
-        counter,
-        style: const TextStyle(color: _v2Sub, fontSize: 13),
-      ),
+      Text(counter, style: const TextStyle(color: _v2Sub, fontSize: 13)),
       const Expanded(
         child: Divider(color: Color(0x59E8C25A), thickness: 1, indent: 10),
       ),
@@ -3313,44 +3719,77 @@ class _Vip2SectionDivider extends StatelessWidget {
   );
 }
 
-class _Vip2PerkGrid extends StatelessWidget {
-  const _Vip2PerkGrid({required this.currentLevel});
-  final int currentLevel;
+// Icon for a VIP privilege key (shared mapping for the perk grid).
+IconData _vip2PerkIcon(VipPrivilegeKey key) {
+  switch (key) {
+    case VipPrivilegeKey.profileGlow:
+      return Icons.flare_rounded;
+    case VipPrivilegeKey.vipBadge:
+      return Icons.verified_rounded;
+    case VipPrivilegeKey.vipFrame:
+      return Icons.crop_portrait_rounded;
+    case VipPrivilegeKey.micWave:
+      return Icons.graphic_eq_rounded;
+    case VipPrivilegeKey.entranceEffect:
+      return Icons.auto_awesome_rounded;
+    case VipPrivilegeKey.kickProtection:
+      return Icons.shield_outlined;
+    case VipPrivilegeKey.kickConfirmation:
+      return Icons.gavel_rounded;
+    case VipPrivilegeKey.strongAntiKick:
+      return Icons.shield_rounded;
+    case VipPrivilegeKey.notBeingFollowed:
+      return Icons.person_off_rounded;
+    case VipPrivilegeKey.antiEnteringRoom:
+      return Icons.meeting_room_rounded;
+    case VipPrivilegeKey.privateBrowsing:
+      return Icons.visibility_off_rounded;
+    case VipPrivilegeKey.doNotDisturb:
+      return Icons.notifications_off_rounded;
+    case VipPrivilegeKey.antiKick:
+      return Icons.block_rounded;
+    case VipPrivilegeKey.invisibility:
+      return Icons.blur_on_rounded;
+    case VipPrivilegeKey.sendRoomChatImage:
+      return Icons.image_rounded;
+    case VipPrivilegeKey.silentEntry:
+      return Icons.volume_off_rounded;
+  }
+}
 
-  // Phase V1: static demo perks with a representative min VIP level each.
-  // Unlocked state is derived from currentLevel (>= minLevel => unlocked), so
-  // VIP 9 shows every perk unlocked and VIP 0 shows them all locked. All cards
-  // stay visible regardless of state.
-  static const List<(IconData, String, int)> _perks = [
-    (Icons.workspace_premium_rounded, 'Exclusive Badge', 1),
-    (Icons.crop_portrait_rounded, 'Avatar Frame', 1),
-    (Icons.chat_bubble_rounded, 'Chat Bubble', 1),
-    (Icons.auto_awesome_rounded, 'Entrance Effect', 1),
-    (Icons.graphic_eq_rounded, 'Mic Glow', 1),
-    (Icons.image_rounded, 'Profile Background', 4),
-    (Icons.star_rounded, 'Room Highlight', 5),
-    (Icons.text_fields_rounded, 'Name Color', 6),
-    (Icons.directions_car_rounded, 'VIP Ride', 7),
-    (Icons.card_giftcard_rounded, 'Exclusive Gifts', 8),
-  ];
+class _Vip2PerkGrid extends StatelessWidget {
+  const _Vip2PerkGrid({required this.selectedLevel});
+  final int selectedLevel;
 
   @override
-  Widget build(BuildContext context) => GridView.count(
-    crossAxisCount: 2,
-    shrinkWrap: true,
-    physics: const NeverScrollableScrollPhysics(),
-    mainAxisSpacing: 13,
-    crossAxisSpacing: 13,
-    childAspectRatio: 1.25,
-    children: [
-      for (final p in _perks)
-        _Vip2PerkCard(
-          icon: p.$1,
-          label: p.$2,
-          unlocked: currentLevel >= p.$3,
-        ),
-    ],
-  );
+  Widget build(BuildContext context) {
+    // Real privilege data: what the SELECTED tier grants vs what is still
+    // locked at that tier. No fabricated ownership.
+    final isArabic = context.isArabic;
+    final unlocked = VipPrivileges.unlockedFor(selectedLevel);
+    final locked = VipPrivileges.lockedFor(selectedLevel);
+    final items = <(VipPrivilegeSpec, bool)>[
+      for (final s in unlocked) (s, true),
+      for (final s in locked) (s, false),
+    ];
+
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 13,
+      crossAxisSpacing: 13,
+      childAspectRatio: 1.25,
+      children: [
+        for (final it in items)
+          _Vip2PerkCard(
+            icon: _vip2PerkIcon(it.$1.key),
+            label: isArabic ? it.$1.labelAr : it.$1.label,
+            unlocked: it.$2,
+          ),
+      ],
+    );
+  }
 }
 
 class _Vip2PerkCard extends StatelessWidget {
@@ -3437,11 +3876,7 @@ class _Vip2PerkCard extends StatelessWidget {
                             size: 12,
                           ),
                         )
-                      : const Icon(
-                          Icons.lock_rounded,
-                          color: _v2Sub,
-                          size: 14,
-                        ),
+                      : const Icon(Icons.lock_rounded, color: _v2Sub, size: 14),
                 ),
               ],
             ),
@@ -3462,5 +3897,3 @@ class _Vip2PerkCard extends StatelessWidget {
     );
   }
 }
-
-
