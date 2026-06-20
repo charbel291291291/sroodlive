@@ -8164,15 +8164,15 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Colors.black.withValues(alpha: 0.40),
-            Colors.black.withValues(alpha: 0.80),
+            const Color(0xFF0D0520).withValues(alpha: 0.55),
+            const Color(0xFF060210).withValues(alpha: 0.96),
           ],
         ),
         border: Border(
           top: BorderSide(
             color: _isFocused
-                ? kPurple.withValues(alpha: 0.35)
-                : Colors.white.withValues(alpha: 0.06),
+                ? kPurple.withValues(alpha: 0.40)
+                : kPurple.withValues(alpha: 0.10),
             width: 0.7,
           ),
         ),
@@ -8237,7 +8237,7 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
               ),
             ),
           Padding(
-            padding: EdgeInsets.fromLTRB(10, 8, 10, 8 + widget.bottomPad),
+            padding: EdgeInsets.fromLTRB(10, 6, 10, 6 + widget.bottomPad),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -8251,8 +8251,8 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
                     curve: Curves.easeOut,
-                    constraints: const BoxConstraints(minHeight: 40),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    constraints: const BoxConstraints(minHeight: 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: _isFocused
                           ? const Color(0xFF160B26).withValues(alpha: 0.92)
@@ -8358,8 +8358,8 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
                     curve: Curves.easeOut,
-                    width: 40,
-                    height: 40,
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: LinearGradient(
@@ -8412,7 +8412,7 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
 
             // Row 2: quick action icons (hidden when keyboard open)
             if (!keyboardOpen) ...[
-              const SizedBox(height: 5),
+              const SizedBox(height: 4),
               Row(
                 textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -8492,8 +8492,8 @@ class _QuickActionBtn extends StatelessWidget {
       child: Opacity(
         opacity: onTap == null ? opacity : 1.0,
         child: Container(
-          width: 36,
-          height: 36,
+          width: 34,
+          height: 34,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: highlighted
@@ -8515,7 +8515,7 @@ class _QuickActionBtn extends StatelessWidget {
                         strokeWidth: 1.8, color: color),
                   ),
                 )
-              : Icon(icon, color: color, size: 16),
+              : Icon(icon, color: color, size: 18),
         ),
       ),
     );
