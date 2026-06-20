@@ -905,6 +905,38 @@ class AdminService {
         .toList();
   }
 
+  Future<void> adjustWealthXp({
+    required String userId,
+    required String action, // 'add' | 'remove'
+    required int amount,
+    required String reason,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'super_admin_adjust_wealth_xp',
+      params: {
+        'p_target_user_id': userId,
+        'p_action':         action,
+        'p_amount':         amount,
+        'p_reason':         reason,
+      },
+    );
+  }
+
+  Future<void> setWealthXp({
+    required String userId,
+    required int xp,
+    required String reason,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'super_admin_set_wealth_xp',
+      params: {
+        'p_target_user_id': userId,
+        'p_xp':             xp,
+        'p_reason':         reason,
+      },
+    );
+  }
+
   Future<void> updateReportStatus({
     required String reportId,
     required String status,

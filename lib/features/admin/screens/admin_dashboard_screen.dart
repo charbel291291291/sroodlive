@@ -696,9 +696,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ledger: ledger,
           recharges: recharges,
           gifts: gifts,
-          canSupport:   _adminRole.hasPermission(kPermUsersEdit),
-          canModerate:  _adminRole.hasPermission(kPermUsersTempBan),
-          canUnban:     _canUnban,
+          canSupport:       _adminRole.hasPermission(kPermUsersEdit),
+          canModerate:      _adminRole.hasPermission(kPermUsersTempBan),
+          canUnban:         _canUnban,
+          canManageWealth:  _adminRole.isOSuperAdmin,
           onEditProfile: () {
             Navigator.of(context).pop();
             _editUserProfile(detail);
@@ -714,6 +715,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           onRestriction: (type, isActive) async {
             Navigator.of(context).pop();
             await _setRestriction(detail, type, isActive);
+          },
+          onWealthXp: () {
+            Navigator.of(context).pop();
+            _manageWealthXp(detail);
           },
         ),
       );
@@ -838,6 +843,45 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     } catch (error) {
       if (!mounted) return;
       _showSnack('Golden ID failed: $error');
+    }
+  }
+
+  Future<void> _manageWealthXp(AdminUserDetail detail) async {
+    final result = await showDialog<_WealthXpResult>(
+      context: context,
+      builder: (ctx) => _WealthXpDialog(userName: detail.title),
+    );
+    if (result == null) return;
+
+    if (_actionInProgress) return;
+    setState(() => _actionInProgress = true);
+    try {
+      if (result.action == 'set') {
+        await _adminService.setWealthXp(
+          userId: detail.userId,
+          xp:     result.amount,
+          reason: result.reason,
+        );
+      } else {
+        await _adminService.adjustWealthXp(
+          userId:  detail.userId,
+          action:  result.action,
+          amount:  result.amount,
+          reason:  result.reason,
+        );
+      }
+      if (!mounted) return;
+      _showSnack('Wealth XP updated');
+    } catch (error) {
+      if (!mounted) return;
+      final msg = error.toString();
+      if (msg.contains('not_authorized')) {
+        _showSnack('Only O-Super Admin can manage Wealth XP');
+      } else {
+        _showSnack('Wealth XP update failed: $error');
+      }
+    } finally {
+      if (mounted) setState(() => _actionInProgress = false);
     }
   }
 
@@ -3096,10 +3140,12 @@ class _UserDetailSheet extends StatelessWidget {
     required this.canSupport,
     required this.canModerate,
     required this.canUnban,
+    required this.canManageWealth,
     required this.onEditProfile,
     required this.onGrantVip,
     required this.onGoldenId,
     required this.onRestriction,
+    required this.onWealthXp,
   });
 
   final AdminUserDetail detail;
@@ -3109,10 +3155,12 @@ class _UserDetailSheet extends StatelessWidget {
   final bool canSupport;
   final bool canModerate;
   final bool canUnban;
+  final bool canManageWealth;
   final VoidCallback onEditProfile;
   final VoidCallback onGrantVip;
   final VoidCallback onGoldenId;
   final void Function(String type, bool isActive) onRestriction;
+  final VoidCallback onWealthXp;
 
   @override
   Widget build(BuildContext context) {
@@ -3237,6 +3285,23 @@ class _UserDetailSheet extends StatelessWidget {
                   ],
                 ),
               ),
+            if (canManageWealth) ...[
+              const SizedBox(height: 14),
+              _AdminSectionCard(
+                title: 'Wealth XP (O-Super Admin)',
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: onWealthXp,
+                        icon: const Icon(Icons.diamond_rounded),
+                        label: const Text('Manage XP'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 14),
             _AdminSectionCard(
               title: 'Wallet Ledger',
@@ -7939,6 +8004,118 @@ class _StartupPromoPreviewPageState
           ),
         ],
       ),
+    );
+  }
+}
+
+
+class _WealthXpResult {
+  const _WealthXpResult({
+    required this.action,
+    required this.amount,
+    required this.reason,
+  });
+
+  final String action;
+  final int amount;
+  final String reason;
+}
+
+class _WealthXpDialog extends StatefulWidget {
+  const _WealthXpDialog({required this.userName});
+
+  final String userName;
+
+  @override
+  State<_WealthXpDialog> createState() => _WealthXpDialogState();
+}
+
+class _WealthXpDialogState extends State<_WealthXpDialog> {
+  String _action = 'add';
+  final _amountCtrl = TextEditingController();
+  final _reasonCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    _reasonCtrl.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final amount = int.tryParse(_amountCtrl.text.trim());
+    final reason = _reasonCtrl.text.trim();
+    if (amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid positive amount')),
+      );
+      return;
+    }
+    if (reason.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reason is required')),
+      );
+      return;
+    }
+    Navigator.of(context).pop(_WealthXpResult(
+      action: _action,
+      amount: amount,
+      reason: reason,
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: _kSurface,
+      title: Text(
+        'Manage Wealth XP - ${widget.userName}',
+        style: _titleStyle.copyWith(fontSize: 16),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InputDecorator(
+            decoration: const InputDecoration(labelText: 'Action'),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _action,
+                dropdownColor: _kSurface,
+                isExpanded: true,
+                items: const [
+                  DropdownMenuItem(value: 'add',    child: Text('Add XP')),
+                  DropdownMenuItem(value: 'remove', child: Text('Remove XP')),
+                  DropdownMenuItem(value: 'set',    child: Text('Set exact XP')),
+                ],
+                onChanged: (v) => setState(() => _action = v ?? 'add'),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _amountCtrl,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'Amount (XP)'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _reasonCtrl,
+            maxLines: 2,
+            decoration: const InputDecoration(labelText: 'Reason (required)'),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: const Text('Apply'),
+        ),
+      ],
     );
   }
 }
