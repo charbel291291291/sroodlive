@@ -16,7 +16,6 @@ import '../../games/screens/srood_loto_screen.dart';
 import '../../games/screens/srood_treasure_screen.dart';
 import '../../charisma/screens/charisma_challenge_screen.dart';
 import '../services/room_management_service.dart';
-import '../models/room_ban.dart';
 import '../models/room_member.dart';
 import 'pk_start_sheet.dart';
 import 'room_settings_sheet.dart';
@@ -80,7 +79,6 @@ class RoomToolsSheet extends StatefulWidget {
 }
 
 class _RoomToolsSheetState extends State<RoomToolsSheet> {
-  final _mgmt = const RoomManagementService();
   bool _soundOn = true;
   bool _visualOn = true;
 
@@ -239,18 +237,6 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
       backgroundColor: Colors.transparent,
       useRootNavigator: true,
       builder: (_) => _GameCenterSheet(isArabic: isArabic),
-    );
-  }
-
-  void _openKickRecord() async {
-    HapticFeedback.lightImpact();
-    final bans = await _mgmt.getBans(widget.room.id);
-    if (!mounted) return;
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _KickRecordSheet(bans: bans, isArabic: context.isArabic),
     );
   }
 
@@ -553,16 +539,6 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                           labelAr: 'Ø§Ù„Ø®Ù„ÙÙŠØ©',
                           labelEn: 'Background',
                           onTap: _openBackground,
-                        ),
-                        _ToolDef(
-                          icon: Icons.person_off_rounded,
-                          labelAr: 'Ø³Ø¬Ù„ Ø§Ù„Ø·Ø±Ø¯',
-                          labelEn: 'Kicks',
-                          accent: const Color(0xFFE63946),
-                          onTap: _canModerate
-                              ? _openKickRecord
-                              : () => _requireModeratePermission(() {}, tool: 'Kicks'),
-                          disabled: !_canModerate,
                         ),
                       ],
                     ),
@@ -1192,20 +1168,73 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
       final url = await _mgmt.uploadRoomBackground(widget.roomId, bytes, mime);
       await _mgmt.updateRoom(widget.roomId, backgroundUrl: url);
       widget.onBackgroundChanged?.call(url);
-      if (mounted) Navigator.of(context).pop();
-    } catch (e) {
-      if (mounted) {
-        setState(() => _uploading = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-              _t('ÙØ´Ù„ Ø±ÙØ¹ Ø§Ù„ØµÙˆØ±Ø©', 'Failed to upload image')),
-          backgroundColor: const Color(0xFF2A0F1A),
+      widget.onBackgroundChanged?.call(url);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(SnackBar(
+          content: const Text('Background updated'),
+          backgroundColor: const Color(0xFF1A0D2E),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+                color: const Color(0xFF8B26D9).withValues(alpha: 0.4)),
+          ),
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         ));
-      }
+      Navigator.of(context).pop();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _uploading = false);
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(SnackBar(
+          content: const Text('Failed to upload image'),
+          backgroundColor: const Color(0xFF2A0F1A),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+                color: const Color(0xFFE63946).withValues(alpha: 0.5)),
+          ),
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        ));
     }
   }
 
   Future<void> _removeBackground() async {
+    if (_uploading) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A0D33),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: const Text('Remove background?',
+            style: TextStyle(
+                color: Colors.white, fontWeight: FontWeight.w800)),
+        content: const Text('The room will revert to its default color.',
+            style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel',
+                style: TextStyle(color: Color(0xFF9E91B8))),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFE63946),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
     setState(() => _uploading = true);
     try {
       await _mgmt.updateRoom(widget.roomId, clearBackground: true);
@@ -1221,7 +1250,7 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final hasCustomBg = widget.currentBackgroundUrl != null;
     return Container(
-      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomInset),
+      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.85),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -1230,7 +1259,9 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
         ),
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      child: Column(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomInset),
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           _Handle(),
@@ -1242,8 +1273,7 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
           ),
           const SizedBox(height: 6),
           Text(
-            _t('Ø§Ù„Ø®Ù„ÙÙŠØ© Ø§Ù„Ù…Ø®ØµØµØ© ØªØ¸Ù‡Ø± Ù„Ø¬Ù…ÙŠØ¹ Ø§Ù„Ù…Ø´Ø§Ø±ÙƒÙŠÙ†',
-                'Custom image is visible to all participants'),
+            'Visible to everyone in the room',
             style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.45), fontSize: 12),
           ),
@@ -1423,6 +1453,7 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
           ),
           const SizedBox(height: 4),
         ],
+      ),
       ),
     );
   }
@@ -3071,115 +3102,5 @@ class _GameRow extends StatelessWidget {
     );
   }
 }
-
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Kick Record sub-sheet
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-class _KickRecordSheet extends StatelessWidget {
-  const _KickRecordSheet({required this.bans, required this.isArabic});
-
-  final List<RoomBan> bans;
-  final bool isArabic;
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).padding.bottom;
-    final textDir = isArabic ? TextDirection.rtl : TextDirection.ltr;
-    return Directionality(
-      textDirection: textDir,
-      child: Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * 0.6,
-        ),
-        decoration: const BoxDecoration(
-          color: Color(0xFF1A0D33),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          children: [
-            Center(
-              child: Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 4),
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.22),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-              child: Text(
-                isArabic ? 'Ø³Ø¬Ù„ Ø§Ù„Ø·Ø±Ø¯' : 'Kick Record',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-            Flexible(
-              child: bans.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(32),
-                        child: Text(
-                          isArabic ? 'Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ù…Ø·Ø±ÙˆØ¯ÙˆÙ†' : 'No bans yet',
-                          style: const TextStyle(
-                              color: Color(0xFF9E91B8), fontSize: 14),
-                        ),
-                      ),
-                    )
-                  : ListView.separated(
-                      padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + bottomInset),
-                      itemCount: bans.length,
-                      separatorBuilder: (ctx, idx) => Divider(
-                        height: 1,
-                        color: Colors.white.withValues(alpha: 0.07),
-                      ),
-                      itemBuilder: (_, i) {
-                        final ban = bans[i];
-                        return ListTile(
-                          contentPadding:
-                              const EdgeInsets.symmetric(vertical: 4),
-                          leading: CircleAvatar(
-                            radius: 20,
-                            backgroundColor: const Color(0xFF8B26D9),
-                            backgroundImage: ban.avatarUrl != null
-                                ? NetworkImage(ban.avatarUrl!)
-                                : null,
-                            child: ban.avatarUrl == null
-                                ? const Icon(Icons.person_rounded,
-                                    color: Colors.white, size: 18)
-                                : null,
-                          ),
-                          title: Text(
-                            ban.displayName ?? ban.userId,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600),
-                          ),
-                          subtitle: ban.reason != null
-                              ? Text(
-                                  ban.reason!,
-                                  style: const TextStyle(
-                                      color: Color(0xFF9E91B8), fontSize: 12),
-                                )
-                              : null,
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-
-
 
 
