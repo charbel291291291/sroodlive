@@ -51,9 +51,15 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
   late final WebViewController _controller;
   final _service = const CrashGameService();
 
-  bool _pageLoaded = false;
   bool _pageError = false;
   String? _pageErrorMsg;
+
+  // Boot/splash controller. The loading overlay hides as soon as the JS bridge
+  // is alive (GAME_READY) or the first game data is delivered - it does NOT
+  // depend solely on onPageFinished, which is unreliable for loadFlutterAsset
+  // on Android and was leaving the "Connecting to live round..." splash stuck.
+  bool _bootResolved = false;
+  Timer? _bootTimeout;
 
   // True while _initGame() is awaiting RPCs; prevents concurrent re-entry.
   bool _isInitializing = false;
@@ -124,13 +130,12 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
         NavigationDelegate(
           onPageFinished: (_) {
             if (!mounted) return;
-            setState(() => _pageLoaded = true);
+            _resolveBoot('page_finished');
           },
           onWebResourceError: (e) {
             if (e.isForMainFrame == false) return;
             if (!mounted) return;
             setState(() {
-              _pageLoaded = true;
               _pageError = true;
               _pageErrorMsg = e.description;
             });
@@ -138,6 +143,35 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
         ),
       )
       ..loadFlutterAsset('assets/games/rocket_crash/index.html');
+
+    _startBootTimeout();
+  }
+
+  // Hides the loading splash once the page/bridge is proven alive or the first
+  // game data has been delivered. Idempotent.
+  void _resolveBoot(String reason) {
+    _bootTimeout?.cancel();
+    if (_bootResolved) return;
+    debugPrint('[RocketCrash] boot overlay hidden reason=$reason');
+    if (mounted) {
+      setState(() => _bootResolved = true);
+    } else {
+      _bootResolved = true;
+    }
+  }
+
+  // Safety net: if no usable game data arrives within 5s, swap the splash for a
+  // friendly retry state instead of leaving the user on "Connecting...".
+  void _startBootTimeout() {
+    _bootTimeout?.cancel();
+    _bootTimeout = Timer(const Duration(seconds: 5), () {
+      if (!mounted || _bootResolved) return;
+      debugPrint('[RocketCrash] boot fallback timeout fired - no game data');
+      setState(() {
+        _pageError = true;
+        _pageErrorMsg = 'sync_timeout';
+      });
+    });
   }
 
   @override
@@ -157,6 +191,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     _roundRefreshDebounce?.cancel();
     _historyDebounce?.cancel();
     _reconcilePoll?.cancel();
+    _bootTimeout?.cancel();
     _disposeRoundChannel();
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(systemNavigationBarColor: Colors.transparent),
@@ -191,6 +226,10 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     final payload = msg['payload'] as Map<String, dynamic>? ?? {};
 
     debugPrint('[RocketCrash] <- $type');
+
+    // Any message proves the JS bridge is alive and the page rendered, so the
+    // loading splash can come down immediately (GAME_READY is the first one).
+    _resolveBoot('bridge:$type');
 
     switch (type) {
       case 'GAME_READY':
@@ -700,10 +739,12 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     }
   }
 
-  // Debounced: waits 3 s after the last crashed event before fetching history.
+  // Debounced: fetches server history shortly after a crashed event. Kept short
+  // (800 ms) so the authoritative last-20 strip is not stale, while still
+  // coalescing duplicate crashed events into a single fetch.
   void _refreshHistory() {
     _historyDebounce?.cancel();
-    _historyDebounce = Timer(const Duration(seconds: 3), () async {
+    _historyDebounce = Timer(const Duration(milliseconds: 800), () async {
       try {
         final history = await _service.getRocketResults();
         if (!mounted) return;
@@ -1178,7 +1219,9 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
             fit: StackFit.expand,
             children: [
               WebViewWidget(controller: _controller),
-              if (!_pageLoaded) _buildLoading(),
+              // Splash stays only until the bridge is alive / first data arrives
+              // (or the timeout swaps in the error/retry state).
+              if (!_bootResolved && !_pageError) _buildLoading(),
               if (_pageError) _buildError(),
             ],
           ),
@@ -1291,10 +1334,11 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
                     ),
                     onPressed: () {
                       setState(() {
-                        _pageLoaded = false;
                         _pageError = false;
                         _pageErrorMsg = null;
+                        _bootResolved = false;
                       });
+                      _startBootTimeout();
                       _controller.loadFlutterAsset(
                         'assets/games/rocket_crash/index.html',
                       );
@@ -1324,6 +1368,11 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
       return widget.isArabic
           ? 'ØªØ¹Ø°Ø± Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ù„Ø¹Ø¨Ø©. ÙŠØ±Ø¬Ù‰ Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† Ø§ØªØµØ§Ù„Ùƒ Ø¨Ø§Ù„Ø¥Ù†ØªØ±Ù†Øª.'
           : 'Could not connect to the game. Check your internet connection.';
+    }
+    if (raw == 'sync_timeout') {
+      return widget.isArabic
+          ? 'تعذّر مزامنة الجولة الحية. يرجى المحاولة مجدداً.'
+          : 'Unable to sync live round. Please try again.';
     }
     final lower = raw.toLowerCase();
     if (lower.contains('net::err_internet') ||

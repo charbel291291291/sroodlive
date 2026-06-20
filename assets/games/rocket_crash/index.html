@@ -252,6 +252,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#020818;font-family:
 // ═══════════════════════════════════════════════════════════════════════════
 const WAIT_SECS      = 8;
 const CRASH_DELAY_MS = 4000;
+const CRASH_HOLD_MS  = 4000; // ms to keep crash/explosion visible before next betting round
 const MAX_FEED_ITEMS = 6;
 const AMT_STEPS      = [100,200,500,1000,2000,5000,10000,20000,50000];
 const FAKE_NAMES     = ['Ali','Sara','Omar','Nora','Fahad','Layla','Khalid','Maha','Yusuf','Rana'];
@@ -287,6 +288,9 @@ const G = {
   fakeFeedTmr: null,   // handle for the fake-player setInterval
   flightLoopActive: false, // true while a flightStep chain is running
   rafRunning: false,       // true once the single RAF loop has been started
+  crashHoldUntil: 0,        // epoch ms until which the crash result stays visible
+  crashHoldTmr: null,       // timer that flushes the queued betting round
+  queuedBettingRound: null, // betting round deferred during the crash hold
   // Slots
   slots: [
     { mode:'manual', amount:100,  state:'idle', betId:null, roundId:null, autoT:2.0, winAmt:0, cashing:false },
@@ -447,20 +451,35 @@ function drawFrame(ts) {
   });
   cx.restore();
 
-  // explosion rings
+  // explosion rings — visible for full CRASH_HOLD_MS, peak drama ~2s
   if (G.phase==='crashed' && _explodeTs>0) {
     const age = (ts - _explodeTs)/1000;
-    if (age < 1.4) {
+    if (age < 2.0) {
       const {x:rx,y:ry} = rocketPos();
-      [0,.12,.26].forEach((delay,i) => {
-        const r = Math.max(0,(age-delay)*110);
-        const a = Math.max(0,.7-age*.55);
+      // 4 rings with staggered delays; each expands outward and fades
+      [0, .10, .22, .38].forEach((delay, i) => {
+        if (age < delay) return;
+        const t   = age - delay;
+        const r   = Math.max(0, t * 130);
+        const a   = Math.max(0, .85 - t * .5);
         cx.beginPath();
-        cx.arc(rx,ry,r,0,Math.PI*2);
-        cx.strokeStyle=`rgba(255,${120-i*40},0,${a})`;
-        cx.lineWidth=4-i;
+        cx.arc(rx, ry, r, 0, Math.PI*2);
+        cx.strokeStyle = `rgba(255,${Math.max(0,140-i*45)},0,${a})`;
+        cx.lineWidth   = Math.max(1, 5 - i);
         cx.stroke();
       });
+      // bright core flash that fades in the first 0.4s
+      if (age < 0.4) {
+        const fa = Math.max(0, .7 - age * 1.75);
+        const fr = age * 55;
+        const fg = cx.createRadialGradient(rx, ry, 0, rx, ry, fr);
+        fg.addColorStop(0, `rgba(255,230,80,${fa})`);
+        fg.addColorStop(1, `rgba(255,100,0,0)`);
+        cx.beginPath();
+        cx.arc(rx, ry, fr, 0, Math.PI*2);
+        cx.fillStyle = fg;
+        cx.fill();
+      }
     }
   }
 
@@ -750,6 +769,18 @@ function addHistory(v) {
   renderHistory();
 }
 
+// Shows the latest server crash result on the history strip immediately (even
+// in serverSynced mode), deduped against the newest entry so a repeated crashed
+// event or the following HISTORY_UPDATE never creates a duplicate chip. The
+// server HISTORY_UPDATE remains authoritative and replaces the whole array.
+function addCrashResult(v) {
+  if (!(v > 0)) return;
+  if (G.history.length && Math.abs(G.history[0] - v) < 0.005) return;
+  G.history.unshift(v);
+  if (G.history.length > 20) G.history.length = 20;
+  renderHistory();
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // SLOT LOGIC
 // ═══════════════════════════════════════════════════════════════════════════
@@ -837,10 +868,22 @@ let lastAppliedRoundKey = '';
 function handleRoundState(round) {
   if (!round) return;
   if (round.serverNowMs) G.clockOffset = round.serverNowMs - Date.now();
+
+  const phase = round.phase || round.status || '';
+
+  // Post-crash visual hold: keep "CRASHED @ X.XXx" on screen for 3s. If the
+  // server's next betting round arrives early, queue it and apply it once the
+  // hold expires (scheduled in the crashed branch). Bets stay disabled while
+  // the round is still in the crashed phase.
+  if (phase === 'betting' && G.phase === 'crashed' && Date.now() < G.crashHoldUntil) {
+    G.queuedBettingRound = round;
+    if (DEBUG) console.log('[RocketCrash] betting round queued during crash hold');
+    return;
+  }
+
   G.roundId = round.roundId || G.roundId;
   G.serverSynced = G.serverSynced || !!G.roundId || round.serverSynced === true;
 
-  const phase = round.phase || round.status || '';
   const roundKey = `${G.roundId}:${phase}:${round.roundNumber || 0}`;
   if (roundKey === lastAppliedRoundKey) {
     if (DEBUG) console.log('[RocketCrash] skip duplicate round state key=' + roundKey);
@@ -965,9 +1008,22 @@ function handleRoundState(round) {
         if (s.state === 'armed' || s.state === 'cashing') s.state = 'lost';
       });
       renderSlots();
-      addHistory(G.crashAt);
+      // Show the latest result on the strip immediately, deduped.
+      addCrashResult(G.crashAt);
+
+      // Hold the crash/explosion visual for CRASH_HOLD_MS before allowing the
+      // next betting round to replace it. A betting round arriving during this
+      // window is queued (see top of handleRoundState) and applied on expiry.
+      G.crashHoldUntil = Date.now() + CRASH_HOLD_MS;
+      clearTimeout(G.crashHoldTmr);
+      G.crashHoldTmr = setTimeout(() => {
+        G.crashHoldUntil = 0;
+        const q = G.queuedBettingRound;
+        G.queuedBettingRound = null;
+        if (q) handleRoundState(q);
+      }, CRASH_HOLD_MS);
     }
-    // Next round arrives via SET_ROUND_STATE {phase:'betting'}
+    // Next round arrives via SET_ROUND_STATE {phase:'betting'} (queued if early)
   }
 }
 
