@@ -7,7 +7,6 @@ import '../games/screens/crash_game_screen.dart';
 import '../messages/screens/messages_screen.dart';
 import '../profile/profile_screen.dart';
 import '../rooms/screens/rooms_screen.dart';
-import '../startup_promo/widgets/startup_promo_overlay.dart';
 import '../wallet/screens/wallet_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -28,13 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // navigator is ready to show the dialog.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkForUpdate();
-      _checkStartupPromo();
     });
-  }
-
-  Future<void> _checkStartupPromo() async {
-    if (!mounted) return;
-    await StartupPromoController.maybeShow(context);
   }
 
   Future<void> _checkForUpdate() async {

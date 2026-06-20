@@ -5,13 +5,14 @@ import 'package:flutter/material.dart';
 import '../models/startup_promo.dart';
 import '../services/startup_promo_service.dart';
 
-/// Shows full-screen startup promo overlay after the app shell is ready.
-/// Call [StartupPromoController.maybeShow] from HomeScreen's postFrameCallback.
+/// Shows full-screen startup promo overlay as part of the startup gate.
+/// Called from the promo gate screen inserted between splash and HomeScreen.
 class StartupPromoController {
   static bool _showing = false;
+  static bool _shownThisSession = false;
 
   static Future<void> maybeShow(BuildContext context) async {
-    if (_showing) return;
+    if (_showing || _shownThisSession) return;
 
     final service = const StartupPromoService();
     final promo = await service.fetchActivePromo();
@@ -39,6 +40,7 @@ class StartupPromoController {
 
     final navigator = Navigator.of(context, rootNavigator: true);
     _showing = true;
+    _shownThisSession = true;
     await service.recordDisplayed(promo);
     debugPrint('[PerfStartupPromo] shown id=${promo.id}');
 

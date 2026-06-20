@@ -8,6 +8,7 @@ import '../../core/config/app_config.dart';
 import '../../core/supabase/supabase_service.dart';
 import '../home/home_screen.dart';
 import '../onboarding/onboarding_screen.dart';
+import '../startup_promo/widgets/startup_promo_overlay.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Video splash screen — plays assets/videos/srood_splash.mp4 once.
@@ -159,7 +160,7 @@ class _SplashScreenState extends State<SplashScreen> {
     _restoreSystemUI();
 
     final Widget dest = _navTarget == _NavTarget.home
-        ? const HomeScreen()
+        ? const _PromoGateScreen()
         : const OnboardingScreen();
 
     Navigator.of(context).pushReplacement(
@@ -286,4 +287,41 @@ class _StaticFallback extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Promo gate — thin black screen inserted between SplashScreen and HomeScreen.
+// Fetches + precaches the promo, shows it if applicable, then goes to Home.
+// This ensures the promo is the very first thing the user sees after launch.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PromoGateScreen extends StatefulWidget {
+  const _PromoGateScreen();
+
+  @override
+  State<_PromoGateScreen> createState() => _PromoGateScreenState();
+}
+
+class _PromoGateScreenState extends State<_PromoGateScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _run());
+  }
+
+  Future<void> _run() async {
+    await StartupPromoController.maybeShow(context);
+    _goHome();
+  }
+
+  void _goHome() {
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(builder: (_) => const HomeScreen()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      const Scaffold(backgroundColor: Color(0xFF08060F));
 }
