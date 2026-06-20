@@ -28,6 +28,28 @@ const _kPurpleMid  = Color(0xFF8B26D9);
 const _kGreen      = Color(0xFF2ECC71);
 const _kRed        = Color(0xFFFF5C7A);
 
+// ── VIP Center 2.0 (Srood VIP Prestige) ──────────────────────────────────────
+// Phase V1: presentational reskin. Flip this flag to false to instantly fall
+// back to the legacy VIP Center layout (kept fully intact below).
+final bool _kUseVip2Shell = true;
+
+const _v2Gold    = Color(0xFFF7E2A0);
+const _v2GoldDim = Color(0xFFE8C25A);
+const _v2Lilac   = Color(0xFFB7AAE0);
+const _v2Sub     = Color(0xFF9C8FCB);
+const _v2Green   = Color(0xFF86E0B6);
+
+/// Comma-groups an integer for display (1234567 -> "1,234,567").
+String _v2Fmt(int n) {
+  final s = n.abs().toString();
+  final b = StringBuffer();
+  for (var i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 == 0) b.write(',');
+    b.write(s[i]);
+  }
+  return b.toString();
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 class VipCenterScreen extends StatefulWidget {
@@ -139,7 +161,7 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              _buildHeader(),
+              _kUseVip2Shell ? _buildVip2Header() : _buildHeader(),
               Expanded(child: _buildBody()),
             ],
           ),
@@ -176,6 +198,8 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
       );
     }
     if (_error != null) return _buildError();
+
+    if (_kUseVip2Shell) return _buildVip2Body();
 
     return RefreshIndicator(
       color: _kGold,
@@ -257,6 +281,141 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
       ],
     ),
   );
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // VIP Center 2.0 — Phase V1 presentational shell (English-only)
+  // ───────────────────────────────────────────────────────────────────────────
+
+  Widget _buildVip2Header() => Padding(
+    padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
+    child: Row(
+      children: [
+        IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
+        ),
+        const Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Srood VIP Prestige',
+                style: TextStyle(
+                  color: _v2Gold,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              SizedBox(height: 2),
+              Text(
+                'ROYAL CENTER',
+                style: TextStyle(
+                  color: _v2Lilac,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 3,
+                ),
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          onPressed: _onVip2HelpTap,
+          icon: const Icon(Icons.help_outline_rounded, color: Colors.white70),
+        ),
+      ],
+    ),
+  );
+
+  void _onVip2HelpTap() {
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text(
+            'VIP tiers unlock premium perks. Recharge to climb the ranks.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+  }
+
+  // Phase V1 CTA — honest, no purchase logic. The existing economy grants VIP
+  // through a recharge agent / admin, so this points the user there.
+  void _onVip2UpgradeTap() {
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Upgrade your VIP through a recharge agent or admin.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+  }
+
+  Widget _buildVip2Body() {
+    // ── Wired to existing data (read-only) ──────────────────────────────────
+    final level = widget.currentVipLevel.clamp(0, 9);
+    final activeLevel = level <= 0 ? 1 : level;
+    final nextLevel = (activeLevel + 1).clamp(1, 9);
+
+    // Real privilege counts from VipPrivileges (never hardcoded).
+    final unlocked = VipPrivileges.unlockedFor(level).length;
+    final total = unlocked + VipPrivileges.lockedFor(level).length;
+
+    // Real recharge-EXP figures when get_my_vip is loaded; demo fallback in V1.
+    final vip = _userVip;
+    final reqExp = vip?.expToNextTier ?? 300000;
+    final monthlyExp = vip?.monthlyExp ?? 0;
+    final monthlyTarget = vip?.monthlyMaintainExp ?? 100000;
+    final away =
+        (monthlyTarget - monthlyExp) > 0 ? (monthlyTarget - monthlyExp) : 0;
+    final progress =
+        monthlyTarget > 0 ? (monthlyExp / monthlyTarget).clamp(0.0, 1.0) : 0.0;
+
+    final reqText =
+        '${_v2Fmt(reqExp)} recharge EXP to unlock VIP $nextLevel';
+    final monthText = '${_v2Fmt(monthlyExp)} / ${_v2Fmt(monthlyTarget)} EXP';
+    final awayText =
+        '${_v2Fmt(away)} EXP away from VIP $nextLevel perks';
+
+    return RefreshIndicator(
+      color: _kGold,
+      backgroundColor: const Color(0xFF1B102A),
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+        children: [
+          const SizedBox(height: 4),
+          _Vip2Crest(level: activeLevel),
+          const SizedBox(height: 18),
+          _Vip2Rail(activeLevel: activeLevel),
+          const SizedBox(height: 18),
+          Center(child: _Vip2Pill(text: reqText)),
+          const SizedBox(height: 18),
+          _Vip2RechargeCard(
+            monthText: monthText,
+            awayText: awayText,
+            progress: progress.toDouble(),
+            onUpgrade: _onVip2UpgradeTap,
+          ),
+          const SizedBox(height: 22),
+          _Vip2SectionDivider(label: 'Privileges', counter: '$unlocked / $total'),
+          const SizedBox(height: 14),
+          const _Vip2PerkGrid(),
+          if (!_adminLoading &&
+              (_adminRole.hasPermission(kPermVipGrant) ||
+                  _adminRole.isOSuperAdmin ||
+                  _adminRole.isPSuperAdmin ||
+                  _adminRole.isSuperAdmin)) ...[
+            const SizedBox(height: 24),
+            _AdminVipPanel(isArabic: context.isArabic),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2673,6 +2832,606 @@ class _AdminButton extends StatelessWidget {
                   ),
                 ],
               ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VIP Center 2.0 — Phase V1 presentational widgets (Srood VIP Prestige)
+// English-only. No new assets. No backend calls.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _Vip2Crest extends StatelessWidget {
+  const _Vip2Crest({required this.level});
+  final int level;
+
+  @override
+  Widget build(BuildContext context) {
+    final shown = level <= 0 ? 1 : level;
+    return Column(
+      children: [
+        SizedBox(
+          height: 152,
+          width: 152,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      Color(0x66F7E2A0),
+                      Color(0x338B5BD6),
+                      Color(0x00000000),
+                    ],
+                    stops: [0.0, 0.45, 1.0],
+                  ),
+                ),
+              ),
+              const Positioned(
+                top: 4,
+                child: Icon(
+                  Icons.workspace_premium_rounded,
+                  color: _v2Gold,
+                  size: 36,
+                ),
+              ),
+              Positioned(
+                top: 32,
+                child: Container(
+                  width: 98,
+                  height: 104,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF4A2F92), Color(0xFF160E38)],
+                    ),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(20),
+                      bottom: Radius.circular(46),
+                    ),
+                    border: Border.all(color: _v2GoldDim, width: 1.6),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _v2GoldDim.withValues(alpha: 0.30),
+                        blurRadius: 22,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'VIP',
+                        style: TextStyle(
+                          color: Color(0xFFFFF6D4),
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1,
+                          height: 1.1,
+                        ),
+                      ),
+                      Text(
+                        '$shown',
+                        style: const TextStyle(
+                          color: _v2Gold,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          height: 1.0,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'PRESTIGE RANK ${shown.toString().padLeft(2, '0')}',
+          style: const TextStyle(
+            color: _v2Gold,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 3,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+enum _Vip2NodeState { owned, active, locked }
+
+class _Vip2Rail extends StatelessWidget {
+  const _Vip2Rail({required this.activeLevel});
+  final int activeLevel;
+
+  @override
+  Widget build(BuildContext context) {
+    final owned = (activeLevel - 1).clamp(0, 9);
+    final locked = (activeLevel + 1).clamp(1, 9);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _node(level: owned, state: _Vip2NodeState.owned),
+        _connector(filled: true),
+        _node(level: activeLevel, state: _Vip2NodeState.active),
+        _connector(filled: false),
+        _node(level: locked, state: _Vip2NodeState.locked),
+      ],
+    );
+  }
+
+  Widget _connector({required bool filled}) => Expanded(
+    child: Padding(
+      padding: const EdgeInsets.only(top: 26),
+      child: Container(
+        height: 3,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(99),
+          color: filled ? _v2GoldDim : const Color(0x33E8C25A),
+        ),
+      ),
+    ),
+  );
+
+  Widget _node({required int level, required _Vip2NodeState state}) {
+    final isActive = state == _Vip2NodeState.active;
+    final size = isActive ? 54.0 : 40.0;
+
+    Widget inner;
+    Color border;
+    Color labelColor;
+    String stateText;
+
+    switch (state) {
+      case _Vip2NodeState.owned:
+        border = _v2GoldDim;
+        labelColor = _v2Green;
+        stateText = 'owned';
+        inner = const Icon(Icons.check_rounded, color: _v2Green, size: 18);
+        break;
+      case _Vip2NodeState.active:
+        border = _v2Gold;
+        labelColor = _v2Gold;
+        stateText = 'active';
+        inner = Text(
+          '$level',
+          style: const TextStyle(
+            color: Color(0xFFFFF6D4),
+            fontSize: 16,
+            fontWeight: FontWeight.w900,
+          ),
+        );
+        break;
+      case _Vip2NodeState.locked:
+        border = const Color(0x73E8C25A);
+        labelColor = _v2Sub;
+        stateText = 'locked';
+        inner = const Icon(Icons.lock_rounded, color: _v2Sub, size: 16);
+        break;
+    }
+
+    return Column(
+      children: [
+        Container(
+          width: size,
+          height: size,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isActive ? const Color(0xFF2E1D66) : const Color(0x14FFFFFF),
+            border: Border.all(color: border, width: isActive ? 2.2 : 1.4),
+            boxShadow: isActive
+                ? [
+                    BoxShadow(
+                      color: _v2Gold.withValues(alpha: 0.35),
+                      blurRadius: 16,
+                      spreadRadius: 1,
+                    ),
+                  ]
+                : null,
+          ),
+          child: inner,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'VIP $level',
+          style: TextStyle(
+            color: labelColor,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        Text(
+          stateText,
+          style: TextStyle(color: labelColor, fontSize: 9.5),
+        ),
+      ],
+    );
+  }
+}
+
+class _Vip2Pill extends StatelessWidget {
+  const _Vip2Pill({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+    decoration: BoxDecoration(
+      gradient: const LinearGradient(
+        colors: [Color(0x8C422C80), Color(0xB3120A2C)],
+      ),
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(color: _v2GoldDim.withValues(alpha: 0.45)),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.diamond_outlined, color: Color(0xFF8FC4F2), size: 16),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: Color(0xFFE4DAFB),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _Vip2RechargeCard extends StatelessWidget {
+  const _Vip2RechargeCard({
+    required this.monthText,
+    required this.awayText,
+    required this.progress,
+    required this.onUpgrade,
+  });
+  final String monthText;
+  final String awayText;
+  final double progress;
+  final VoidCallback onUpgrade;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(17),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0x80563AA4), Color(0xC7120A2C)],
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0x38C9D2E3)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x66000000),
+            blurRadius: 24,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF9C8DF0), Color(0xFF534AB7)],
+                  ),
+                  border: Border.all(color: _v2Gold, width: 2),
+                ),
+                child:
+                    const Icon(Icons.star_rounded, color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "This month's recharge",
+                      style: TextStyle(color: _v2Lilac, fontSize: 12.5),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      monthText,
+                      style: const TextStyle(
+                        color: _v2Gold,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.diamond_outlined,
+                  color: Color(0xFF8FC4F2), size: 28),
+            ],
+          ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (_, c) => Stack(
+              children: [
+                Container(
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: const Color(0x12FFFFFF),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0x12FFFFFF)),
+                  ),
+                ),
+                Container(
+                  height: 10,
+                  width: c.maxWidth * progress.clamp(0.04, 1.0),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFFF6D4), Color(0xFFE8C25A)],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _v2Gold.withValues(alpha: 0.55),
+                        blurRadius: 10,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 9),
+          Row(
+            children: [
+              const Icon(Icons.north_east_rounded,
+                  color: Color(0xFF8FC4F2), size: 13),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  awayText,
+                  style: const TextStyle(color: _v2Sub, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          GestureDetector(
+            onTap: onUpgrade,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFFFFF6D4),
+                    Color(0xFFF0C765),
+                    Color(0xFFD9A93C),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: _v2GoldDim.withValues(alpha: 0.5),
+                    blurRadius: 22,
+                  ),
+                ],
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.bolt_rounded, color: Color(0xFF3A1F02), size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Upgrade Now',
+                    style: TextStyle(
+                      color: Color(0xFF3A1F02),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Vip2SectionDivider extends StatelessWidget {
+  const _Vip2SectionDivider({required this.label, required this.counter});
+  final String label;
+  final String counter;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      const Expanded(
+        child: Divider(color: Color(0x59E8C25A), thickness: 1, endIndent: 10),
+      ),
+      const Icon(Icons.diamond_outlined, color: _v2Gold, size: 16),
+      const SizedBox(width: 7),
+      Text(
+        label,
+        style: const TextStyle(
+          color: _v2Gold,
+          fontSize: 14,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      const SizedBox(width: 7),
+      Text(
+        counter,
+        style: const TextStyle(color: _v2Sub, fontSize: 13),
+      ),
+      const Expanded(
+        child: Divider(color: Color(0x59E8C25A), thickness: 1, indent: 10),
+      ),
+    ],
+  );
+}
+
+class _Vip2PerkGrid extends StatelessWidget {
+  const _Vip2PerkGrid();
+
+  // Phase V1: static demo perks + static unlocked flags (matches V4 mockup).
+  // Phase V4 will bind these to VipPrivileges.unlockedFor / lockedFor.
+  static const List<(IconData, String, bool)> _perks = [
+    (Icons.workspace_premium_rounded, 'Exclusive Badge', true),
+    (Icons.crop_portrait_rounded, 'Avatar Frame', true),
+    (Icons.chat_bubble_rounded, 'Chat Bubble', true),
+    (Icons.auto_awesome_rounded, 'Entrance Effect', true),
+    (Icons.graphic_eq_rounded, 'Mic Glow', false),
+    (Icons.image_rounded, 'Profile Background', false),
+    (Icons.text_fields_rounded, 'Name Color', false),
+    (Icons.star_rounded, 'Room Highlight', false),
+    (Icons.directions_car_rounded, 'VIP Ride', false),
+    (Icons.card_giftcard_rounded, 'Exclusive Gifts', false),
+  ];
+
+  @override
+  Widget build(BuildContext context) => GridView.count(
+    crossAxisCount: 2,
+    shrinkWrap: true,
+    physics: const NeverScrollableScrollPhysics(),
+    mainAxisSpacing: 13,
+    crossAxisSpacing: 13,
+    childAspectRatio: 1.25,
+    children: [
+      for (final p in _perks)
+        _Vip2PerkCard(icon: p.$1, label: p.$2, unlocked: p.$3),
+    ],
+  );
+}
+
+class _Vip2PerkCard extends StatelessWidget {
+  const _Vip2PerkCard({
+    required this.icon,
+    required this.label,
+    required this.unlocked,
+  });
+  final IconData icon;
+  final String label;
+  final bool unlocked;
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = unlocked ? _v2Gold : _v2Sub;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: unlocked
+              ? const [Color(0x664A2F92), Color(0xCC140B36)]
+              : const [Color(0x33281E4C), Color(0xB30E0922)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: unlocked
+              ? _v2GoldDim.withValues(alpha: 0.6)
+              : const Color(0x24C9D2E3),
+        ),
+        boxShadow: unlocked
+            ? [
+                BoxShadow(
+                  color: _v2GoldDim.withValues(alpha: 0.12),
+                  blurRadius: 12,
+                ),
+              ]
+            : null,
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            height: 52,
+            width: double.infinity,
+            child: Stack(
+              children: [
+                Center(
+                  child: Container(
+                    width: 52,
+                    height: 52,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: const Color(0x0DFFFFFF),
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(
+                        color: unlocked
+                            ? _v2Gold.withValues(alpha: 0.55)
+                            : const Color(0x29C9D2E3),
+                      ),
+                    ),
+                    child: Icon(icon, color: tint, size: 25),
+                  ),
+                ),
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: unlocked
+                      ? Container(
+                          width: 20,
+                          height: 20,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFF1A3A2C),
+                            border: Border.all(
+                              color: _v2Green.withValues(alpha: 0.55),
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.check_rounded,
+                            color: _v2Green,
+                            size: 12,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.lock_rounded,
+                          color: _v2Sub,
+                          size: 14,
+                        ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 9),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: unlocked ? const Color(0xFFF6F1FF) : _v2Sub,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
