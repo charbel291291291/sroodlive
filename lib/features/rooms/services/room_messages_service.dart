@@ -119,6 +119,7 @@ class RoomMessagesService {
           .from('room_messages')
           .select('*, profiles(display_name, username, avatar_url, vip_level, vip_expires_at)')
           .eq('room_id', roomId)
+          .eq('is_removed', false)
           .order('created_at', ascending: false)
           .limit(_recentCount);
 

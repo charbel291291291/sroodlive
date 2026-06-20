@@ -1248,6 +1248,102 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         .subscribe();
   }
 
+  bool get _canRemoveMessages =>
+      _iAmRoomOwner || _iAmHost || _isCurrentUserModerator;
+
+  Future<void> _removeMessage(RoomMessage msg) async {
+    final isArabic = context.isArabic;
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: const Color(0xFF1A0D2E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36, height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                isArabic ? 'حذف الرسالة' : 'Remove message',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                isArabic
+                    ? 'هذه الرسالة ستُخفى عن جميع المستخدمين.'
+                    : 'This message will be hidden from all users.',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.55),
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(ctx).pop(false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white70,
+                        side: BorderSide(color: Colors.white.withValues(alpha: 0.18)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text(isArabic ? 'إلغاء' : 'Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => Navigator.of(ctx).pop(true),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFFEF4444),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text(isArabic ? 'حذف' : 'Remove'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await _msgService.removeMessage(msg.id);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(context.isArabic
+              ? 'تعذّر حذف الرسالة'
+              : 'Could not remove message'),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
+  }
+
   Future<void> _sendChatMessage(String text) async {
     FocusManager.instance.primaryFocus?.unfocus();
     if (text.trim().isEmpty) return;
@@ -3289,6 +3385,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                     isArabic: context.isArabic,
                     onProfileTap: _openUserProfileSheet,
                     bottomPad: 116 + bottomPad + kbHeight,
+                    onRemoveTap: _canRemoveMessages ? _removeMessage : null,
                   ),
                 ),
               ],
@@ -5586,11 +5683,13 @@ class _ChatBubbleRow extends StatefulWidget {
     required this.message,
     required this.isArabic,
     this.onProfileTap,
+    this.onRemoveTap,
   });
 
   final RoomMessage message;
   final bool isArabic;
   final VoidCallback? onProfileTap;
+  final VoidCallback? onRemoveTap;
 
   @override
   State<_ChatBubbleRow> createState() => _ChatBubbleRowState();
@@ -5688,7 +5787,7 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
     final nameColor = vipLevel > 0 ? prestige.nameColor : const Color(0xFF9BE8FF);
     final isHost = msg.senderRole == 'host';
 
-    return Padding(
+    final bubble = Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -5710,6 +5809,10 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
         ],
       ),
     );
+    if (widget.onRemoveTap != null) {
+      return GestureDetector(onLongPress: widget.onRemoveTap, child: bubble);
+    }
+    return bubble;
   }
 
   Widget _buildAvatar(VipSpec prestige, RoomMessage msg, int vipLevel) {
@@ -8196,6 +8299,9 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
                                 required isFocused, maxLength}) => null,
                             decoration: InputDecoration(
                               border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              filled: false,
                               isDense: true,
                               contentPadding: EdgeInsets.zero,
                               hintText: 'Say something...',
@@ -8497,12 +8603,14 @@ class _RoomChatFeed extends StatefulWidget {
     required this.isArabic,
     required this.onProfileTap,
     required this.bottomPad,
+    this.onRemoveTap,
   });
 
   final List<RoomMessage> chatMessages;
   final bool isArabic;
   final ValueChanged<String> onProfileTap;
   final double bottomPad;
+  final ValueChanged<RoomMessage>? onRemoveTap;
 
   @override
   State<_RoomChatFeed> createState() => _RoomChatFeedState();
@@ -8566,6 +8674,9 @@ class _RoomChatFeedState extends State<_RoomChatFeed> {
             isArabic: context.isArabic,
             onProfileTap:
                 msg.isSystem ? null : () => widget.onProfileTap(msg.senderId),
+            onRemoveTap: (!msg.isSystem && !msg.isRemoved && widget.onRemoveTap != null)
+                ? () => widget.onRemoveTap!(msg)
+                : null,
           );
         },
       ),
