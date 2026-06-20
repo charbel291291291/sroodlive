@@ -19,8 +19,8 @@ import 'package:srood_live/core/extensions/locale_extension.dart';
 ///   REQUEST_BET_REFUND      cancel a slot (legacy path only)
 ///   REQUEST_CASHOUT_CREDIT  cash out; server calculates multiplier for global bets
 ///   REQUEST_BET_LOST        rocket crashed (legacy path; global settle handles it)
-///   REQUEST_START_FLIGHT    JS countdown ended; Flutter calls start_rocket_crash_flight
-///   REQUEST_SETTLE_ROUND    JS detected crash; Flutter calls settle_rocket_crash_round
+///   REQUEST_START_FLIGHT    ignored - backend (pg_cron) drives flight start
+///   REQUEST_SETTLE_ROUND    ignored - backend (pg_cron) drives settlement
 ///   REQUEST_WALLET_REFRESH  refresh balance from DB
 ///   SET_SOUND_SETTING       sound pref (JS localStorage)
 ///   GAME_CLOSED             pop screen
@@ -57,11 +57,9 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
   // Idempotency guard for cashout / refund calls.
   final Set<String> _settledBetIds = {};
 
-  // Global round state
+  // Global round state - client is a pure observer; server drives lifecycle.
   String? _roundId;
-  bool _flightStarted = false;
-  bool _settling      = false;
-  Timer? _bettingEndTimer;
+  int _currentRoundNumber = 0;
   RealtimeChannel? _roundChannel;
 
   // Server-local clock offset (serverNowMs - localNowMs), updated on every
@@ -119,7 +117,6 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _bettingEndTimer?.cancel();
     _roundChannel?.unsubscribe();
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       systemNavigationBarColor: Colors.transparent,
@@ -155,11 +152,9 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
       case 'REQUEST_BET_LOST':
         _handleBetLost(payload);
       case 'REQUEST_START_FLIGHT':
-        final rId = payload['roundId']?.toString() ?? _roundId;
-        if (rId != null) await _startFlight(rId);
+        break; // no-op: backend (pg_cron) drives flight start
       case 'REQUEST_SETTLE_ROUND':
-        final rId = payload['roundId']?.toString() ?? _roundId;
-        if (rId != null) await _triggerSettle(rId);
+        break; // no-op: backend (pg_cron) drives settlement
       case 'REQUEST_WALLET_REFRESH':
         await _refreshBalance();
       case 'SET_SOUND_SETTING':
@@ -181,25 +176,21 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
       final history = await _service.getRocketResults();
 
       _roundId = round['round_id']?.toString();
-      final phase           = round['status']?.toString() ?? 'betting';
-      final bettingEndsAtMs = _toDouble(round['betting_ends_at']);
-      final flightStartsAtMs= _toDouble(round['flight_starts_at']);
-      final crashMultiplier = _toDouble(round['crash_multiplier']);
-      final serverNowMs     = _toDouble(round['server_now']);
-      final roundNumber     = _parseInt(round['round_number']);
+      final phase            = round['status']?.toString() ?? 'betting';
+      final bettingEndsAtMs  = _toDouble(round['betting_ends_at']);
+      final flightStartsAtMs = _toDouble(round['flight_starts_at']);
+      final serverNowMs      = _toDouble(round['server_now']);
+      final roundNumber      = _parseInt(round['round_number']);
 
       if (serverNowMs > 0) {
         _serverTimeOffsetMs = serverNowMs - DateTime.now().millisecondsSinceEpoch;
       }
+      _currentRoundNumber = roundNumber;
 
-      if (_roundId != null) _subscribeToRound(_roundId!);
+      // Subscribe to all round changes - no per-round resubscription needed.
+      _subscribeToRounds();
 
       debugPrint('[RocketCrash] round loaded roundId=$_roundId phase=$phase balance=$balance serverOffset=${_serverTimeOffsetMs.round()}ms');
-
-      // Schedule betting-end transition
-      if (phase == 'betting') {
-        _scheduleBettingEnd(bettingEndsAtMs, serverNowMs);
-      }
 
       final histValues = history
           .map((h) => _toDouble(h['crash_multiplier']))
@@ -216,15 +207,16 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
         'locale' : isArabic ? 'ar' : 'en',
         'sound'  : true,
         'round'  : {
-          'roundId'        : _roundId,
-          'roundNumber'    : roundNumber,
-          'phase'          : phase,
-          'bettingEndsAtMs': bettingEndsAtMs,
+          'roundId'         : _roundId,
+          'roundNumber'     : roundNumber,
+          'phase'           : phase,
+          'bettingEndsAtMs' : bettingEndsAtMs,
           'flightStartsAtMs': flightStartsAtMs,
-          'crashMultiplier': crashMultiplier,
-          'serverNowMs'    : serverNowMs,
-          'history'        : histValues,
-          'myBets'         : [null, null],
+          // Never expose crash_multiplier before the round has crashed.
+          'crashMultiplier' : null,
+          'serverNowMs'     : serverNowMs,
+          'history'         : histValues,
+          'myBets'          : [null, null],
         },
       });
 
@@ -242,150 +234,87 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     }
   }
 
-  void _scheduleBettingEnd(double bettingEndsAtMs, double serverNowMs) {
-    _bettingEndTimer?.cancel();
-    if (bettingEndsAtMs <= 0) return;
-    final offset       = serverNowMs - DateTime.now().millisecondsSinceEpoch;
-    final localMs      = bettingEndsAtMs - offset;
-    final delayMs      = (localMs - DateTime.now().millisecondsSinceEpoch).round();
-    final delay        = Duration(milliseconds: delayMs.clamp(0, 60000));
-    if (delayMs <= 200) {
-      if (_roundId != null) _startFlight(_roundId!);
-    } else {
-      _bettingEndTimer = Timer(delay, () {
-        if (_roundId != null) _startFlight(_roundId!);
-      });
-    }
-  }
-
   // ── Realtime ──────────────────────────────────────────────────────────────
 
-  void _subscribeToRound(String roundId) {
+  // Estimated server time in ms - used for animation timing without trusting
+  // the local clock alone.
+  double get _serverNowMs =>
+      DateTime.now().millisecondsSinceEpoch + _serverTimeOffsetMs;
+
+  // Whole-table subscription - follows new betting rounds (INSERT) and phase
+  // transitions (UPDATE) without per-round resubscription.
+  void _subscribeToRounds() {
     _roundChannel?.unsubscribe();
     _roundChannel = SupabaseService.requiredClient
-        .channel('rc_round_$roundId')
+        .channel('rocket_crash_global_rounds')
         .onPostgresChanges(
-          event: PostgresChangeEvent.update,
+          event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'rocket_crash_global_rounds',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'id',
-            value: roundId,
-          ),
-          callback: _onRoundUpdate,
+          callback: _onAnyRoundChange,
         )
         .subscribe((status, [err]) {
           debugPrint('[RocketCrash] realtime $status ${err ?? ''}');
         });
   }
 
-  void _onRoundUpdate(PostgresChangePayload payload) {
+  void _onAnyRoundChange(PostgresChangePayload payload) {
     if (!mounted) return;
     final rec    = payload.newRecord;
     final status = rec['status']?.toString();
-    debugPrint('[RocketCrash] round update status=$status');
+    final rNum   = _parseInt(rec['round_number']);
+    debugPrint('[RocketCrash] round change status=$status rNum=$rNum');
 
-    if (status == 'flying') {
+    if (status == 'betting') {
+      // New betting round from backend - adopt if equal or newer.
+      if (rNum < _currentRoundNumber) return;
+      final newId           = rec['id']?.toString();
+      final bettingEndsAtMs = rec['betting_ends_at'] != null
+          ? DateTime.parse(rec['betting_ends_at'] as String)
+                .toUtc()
+                .millisecondsSinceEpoch
+                .toDouble()
+          : 0.0;
+      _roundId = newId;
+      _currentRoundNumber = rNum;
+      _settledBetIds.clear();
+      _post('SET_ROUND_STATE', {
+        'roundId'        : newId,
+        'roundNumber'    : rNum,
+        'phase'          : 'betting',
+        'bettingEndsAtMs': bettingEndsAtMs,
+        'serverNowMs'    : _serverNowMs,
+      });
+      if (newId != null) _sendBetFeed(newId);
+    } else if (status == 'flying') {
       final fsMs = rec['flight_starts_at'] != null
           ? DateTime.parse(rec['flight_starts_at'] as String)
-              .toUtc()
-              .millisecondsSinceEpoch
-              .toDouble()
+                .toUtc()
+                .millisecondsSinceEpoch
+                .toDouble()
           : null;
-      final cm = _toDouble(rec['crash_multiplier']);
+      // Never forward crash_multiplier during flight - reveal only on crashed.
       _post('SET_ROUND_STATE', {
-        'roundId'        : rec['id'],
-        'phase'          : 'flying',
+        'roundId'         : rec['id'],
+        'phase'           : 'flying',
         'flightStartsAtMs': fsMs,
-        'crashMultiplier': cm,
-        'serverNowMs'    : DateTime.now().millisecondsSinceEpoch + _serverTimeOffsetMs,
+        'crashMultiplier' : null,
+        'serverNowMs'     : _serverNowMs,
       });
     } else if (status == 'crashed') {
+      // Backend has revealed the crash point - safe to forward now.
       final cm = _toDouble(rec['crash_multiplier']);
       _post('SET_ROUND_STATE', {
         'roundId'        : rec['id'],
         'phase'          : 'crashed',
         'crashMultiplier': cm,
       });
-      if (!_settling) {
-        _settling = true;
-        Future.delayed(const Duration(milliseconds: 4200), _loadNextRound);
-      }
+      _refreshHistory();
     }
   }
 
-  // ── Round lifecycle ───────────────────────────────────────────────────────
-
-  Future<void> _startFlight(String roundId) async {
-    if (_flightStarted) return;
-    _flightStarted = true;
+  Future<void> _refreshHistory() async {
     try {
-      final result = await _service.startRocketFlight(roundId);
-      if (!mounted) return;
-      _post('SET_ROUND_STATE', {
-        'roundId'         : roundId,
-        'phase'           : 'flying',
-        'flightStartsAtMs': _toDouble(result['flight_starts_at']),
-        'crashMultiplier' : _toDouble(result['crash_multiplier']),
-        'serverNowMs'     : _toDouble(result['server_now']),
-      });
-    } catch (e) {
-      debugPrint('[RocketCrash] startFlight error: $e');
-      _flightStarted = false;
-    }
-  }
-
-  Future<void> _triggerSettle(String roundId) async {
-    if (_settling) return;
-    _settling = true;
-    try {
-      await _service.settleRocketRound(roundId);
-      debugPrint('[RocketCrash] crash result roundId=$roundId');
-      // Realtime fires the crashed update; also schedule next round as fallback.
-      Future.delayed(const Duration(milliseconds: 4200), _loadNextRound);
-    } catch (e) {
-      debugPrint('[RocketCrash] settle error: $e');
-      _settling = false;
-    }
-  }
-
-  Future<void> _loadNextRound() async {
-    if (!mounted) return;
-    _bettingEndTimer?.cancel();
-    _flightStarted  = false;
-    _settling       = false;
-    _settledBetIds.clear();
-
-    try {
-      final round = await _service.getOrCreateRocketRound();
-      if (!mounted) return;
-
-      final newId           = round['round_id']?.toString();
-      final bettingEndsAtMs = _toDouble(round['betting_ends_at']);
-      final serverNowMs     = _toDouble(round['server_now']);
-      final roundNumber     = _parseInt(round['round_number']);
-
-      if (serverNowMs > 0) {
-        _serverTimeOffsetMs = serverNowMs - DateTime.now().millisecondsSinceEpoch;
-      }
-
-      if (newId != null && newId != _roundId) {
-        _roundId = newId;
-        _subscribeToRound(newId);
-      }
-
-      _post('SET_ROUND_STATE', {
-        'roundId'        : newId,
-        'roundNumber'    : roundNumber,
-        'phase'          : 'betting',
-        'bettingEndsAtMs': bettingEndsAtMs,
-        'serverNowMs'    : serverNowMs,
-      });
-
-      _scheduleBettingEnd(bettingEndsAtMs, serverNowMs);
-
-      // Refresh history
       final history = await _service.getRocketResults();
       if (!mounted) return;
       final histValues = history
@@ -393,14 +322,12 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
           .where((v) => v > 0)
           .toList();
       _post('HISTORY_UPDATE', {'history': histValues});
-
-      if (mounted) {
-        setState(() => _recentResults = histValues.take(15).toList());
+      setState(() {
+        _recentResults = histValues.take(15).toList();
         debugPrint('[RocketResultsBand] updated count=${_recentResults.length}');
-      }
-
+      });
     } catch (e) {
-      debugPrint('[RocketCrash] loadNextRound error: $e');
+      debugPrint('[RocketCrash] refreshHistory error: $e');
     }
   }
 
@@ -678,7 +605,6 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     return PopScope(
       canPop: true,
       onPopInvokedWithResult: (didPop, result) {
-        _bettingEndTimer?.cancel();
         _roundChannel?.unsubscribe();
       },
       child: Scaffold(
