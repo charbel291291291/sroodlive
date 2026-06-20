@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -26,7 +26,7 @@ Future<void> main() async {
   //   AppConfig.configure(const MyClientConfig());
   AppConfig.configure(const SroodLiveConfig());
 
-  // Explicitly register the WebView platform â€” skipped on web where dart:io
+  // Explicitly register the WebView platform - skipped on web where dart:io
   // Platform is unavailable and WebView runs natively in the browser.
   if (!kIsWeb) {
     if (defaultTargetPlatform == TargetPlatform.android) {

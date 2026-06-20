@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -33,9 +33,9 @@ enum _AdminModule {
   system,      // System & Audit
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Design tokens â€” edit here to restyle the panel
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ---------------------------------------------
+// Design tokens - edit here to restyle the panel
+// ---------------------------------------------
 const _kBg = Color(0xFF0C0E14); // main page bg
 const _kSurface = Color(0xFF141720); // card bg
 const _kSidebar = Color(0xFF0F1117); // sidebar bg
@@ -106,7 +106,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   List<_AdminStartupPromoRow> _startupPromos = const [];
   AdminWalletSummary? _walletLookup;
 
-  // â”€â”€ Phase 2 additions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Phase 2 additions ------------------------------------------------------
 
   // Finance date range (null = today)
   DateTime? _financeFrom;
@@ -156,7 +156,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
-  // â”€â”€ Role helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Role helpers ----------------------------------------------------------
   bool get _canFinance     => _adminRole.hasPermission(kPermWalletCredit);
   bool get _canBd          => _adminRole.hasPermission(kPermAgenciesView);
   bool get _canContent     => _adminRole.hasPermission(kPermGiftsManage);
@@ -758,7 +758,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     if (type == 'account_ban' && !isActive) {
       if (!_canUnban) {
         _showSnack(context.isArabic
-            ? 'ÙÙ‚Ø· O-Super Admin ÙŠÙ…ÙƒÙ†Ù‡ ÙÙƒ Ø§Ù„Ø­Ø¸Ø±'
+            ? 'فقط O-Super Admin يمكنه فك الحظر'
             : 'Only O-Super Admin can unban users');
         return;
       }
@@ -784,7 +784,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final msg = error.toString();
       if (msg.contains('only_o_super_admin_can_unban')) {
         _showSnack(context.isArabic
-            ? 'ÙÙ‚Ø· O-Super Admin ÙŠÙ…ÙƒÙ†Ù‡ ÙÙƒ Ø§Ù„Ø­Ø¸Ø±'
+            ? 'فقط O-Super Admin يمكنه فك الحظر'
             : 'Only O-Super Admin can unban users');
       } else {
         _showSnack('Restriction failed: $error');
@@ -841,7 +841,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
-  // â”€â”€ Finance date range â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Finance date range ----------------------------------------------------
 
   Future<void> _reloadFinanceReport() async {
     if (_financeReloading) return;
@@ -893,7 +893,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _reloadFinanceReport();
   }
 
-  // â”€â”€ Audit log search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Audit log search ------------------------------------------------------
 
   Future<void> _searchAuditLogs() async {
     if (_auditFiltering) return;
@@ -951,7 +951,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     });
   }
 
-  // â”€â”€ Agency update with commission â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Agency update with commission -----------------------------------------
 
   Future<void> _editAgency(AdminAgency agency) async {
     final result = await showDialog<_AgencyEditResult>(
@@ -977,7 +977,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
-  // â”€â”€ Reports â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Reports ---------------------------------------------------------------
 
   Future<void> _processReport(AdminReport report, String newStatus) async {
     String? note;
@@ -1480,7 +1480,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       String fmt(DateTime? d) => d == null
           ? '?'
           : '${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}';
-      rangeLabel = '${fmt(_financeFrom)} â†’ ${fmt(_financeTo)}';
+      rangeLabel = '${fmt(_financeFrom)} → ${fmt(_financeTo)}';
     }
 
     return Column(
@@ -1494,7 +1494,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         ),
         const SizedBox(height: 14),
 
-        // â”€â”€ Date range selector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // -- Date range selector -------------------------------------------
         _AdminSectionCard(
           title: 'Report period: $rangeLabel',
           action: _financeReloading
@@ -1614,7 +1614,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         ),
         const SizedBox(height: 14),
 
-        // â”€â”€ Withdrawal section with Pending / History tabs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // -- Withdrawal section with Pending / History tabs ----------------
         _WithdrawalTabCard(
           pendingList: _pendingWithdrawals,
           historyList: _withdrawalHistory,
@@ -1626,7 +1626,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         const SizedBox(height: 14),
 
         _AdminSectionCard(
-          title: 'BD Performance â€” selected period',
+          title: 'BD Performance — selected period',
           child: _bdReport.isEmpty
               ? const _AdminEmptyState(
                   icon: Icons.query_stats_rounded,
@@ -3041,7 +3041,7 @@ class _FinanceReportCard extends StatelessWidget {
     ];
 
     return _AdminSectionCard(
-      title: 'Finance Report â€” Today',
+      title: 'Finance Report — Today',
       child: LayoutBuilder(
         builder: (context, constraints) {
           final cols = constraints.maxWidth > 500 ? 3 : 2;
@@ -4135,7 +4135,7 @@ class _AvatarFrameEditDialogState extends State<_AvatarFrameEditDialog> {
   }
 }
 
-// â”€â”€ Image Upload Field â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Image Upload Field --------------------------------------------------------
 
 class _ImageUploadField extends StatefulWidget {
   const _ImageUploadField({
@@ -4251,7 +4251,7 @@ class _ImageUploadFieldState extends State<_ImageUploadField> {
   }
 }
 
-// â”€â”€ Promo Banner Edit Dialog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Promo Banner Edit Dialog --------------------------------------------------
 
 class _PromoBannerEditDialog extends StatefulWidget {
   const _PromoBannerEditDialog({required this.adminService, this.existing});
@@ -4560,7 +4560,7 @@ class _AdminSideNav extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Brand header â€” tap 7Ã— quickly to open owner control panel
+          // Brand header - tap 7× quickly to open owner control panel
           GestureDetector(
             onTap: onBrandTap,
             behavior: HitTestBehavior.opaque,
@@ -5005,7 +5005,7 @@ class _OverviewGrid extends StatelessWidget {
       builder: (context, constraints) {
         final w = constraints.maxWidth;
         final cols = _statColumns(w);
-        // Fixed pixel height per cell â€” robust equivalent of an aspect
+        // Fixed pixel height per cell - robust equivalent of an aspect
         // ratio that can never derive a height smaller than the content,
         // so RenderFlex overflow is structurally impossible at any width.
         final cellHeight = cols == 1 ? 132.0 : 162.0;
@@ -5330,9 +5330,9 @@ class _WithdrawalRequestTile extends StatelessWidget {
     return _AdminListTile(
       icon: Icons.arrow_circle_up_rounded,
       title:
-          '$user â€” ${request.diamondsAmount} ðŸ’Ž (\$${request.grossUsd.toStringAsFixed(2)} gross)',
+          '$user — ${request.diamondsAmount} 💎 (\$${request.grossUsd.toStringAsFixed(2)} gross)',
       subtitle:
-          '${request.method.toUpperCase()} Â· ${request.accountDetails} Â· $split',
+          '${request.method.toUpperCase()} · ${request.accountDetails} · $split',
       trailing: canFinance
           ? Wrap(
               spacing: 8,
@@ -5650,7 +5650,7 @@ class _AgencyListCard extends StatelessWidget {
                       subtitle: [
                         if (agency.country != null) agency.country!,
                         'Commission: ${(agency.commissionRate * 100).toStringAsFixed(1)}%',
-                      ].join(' Â· '),
+                      ].join(' · '),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -6030,7 +6030,7 @@ class _AdminListTile extends StatelessWidget {
   }
 }
 
-/// Skeleton loading placeholder â€” shows 3 shimmering ghost tiles.
+/// Skeleton loading placeholder - shows 3 shimmering ghost tiles.
 class _AdminSkeletonList extends StatefulWidget {
   const _AdminSkeletonList();
   static const _count = 3;
@@ -6228,7 +6228,7 @@ class _AdminShellMessage extends StatelessWidget {
   }
 }
 
-/// Semantic status badge â€” auto-picks color by label keyword.
+/// Semantic status badge - auto-picks color by label keyword.
 class _StatusBadge extends StatelessWidget {
   const _StatusBadge({required this.label});
 
@@ -6392,7 +6392,7 @@ const _mutedStyle = TextStyle(
   fontWeight: FontWeight.w500,
 );
 
-// â”€â”€ New helpers for Phase 2 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- New helpers for Phase 2 ------------------------------------------------
 
 class _QuickRangeButton extends StatelessWidget {
   const _QuickRangeButton({
@@ -6429,7 +6429,7 @@ class _QuickRangeButton extends StatelessWidget {
   }
 }
 
-// â”€â”€ Withdrawal tab card (Pending + History) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Withdrawal tab card (Pending + History) -------------------------------
 
 class _WithdrawalTabCard extends StatelessWidget {
   const _WithdrawalTabCard({
@@ -6579,7 +6579,7 @@ class _WithdrawalHistoryTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${request.diamondsAmount} diamonds Â· ${request.status.toUpperCase()}',
+                  '${request.diamondsAmount} diamonds · ${request.status.toUpperCase()}',
                   style: TextStyle(color: statusColor, fontSize: 11),
                 ),
               ],
@@ -6599,7 +6599,7 @@ class _WithdrawalHistoryTile extends StatelessWidget {
       '${d.month}/${d.day}/${d.year}';
 }
 
-// â”€â”€ Agency edit dialog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Agency edit dialog -----------------------------------------------------
 
 class _AgencyEditResult {
   const _AgencyEditResult({
@@ -6657,7 +6657,7 @@ class _AgencyEditDialogState extends State<_AgencyEditDialog> {
       final pct = double.tryParse(_commission.text.trim());
       if (pct == null || pct < 0 || pct > 100) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Commission must be 0â€“100')));
+          const SnackBar(content: Text('Commission must be 0–100')));
         return;
       }
       rate = pct / 100;
@@ -6687,7 +6687,7 @@ class _AgencyEditDialogState extends State<_AgencyEditDialog> {
             _field(_country, 'Country'),
             if (widget.canEditCommission) ...[
               const SizedBox(height: 12),
-              _field(_commission, 'Commission % (0â€“100)',
+              _field(_commission, 'Commission % (0–100)',
                   type: TextInputType.number),
             ],
           ],
@@ -6733,7 +6733,7 @@ class _AgencyEditDialogState extends State<_AgencyEditDialog> {
   }
 }
 
-// â”€â”€ Report tile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Report tile ------------------------------------------------------------
 
 class _ReportTile extends StatefulWidget {
   const _ReportTile({

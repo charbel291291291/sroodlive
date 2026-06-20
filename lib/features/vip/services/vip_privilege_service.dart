@@ -3,7 +3,7 @@ import '../../../core/vip/vip_privileges.dart';
 import '../../rooms/utils/vip_room_features.dart';
 
 // ---------------------------------------------------------------------------
-// Privilege identifiers â€” match column names in user_vip_settings.
+// Privilege identifiers - match column names in user_vip_settings.
 // ---------------------------------------------------------------------------
 
 enum VipPrivilege {
@@ -22,7 +22,7 @@ enum VipPrivilege {
   /// Corresponding canonical privilege key in VipPrivileges.
   final VipPrivilegeKey privilegeKey;
 
-  /// Minimum VIP level required â€” delegated to the central config.
+  /// Minimum VIP level required - delegated to the central config.
   int get minVipLevel => VipPrivileges.spec(privilegeKey).minVipLevel;
 }
 
@@ -33,10 +33,10 @@ enum VipPrivilege {
 class VipPrivilegeService {
   const VipPrivilegeService();
 
-  // â”€â”€ Read / write settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Read / write settings ----------------------------------------------
 
   /// Load current user's VIP privilege settings.
-  /// Returns a map of [VipPrivilege] â†’ enabled (bool).
+  /// Returns a map of [VipPrivilege] -> enabled (bool).
   Future<Map<VipPrivilege, bool>> loadSettings() async {
     final client = SupabaseService.requiredClient;
     final userId = client.auth.currentUser?.id;
@@ -82,7 +82,7 @@ class VipPrivilegeService {
     );
   }
 
-  // â”€â”€ Privilege checks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Privilege checks ---------------------------------------------------
 
   /// Whether a VIP level is high enough to use a privilege.
   /// Delegates to the central VipPrivileges config.
@@ -119,7 +119,7 @@ class VipPrivilegeService {
     return _isPrivilegeActiveForUser(targetUserId, VipPrivilege.doNotDisturb);
   }
 
-  // â”€â”€ Private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Private helpers ----------------------------------------------------
 
   Future<bool> _isPrivilegeActiveForUser(
     String userId,
