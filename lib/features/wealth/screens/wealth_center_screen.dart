@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
 import '../models/wealth_models.dart';
 import '../services/wealth_service.dart';
-import '../widgets/wealth_badge_widget.dart';
 
+/// Luxury "My Level" screen.
+///
+/// Tabs:
+///   - Contribution -> our REAL Wealth system (get_my_wealth_level). Wealth is
+///     supporter/spender prestige = "contribution".
+///   - Charisma     -> received-support prestige. Backend not built yet, so the
+///     tab is shown but renders a placeholder (no fake values).
+///
+/// Server stays authoritative: the screen only reads the existing wealth
+/// service/model. Hidden backend values are never displayed.
 class WealthCenterScreen extends StatefulWidget {
   const WealthCenterScreen({required this.isArabic, super.key});
   final bool isArabic;
@@ -15,9 +24,17 @@ class _WealthCenterScreenState extends State<WealthCenterScreen> {
   static const _service = WealthService();
 
   UserWealth? _wealth;
-  List<WealthLevelRule> _rules = [];
   bool _loading = true;
-  String? _error;
+
+  // 0 = Charisma (placeholder), 1 = Contribution (real Wealth data).
+  // Default to Contribution so the real data shows first.
+  int _tab = 1;
+
+  // Current tier derived from the REAL wealth level (never the stored
+  // tier_number, which can drift). Falls back to level 1 only when there is no
+  // data at all.
+  WealthTier get _currentTier =>
+      WealthTier.fromLevel((_wealth ?? UserWealth.empty).wealthLevel);
 
   @override
   void initState() {
@@ -26,10 +43,8 @@ class _WealthCenterScreenState extends State<WealthCenterScreen> {
   }
 
   Future<void> _load() async {
-    // Fetch wealth and rules independently so a missing user_wealth row,
-    // wealth_level_rules table, or RPC (e.g. schema drift / undeployed
-    // migration) degrades gracefully to safe defaults instead of failing the
-    // whole screen.
+    // Degrade gracefully to a safe default if the wealth RPC/table is missing
+    // (schema drift / undeployed migration) instead of failing the screen.
     UserWealth wealth;
     try {
       wealth = await _service.getMyWealth();
@@ -37,630 +52,323 @@ class _WealthCenterScreenState extends State<WealthCenterScreen> {
       debugPrint('[WealthCenter] getMyWealth failed, using default: $e');
       wealth = UserWealth.empty; // Wealth Level 1 / Bronze
     }
-
-    List<WealthLevelRule> rules;
-    try {
-      rules = await _service.getWealthRules();
-    } catch (e) {
-      debugPrint('[WealthCenter] getWealthRules failed, using empty: $e');
-      rules = const [];
-    }
-
     if (!mounted) return;
     setState(() {
       _wealth = wealth;
-      _rules = rules;
-      _error = null;
       _loading = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final ar = widget.isArabic;
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0615),
-      body: CustomScrollView(
-        slivers: [
-          _buildAppBar(),
-          if (_loading)
-            const SliverFillRemaining(
-              child: Center(
-                child: CircularProgressIndicator(
-                  color: Color(0xFFFFD700),
-                  strokeWidth: 2.5,
-                ),
-              ),
-            )
-          else if (_error != null)
-            SliverFillRemaining(
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('💎', style: TextStyle(fontSize: 48)),
-                    const SizedBox(height: 12),
-                    Text(
-                      widget.isArabic ? 'فشل التحميل' : 'Failed to load',
-                      style: const TextStyle(
-                        color: Color(0xFF9E9E9E),
-                        fontSize: 15,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: () {
-                        setState(() {
-                          _error = null;
-                          _loading = true;
-                        });
-                        _load();
-                      },
-                      child: Text(widget.isArabic ? 'اعادة المحاولة' : 'Retry'),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else
-            SliverList(
-              delegate: SliverChildListDelegate([
-                _buildHeroCard(),
-                const SizedBox(height: 20),
-                _buildProgressSection(),
-                const SizedBox(height: 20),
-                _buildHowToEarnSection(),
-                const SizedBox(height: 20),
-                _buildWhereBadgesSection(),
-                const SizedBox(height: 20),
-                _buildTierTable(),
-                const SizedBox(height: 32),
-              ]),
-            ),
-        ],
-      ),
-    );
-  }
-
-  SliverAppBar _buildAppBar() {
-    return SliverAppBar(
-      expandedHeight: 0,
-      floating: true,
-      snap: true,
-      backgroundColor: const Color(0xFF0A0615),
-      surfaceTintColor: Colors.transparent,
-      leading: IconButton(
-        icon: const Icon(
-          Icons.arrow_back_ios_rounded,
-          color: Color(0xFFFFD700),
-        ),
-        onPressed: () => Navigator.of(context).maybePop(),
-      ),
-      title: Text(
-        widget.isArabic ? 'مركز الثروة' : 'Wealth Center',
-        style: const TextStyle(
-          color: Color(0xFFFFD700),
-          fontSize: 19,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 0.5,
-        ),
-      ),
-      centerTitle: true,
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(1),
-        child: Container(height: 1, color: const Color(0xFF3D1F6E)),
-      ),
-    );
-  }
-
-  Widget _buildHeroCard() {
-    final w = _wealth ?? UserWealth.empty;
-    final tier = w.tier;
-    final color = tier.color;
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF1A0C30),
-            color.withValues(alpha: 0.12),
-            const Color(0xFF1A0C30),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: color.withValues(alpha: 0.5), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.2),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+      backgroundColor: const Color(0xFF0A0705),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF4A2E12), // warm bronze glow
+              Color(0xFF1C1208),
+              Color(0xFF0A0705),
+            ],
+            stops: [0.0, 0.45, 1.0],
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
+        ),
+        child: SafeArea(
+          child: Column(
             children: [
-              WealthTierBadgeCard(wealth: w),
-              const SizedBox(width: 20),
+              _buildHeader(ar),
+              _LevelTabs(
+                isArabic: ar,
+                selected: _tab,
+                onTap: (i) {
+                  if (_tab != i) setState(() => _tab = i);
+                },
+              ),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.isArabic ? 'مستوى الثروة' : 'Wealth Level',
-                      style: TextStyle(
-                        color: color.withValues(alpha: 0.8),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${tier.displayName} ${w.wealthLevel}',
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      widget.isArabic
-                          ? 'المستوى ${w.wealthLevel} من 100'
-                          : 'Level ${w.wealthLevel} of 100',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.5),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
+                child: _loading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFFF0C15A),
+                          strokeWidth: 2.5,
+                        ),
+                      )
+                    : _tab == 0
+                    ? _buildCharismaPlaceholder(ar)
+                    : _buildContribution(ar),
               ),
             ],
           ),
-          if (!w.isMaxLevel) ...[
-            const SizedBox(height: 18),
-            _XpBar(wealth: w, color: color, isArabic: widget.isArabic),
-          ] else ...[
-            const SizedBox(height: 14),
+        ),
+      ),
+    );
+  }
+
+  // ── Header ────────────────────────────────────────────────────────────────
+
+  Widget _buildHeader(bool ar) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(
+              Icons.arrow_back_ios_rounded,
+              color: Color(0xFFF0C15A),
+            ),
+            onPressed: () => Navigator.of(context).maybePop(),
+          ),
+          Expanded(
+            child: Text(
+              ar ? 'مستواي' : 'My Level',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.5,
+                shadows: [Shadow(color: Color(0x88F0C15A), blurRadius: 16)],
+              ),
+            ),
+          ),
+          const SizedBox(width: 48), // balances the back button
+        ],
+      ),
+    );
+  }
+
+  // ── Contribution (real Wealth) ──────────────────────────────────────────────
+
+  Widget _buildContribution(bool ar) {
+    final w = _wealth ?? UserWealth.empty;
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.only(bottom: 32),
+      child: Column(
+        children: [
+          _LevelHeroCard(wealth: w, tier: _currentTier, isArabic: ar),
+          const SizedBox(height: 18),
+          _LevelRangeTable(
+            currentTierNumber: _currentTier.number,
+            isArabic: ar,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Charisma (placeholder, no fake values) ──────────────────────────────────
+
+  Widget _buildCharismaPlaceholder(bool ar) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('✨', style: TextStyle(fontSize: 56)),
+            const SizedBox(height: 16),
+            Text(
+              ar ? 'الجاذبية' : 'Charisma',
+              style: const TextStyle(
+                color: Color(0xFFF0C15A),
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              ar
+                  ? 'تقيس مدى الدعم الذي تتلقاه من الآخرين: الهدايا المستلمة، الألماس، المتابعون، وشعبية الغرفة.'
+                  : 'Measures how much you are supported by others: gifts received, diamonds, followers, and room popularity.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.6),
+                fontSize: 13,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 20),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFD700).withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(12),
+                color: const Color(0xFFF0C15A).withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: const Color(0xFFFFD700).withValues(alpha: 0.4),
+                  color: const Color(0xFFF0C15A).withValues(alpha: 0.5),
                 ),
               ),
               child: Text(
-                widget.isArabic
-                    ? 'وصلت للمستوى الاقصى - Legend 100'
-                    : 'Max Level Reached - Legend 100',
+                ar ? 'قريباً' : 'Coming soon',
                 style: const TextStyle(
-                  color: Color(0xFFFFD700),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFF0C15A),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
           ],
-        ],
+        ),
       ),
     );
-  }
-
-  Widget _buildProgressSection() {
-    final w = _wealth ?? UserWealth.empty;
-    return _Section(
-      title: widget.isArabic ? 'تفاصيل التقدم' : 'Progress Details',
-      isArabic: widget.isArabic,
-      child: Column(
-        children: [
-          _StatRow(
-            label: widget.isArabic ? 'اجمالي XP الثروة' : 'Total Wealth XP',
-            value: _fmtXp(w.wealthXp),
-            icon: Icons.auto_awesome_rounded,
-            color: w.tier.color,
-          ),
-          const SizedBox(height: 8),
-          _StatRow(
-            label: widget.isArabic ? 'XP من الشحن' : 'XP from Recharge',
-            value: _fmtXp(w.totalRechargedXp),
-            icon: Icons.account_balance_wallet_rounded,
-            color: const Color(0xFF2ECC71),
-          ),
-          const SizedBox(height: 8),
-          _StatRow(
-            label: widget.isArabic ? 'XP من الهدايا' : 'XP from Gifts',
-            value: _fmtXp(w.totalSpentGiftXp),
-            icon: Icons.card_giftcard_rounded,
-            color: const Color(0xFFFF6B9D),
-          ),
-          if (!w.isMaxLevel) ...[
-            const SizedBox(height: 8),
-            _StatRow(
-              label: widget.isArabic
-                  ? 'المتبقي للمستوى التالي'
-                  : 'Remaining for Next Level',
-              value: _fmtXp(w.xpToNextLevel ?? 0),
-              icon: Icons.trending_up_rounded,
-              color: const Color(0xFF00D4FF),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHowToEarnSection() {
-    return _Section(
-      title: widget.isArabic
-          ? 'كيف ترفع مستوى ثروتك'
-          : 'How to Level Up Wealth',
-      isArabic: widget.isArabic,
-      child: Column(
-        children: [
-          _EarnRow(
-            icon: Icons.account_balance_wallet_rounded,
-            color: const Color(0xFF2ECC71),
-            title: widget.isArabic ? 'اشحن العملات' : 'Recharge Coins',
-            subtitle: widget.isArabic
-                ? '1 عملة مشحونة = 1 XP ثروة'
-                : '1 recharged coin = 1 Wealth XP',
-          ),
-          const SizedBox(height: 10),
-          _EarnRow(
-            icon: Icons.card_giftcard_rounded,
-            color: const Color(0xFFFF6B9D),
-            title: widget.isArabic ? 'ارسل الهدايا' : 'Send Gifts',
-            subtitle: widget.isArabic
-                ? '1 عملة منفقة = 1 XP ثروة'
-                : '1 coin spent on gifts = 1 Wealth XP',
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0F2A1A),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: const Color(0xFF2ECC71).withValues(alpha: 0.3),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.info_outline_rounded,
-                  color: Color(0xFF2ECC71),
-                  size: 16,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    widget.isArabic
-                        ? 'الثروة منفصلة تماماً عن VIP ومستوى النشاط.'
-                        : 'Wealth is fully separate from VIP and activity level.',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.7),
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWhereBadgesSection() {
-    final locations = widget.isArabic
-        ? [
-            'الملف الشخصي',
-            'قائمة المستخدمين في الغرفة',
-            'بطاقة الملف المصغرة',
-            'التصنيفات',
-          ]
-        : ['Profile', 'Room user list', 'Mini profile card', 'Rankings'];
-    return _Section(
-      title: widget.isArabic
-          ? 'اين تظهر شارة الثروة'
-          : 'Where Wealth Badge Appears',
-      isArabic: widget.isArabic,
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: locations
-            .map(
-              (loc) => Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF3D1F6E).withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: const Color(0xFF8B26D9).withValues(alpha: 0.4),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.place_rounded,
-                      color: Color(0xFFFFD700),
-                      size: 14,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      loc,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.85),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-            .toList(),
-      ),
-    );
-  }
-
-  Widget _buildTierTable() {
-    return _Section(
-      title: widget.isArabic
-          ? 'جدول المستويات (100 مستوى)'
-          : 'Tier Table (100 Levels)',
-      isArabic: widget.isArabic,
-      child: Column(
-        children: WealthTier.values.map((tier) {
-          final isCurrentTier = (_wealth?.tierNumber ?? 1) == tier.number;
-          final firstRule = _rules
-              .where((r) => r.tierNumber == tier.number)
-              .firstOrNull;
-          final color = tier.color;
-
-          return Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: isCurrentTier
-                  ? color.withValues(alpha: 0.15)
-                  : const Color(0xFF12091D),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isCurrentTier
-                    ? color.withValues(alpha: 0.7)
-                    : color.withValues(alpha: 0.2),
-                width: isCurrentTier ? 1.5 : 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: color.withValues(alpha: 0.18),
-                    border: Border.all(
-                      color: color.withValues(alpha: 0.6),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      '${tier.number}',
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        tier.displayName,
-                        style: TextStyle(
-                          color: color,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      Text(
-                        widget.isArabic
-                            ? 'المستويات ${tier.minLevel}-${tier.maxLevel}'
-                            : 'Levels ${tier.minLevel}-${tier.maxLevel}',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.5),
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (firstRule != null)
-                  Text(
-                    _fmtXp(firstRule.requiredXp),
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.6),
-                      fontSize: 11,
-                    ),
-                  ),
-                if (isCurrentTier)
-                  Container(
-                    margin: const EdgeInsets.only(left: 8),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      widget.isArabic ? 'انت هنا' : 'You',
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  String _fmtXp(int xp) {
-    if (xp >= 1000000000) return '${(xp / 1000000000).toStringAsFixed(1)}B';
-    if (xp >= 1000000) return '${(xp / 1000000).toStringAsFixed(1)}M';
-    if (xp >= 1000) return '${(xp / 1000).toStringAsFixed(1)}K';
-    return '$xp';
   }
 }
 
-// ── Sub-widgets ───────────────────────────────────────────────────────────────
+// ── Tabs ──────────────────────────────────────────────────────────────────────
 
-class _XpBar extends StatelessWidget {
-  const _XpBar({
+class _LevelTabs extends StatelessWidget {
+  const _LevelTabs({
+    required this.isArabic,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final bool isArabic;
+  final int selected;
+  final ValueChanged<int> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 4, 24, 10),
+      child: Row(
+        children: [
+          _tab(isArabic ? 'الجاذبية' : 'Charisma', 0),
+          _tab(isArabic ? 'المساهمة' : 'Contribution', 1),
+        ],
+      ),
+    );
+  }
+
+  Widget _tab(String label, int index) {
+    final on = selected == index;
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => onTap(index),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: on
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: 0.5),
+                  fontSize: 16,
+                  fontWeight: on ? FontWeight.w900 : FontWeight.w600,
+                ),
+              ),
+            ),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              height: 3,
+              width: on ? 36 : 0,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(99),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFFE9A8), Color(0xFFE3B25E)],
+                ),
+                boxShadow: on
+                    ? const [
+                        BoxShadow(color: Color(0xAAF0C15A), blurRadius: 10),
+                      ]
+                    : null,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Hero card ───────────────────────────────────────────────────────────────
+
+class _LevelHeroCard extends StatelessWidget {
+  const _LevelHeroCard({
     required this.wealth,
-    required this.color,
+    required this.tier,
     required this.isArabic,
   });
+
   final UserWealth wealth;
-  final Color color;
+  final WealthTier tier;
   final bool isArabic;
 
   @override
   Widget build(BuildContext context) {
     final progress = (wealth.levelProgress ?? 0).clamp(0.0, 1.0);
-    final String fmtXp = _fmt(wealth.wealthXp);
-    final String fmtNext = _fmt(wealth.nextLevelRequiredXp ?? 0);
+    final isMax = wealth.isMaxLevel;
+    final nextXp = wealth.nextLevelRequiredXp ?? wealth.wealthXp;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              isArabic
-                  ? 'المستوى ${wealth.wealthLevel}'
-                  : 'Level ${wealth.wealthLevel}',
-              style: TextStyle(
-                color: color,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            Text(
-              isArabic
-                  ? 'المستوى ${wealth.nextLevel ?? wealth.wealthLevel}'
-                  : 'Level ${wealth.nextLevel ?? wealth.wealthLevel}',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.4),
-                fontSize: 11,
-              ),
-            ),
-          ],
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 16, 18, 18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFF6E2AE), Color(0xFFE6B968), Color(0xFFCB9540)],
         ),
-        const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(99),
-          child: LinearProgressIndicator(
-            value: progress,
-            minHeight: 8,
-            backgroundColor: Colors.white.withValues(alpha: 0.12),
-            valueColor: AlwaysStoppedAnimation<Color>(color),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFFFF0C8), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFE3B25E).withValues(alpha: 0.4),
+            blurRadius: 26,
+            offset: const Offset(0, 10),
           ),
-        ),
-        const SizedBox(height: 5),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '$fmtXp XP',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.5),
-                fontSize: 10,
-              ),
-            ),
-            Text(
-              '$fmtNext XP',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.5),
-                fontSize: 10,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  static String _fmt(int xp) {
-    if (xp >= 1000000000) return '${(xp / 1000000000).toStringAsFixed(1)}B';
-    if (xp >= 1000000) return '${(xp / 1000000).toStringAsFixed(1)}M';
-    if (xp >= 1000) return '${(xp / 1000).toStringAsFixed(1)}K';
-    return '$xp';
-  }
-}
-
-class _Section extends StatelessWidget {
-  const _Section({
-    required this.title,
-    required this.child,
-    required this.isArabic,
-  });
-  final String title;
-  final Widget child;
-  final bool isArabic;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        ],
+      ),
+      child: Row(
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Color(0xFFFFD700),
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.4,
+          _LaurelAvatar(tier: tier, level: wealth.wealthLevel),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Lv. ${wealth.wealthLevel}',
+                  style: const TextStyle(
+                    color: Color(0xFF6B4A14),
+                    fontSize: 38,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.3,
+                    height: 1.0,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(99),
+                  child: LinearProgressIndicator(
+                    value: isMax ? 1.0 : progress,
+                    minHeight: 9,
+                    backgroundColor: const Color(0x33000000),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Color(0xFFFF9A00),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  isMax
+                      ? (isArabic ? 'أعلى مستوى' : 'MAX LEVEL')
+                      : 'EXP ${_fmt(wealth.wealthXp)}/${_fmt(nextXp)}',
+                  style: const TextStyle(
+                    color: Color(0xFF7A5A24),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF12091D),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF3D1F6E)),
-            ),
-            child: child,
           ),
         ],
       ),
@@ -668,106 +376,356 @@ class _Section extends StatelessWidget {
   }
 }
 
-class _StatRow extends StatelessWidget {
-  const _StatRow({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
+// Avatar inside a gold laurel ring with a level badge under it.
+class _LaurelAvatar extends StatelessWidget {
+  const _LaurelAvatar({required this.tier, required this.level});
+  final WealthTier tier;
+  final int level;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: color, size: 16),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 13,
+    return SizedBox(
+      width: 88,
+      height: 96,
+      child: Stack(
+        alignment: Alignment.topCenter,
+        children: [
+          // Gold laurel ring.
+          Container(
+            width: 84,
+            height: 84,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFFFF1C4), Color(0xFFD9A84E)],
+              ),
+              boxShadow: [BoxShadow(color: Color(0x66FFFFFF), blurRadius: 8)],
+            ),
+            padding: const EdgeInsets.all(4),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF1A1208),
+                border: Border.all(
+                  color: tier.color.withValues(alpha: 0.7),
+                  width: 1.5,
+                ),
+              ),
+              child: Center(
+                child: Text(tier.icon, style: const TextStyle(fontSize: 30)),
+              ),
             ),
           ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            color: color,
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
+          // Level badge under the avatar.
+          Positioned(
+            bottom: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    _lighten(tier.color, 0.25),
+                    _darken(tier.color, 0.2),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(99),
+                border: Border.all(color: const Color(0xFFFFF0C8), width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: tier.color.withValues(alpha: 0.5),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.shield, color: Colors.white, size: 11),
+                  const SizedBox(width: 3),
+                  Text(
+                    '$level',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
-class _EarnRow extends StatelessWidget {
-  const _EarnRow({
-    required this.icon,
-    required this.color,
-    required this.title,
-    required this.subtitle,
+// ── Level range table ─────────────────────────────────────────────────────────
+
+class _LevelRangeTable extends StatelessWidget {
+  const _LevelRangeTable({
+    required this.currentTierNumber,
+    required this.isArabic,
   });
-  final IconData icon;
-  final Color color;
-  final String title;
-  final String subtitle;
+
+  final int currentTierNumber;
+  final bool isArabic;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: color.withValues(alpha: 0.35)),
-          ),
-          child: Icon(icon, color: color, size: 18),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+    final tiers = WealthTier.values;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      child: Column(
+        children: [
+          // Column headers.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 24, 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    isArabic ? 'نطاق المستوى' : 'Level Range',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.55),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5),
-                  fontSize: 11,
+                Text(
+                  isArabic ? 'المستوى الحالي' : 'Current Level',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.55),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+          for (int i = 0; i < tiers.length; i++)
+            _LevelRangeRow(
+              tier: tiers[i],
+              isCurrent: tiers[i].number == currentTierNumber,
+              isFirst: i == 0,
+              isLast: i == tiers.length - 1,
+              isArabic: isArabic,
+            ),
+        ],
+      ),
     );
   }
+}
+
+class _LevelRangeRow extends StatelessWidget {
+  const _LevelRangeRow({
+    required this.tier,
+    required this.isCurrent,
+    required this.isFirst,
+    required this.isLast,
+    required this.isArabic,
+  });
+
+  final WealthTier tier;
+  final bool isCurrent;
+  final bool isFirst;
+  final bool isLast;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _TimelineMarker(active: isCurrent, isFirst: isFirst, isLast: isLast),
+          Expanded(
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 10, left: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                gradient: isCurrent
+                    ? LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [
+                          tier.color.withValues(alpha: 0.26),
+                          const Color(0xFF1A0E06),
+                        ],
+                      )
+                    : null,
+                color: isCurrent ? null : const Color(0xFF160D06),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isCurrent
+                      ? tier.color.withValues(alpha: 0.8)
+                      : Colors.white.withValues(alpha: 0.06),
+                  width: isCurrent ? 1.6 : 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '${tier.minLevel} - ${tier.maxLevel}',
+                          style: const TextStyle(
+                            color: Color(0xFFF3E3C0),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        if (isCurrent) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            '${tier.displayName} · ${isArabic ? 'أنت هنا' : 'You'}',
+                            style: TextStyle(
+                              color: tier.color,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  _LevelBadgePill(tier: tier, glow: isCurrent),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Timeline marker ─────────────────────────────────────────────────────────
+
+class _TimelineMarker extends StatelessWidget {
+  const _TimelineMarker({
+    required this.active,
+    required this.isFirst,
+    required this.isLast,
+  });
+
+  final bool active;
+  final bool isFirst;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    const gold = Color(0xFFE3B25E);
+    return SizedBox(
+      width: 26,
+      child: Column(
+        children: [
+          // top line segment
+          Expanded(
+            child: Container(
+              width: 1.4,
+              color: isFirst
+                  ? Colors.transparent
+                  : gold.withValues(alpha: 0.35),
+            ),
+          ),
+          // diamond marker
+          Transform.rotate(
+            angle: 0.785398, // 45 degrees
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: active ? gold : Colors.transparent,
+                border: Border.all(color: gold, width: 1.5),
+                boxShadow: active
+                    ? const [BoxShadow(color: Color(0xAAF0C15A), blurRadius: 8)]
+                    : null,
+              ),
+            ),
+          ),
+          // bottom line segment
+          Expanded(
+            child: Container(
+              width: 1.4,
+              color: isLast ? Colors.transparent : gold.withValues(alpha: 0.35),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Badge pill ──────────────────────────────────────────────────────────────
+
+class _LevelBadgePill extends StatelessWidget {
+  const _LevelBadgePill({required this.tier, required this.glow});
+  final WealthTier tier;
+  final bool glow;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            _lighten(tier.color, 0.28),
+            tier.color,
+            _darken(tier.color, 0.28),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: const Color(0xFFFFF0C8), width: 1),
+        boxShadow: glow
+            ? [
+                BoxShadow(
+                  color: tier.color.withValues(alpha: 0.6),
+                  blurRadius: 12,
+                ),
+              ]
+            : null,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.shield_rounded, color: Colors.white, size: 13),
+          const SizedBox(width: 4),
+          Text(
+            '${tier.maxLevel}',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              shadows: [Shadow(color: Color(0x66000000), blurRadius: 2)],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+Color _lighten(Color c, [double amount = 0.3]) =>
+    Color.lerp(c, Colors.white, amount)!;
+
+Color _darken(Color c, [double amount = 0.3]) =>
+    Color.lerp(c, Colors.black, amount)!;
+
+String _fmt(int xp) {
+  if (xp >= 1000000000) return '${(xp / 1000000000).toStringAsFixed(1)}B';
+  if (xp >= 1000000) return '${(xp / 1000000).toStringAsFixed(1)}M';
+  if (xp >= 1000) return '${(xp / 1000).toStringAsFixed(1)}K';
+  return '$xp';
 }
