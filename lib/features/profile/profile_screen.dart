@@ -32,6 +32,7 @@ import 'services/follow_service.dart';
 import 'widgets/country_picker_sheet.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 import '../wealth/screens/wealth_center_screen.dart';
+import 'utils/vip_assets.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({required this.isArabic, super.key});
@@ -983,6 +984,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           : (currentUserId.isEmpty ? '-' : currentUserId),
     );
     final effectiveVipLevel = _effectiveProfileVipLevel();
+    // TODO: remove previewVipLevel after VIP UI preview is confirmed.
+    const int? previewVipLevel = null;
+    final displayVipLevel = previewVipLevel ?? effectiveVipLevel;
     final isGoldenId = isGoldenIdActive(
       profile?['is_golden_id'] == true,
       DateTime.tryParse(profile?['golden_id_expires_at']?.toString() ?? ''),
@@ -1038,7 +1042,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       publicUserId: publicUserId,
                       avatarUrl: avatarUrl,
                       frameKey: selectedAvatarFrameKey,
-                      vipLevel: effectiveVipLevel,
+                      vipLevel: displayVipLevel,
                       level: level,
                       isGoldenId: isGoldenId,
                       goldenIdStyle: goldenIdStyle,
@@ -1083,6 +1087,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ),
                             ),
+                      onFriendsTap: uid == null
+                          ? null
+                          : () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => FollowListScreen(
+                                  userId: uid,
+                                  isFollowers: true,
+                                  isArabic: isArabic,
+                                ),
+                              ),
+                            ),
                     ),
                     const SizedBox(height: 14),
 
@@ -1099,7 +1114,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                     // 4. VIP Banner
                     _VipUpgradeBanner(
-                      vipLevel: effectiveVipLevel,
+                      vipLevel: displayVipLevel,
                       isArabic: isArabic,
                       onTap: _openVipCenter,
                     ),
@@ -1352,7 +1367,7 @@ class _PremiumProfileHero extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    // Display name
+                    // Display name + VIP badge image
                     Row(
                       textDirection: isArabic
                           ? TextDirection.rtl
@@ -1366,6 +1381,16 @@ class _PremiumProfileHero extends StatelessWidget {
                             textAlign: textAlign,
                           ),
                         ),
+                        if (VipAssets.hasVip(vipLevel)) ...[
+                          const SizedBox(width: 6),
+                          Image.asset(
+                            VipAssets.badge(vipLevel),
+                            height: 26,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, _, _) =>
+                                const SizedBox.shrink(),
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -1531,6 +1556,17 @@ class _PremiumProfileHero extends StatelessWidget {
               compact: true,
             ),
           ),
+          // New VIP webp frame — premium outer decorative layer
+          if (VipAssets.hasVip(vipLevel))
+            IgnorePointer(
+              child: Image.asset(
+                VipAssets.frame(vipLevel),
+                width: 132,
+                height: 132,
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) => const SizedBox.shrink(),
+              ),
+            ),
           // Camera button — anchored bottom-right, clean gradient
           Positioned(
             right: 2,
@@ -1596,6 +1632,7 @@ class _ProfileStatsRow extends StatelessWidget {
     required this.friends,
     this.onFollowersTap,
     this.onFollowingTap,
+    this.onFriendsTap,
   });
 
   final bool isArabic;
@@ -1604,54 +1641,156 @@ class _ProfileStatsRow extends StatelessWidget {
   final int friends;
   final VoidCallback? onFollowersTap;
   final VoidCallback? onFollowingTap;
+  final VoidCallback? onFriendsTap;
+
+  static const _gold = Color(0xFFF0C15A);
+  static const _lavender = Color(0xFFBCAED6);
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 86,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF12091D),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFF4A3470)),
+        borderRadius: BorderRadius.circular(26),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1E0D36), Color(0xFF16092C), Color(0xFF0D051A)],
+        ),
+        border: Border.all(
+          color: const Color(0xFF7040B0).withValues(alpha: 0.50),
+        ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF8B26D9).withValues(alpha: 0.10),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
+            color: const Color(0xFF8B26D9).withValues(alpha: 0.20),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: _gold.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Row(
-        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-        children: [
-          // Friends (mutual follows)
-          ProfileStatItem(
-            value: friends,
-            label: isArabic ? 'الأصدقاء' : 'Friends',
-            tappable: false,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(26),
+        child: IntrinsicHeight(
+          child: Row(
+            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+            children: [
+              Expanded(
+                child: _ProfileStatItem(
+                  count: friends,
+                  label: isArabic ? 'الأصدقاء' : 'Friends',
+                  icon: Icons.people_rounded,
+                  accentColor: onFriendsTap != null ? _gold : _lavender,
+                  isTappable: onFriendsTap != null,
+                  onTap: onFriendsTap,
+                ),
+              ),
+              _StatDivider(),
+              Expanded(
+                child: _ProfileStatItem(
+                  count: following,
+                  label: isArabic ? 'يتابع' : 'Following',
+                  icon: Icons.person_add_rounded,
+                  accentColor: onFollowingTap != null ? _gold : _lavender,
+                  isTappable: onFollowingTap != null,
+                  onTap: onFollowingTap,
+                ),
+              ),
+              _StatDivider(),
+              Expanded(
+                child: _ProfileStatItem(
+                  count: followers,
+                  label: isArabic ? 'المتابعون' : 'Followers',
+                  icon: Icons.person_rounded,
+                  accentColor: onFollowersTap != null ? _gold : _lavender,
+                  isTappable: onFollowersTap != null,
+                  onTap: onFollowersTap,
+                ),
+              ),
+            ],
           ),
-          _StatDivider(),
-          // Following
-          GestureDetector(
-            onTap: onFollowingTap,
-            child: ProfileStatItem(
-              value: following,
-              label: isArabic ? 'المتابَعون' : 'Following',
-              tappable: onFollowingTap != null,
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileStatItem extends StatelessWidget {
+  const _ProfileStatItem({
+    required this.count,
+    required this.label,
+    required this.icon,
+    required this.accentColor,
+    required this.isTappable,
+    this.onTap,
+  });
+
+  final int count;
+  final String label;
+  final IconData icon;
+  final Color accentColor;
+  final bool isTappable;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      splashColor: accentColor.withValues(alpha: 0.12),
+      highlightColor: accentColor.withValues(alpha: 0.07),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Icon
+            Icon(icon, size: 18, color: accentColor.withValues(alpha: 0.80)),
+            const SizedBox(height: 7),
+            // Count
+            Text(
+              _formatCount(count),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                height: 1.0,
+              ),
             ),
-          ),
-          _StatDivider(),
-          // Followers
-          GestureDetector(
-            onTap: onFollowersTap,
-            child: ProfileStatItem(
-              value: followers,
-              label: isArabic ? 'المتابِعون' : 'Followers',
-              tappable: onFollowersTap != null,
+            const SizedBox(height: 6),
+            // Label + optional chevron
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: accentColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ),
+                if (isTappable) ...[
+                  const SizedBox(width: 1),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 13,
+                    color: accentColor.withValues(alpha: 0.80),
+                  ),
+                ],
+              ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1662,69 +1801,12 @@ class _StatDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 1,
-      height: 38,
-      color: const Color(0xFF4A3470).withValues(alpha: 0.6),
+      margin: const EdgeInsets.symmetric(vertical: 16),
+      color: const Color(0xFF5A3880).withValues(alpha: 0.45),
     );
   }
 }
 
-class ProfileStatItem extends StatelessWidget {
-  const ProfileStatItem({
-    required this.value,
-    required this.label,
-    this.tappable = false,
-    super.key,
-  });
-
-  final int value;
-  final String label;
-  final bool tappable;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            _formatCount(value),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 21,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: tappable
-                      ? const Color(0xFFF0C15A)
-                      : const Color(0xFFB9A9D4),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              if (tappable)
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 13,
-                  color: Color(0xFFF0C15A),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // -----------------------------------------------------------------------------
 // Wallet Cards
@@ -1909,7 +1991,6 @@ class _VipUpgradeBanner extends StatelessWidget {
       onTap: onTap,
       child: Container(
         constraints: const BoxConstraints(minHeight: 96),
-        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
           gradient: const LinearGradient(
@@ -1926,61 +2007,96 @@ class _VipUpgradeBanner extends StatelessWidget {
             ),
           ],
         ),
-        child: Row(
-          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-          children: [
-            Container(
-              width: 48,
-              height: 46,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: Color(0xFFF0C15A),
-              ),
-              child: const Icon(
-                Icons.workspace_premium_rounded,
-                color: Color(0xFF160B26),
-              ),
-            ),
-            const SizedBox(width: 13),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: isArabic
-                    ? CrossAxisAlignment.end
-                    : CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    active
-                        ? (isArabic
-                              ? 'VIP مستوى $vipLevel نشط'
-                              : 'VIP Lv$vipLevel Active')
-                        : 'VIP',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(23),
+          child: Stack(
+            children: [
+              // Hero image: right-side decorative background when VIP is active
+              if (active && VipAssets.hasVip(vipLevel))
+                Positioned(
+                  right: isArabic ? null : 0,
+                  left: isArabic ? 0 : null,
+                  top: 0,
+                  bottom: 0,
+                  child: IgnorePointer(
+                    child: Opacity(
+                      opacity: 0.82,
+                      child: Image.asset(
+                        VipAssets.hero(vipLevel),
+                        width: 140,
+                        fit: BoxFit.contain,
+                        alignment: isArabic
+                            ? Alignment.centerLeft
+                            : Alignment.centerRight,
+                        errorBuilder: (_, _, _) =>
+                            const SizedBox.shrink(),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    active
-                        ? (isArabic
-                              ? 'استمتع بمزايا VIP الحصرية'
-                              : 'Enjoy your exclusive VIP benefits')
-                        : (isArabic
-                              ? 'افتح تجربة مميزة'
-                              : 'Unlock Premium Experience'),
-                    style: const TextStyle(
-                      color: Color(0xFFF7E9FF),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
+                ),
+              // Foreground content row
+              Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  textDirection:
+                      isArabic ? TextDirection.rtl : TextDirection.ltr,
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 46,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Color(0xFFF0C15A),
+                      ),
+                      child: const Icon(
+                        Icons.workspace_premium_rounded,
+                        color: Color(0xFF160B26),
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 13),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: isArabic
+                            ? CrossAxisAlignment.end
+                            : CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            active
+                                ? (isArabic
+                                      ? 'VIP مستوى $vipLevel نشط'
+                                      : 'VIP Lv$vipLevel Active')
+                                : 'VIP',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            active
+                                ? (isArabic
+                                      ? 'استمتع بمزايا VIP الحصرية'
+                                      : 'Enjoy your exclusive VIP benefits')
+                                : (isArabic
+                                      ? 'افتح تجربة مميزة'
+                                      : 'Unlock Premium Experience'),
+                            style: const TextStyle(
+                              color: Color(0xFFF7E9FF),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    _GoldMiniButton(label: active ? 'Manage' : 'Upgrade'),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            _GoldMiniButton(label: active ? 'Manage' : 'Upgrade'),
-          ],
+            ],
+          ),
         ),
       ),
     );

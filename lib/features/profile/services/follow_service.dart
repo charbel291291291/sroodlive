@@ -148,10 +148,11 @@ class FollowService {
     required String value,
   }) async {
     try {
-      return await SupabaseService.requiredClient
+      final rows = await SupabaseService.requiredClient
           .from('user_follows')
-          .count()
+          .select('follower_id')
           .eq(column, value);
+      return (rows as List).length;
     } catch (_) {
       return 0;
     }
