@@ -44,7 +44,7 @@ const _v2Green = Color(0xFF86E0B6);
 
 /// Approved Srood Live monthly *maintain* EXP per VIP tier (1 coin = 1 EXP).
 /// Display-only source for the recharge card so it never shows a legacy server
-/// value (e.g. the old 500,000,000) — mirrors the published VIP Rules table.
+/// legacy server value and mirrors the published VIP Rules table.
 const Map<int, int> _kVipMaintainExp = {
   1: 60000,
   2: 100000,
@@ -414,117 +414,97 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
               ? '${_v2Fmt(price)} coins required to unlock VIP $sel'
               : 'Recharge to unlock VIP $sel');
 
-    // Bottom card = monthly *maintenance* progress for the user's OWNED tier.
-    // monthlyExp is the user's real recharge EXP; the target comes from the
-    // approved per-tier economy (not the server's monthly_maintain_exp, which
-    // can carry a legacy value such as 500,000,000).
+    // Monthly maintenance progress. The target is the approved per-tier maintain
+    // EXP (never the server's legacy monthly_maintain_exp, which carried values
+    // from legacy server values. No VIP falls back to the VIP-1 goal of 60,000 EXP.
     final vip = _userVip;
     final monthlyExp = vip?.monthlyExp ?? 0;
-    final maintainTarget = _kVipMaintainExp[owned] ?? 0; // 0 when no VIP
-    final away = (maintainTarget - monthlyExp) > 0
-        ? (maintainTarget - monthlyExp)
-        : 0;
+    final targetLevel = owned <= 0 ? 1 : owned.clamp(1, 9);
+    final maintainTarget = _kVipMaintainExp[targetLevel] ?? 60000;
     final progress = maintainTarget > 0
         ? (monthlyExp / maintainTarget).clamp(0.0, 1.0)
         : 0.0;
-    final monthText = maintainTarget > 0
-        ? '${_v2Fmt(monthlyExp)} / ${_v2Fmt(maintainTarget)} EXP'
-        : '${_v2Fmt(monthlyExp)} EXP this month';
-    final awayText = maintainTarget <= 0
-        ? ''
-        : (away > 0
-              ? '${_v2Fmt(away)} EXP away from your monthly target'
-              : 'Monthly recharge target met');
+    final monthText = '${_v2Fmt(monthlyExp)} / ${_v2Fmt(maintainTarget)} EXP';
 
-    // Message text — keyed on true ownership/selection, never a fake "max".
-    final rechargeHint = owned >= 9
-        ? 'Max VIP reached. Maintain your monthly recharge to keep benefits.'
-        : owned == 0
+    // "Max VIP reached" only when truly maxed on both owned AND selected tier.
+    final isMaxState = owned >= 9 && sel >= 9;
+
+    // Message text.
+    final rechargeHint = owned <= 0
         ? 'Recharge to start your VIP journey.'
+        : isMaxState
+        ? 'Max VIP reached. Maintain your monthly recharge to keep benefits.'
         : sel > owned
         ? 'Recharge to unlock this VIP tier.'
         : 'Maintain your monthly recharge to keep this tier active.';
 
-    // Button label — upgrade vs maintain vs unlock vs max.
-    final btnLabel = owned >= 9
-        ? 'Maintain VIP Benefits'
-        : owned == 0
+    // Button label.
+    final btnLabel = owned <= 0
         ? 'Recharge to Unlock'
+        : isMaxState
+        ? 'Maintain VIP Benefits'
         : sel > owned
         ? 'Recharge to Upgrade'
         : 'Recharge to Maintain';
 
-    return Stack(
-      children: [
-        RefreshIndicator(
-          color: _kGold,
-          backgroundColor: const Color(0xFF1B102A),
-          onRefresh: _load,
-          // Bottom padding leaves room for the sticky recharge card (incl. the
-          // inline hint note beneath the button).
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 290),
-            children: [
-              const SizedBox(height: 4),
-              _Vip2Crest(level: sel),
-              const SizedBox(height: 10),
-              Center(
-                child: _Vip2LockPill(
-                  state: isCurrent
-                      ? _Vip2OwnState.active
-                      : isOwned
-                      ? _Vip2OwnState.owned
-                      : _Vip2OwnState.locked,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Center(child: _Vip2Pill(text: reqText)),
-              const SizedBox(height: 14),
-              _Vip2Rail(
-                selectedLevel: sel,
-                ownedLevel: owned,
-                onSelect: (l) => setState(() => _selectedTier = l),
-              ),
-              const SizedBox(height: 18),
-              _Vip2SectionDivider(
-                label: 'Privileges',
-                counter: '$unlocked / $total',
-              ),
-              const SizedBox(height: 14),
-              _Vip2PerkGrid(selectedLevel: sel),
-              if (!_adminLoading &&
-                  (_adminRole.hasPermission(kPermVipGrant) ||
-                      _adminRole.isOSuperAdmin ||
-                      _adminRole.isPSuperAdmin ||
-                      _adminRole.isSuperAdmin)) ...[
-                const SizedBox(height: 24),
-                _AdminVipPanel(isArabic: context.isArabic),
-              ],
-            ],
-          ),
-        ),
-        // Sticky bottom recharge / activation card. The outer SafeArea already
-        // lifts content above the Android nav bar; small extra padding keeps it
-        // clear on all devices.
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: Padding(
-            // Extra bottom gap keeps the card clear of the Android nav bar
-            // (this sits inside SafeArea, which already lifts it above insets).
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
-            child: _Vip2RechargeCard(
-              monthText: monthText,
-              awayText: awayText,
-              progress: progress.toDouble(),
-              buttonLabel: btnLabel,
-              hint: rechargeHint,
-              onUpgrade: _onVip2UpgradeTap,
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
+
+    // Single scrolling column — the recharge card is an inline section ABOVE the
+    // privileges grid (no floating overlay), so nothing overlaps and the card
+    // never sits on the Android navigation bar.
+    return RefreshIndicator(
+      color: _kGold,
+      backgroundColor: const Color(0xFF1B102A),
+      onRefresh: _load,
+      child: ListView(
+        padding: EdgeInsets.fromLTRB(16, 8, 16, 20 + bottomInset),
+        children: [
+          const SizedBox(height: 4),
+          _Vip2Crest(level: sel),
+          const SizedBox(height: 10),
+          Center(
+            child: _Vip2LockPill(
+              state: isCurrent
+                  ? _Vip2OwnState.active
+                  : isOwned
+                  ? _Vip2OwnState.owned
+                  : _Vip2OwnState.locked,
             ),
           ),
-        ),
-      ],
+          const SizedBox(height: 10),
+          Center(child: _Vip2Pill(text: reqText)),
+          const SizedBox(height: 16),
+          // Recharge card — clean standalone section, in flow.
+          _Vip2RechargeCard(
+            monthText: monthText,
+            progress: progress.toDouble(),
+            buttonLabel: btnLabel,
+            hint: rechargeHint,
+            onUpgrade: _onVip2UpgradeTap,
+          ),
+          const SizedBox(height: 18),
+          _Vip2Rail(
+            selectedLevel: sel,
+            ownedLevel: owned,
+            onSelect: (l) => setState(() => _selectedTier = l),
+          ),
+          const SizedBox(height: 18),
+          _Vip2SectionDivider(
+            label: 'Privileges',
+            counter: '$unlocked / $total',
+          ),
+          const SizedBox(height: 14),
+          _Vip2PerkGrid(selectedLevel: sel),
+          if (!_adminLoading &&
+              (_adminRole.hasPermission(kPermVipGrant) ||
+                  _adminRole.isOSuperAdmin ||
+                  _adminRole.isPSuperAdmin ||
+                  _adminRole.isSuperAdmin)) ...[
+            const SizedBox(height: 24),
+            _AdminVipPanel(isArabic: context.isArabic),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -3601,14 +3581,12 @@ class _Vip2Pill extends StatelessWidget {
 class _Vip2RechargeCard extends StatelessWidget {
   const _Vip2RechargeCard({
     required this.monthText,
-    required this.awayText,
     required this.progress,
     required this.buttonLabel,
     required this.hint,
     required this.onUpgrade,
   });
   final String monthText;
-  final String awayText;
   final double progress;
   final String buttonLabel;
   final String hint;
@@ -3617,197 +3595,103 @@ class _Vip2RechargeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(17),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0x80563AA4), Color(0xC7120A2C)],
+          colors: [Color(0x66563AA4), Color(0xB3120A2C)],
         ),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0x38C9D2E3)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x66000000),
-            blurRadius: 24,
-            offset: Offset(0, 8),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _v2GoldDim.withValues(alpha: 0.30)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Title row — small label + small leading icon (no giant circle).
           Row(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF9C8DF0), Color(0xFF534AB7)],
-                  ),
-                  border: Border.all(color: _v2Gold, width: 2),
+              const Icon(Icons.bolt_rounded, color: _v2Gold, size: 15),
+              const SizedBox(width: 6),
+              const Text(
+                "This month's recharge",
+                style: TextStyle(
+                  color: _v2Lilac,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
-                child: const Icon(
-                  Icons.star_rounded,
-                  color: Colors.white,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "This month's recharge",
-                      style: TextStyle(color: _v2Lilac, fontSize: 12.5),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      monthText,
-                      style: const TextStyle(
-                        color: _v2Gold,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.diamond_outlined,
-                color: Color(0xFF8FC4F2),
-                size: 28,
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
+          // Progress number — medium.
+          Text(
+            monthText,
+            style: const TextStyle(
+              color: _v2Gold,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Thin gold progress bar.
           LayoutBuilder(
             builder: (_, c) => Stack(
               children: [
                 Container(
-                  height: 10,
+                  height: 6,
                   decoration: BoxDecoration(
-                    color: const Color(0x12FFFFFF),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0x12FFFFFF)),
+                    color: const Color(0x14FFFFFF),
+                    borderRadius: BorderRadius.circular(99),
                   ),
                 ),
                 Container(
-                  height: 10,
-                  width: c.maxWidth * progress.clamp(0.04, 1.0),
+                  height: 6,
+                  width: c.maxWidth * progress.clamp(0.03, 1.0),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(99),
                     gradient: const LinearGradient(
                       colors: [Color(0xFFFFF6D4), Color(0xFFE8C25A)],
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: _v2Gold.withValues(alpha: 0.55),
-                        blurRadius: 10,
-                      ),
-                    ],
                   ),
                 ),
               ],
             ),
           ),
-          if (awayText.isNotEmpty) ...[
-            const SizedBox(height: 9),
-            Row(
-              children: [
-                const Icon(
-                  Icons.north_east_rounded,
-                  color: Color(0xFF8FC4F2),
-                  size: 13,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    awayText,
-                    maxLines: 2,
-                    softWrap: true,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: _v2Sub, fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
+          // Gold button — slightly shorter.
           GestureDetector(
             onTap: onUpgrade,
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              padding: const EdgeInsets.symmetric(vertical: 11),
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFFFFF6D4),
-                    Color(0xFFF0C765),
-                    Color(0xFFD9A93C),
-                  ],
+                  colors: [Color(0xFFFFF1C9), Color(0xFFEDC25C), Color(0xFFD9A93C)],
                 ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: _v2GoldDim.withValues(alpha: 0.5),
-                    blurRadius: 22,
-                  ),
-                ],
+                borderRadius: BorderRadius.circular(14),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.bolt_rounded,
-                    color: Color(0xFF3A1F02),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    buttonLabel,
-                    style: const TextStyle(
-                      color: Color(0xFF3A1F02),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
+              child: Text(
+                buttonLabel,
+                style: const TextStyle(
+                  color: Color(0xFF3A1F02),
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.3,
+                ),
               ),
             ),
           ),
-          // Inline info note under the recharge card â€” replaces the old floating
-          // message that overlapped this card. Supports the card, never covers.
-          const SizedBox(height: 10),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(
-                Icons.info_outline_rounded,
-                color: _v2Lilac,
-                size: 13,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  hint,
-                  maxLines: 2,
-                  softWrap: true,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _v2Lilac,
-                    fontSize: 11.5,
-                    height: 1.35,
-                  ),
-                ),
-              ),
-            ],
+          const SizedBox(height: 8),
+          // Small helper message.
+          Text(
+            hint,
+            style: const TextStyle(
+              color: _v2Lilac,
+              fontSize: 11.5,
+              height: 1.35,
+            ),
           ),
         ],
       ),
@@ -4023,3 +3907,4 @@ class _Vip2PerkCard extends StatelessWidget {
     );
   }
 }
+
