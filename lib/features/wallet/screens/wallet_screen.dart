@@ -4,6 +4,7 @@ import '../models/recharge_package.dart';
 import '../models/wallet.dart';
 import '../models/wallet_transaction.dart';
 import '../services/wallet_service.dart';
+import '../../../shared/widgets/premium_ui.dart';
 import '../widgets/recharge_request_sheet.dart';
 import 'recharge_help_screen.dart';
 import 'transaction_history_screen.dart';
@@ -402,124 +403,132 @@ class _BalanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF3D1278), Color(0xFF1E0A3C), Color(0xFF2C1800)],
-          stops: [0.0, 0.6, 1.0],
-        ),
-        border: Border.all(
-          color: const Color(0xFFF4C95D).withValues(alpha: 0.35),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF8B26D9).withValues(alpha: 0.22),
-            blurRadius: 32,
-            offset: const Offset(0, 16),
+    // Two premium glossy cards, keeping each currency's identity:
+    // coins = gold, diamonds = purple/pink.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          isArabic ? 'رصيدك' : 'Your Balance',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.55),
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            isArabic ? 'رصيدك' : 'Your Balance',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.55),
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 20),
-          Row(
+        ),
+        const SizedBox(height: 14),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                child: _BalanceItem(
-                  icon: Icons.monetization_on_rounded,
-                  iconColor: const Color(0xFFF4C95D),
+                child: _WalletCard(
                   label: isArabic ? 'عملات' : 'Coins',
                   value: wallet?.coinsBalance ?? 0,
+                  icon: Icons.monetization_on_rounded,
+                  base: const Color(0xFFC79A3A), // gold identity
                 ),
               ),
-              Container(
-                width: 1,
-                height: 48,
-                color: Colors.white.withValues(alpha: 0.12),
-              ),
+              const SizedBox(width: 12),
               Expanded(
-                child: _BalanceItem(
-                  icon: Icons.diamond_rounded,
-                  iconColor: const Color(0xFF7DD3FC),
+                child: _WalletCard(
                   label: isArabic ? 'ألماس' : 'Diamonds',
                   value: wallet?.diamondsBalance ?? 0,
-                  align: CrossAxisAlignment.end,
+                  icon: Icons.diamond_rounded,
+                  base: const Color(0xFF8B2FB7), // purple/pink diamond identity
                 ),
               ),
             ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-class _BalanceItem extends StatelessWidget {
-  const _BalanceItem({
-    required this.icon,
-    required this.iconColor,
+class _WalletCard extends StatelessWidget {
+  const _WalletCard({
     required this.label,
     required this.value,
-    this.align = CrossAxisAlignment.start,
+    required this.icon,
+    required this.base,
   });
 
-  final IconData icon;
-  final Color iconColor;
   final String label;
   final int value;
-  final CrossAxisAlignment align;
+  final IconData icon;
+  final Color base;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: align == CrossAxisAlignment.end
-          ? const EdgeInsets.only(left: 20)
-          : const EdgeInsets.only(right: 20),
-      child: Column(
-        crossAxisAlignment: align,
-        children: [
-          Row(
-            mainAxisAlignment: align == CrossAxisAlignment.end
-                ? MainAxisAlignment.end
-                : MainAxisAlignment.start,
-            children: [
-              Icon(icon, color: iconColor, size: 16),
-              const SizedBox(width: 5),
-              Text(
-                label,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.55),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(22),
+      child: DecoratedBox(
+        decoration: premiumCardDecoration(base: base),
+        child: Stack(
+          children: [
+            const Positioned.fill(child: GlossSheen()),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.18),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.40),
+                          ),
+                        ),
+                        child: Icon(icon, color: Colors.white, size: 18),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.92),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      _fmt(value),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 30,
+                        fontWeight: FontWeight.w900,
+                        height: 1.0,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black38,
+                            blurRadius: 4,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            _fmt(value),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
-              height: 1.0,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

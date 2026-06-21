@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/supabase/supabase_service.dart';
 import '../../main.dart';
+import '../../shared/widgets/premium_ui.dart';
 import '../home/home_screen.dart';
 import 'legal_screens.dart';
 import 'registration_screen.dart';
@@ -247,68 +248,32 @@ class _LoginScreenState extends State<LoginScreen> {
                             ],
                             const SizedBox(height: 28),
 
-                            // Primary: Sign In
-                            SizedBox(
-                              width: double.infinity,
-                              height: 54,
-                              child: FilledButton(
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: const Color(0xFFF0C15A),
-                                  foregroundColor: const Color(0xFF0A0612),
-                                  disabledBackgroundColor: const Color(
-                                    0xFFF0C15A,
-                                  ).withValues(alpha: 0.38),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
-                                ),
-                                onPressed: isLoading ? null : _login,
-                                child: Text(
-                                  isLoading
-                                      ? (isArabic ? '\u0627\u0646\u062a\u0638\u0631...' : 'Loading...')
-                                      : (isArabic ? '\u062f\u062e\u0648\u0644' : 'Sign In'),
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ),
+                            // Primary: Sign In \u2014 glossy gold pill.
+                            GlossyButton(
+                              label: isLoading
+                                  ? (isArabic ? '\u0627\u0646\u062a\u0638\u0631...' : 'Loading...')
+                                  : (isArabic ? '\u062f\u062e\u0648\u0644' : 'Sign In'),
+                              icon: Icons.login_rounded,
+                              accent: const Color(0xFFF0C15A),
+                              loading: isLoading,
+                              onPressed: isLoading ? null : _login,
                             ),
                             const SizedBox(height: 12),
 
-                            // Secondary: Create Account
-                            SizedBox(
-                              width: double.infinity,
-                              height: 54,
-                              child: OutlinedButton(
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: const Color(0xFFF0C15A),
-                                  side: BorderSide(
-                                    color: const Color(
-                                      0xFFF0C15A,
-                                    ).withValues(alpha: 0.65),
-                                    width: 1.5,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
-                                ),
-                                onPressed: isLoading
-                                    ? null
-                                    : () => Navigator.of(context).push(
-                                        MaterialPageRoute<void>(
-                                          builder: (_) =>
-                                              const RegistrationScreen(),
-                                        ),
+                            // Secondary: Create Account \u2014 glossy gold outline.
+                            GlossyButton(
+                              label: isArabic ? '\u0625\u0646\u0634\u0627\u0621 \u062d\u0633\u0627\u0628' : 'Create Account',
+                              icon: Icons.person_add_alt_1_rounded,
+                              accent: const Color(0xFFF0C15A),
+                              filled: false,
+                              onPressed: isLoading
+                                  ? null
+                                  : () => Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) =>
+                                            const RegistrationScreen(),
                                       ),
-                                child: Text(
-                                  isArabic ? '\u0625\u0646\u0634\u0627\u0621 \u062d\u0633\u0627\u0628' : 'Create Account',
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
+                                    ),
                             ),
 
                             // Legal footer — Terms & Privacy, tappable.
