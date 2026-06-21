@@ -1,4 +1,4 @@
-﻿-- =============================================================================
+-- =============================================================================
 -- Secure withdrawal request admin reads (2026-09-07)
 --
 -- The admin panel previously read withdrawal_requests via a direct client-side
