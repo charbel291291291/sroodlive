@@ -290,8 +290,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     super.initState();
     _audioStateNotifier = ValueNotifier((connecting: false, connected: false));
     WidgetsBinding.instance.addObserver(this);
-    debugPrint('[PerfRoom] open id=${widget.room.id} ts=${DateTime.now().millisecondsSinceEpoch}');
-    debugPrint('[Room] ${_roomTs()} room screen opened id=${widget.room.id}');
+    _roomLog('[PerfRoom] open id=${widget.room.id} ts=${DateTime.now().millisecondsSinceEpoch}');
+    _roomLog('[Room] ${_roomTs()} room screen opened id=${widget.room.id}');
     _musicService = RoomMusicService();
     _syncedMusic = RoomSyncedMusicService(
       roomId: widget.room.id,
@@ -349,11 +349,11 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   // Skipped for position-only changes (tick updates) via pushCurrentStateIfChanged().
   void _onLocalMusicChanged() {
     if (!(_iAmRoomOwner || _iAmHost)) {
-      debugPrint('[MUSIC-CONTROL] denied user=$_currentUserId reason=not_manager');
+      _roomLog('[MUSIC-CONTROL] denied user=$_currentUserId reason=not_manager');
       return;
     }
     if (_syncedMusic.applyingServerState) return;
-    debugPrint('[MUSIC-CONTROL] allowed user=$_currentUserId song=${_musicService.currentSong?.id}');
+    _roomLog('[MUSIC-CONTROL] allowed user=$_currentUserId song=${_musicService.currentSong?.id}');
     unawaited(_syncedMusic.pushCurrentStateIfChanged());
   }
 
@@ -369,13 +369,13 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         // Screen off / home pressed -- do NOT disconnect or mute. The Android
         // foreground service (microphone + mediaPlayback types) keeps the mic
         // active so other participants continue hearing the user.
-        debugPrint('[VoiceLifecycle] state=$state keepAudio=true');
-        debugPrint('[VoiceLifecycle] background audio preserved');
+        _roomLog('[VoiceLifecycle] state=$state keepAudio=true');
+        _roomLog('[VoiceLifecycle] background audio preserved');
         break;
       case AppLifecycleState.resumed:
-        debugPrint('[VoiceLifecycle] state=resumed');
+        _roomLog('[VoiceLifecycle] state=resumed');
         if (!_connectedAudio || !_liveKitRoomService.isConnected) {
-          debugPrint('[VoiceLifecycle] audio dropped while backgrounded -- reconnecting');
+          _roomLog('[VoiceLifecycle] audio dropped while backgrounded -- reconnecting');
           unawaited(_reconnectAudio());
         }
         break;
@@ -393,7 +393,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       if (mounted) _setAudioState(connected: _liveKitRoomService.isConnected);
       await _syncMicConnectionWithSeat();
     } catch (e) {
-      debugPrint('[Room] reconnect failed: $e');
+      _roomLog('[Room] reconnect failed: $e');
     } finally {
       if (mounted) _setAudioState(connecting: false);
     }
@@ -414,17 +414,17 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       if (mounted) setState(() => _speakingUserIds = ids);
     };
 
-    debugPrint('[Room] ${_roomTs()} LiveKit connect started (early)');
+    _roomLog('[Room] ${_roomTs()} LiveKit connect started (early)');
     try {
       await _liveKitRoomService.connect(
         roomId: widget.room.id,
         microphoneEnabled: false,
       );
-      debugPrint('[Room] ${_roomTs()} LiveKit connected');
-      debugPrint('[PerfRoom] livekit connected ts=${DateTime.now().millisecondsSinceEpoch}');
+      _roomLog('[Room] ${_roomTs()} LiveKit connected');
+      _roomLog('[PerfRoom] livekit connected ts=${DateTime.now().millisecondsSinceEpoch}');
       if (mounted) _setAudioState(connecting: false, connected: true);
     } catch (e) {
-      debugPrint('[Room] ${_roomTs()} early audio connect failed: $e');
+      _roomLog('[Room] ${_roomTs()} early audio connect failed: $e');
       if (mounted) _setAudioState(connecting: false);
     }
   }
@@ -513,7 +513,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       });
     } catch (error) {
       if (kDebugMode) {
-        debugPrint('[PK] load active failed: $error');
+        _roomLog('[PK] load active failed: $error');
       }
     }
   }
@@ -552,23 +552,23 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       final total   = (row['envelope_count'] as int? ?? 1);
       final left    = total - claimed;
 
-      debugPrint('[LuckyBag] active loaded id=$id left=$left');
+      _roomLog('[LuckyBag] active loaded id=$id left=$left');
 
       if (left <= 0) {
-        debugPrint('[LuckyBag] hidden reason=empty');
+        _roomLog('[LuckyBag] hidden reason=empty');
         return;
       }
       if (_sessionDismissedEnvelopeIds.contains(id)) {
-        debugPrint('[LuckyBag] hidden reason=dismissed_session');
+        _roomLog('[LuckyBag] hidden reason=dismissed_session');
         return;
       }
       if (_sessionClaimedEnvelopeIds.contains(id) || _openedLuckyBagIds.contains(id)) {
-        debugPrint('[LuckyBag] hidden reason=claimed');
+        _roomLog('[LuckyBag] hidden reason=claimed');
         return;
       }
       _showRedEnvelopeBanner(row);
     } catch (e) {
-      debugPrint('[LuckyBag] loadActiveRedEnvelope error: $e');
+      _roomLog('[LuckyBag] loadActiveRedEnvelope error: $e');
     }
   }
 
@@ -576,7 +576,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   void _showRedEnvelopeBanner(Map<String, dynamic> envelope) {
     final id = envelope['id'] as String? ?? '';
     _bannerAutoHideTimer?.cancel();
-    debugPrint('[LuckyBag] shown id=$id');
+    _roomLog('[LuckyBag] shown id=$id');
     setState(() => _activeRedEnvelope = envelope);
     if (_soundEnabled && !_musicService.isActive) {
       unawaited(_playLuckyBagAppearSound());
@@ -595,7 +595,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
     _bannerAutoHideTimer = Timer(hideAfter, () {
       if (!mounted) return;
-      debugPrint('[LuckyBag] auto hidden id=$id');
+      _roomLog('[LuckyBag] auto hidden id=$id');
       _sessionDismissedEnvelopeIds.add(id);
       setState(() => _activeRedEnvelope = null);
     });
@@ -606,7 +606,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     final id = _activeRedEnvelope?['id'] as String? ?? '';
     _bannerAutoHideTimer?.cancel();
     if (id.isNotEmpty) {
-      debugPrint('[LuckyBag] dismissed id=$id');
+      _roomLog('[LuckyBag] dismissed id=$id');
       _sessionDismissedEnvelopeIds.add(id);
     }
     setState(() => _activeRedEnvelope = null);
@@ -632,7 +632,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             final envelopeId = row['id'] as String? ?? '';
             final senderId = row['sender_id'] as String? ?? '';
             final iAmSender = senderId == _currentUserId;
-            debugPrint('[LuckyBag] realtime insert id=$envelopeId iAmSender=$iAmSender');
+            _roomLog('[LuckyBag] realtime insert id=$envelopeId iAmSender=$iAmSender');
             // New envelope: remove any prior session-dismissed state for this id
             // (shouldn't happen in practice but guards against edge cases).
             _sessionDismissedEnvelopeIds.remove(envelopeId);
@@ -664,7 +664,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
           },
         )
         .subscribe((status, [error]) {
-          debugPrint('[RT-RED] status=$status error=$error room=${widget.room.id}');
+          _roomLog('[RT-RED] status=$status error=$error room=${widget.room.id}');
         });
   }
 
@@ -701,7 +701,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         duration: const Duration(seconds: 3),
       ));
     } catch (e, st) {
-      debugPrint('[RoomImage] failed: $e');
+      _roomLog('[RoomImage] failed: $e');
       debugPrintStack(stackTrace: st);
       if (!mounted) return;
       final msg = e.toString();
@@ -879,17 +879,17 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             if (!mounted) return;
             final rec = payload.newRecord;
             final newMaxSeats = rec['max_seats'] as int?;
-            debugPrint(
+            _roomLog(
               '[RT-ROOM] event=UPDATE roomId=${widget.room.id} maxSeats=$newMaxSeats',
             );
             if (newMaxSeats != null && newMaxSeats != _currentMaxSeats) {
-              debugPrint('[RT-ROOM] applying maxSeats=$newMaxSeats locally');
+              _roomLog('[RT-ROOM] applying maxSeats=$newMaxSeats locally');
               setState(() => _currentMaxSeats = newMaxSeats);
             }
           },
         )
         .subscribe((status, [error]) {
-          debugPrint('[RT-ROOM] status=$status error=$error room=${widget.room.id}');
+          _roomLog('[RT-ROOM] status=$status error=$error room=${widget.room.id}');
         });
   }
 
@@ -907,12 +907,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
           ),
           callback: (payload) {
             if (!mounted) return;
-            debugPrint('[RT-MEMBERS] event=${payload.eventType} id=${payload.newRecord["id"]} muted=${payload.newRecord["is_muted"]}');
+            _roomLog('[RT-MEMBERS] event=${payload.eventType} id=${payload.newRecord["id"]} muted=${payload.newRecord["is_muted"]}');
             _debouncedLoadMembers();
           },
         )
         .subscribe((status, [error]) {
-          debugPrint('[RT-MEMBERS] status=$status error=$error room=${widget.room.id}');
+          _roomLog('[RT-MEMBERS] status=$status error=$error room=${widget.room.id}');
         });
   }
 
@@ -934,10 +934,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             // Use the insert payload directly so luxury video shows without
             // waiting for the DB read - avoids the read-before-write race on
             // the receiver's phone.
-            debugPrint('[RT-RED] event room=${widget.room.id} new=${payload.newRecord} old=${payload.oldRecord}');
+            _roomLog('[RT-RED] event room=${widget.room.id} new=${payload.newRecord} old=${payload.oldRecord}');
             final record = payload.newRecord;
             if (kDebugMode) {
-              debugPrint(
+              _roomLog(
                 '[Gift] event received room=${widget.room.id} '
                 'id=${record['id']} code=${record['gift_code']} '
                 'sender=${record['sender_id']} receiver=${record['receiver_id']}',
@@ -979,7 +979,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         )
         .subscribe((status, [error]) {
           if (kDebugMode) {
-            debugPrint('[Gift] realtime channel status=$status error=$error');
+            _roomLog('[Gift] realtime channel status=$status error=$error');
           }
           // Surface a clean message instead of silently failing if the room
           // gift realtime channel can't be established.
@@ -1052,7 +1052,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     try {
       final t0 = DateTime.now().millisecondsSinceEpoch;
       final members = await _roomsService.getActiveRoomMembers(widget.room.id);
-      debugPrint('[PerfRoom] members loaded in ${DateTime.now().millisecondsSinceEpoch - t0}ms count=${members.length}');
+      _roomLog('[PerfRoom] members loaded in ${DateTime.now().millisecondsSinceEpoch - t0}ms count=${members.length}');
 
       if (!mounted) return;
 
@@ -1064,7 +1064,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
           currentUserId != null &&
           _members.isNotEmpty &&
           !members.any((m) => m.userId == currentUserId)) {
-        debugPrint('[MODERATION] kicked detection: user=$currentUserId not in active members');
+        _roomLog('[MODERATION] kicked detection: user=$currentUserId not in active members');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -1445,7 +1445,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   }
 
   Future<void> _sendChatImageMessage() async {
-    debugPrint('[RoomImage] _sendChatImageMessage tapped');
+    _roomLog('[RoomImage] _sendChatImageMessage tapped');
     // Fast path: local cached VIP level is already enough.
     final localVipLevel = _myMember?.effectiveVipLevel ?? 0;
     bool canSend = localVipLevel >= 7;
@@ -1463,7 +1463,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
           canSend = result == true;
         }
       } catch (e) {
-        debugPrint('[chat-image] backend VIP check failed, using local: $e');
+        _roomLog('[chat-image] backend VIP check failed, using local: $e');
       }
     }
 
@@ -1498,7 +1498,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         senderRole: _myMember?.role ?? 'listener',
       );
     } catch (e, st) {
-      debugPrint('[RoomImage] failed: $e');
+      _roomLog('[RoomImage] failed: $e');
       debugPrintStack(stackTrace: st);
       if (!mounted) return;
       final msg = e is ArgumentError
@@ -1582,7 +1582,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         // _onLocalMusicChanged will push the state to Supabase automatically.
         onTrackSelected: canManage
             ? (song) {
-                debugPrint('[RoomMusicSync] host selected id=${song.id} source=${song.sourceType} url=${song.url} localPath=${song.localPath}');
+                _roomLog('[RoomMusicSync] host selected id=${song.id} source=${song.sourceType} url=${song.url} localPath=${song.localPath}');
                 _musicService.addToPlaylist(song);
                 final idx = _musicService.playlist.indexWhere((s) => s.id == song.id);
                 if (idx >= 0) unawaited(_musicService.playSong(idx));
@@ -1623,7 +1623,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     final isOwner = _iAmRoomOwner;
     final isHost = _iAmHost;
     final isModerator = _isCurrentUserModerator;
-    debugPrint(
+    _roomLog(
       '[RoomPerm] currentUserId=$_currentUserId ownerId=${widget.room.ownerId} '
       'memberRole=${_myMember?.role} isOwner=$isOwner isHost=$isHost '
       'isModerator=$isModerator',
@@ -1659,7 +1659,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
           if (!mounted) return;
           final spent = (envelope['total_coins'] as num?)?.toInt() ?? 0;
           final envelopeId = envelope['id'] as String? ?? '';
-          debugPrint('[LuckyBag] created by sender id=$envelopeId');
+          _roomLog('[LuckyBag] created by sender id=$envelopeId');
           // Allow new envelope from sender to appear even if prior bag was dismissed.
           _sessionDismissedEnvelopeIds.remove(envelopeId);
           setState(() {
@@ -2490,12 +2490,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             if (mounted) setState(() => _speakingUserIds = ids);
           };
 
-          debugPrint('[Room] ${_roomTs()} LiveKit connect started (sync)');
+          _roomLog('[Room] ${_roomTs()} LiveKit connect started (sync)');
           await _liveKitRoomService.connect(
             roomId: widget.room.id,
             microphoneEnabled: false,
           );
-          debugPrint('[Room] ${_roomTs()} LiveKit connected');
+          _roomLog('[Room] ${_roomTs()} LiveKit connected');
 
           if (mounted) _setAudioState(connected: true);
         }
@@ -2531,7 +2531,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
           );
         }
         if (justTookSeat && member?.forceMuted == true) {
-          debugPrint('[MUTE] forced mute applied user=${member?.userId} — seat taken but mute preserved');
+          _roomLog('[MUTE] forced mute applied user=${member?.userId} — seat taken but mute preserved');
         }
 
         if (!mounted) return;
@@ -2542,7 +2542,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         });
 
         if (kDebugMode) {
-          debugPrint('[Room] Mic published enabled=$desiredMicEnabled');
+          _roomLog('[Room] Mic published enabled=$desiredMicEnabled');
         }
         return;
       }
@@ -2606,7 +2606,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
     // Block self-unmute when owner has force-muted this user.
     if (nextValue && (_myMember?.forceMuted == true)) {
-      debugPrint('[MUTE] self unmute denied reason=forced_mute');
+      _roomLog('[MUTE] self unmute denied reason=forced_mute');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('You have been muted by the room owner.'),
@@ -2618,12 +2618,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     }
 
     final tapMs = DateTime.now().millisecondsSinceEpoch;
-    debugPrint('[PerfMic] tap nextValue=$nextValue');
+    _roomLog('[PerfMic] tap nextValue=$nextValue');
 
     if (nextValue) {
       final hasMicrophonePermission = await _ensureMicrophonePermission();
       if (!hasMicrophonePermission) return;
-      debugPrint('[PerfMic] permission ok +${DateTime.now().millisecondsSinceEpoch - tapMs}ms');
+      _roomLog('[PerfMic] permission ok +${DateTime.now().millisecondsSinceEpoch - tapMs}ms');
     }
 
     // Optimistic UI — update immediately before awaiting network.
@@ -2643,14 +2643,14 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         ),
       ]);
       final elapsed = DateTime.now().millisecondsSinceEpoch - t1;
-      debugPrint('[PerfMic] livekit+rpc done in ${elapsed}ms');
-      debugPrint('[PerfMic] total ${DateTime.now().millisecondsSinceEpoch - tapMs}ms');
+      _roomLog('[PerfMic] livekit+rpc done in ${elapsed}ms');
+      _roomLog('[PerfMic] total ${DateTime.now().millisecondsSinceEpoch - tapMs}ms');
     } catch (e) {
       // Roll back optimistic state on failure.
       if (mounted) {
         setState(() => _micEnabled = !nextValue);
       }
-      debugPrint('[PerfMic] error: $e');
+      _roomLog('[PerfMic] error: $e');
     } finally {
       if (mounted) setState(() => _micToggleBusy = false);
     }
@@ -2675,7 +2675,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     if (mc != null) unawaited(SupabaseService.requiredClient.removeChannel(mc));
     if (gc != null) unawaited(SupabaseService.requiredClient.removeChannel(gc));
     if (ms != null) unawaited(SupabaseService.requiredClient.removeChannel(ms));
-    debugPrint('[VoiceLifecycle] disconnect reason=user_left');
+    _roomLog('[VoiceLifecycle] disconnect reason=user_left');
     await _liveKitRoomService.disconnect();
     unawaited(VoiceRoomForegroundService.stop());
   }
@@ -2810,7 +2810,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
           // Moderation callbacks - only provided when caller can act
           onToggleMute: (canModerate && !isTargetOwner && target != null)
               ? (muted) async {
-                  debugPrint('[MUTE] forced mute applied user=$userId isMuted=$muted');
+                  _roomLog('[MUTE] forced mute applied user=$userId isMuted=$muted');
                   await const RoomManagementService().ownerMuteMember(
                     widget.room.id,
                     userId,
@@ -2925,7 +2925,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
     try {
       if (kDebugMode) {
-        debugPrint(
+        _roomLog(
           '[Gift] send tapped room=${widget.room.id} '
           'receiver=${result.receiverUserId} gift=${result.gift.code}',
         );
@@ -2936,7 +2936,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         gift: result.gift,
       );
       if (kDebugMode) {
-        debugPrint('[Gift] send + wallet debit succeeded (RPC)');
+        _roomLog('[Gift] send + wallet debit succeeded (RPC)');
       }
     } catch (error) {
       if (!mounted) return;
@@ -3443,7 +3443,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
               final envelope = _activeRedEnvelope!;
               final envelopeId = envelope['id'] as String? ?? '';
               final isSender = (envelope['sender_id'] as String?) == _currentUserId;
-              debugPrint('[LuckyBag] shown id=$envelopeId isSender=$isSender');
+              _roomLog('[LuckyBag] shown id=$envelopeId isSender=$isSender');
               return Positioned(
                 top: 80 + MediaQuery.of(context).padding.top,
                 left: 16,
@@ -9301,7 +9301,7 @@ class _LuckyBagEntranceOverlayState extends State<_LuckyBagEntranceOverlay>
 
   Future<void> _tryPlaySound() async {
     if (!widget.soundEnabled) return;
-    debugPrint('[GIFT-AUDIO] play overlay sound without pausing music (lucky_bag_open)');
+    _roomLog('[GIFT-AUDIO] play overlay sound without pausing music (lucky_bag_open)');
     final player = AudioPlayer(handleInterruptions: false);
     try {
       await player.setAsset('assets/sounds/lucky_bag_open.mp3');
@@ -9557,7 +9557,7 @@ class _LuckyBagWinOverlayState extends State<_LuckyBagWinOverlay>
 
   Future<void> _tryPlayWinSound() async {
     if (!widget.soundEnabled) return;
-    debugPrint('[GIFT-AUDIO] play overlay sound without pausing music (lucky_bag_win)');
+    _roomLog('[GIFT-AUDIO] play overlay sound without pausing music (lucky_bag_win)');
     final player = AudioPlayer(handleInterruptions: false);
     try {
       await player.setAsset('assets/sounds/lucky_bag_win.wav');
@@ -9832,3 +9832,10 @@ class _ChatImageThumbnail extends StatelessWidget {
   }
 }
 
+
+// Gated room logging — interpolation and printing are skipped entirely in
+// release builds so per-timer (member refresh, music tick) and per-event logs
+// add no overhead in production.
+void _roomLog(String message) {
+  if (kDebugMode) debugPrint(message);
+}

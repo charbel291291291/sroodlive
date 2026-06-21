@@ -1,4 +1,6 @@
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -246,14 +248,23 @@ class RoomsService {
       throw StateError('No logged-in user found.');
     }
 
-    await _restrictions.throwIfRestricted('account_ban');
-    await _restrictions.throwIfRestricted('room_ban');
-
-    final room = await client
+    // Kick off the room lookup in parallel with the restriction checks so the
+    // two independent round-trips overlap instead of running back-to-back.
+    // Restriction precedence is preserved: account_ban then room_ban are still
+    // awaited (and thrown) before the room row is consumed below.
+    final roomFuture = client
         .from('rooms')
         .select('owner_id,is_locked,is_closed')
         .eq('id', roomId)
         .single();
+    // Always observe the future so an early restriction throw can't surface it
+    // as an unhandled async error.
+    unawaited(roomFuture.then((_) {}, onError: (_) {}));
+
+    await _restrictions.throwIfRestricted('account_ban');
+    await _restrictions.throwIfRestricted('room_ban');
+
+    final room = await roomFuture;
 
     final ownerId = room['owner_id']?.toString();
     final role = ownerId == user.id ? 'host' : 'listener';

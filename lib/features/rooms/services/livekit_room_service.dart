@@ -34,17 +34,17 @@ class LiveKitRoomService {
     _lastRoomId = roomId;
     _lastMicEnabled = microphoneEnabled;
 
-    debugPrint(
+    _log(
       '[LiveKit] ${_ts()} token requested roomId=$roomId',
     );
     final tokenResponse = await _tokenService.getToken(roomId: roomId);
-    debugPrint('[LiveKit] ${_ts()} token received — connecting…');
+    _log('[LiveKit] ${_ts()} token received — connecting…');
 
-    debugPrint('[VoiceQuality] echoCancellation enabled');
-    debugPrint('[VoiceQuality] noiseSuppression enabled');
-    debugPrint('[VoiceQuality] autoGainControl enabled');
-    debugPrint('[VoiceQuality] highPassFilter enabled');
-    debugPrint('[VoiceQuality] typingNoiseDetection enabled');
+    _log('[VoiceQuality] echoCancellation enabled');
+    _log('[VoiceQuality] noiseSuppression enabled');
+    _log('[VoiceQuality] autoGainControl enabled');
+    _log('[VoiceQuality] highPassFilter enabled');
+    _log('[VoiceQuality] typingNoiseDetection enabled');
 
     final room = Room(
       roomOptions: const RoomOptions(
@@ -65,7 +65,7 @@ class LiveKitRoomService {
     _setupEventListeners(room);
 
     await room.connect(tokenResponse.url, tokenResponse.token);
-    debugPrint(
+    _log(
       '[LiveKit] ${_ts()} connected '
       'local=${room.localParticipant?.identity} '
       'remote=${room.remoteParticipants.length}',
@@ -75,12 +75,12 @@ class LiveKitRoomService {
     try {
       await room.setSpeakerOn(true);
     } catch (e) {
-      debugPrint('[LiveKit] setSpeakerOn failed: $e');
+      _log('[LiveKit] setSpeakerOn failed: $e');
     }
 
     // Publish mic track only for speakers/hosts; listeners connect mic-off.
     await room.localParticipant?.setMicrophoneEnabled(microphoneEnabled);
-    debugPrint('[LiveKit] ${_ts()} mic enabled=$microphoneEnabled');
+    _log('[LiveKit] ${_ts()} mic enabled=$microphoneEnabled');
 
     _room = room;
     return room;
@@ -92,11 +92,11 @@ class LiveKitRoomService {
     if (isConnected) return;
     final roomId = _lastRoomId;
     if (roomId == null) return;
-    debugPrint('[LiveKit] ${_ts()} reconnecting to $roomId…');
+    _log('[LiveKit] ${_ts()} reconnecting to $roomId…');
     try {
       await connect(roomId: roomId, microphoneEnabled: _lastMicEnabled);
     } catch (e) {
-      debugPrint('[LiveKit] reconnect failed: $e');
+      _log('[LiveKit] reconnect failed: $e');
     }
   }
 
@@ -106,51 +106,51 @@ class LiveKitRoomService {
 
     listener
       ..on<RoomConnectedEvent>((_) {
-        debugPrint('[LiveKit] ${_ts()} RoomConnectedEvent');
+        _log('[LiveKit] ${_ts()} RoomConnectedEvent');
       })
       ..on<RoomDisconnectedEvent>((e) {
-        debugPrint('[LiveKit] ${_ts()} RoomDisconnectedEvent reason=${e.reason}');
+        _log('[LiveKit] ${_ts()} RoomDisconnectedEvent reason=${e.reason}');
       })
       ..on<ParticipantConnectedEvent>((e) {
-        debugPrint('[LiveKit] ParticipantConnected id=${e.participant.identity}');
+        _log('[LiveKit] ParticipantConnected id=${e.participant.identity}');
       })
       ..on<ParticipantDisconnectedEvent>((e) {
-        debugPrint(
+        _log(
           '[LiveKit] ParticipantDisconnected id=${e.participant.identity}',
         );
       })
       ..on<TrackPublishedEvent>((e) {
-        debugPrint(
+        _log(
           '[LiveKit] TrackPublished kind=${e.publication.kind} '
           'by=${e.participant.identity}',
         );
       })
       ..on<TrackUnpublishedEvent>((e) {
-        debugPrint(
+        _log(
           '[LiveKit] TrackUnpublished kind=${e.publication.kind} '
           'by=${e.participant.identity}',
         );
       })
       ..on<TrackSubscribedEvent>((e) {
-        debugPrint(
+        _log(
           '[LiveKit] TrackSubscribed kind=${e.track.kind} '
           'from=${e.participant.identity} muted=${e.track.muted}',
         );
       })
       ..on<TrackUnsubscribedEvent>((e) {
-        debugPrint(
+        _log(
           '[LiveKit] TrackUnsubscribed kind=${e.track.kind} '
           'from=${e.participant.identity}',
         );
       })
       ..on<TrackMutedEvent>((e) {
-        debugPrint(
+        _log(
           '[LiveKit] TrackMuted kind=${e.publication.kind} '
           'by=${e.participant.identity}',
         );
       })
       ..on<TrackUnmutedEvent>((e) {
-        debugPrint(
+        _log(
           '[LiveKit] TrackUnmuted kind=${e.publication.kind} '
           'by=${e.participant.identity}',
         );
@@ -163,7 +163,7 @@ class LiveKitRoomService {
 
   Future<void> setMicrophoneEnabled(bool enabled) async {
     _lastMicEnabled = enabled;
-    debugPrint('[LiveKit] ${_ts()} setMicrophoneEnabled($enabled)');
+    _log('[LiveKit] ${_ts()} setMicrophoneEnabled($enabled)');
     await _room?.localParticipant?.setMicrophoneEnabled(enabled);
   }
 
@@ -171,14 +171,21 @@ class LiveKitRoomService {
     _listener?.dispose();
     _listener = null;
     if (_room != null) {
-      debugPrint('[LiveKit] ${_ts()} disconnecting…');
+      _log('[LiveKit] ${_ts()} disconnecting…');
       await _room?.disconnect();
       _room = null;
-      debugPrint('[LiveKit] disconnected');
+      _log('[LiveKit] disconnected');
     }
     if (invalidateToken && _lastRoomId != null) {
       LiveKitTokenService.invalidate(_lastRoomId!);
     }
+  }
+
+  // Gated logging — interpolation and printing are skipped entirely in release
+  // builds, so the high-frequency audio event listeners add no overhead in
+  // production.
+  static void _log(String message) {
+    if (kDebugMode) debugPrint(message);
   }
 
   static String _ts() {
