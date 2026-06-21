@@ -28,6 +28,7 @@ class AvatarWithFrame extends StatelessWidget {
     this.nickname,
     this.vipLevel,
     this.showVipBadge = false,
+    this.autoVipFrame = true,
     this.compact = false,
     this.fallbackIcon = Icons.person_rounded,
     super.key,
@@ -40,6 +41,11 @@ class AvatarWithFrame extends StatelessWidget {
   final String? nickname;
   final int? vipLevel;
   final bool showVipBadge;
+  /// When true (default) and no explicit [frameKey] is selected, a VIP user
+  /// automatically gets the matching `vip_$level` PNG frame. Set to false when
+  /// the caller draws its own VIP frame (e.g. the profile hero's webp frame) to
+  /// avoid stacking two frames on one avatar.
+  final bool autoVipFrame;
   final bool compact;
   final IconData fallbackIcon;
 
@@ -156,7 +162,9 @@ class AvatarWithFrame extends StatelessWidget {
   String? _effectiveFrameKey(String? value) {
     if (value == null || value.isEmpty) {
       // No custom frame selected - auto-assign the matching VIP PNG frame
-      // when the user has an active VIP level.
+      // when the user has an active VIP level, unless the caller opted out
+      // (it is drawing its own VIP frame).
+      if (!autoVipFrame) return null;
       final level = (vipLevel ?? 0).clamp(0, 9);
       if (level > 0) return 'vip_$level';
       return null;

@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import '../../../core/vip/vip_frame_layout.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/vip/vip_privileges.dart';
@@ -3423,6 +3424,13 @@ class _Vip2RailState extends State<_Vip2Rail> {
             ),
           );
 
+    // Per-tier calibration so the node disc sits inside this frame's opening,
+    // matching the profile avatar composition.
+    final frameLayout = VipFrameLayout.of(level);
+    const frameBox = 66.0;
+    final discSize = frameBox * frameLayout.avatarFillRatio;
+    final discDy = frameBox * frameLayout.avatarDyFraction;
+
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () {
@@ -3438,44 +3446,49 @@ class _Vip2RailState extends State<_Vip2Rail> {
         mainAxisSize: MainAxisSize.min,
         children: [
           // Avatar-style node with the tier's VIP frame asset overlaid on top.
+          // The inner disc is sized/centred per VipFrameLayout so the frame
+          // wraps it cleanly, the same way the profile avatar is composed.
           SizedBox(
-            width: 66,
-            height: 66,
+            width: frameBox,
+            height: frameBox,
             child: Stack(
               alignment: Alignment.center,
               children: [
-                Container(
-                  width: 60,
-                  height: 60,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isSel
-                        ? const Color(0xFF2E1D66)
-                        : const Color(0x14FFFFFF),
-                    border: Border.all(
-                      color: border,
-                      width: isSel ? 2.4 : 1.4,
+                Transform.translate(
+                  offset: Offset(0, discDy),
+                  child: Container(
+                    width: discSize,
+                    height: discSize,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isSel
+                          ? const Color(0xFF2E1D66)
+                          : const Color(0x14FFFFFF),
+                      border: Border.all(
+                        color: border,
+                        width: isSel ? 2.4 : 1.4,
+                      ),
+                      boxShadow: isSel
+                          ? [
+                              BoxShadow(
+                                color: _v2Gold.withValues(alpha: 0.38),
+                                blurRadius: 18,
+                                spreadRadius: 1,
+                              ),
+                            ]
+                          : null,
                     ),
-                    boxShadow: isSel
-                        ? [
-                            BoxShadow(
-                              color: _v2Gold.withValues(alpha: 0.38),
-                              blurRadius: 18,
-                              spreadRadius: 1,
-                            ),
-                          ]
-                        : null,
+                    child: inner,
                   ),
-                  child: inner,
                 ),
                 // VIP frame asset for this tier. Non-interactive; hidden if the
                 // asset is missing so the node still renders cleanly.
                 IgnorePointer(
                   child: Image.asset(
                     VipAssets.frame(level),
-                    width: 66,
-                    height: 66,
+                    width: frameBox,
+                    height: frameBox,
                     fit: BoxFit.contain,
                     filterQuality: FilterQuality.high,
                     errorBuilder: (_, _, _) => const SizedBox.shrink(),
@@ -3980,4 +3993,3 @@ class _Vip2PerkCard extends StatelessWidget {
     );
   }
 }
-
