@@ -542,41 +542,92 @@ class _TierLevelBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = tier.color;
+    final light = Color.lerp(c, Colors.white, 0.55)!;
+    final dark = Color.lerp(c, Colors.black, 0.42)!;
+
     return Container(
       height: size,
-      constraints: BoxConstraints(minWidth: size * 1.3),
-      padding: EdgeInsets.symmetric(horizontal: size * 0.18),
+      constraints: BoxConstraints(minWidth: size * 1.55),
+      padding: EdgeInsets.fromLTRB(size * 0.12, 0, size * 0.26, 0),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
+        // Glossy tier capsule.
         gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color.lerp(c, Colors.white, 0.35)!,
-            c,
-            Color.lerp(c, Colors.black, 0.30)!,
-          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [light, c, dark],
+          stops: const [0.0, 0.5, 1.0],
         ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.55), width: 1.2),
+        // Metallic double rim.
+        border: Border.all(color: Colors.white.withValues(alpha: 0.65), width: 1.2),
         boxShadow: [
-          BoxShadow(color: c.withValues(alpha: 0.5), blurRadius: size * 0.25),
+          BoxShadow(color: c.withValues(alpha: 0.55), blurRadius: size * 0.30),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: size * 0.12,
+            offset: Offset(0, size * 0.06),
+          ),
         ],
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          Icon(Icons.shield_rounded,
-              size: size * 0.42, color: Colors.white.withValues(alpha: 0.92)),
-          SizedBox(width: size * 0.08),
-          Text(
-            '$number',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w900,
-              fontSize: size * 0.40,
-              shadows: const [Shadow(color: Colors.black54, blurRadius: 2)],
+          // Top gloss highlight.
+          Positioned(
+            top: size * 0.06,
+            left: size * 0.18,
+            right: size * 0.18,
+            child: Container(
+              height: size * 0.28,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(999),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.55),
+                    Colors.white.withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
             ),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Metallic gem disc (per-tier color).
+              Container(
+                width: size * 0.62,
+                height: size * 0.62,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [Colors.white, light, dark],
+                    stops: const [0.0, 0.45, 1.0],
+                    center: const Alignment(-0.3, -0.4),
+                  ),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(color: c.withValues(alpha: 0.7), blurRadius: 4),
+                  ],
+                ),
+              ),
+              SizedBox(width: size * 0.12),
+              Text(
+                '$number',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: size * 0.42,
+                  height: 1.0,
+                  shadows: const [Shadow(color: Colors.black54, blurRadius: 2)],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -593,32 +644,54 @@ class _EntrancePreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = tier.color;
+    final light = Color.lerp(c, Colors.white, 0.5)!;
     return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
+      height: 42,
+      padding: const EdgeInsets.fromLTRB(4, 0, 8, 0),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
+        // Glowing horizontal banner that fades to the right.
         gradient: LinearGradient(
-          colors: [c.withValues(alpha: 0.55), c.withValues(alpha: 0.12), Colors.transparent],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [
+            c.withValues(alpha: 0.70),
+            c.withValues(alpha: 0.28),
+            c.withValues(alpha: 0.04),
+          ],
+          stops: const [0.0, 0.55, 1.0],
         ),
-        border: Border.all(color: c.withValues(alpha: 0.6)),
-        boxShadow: [BoxShadow(color: c.withValues(alpha: 0.35), blurRadius: 8)],
+        border: Border.all(color: light.withValues(alpha: 0.7), width: 1.2),
+        boxShadow: [BoxShadow(color: c.withValues(alpha: 0.5), blurRadius: 10)],
       ),
       child: Row(
         children: [
-          // Avatar circle with luxury frame ring.
+          // Circular avatar slot with a shiny double frame ring.
           Container(
-            width: 28,
-            height: 28,
+            width: 34,
+            height: 34,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.black.withValues(alpha: 0.4),
-              border: Border.all(color: Color.lerp(c, Colors.white, 0.4)!, width: 2),
-              boxShadow: [BoxShadow(color: c.withValues(alpha: 0.6), blurRadius: 5)],
+              gradient: SweepGradient(
+                colors: [light, c, Colors.white, c, light],
+              ),
+              boxShadow: [BoxShadow(color: c.withValues(alpha: 0.8), blurRadius: 6)],
             ),
-            child: Icon(Icons.person_rounded, size: 16, color: Colors.white.withValues(alpha: 0.85)),
+            padding: const EdgeInsets.all(2.5),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.black.withValues(alpha: 0.55),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  width: 1,
+                ),
+              ),
+              child: Icon(Icons.person_rounded,
+                  size: 16, color: Colors.white.withValues(alpha: 0.9)),
+            ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 7),
           Expanded(
             child: Text(
               isArabic ? 'دخل المستخدم الغرفة' : 'User enters the room',
@@ -627,10 +700,13 @@ class _EntrancePreview extends StatelessWidget {
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 10.5,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
+                shadows: [Shadow(color: Colors.black54, blurRadius: 2)],
               ),
             ),
           ),
+          Icon(Icons.auto_awesome_rounded,
+              size: 13, color: light.withValues(alpha: 0.9)),
         ],
       ),
     );

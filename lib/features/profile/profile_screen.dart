@@ -25,7 +25,7 @@ import '../rooms/utils/vip_room_features.dart';
 import '../rooms/services/rooms_service.dart';
 import '../rooms/screens/room_details_screen.dart';
 import '../profile_hub/models/profile_hub_models.dart';
-import '../profile_hub/screens/level_center_screen.dart';
+import '../profile_hub/screens/my_level_screen.dart';
 import '../profile_hub/services/level_service.dart';
 import 'models/avatar_frame.dart';
 import 'screens/follow_list_screen.dart';
@@ -385,7 +385,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _openLevels() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => LevelCenterScreen(isArabic: context.isArabic),
+        builder: (_) => MyLevelScreen(isArabic: context.isArabic),
       ),
     );
     // Refresh level in case XP was earned while on My Level screen
