@@ -190,86 +190,37 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 430),
                         child: Column(
-                          crossAxisAlignment: isArabic
-                              ? CrossAxisAlignment.end
-                              : CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             SizedBox(height: topSpacing),
 
-                            // Brand chip
-                            Align(
-                              alignment: Alignment.center,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.28),
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(
-                                    color: const Color(
-                                      0xFFF0C15A,
-                                    ).withValues(alpha: 0.30),
-                                  ),
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.workspace_premium_rounded,
-                                      color: Color(0xFFF0C15A),
-                                      size: 15,
-                                    ),
-                                    SizedBox(width: 6),
-                                    Text(
-                                      'Srood Live',
-                                      style: TextStyle(
-                                        color: Color(0xFFD8CFEA),
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: 0.4,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 22),
-
-                            // Main title
+                            // Main title \u2014 centered
                             Text(
-                              isArabic
-                                  ? '\u0645\u0631\u062d\u0628\u0627\u064b \u0628\u0643 \u0641\u064a Srood Live'
-                                  : 'Welcome to Srood Live',
-                              textAlign: isArabic
-                                  ? TextAlign.right
-                                  : TextAlign.left,
+                              isArabic ? '\u0645\u0631\u062d\u0628\u0627\u064b \u0628\u0643' : 'Welcome Back',
+                              textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 30,
+                                fontSize: 28,
                                 fontWeight: FontWeight.w900,
                                 height: 1.2,
                               ),
                             ),
                             const SizedBox(height: 8),
 
-                            // Subtitle
+                            // Subtitle \u2014 centered
                             Text(
                               isArabic
-                                  ? '\u0633\u062c\u0651\u0644 \u062f\u062e\u0648\u0644\u0643 \u0644\u0644\u0645\u062a\u0627\u0628\u0639\u0629'
-                                  : 'Sign in to continue',
-                              textAlign: isArabic
-                                  ? TextAlign.right
-                                  : TextAlign.left,
+                                  ? '\u0627\u062f\u062e\u0644 \u0625\u0644\u0649 \u0639\u0627\u0644\u0645 Srood Live'
+                                  : 'Enter your Srood Live world',
+                              textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: Color(0xFFBCAED6),
-                                fontSize: 15,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w500,
                                 height: 1.5,
                               ),
                             ),
-                            const SizedBox(height: 34),
+                            const SizedBox(height: 36),
 
                             // Email field
                             _AuthField(
@@ -295,9 +246,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               const SizedBox(height: 14),
                               Text(
                                 message!,
-                                textAlign: isArabic
-                                    ? TextAlign.right
-                                    : TextAlign.left,
+                                textAlign: TextAlign.center,
                                 style: const TextStyle(
                                   color: Color(0xFFD6A84F),
                                   fontWeight: FontWeight.w700,
