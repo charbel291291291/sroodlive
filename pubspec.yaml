@@ -73,6 +73,7 @@ flutter:
   assets:
     - assets/videos/
     - assets/sounds/
+    - assets/images/
     - assets/images/vip_frames/
     - assets/images/games/
     - assets/gift_effects/videos/
@@ -83,7 +84,4 @@ flutter:
     - assets/games/hungry_cat/
     - assets/games/gold_ladder_quiz/
     - assets/games/rocket_crash/
-
-
-
 
