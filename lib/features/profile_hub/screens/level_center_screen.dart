@@ -226,12 +226,17 @@ class _CurrentLevelBadge extends StatelessWidget {
 
   Color get _color {
     return switch (myLevel.currentLevelColor) {
+      'bronze'    => const Color(0xFFCD7F32),
       'silver'    => const Color(0xFFC0C0C0),
       'gold'      => const Color(0xFFFFD700),
-      'purple'    => const Color(0xFF9B59F5),
+      'emerald'   => const Color(0xFF2ECC71),
+      'sapphire'  => const Color(0xFF2E86DE),
+      'ruby'      => const Color(0xFFE74C3C),
       'diamond'   => const Color(0xFF44D4FF),
+      'master'    => const Color(0xFF9B59F5),
+      'royal'     => const Color(0xFFFF4ECD),
       'legendary' => const Color(0xFFFF6B00),
-      _           => const Color(0xFFCD7F32),
+      _           => const Color(0xFFCD7F32), // bronze default
     };
   }
 

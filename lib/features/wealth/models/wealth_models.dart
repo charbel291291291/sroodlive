@@ -56,16 +56,34 @@ enum WealthTier {
   // Badge icon character used in the compact badge widget.
   String get icon {
     switch (this) {
-      case WealthTier.bronze:   return String.fromCharCodes([0x1F7EB]); // brown square
+      case WealthTier.bronze:   return String.fromCharCodes([0x1F7EB]); // 🟫 brown square
       case WealthTier.silver:   return '⭐'; // star
-      case WealthTier.gold:     return String.fromCharCodes([0x1F31F]); // glowing star
-      case WealthTier.emerald:  return String.fromCharCodes([0x1F48E]); // gem stone
-      case WealthTier.sapphire: return String.fromCharCodes([0x1F4A0]); // diamond
+      case WealthTier.gold:     return String.fromCharCodes([0x1F31F]); // 🌟 glowing star
+      case WealthTier.emerald:  return String.fromCharCodes([0x1F48E]); // 💎 gem stone
+      case WealthTier.sapphire: return String.fromCharCodes([0x1F499]); // 💙 blue heart (distinct from diamond)
       case WealthTier.ruby:     return '❤'; // red heart
-      case WealthTier.diamond:  return String.fromCharCodes([0x1F4A0]); // diamond
-      case WealthTier.master:   return String.fromCharCodes([0x1F300]); // cyclone purple
-      case WealthTier.royal:    return String.fromCharCodes([0x1F451]); // crown
-      case WealthTier.legend:   return String.fromCharCodes([0x1F3C6]); // trophy
+      case WealthTier.diamond:  return String.fromCharCodes([0x1F4A0]); // 💠 diamond shape
+      case WealthTier.master:   return String.fromCharCodes([0x1F300]); // 🌀 cyclone purple
+      case WealthTier.royal:    return String.fromCharCodes([0x1F451]); // 👑 crown
+      case WealthTier.legend:   return String.fromCharCodes([0x1F3C6]); // 🏆 trophy
+    }
+  }
+
+  // Unambiguous abbreviation used in compact badge text.
+  // Silver/Sapphire and Ruby/Royal share the same first letter so two-char
+  // codes are used to avoid display collisions.
+  String get abbreviation {
+    switch (this) {
+      case WealthTier.bronze:   return 'B';
+      case WealthTier.silver:   return 'Si';
+      case WealthTier.gold:     return 'G';
+      case WealthTier.emerald:  return 'E';
+      case WealthTier.sapphire: return 'Sa';
+      case WealthTier.ruby:     return 'Ru';
+      case WealthTier.diamond:  return 'D';
+      case WealthTier.master:   return 'M';
+      case WealthTier.royal:    return 'Ro';
+      case WealthTier.legend:   return 'L';
     }
   }
 

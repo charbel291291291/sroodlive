@@ -19,7 +19,9 @@ class WealthBadgeWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     if (wealthLevel <= 0) return const SizedBox.shrink();
 
-    final tier = WealthTier.fromNumber(tierNumber.clamp(1, 10));
+    // Derive tier from the level so the badge is always consistent even if
+    // the stored tier_number column has drifted (schema drift / admin edits).
+    final tier = WealthTier.fromLevel(wealthLevel.clamp(1, 100));
     final color = tier.color;
 
     final double fontSize;
@@ -58,7 +60,7 @@ class WealthBadgeWidget extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            tier.displayName[0], // single letter: B, S, G, E, Sa, R, D, M, Ro, L
+            tier.abbreviation, // unambiguous: B Si G E Sa Ru D M Ro L
             style: TextStyle(
               color: Colors.white,
               fontSize: fontSize * 0.9,
@@ -95,7 +97,8 @@ class WealthTierBadgeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tier = wealth.tier;
+    // Always derive tier from the actual wealth level — stored tier_number can drift.
+    final tier = WealthTier.fromLevel(wealth.wealthLevel.clamp(1, 100));
     final color = tier.color;
 
     return Container(

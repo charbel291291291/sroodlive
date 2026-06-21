@@ -19,7 +19,10 @@ class WealthService {
     return UserWealth.displayFromJson(data as Map<String, dynamic>);
   }
 
-  // Fetches all 100 wealth level rules (for the tier table in WealthCenterScreen).
+  // Fetches all 100 wealth level rules from the DB.
+  // Reserved for admin panels or a future per-level XP-requirement table UI.
+  // WealthCenterScreen currently builds its tier table from the WealthTier enum
+  // directly and does not call this method.
   Future<List<WealthLevelRule>> getWealthRules() async {
     final rows = await SupabaseService.requiredClient
         .from('wealth_level_rules')

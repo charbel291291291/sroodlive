@@ -65,16 +65,18 @@ class _WealthCenterScreenState extends State<WealthCenterScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0A0705),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF4A2E12), // warm bronze glow
-              Color(0xFF1C1208),
-              Color(0xFF0A0705),
+              // Top glow derives from the user's actual tier color so that
+              // Diamond, Royal, Legend users don't always see bronze tones.
+              Color.lerp(_currentTier.color, Colors.black, 0.68)!,
+              Color.lerp(_currentTier.color, Colors.black, 0.88)!,
+              const Color(0xFF0A0705),
             ],
-            stops: [0.0, 0.45, 1.0],
+            stops: const [0.0, 0.45, 1.0],
           ),
         ),
         child: SafeArea(
@@ -496,7 +498,7 @@ class _LevelRangeTable extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  isArabic ? 'المستوى الحالي' : 'Current Level',
+                  isArabic ? 'حد المستوى' : 'Tier Cap',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.55),
                     fontSize: 14,
