@@ -16,6 +16,7 @@ import '../../games/screens/srood_loto_admin_panel.dart';
 import '../../charisma/screens/charisma_admin_panel.dart';
 import '../../startup_promo/models/startup_promo.dart' show AdminStartupPromo;
 import '../../startup_promo/services/startup_promo_service.dart';
+import 'daily_reward_admin_screen.dart';
 import 'owner_game_control_screen.dart';
 import 'vip_visual_preview_screen.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
@@ -2232,6 +2233,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       )
                       .toList(),
                 ),
+        ),
+        const SizedBox(height: 14),
+
+        // ── Daily Reward ────────────────────────────────────────────────────
+        _AdminSectionCard(
+          title: 'Daily Reward',
+          child: InkWell(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const DailyRewardAdminScreen(),
+              ),
+            ),
+            child: const _AdminListTile(
+              icon: Icons.card_giftcard_rounded,
+              title: 'Daily Reward settings',
+              subtitle: 'Edit 7-day rewards, toggle system & popup',
+              trailing: Icon(Icons.chevron_right_rounded,
+                  color: Color(0xFF64748B)),
+            ),
+          ),
         ),
         const SizedBox(height: 14),
 

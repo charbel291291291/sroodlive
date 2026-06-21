@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/update/app_update_dialog.dart';
 import '../../core/update/app_update_service.dart';
 import '../../main.dart';
+import '../daily_reward/daily_reward_popup.dart';
+import '../daily_reward/daily_reward_service.dart';
 import '../games/screens/crash_game_screen.dart';
 import '../messages/screens/messages_screen.dart';
 import '../profile/profile_screen.dart';
@@ -20,14 +22,23 @@ class _HomeScreenState extends State<HomeScreen> {
   int selectedIndex = 0;
   int _messagesUnread = 0;
 
+  // Auto-show the daily reward at most once per app session (UI-only guard;
+  // claim eligibility is still validated server-side).
+  static bool _dailyRewardShownThisSession = false;
+
   @override
   void initState() {
     super.initState();
-    // Check for updates once per session, after the first frame so the
-    // navigator is ready to show the dialog.
+    // Run startup checks once per session, after the first frame so the
+    // navigator is ready to show dialogs.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkForUpdate();
+      _runStartupChecks();
     });
+  }
+
+  Future<void> _runStartupChecks() async {
+    await _checkForUpdate();
+    await _maybeShowDailyReward();
   }
 
   Future<void> _checkForUpdate() async {
@@ -37,6 +48,22 @@ class _HomeScreenState extends State<HomeScreen> {
     final isArabic =
         AppLanguageController.of(context).locale.languageCode == 'ar';
     await showAppUpdateDialog(context, info: info, isArabic: isArabic);
+  }
+
+  Future<void> _maybeShowDailyReward() async {
+    if (_dailyRewardShownThisSession || !mounted) return;
+    try {
+      final state = await const DailyRewardService().getState();
+      if (!mounted) return;
+      // Only auto-pop when enabled, popup allowed, and a claim is available.
+      if (!state.enabled || !state.popupEnabled || !state.canClaimToday) return;
+      _dailyRewardShownThisSession = true;
+      final isArabic =
+          AppLanguageController.of(context).locale.languageCode == 'ar';
+      await showDailyRewardDialog(context, state: state, isArabic: isArabic);
+    } catch (_) {
+      // Daily reward is non-critical; never block the home screen.
+    }
   }
 
   @override
