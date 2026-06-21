@@ -42,6 +42,21 @@ const _v2Lilac = Color(0xFFB7AAE0);
 const _v2Sub = Color(0xFF9C8FCB);
 const _v2Green = Color(0xFF86E0B6);
 
+/// Approved Srood Live monthly *maintain* EXP per VIP tier (1 coin = 1 EXP).
+/// Display-only source for the recharge card so it never shows a legacy server
+/// value (e.g. the old 500,000,000) — mirrors the published VIP Rules table.
+const Map<int, int> _kVipMaintainExp = {
+  1: 60000,
+  2: 100000,
+  3: 200000,
+  4: 400000,
+  5: 750000,
+  6: 1500000,
+  7: 3000000,
+  8: 6000000,
+  9: 12000000,
+};
+
 /// Comma-groups an integer for display (1234567 -> "1,234,567").
 String _v2Fmt(int n) {
   final s = n.abs().toString();
@@ -378,7 +393,6 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
 
     final isCurrent = sel == owned && owned > 0; // exactly the active tier
     final isOwned = owned > 0 && sel <= owned; // reached (this or a lower tier)
-    final isLocked = sel > owned; // not yet reached
     final isMaxSel = sel >= 9;
 
     // Real privileges granted at the SELECTED tier (never hardcoded).
@@ -400,31 +414,45 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
               ? '${_v2Fmt(price)} coins required to unlock VIP $sel'
               : 'Recharge to unlock VIP $sel');
 
-    // Bottom card recharge progress reflects the user's REAL monthly recharge
-    // (about the owned tier), independent of the previewed tier.
+    // Bottom card = monthly *maintenance* progress for the user's OWNED tier.
+    // monthlyExp is the user's real recharge EXP; the target comes from the
+    // approved per-tier economy (not the server's monthly_maintain_exp, which
+    // can carry a legacy value such as 500,000,000).
     final vip = _userVip;
     final monthlyExp = vip?.monthlyExp ?? 0;
-    final monthlyTarget = vip?.monthlyMaintainExp ?? 100000;
-    final away = (monthlyTarget - monthlyExp) > 0
-        ? (monthlyTarget - monthlyExp)
+    final maintainTarget = _kVipMaintainExp[owned] ?? 0; // 0 when no VIP
+    final away = (maintainTarget - monthlyExp) > 0
+        ? (maintainTarget - monthlyExp)
         : 0;
-    final progress = monthlyTarget > 0
-        ? (monthlyExp / monthlyTarget).clamp(0.0, 1.0)
+    final progress = maintainTarget > 0
+        ? (monthlyExp / maintainTarget).clamp(0.0, 1.0)
         : 0.0;
-    final monthText = '${_v2Fmt(monthlyExp)} / ${_v2Fmt(monthlyTarget)} EXP';
-    // At max tier there is no "away" distance â€” the inline hint note below the
-    // card carries the maintain message instead, keeping this row uncluttered.
-    final awayText = owned >= 9
+    final monthText = maintainTarget > 0
+        ? '${_v2Fmt(monthlyExp)} / ${_v2Fmt(maintainTarget)} EXP'
+        : '${_v2Fmt(monthlyExp)} EXP this month';
+    final awayText = maintainTarget <= 0
         ? ''
-        : '${_v2Fmt(away)} EXP away from your monthly target';
+        : (away > 0
+              ? '${_v2Fmt(away)} EXP away from your monthly target'
+              : 'Monthly recharge target met');
+
+    // Message text — keyed on true ownership/selection, never a fake "max".
     final rechargeHint = owned >= 9
         ? 'Max VIP reached. Maintain your monthly recharge to keep benefits.'
-        : 'Recharge to upgrade your VIP tier.';
+        : owned == 0
+        ? 'Recharge to start your VIP journey.'
+        : sel > owned
+        ? 'Recharge to unlock this VIP tier.'
+        : 'Maintain your monthly recharge to keep this tier active.';
 
-    // Button label follows the selected-vs-owned state.
-    final btnLabel = isLocked
-        ? (owned == 0 ? 'Activate' : 'Upgrade')
-        : (owned >= 9 ? 'Recharge to Maintain' : 'Manage');
+    // Button label — upgrade vs maintain vs unlock vs max.
+    final btnLabel = owned >= 9
+        ? 'Maintain VIP Benefits'
+        : owned == 0
+        ? 'Recharge to Unlock'
+        : sel > owned
+        ? 'Recharge to Upgrade'
+        : 'Recharge to Maintain';
 
     return Stack(
       children: [
@@ -483,7 +511,9 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
           right: 0,
           bottom: 0,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+            // Extra bottom gap keeps the card clear of the Android nav bar
+            // (this sits inside SafeArea, which already lifts it above insets).
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
             child: _Vip2RechargeCard(
               monthText: monthText,
               awayText: awayText,
