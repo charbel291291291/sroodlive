@@ -6,6 +6,7 @@ import '../../gifts/screens/gift_catalog_screen.dart';
 import '../../messages/screens/private_chat_screen.dart';
 import '../../social/screens/report_user_screen.dart';
 import '../services/follow_service.dart';
+import 'follow_list_screen.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class UserProfileScreen extends StatefulWidget {
@@ -31,6 +32,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   bool _isFollowing = false;
   bool _isFollowedBy = false; // target follows ME
   bool _followBusy = false;
+  // Counts sourced from user_follows (same source as the lists), not the cached
+  // profile fields — guarantees counts and opened lists match.
+  int _followers = 0;
+  int _following = 0;
 
   bool get _isMutual => _isFollowing && _isFollowedBy;
 
@@ -46,7 +51,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       _error = null;
     });
     try {
-      final [profileRaw, isFollowing, isFollowedBy] = await Future.wait<dynamic>([
+      final [
+        profileRaw,
+        isFollowing,
+        isFollowedBy,
+        followers,
+        following,
+      ] = await Future.wait<dynamic>([
         SupabaseService.requiredClient
             .from('profiles')
             .select(
@@ -56,11 +67,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             .maybeSingle(),
         _followService.isFollowing(widget.userId),
         _followService.isFollowedBy(widget.userId),
+        _followService.followersCount(widget.userId),
+        _followService.followingCount(widget.userId),
       ]);
       if (!mounted) return;
       final profile = profileRaw as Map<String, dynamic>?;
 
       setState(() {
+        _followers = followers as int;
+        _following = following as int;
         _profile = profile ?? {
           'id': widget.userId,
           'display_name': widget.isArabic ? 'مستخدم' : 'Unknown user',
@@ -100,11 +115,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       if (!mounted) return;
       setState(() {
         _isFollowing = !_isFollowing;
-        final p = _profile!;
-        final current = (p['followers_count'] as int?) ?? 0;
-        p['followers_count'] = _isFollowing
-            ? current + 1
-            : (current - 1).clamp(0, 999999);
+        // This user gains/loses ME as a follower.
+        _followers = _isFollowing
+            ? _followers + 1
+            : (_followers - 1).clamp(0, 1 << 31);
       });
     } catch (_) {}
     if (mounted) setState(() => _followBusy = false);
@@ -201,8 +215,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             (vipExpiresAt == null || vipExpiresAt.isAfter(DateTime.now())))
         ? rawVipLevel
         : 0;
-    final followers = p['followers_count'] as int? ?? 0;
-    final following = p['following_count'] as int? ?? 0;
+    // Counts from user_follows (state), same source as the opened lists.
+    final followers = _followers;
+    final following = _following;
     final gifts = p['gifts_received_count'] as int? ?? 0;
     final visitors = p['visitors_count'] as int? ?? 0;
 
@@ -336,16 +351,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     children: [
                       _stat(
                         followers.toString(),
-                        isArabic
-                            ? 'متابعون'
-                            : 'Followers',
+                        isArabic ? 'متابعون' : 'Followers',
+                        onTap: () => _openFollowList('followers'),
                       ),
                       _statDivider(),
                       _stat(
                         following.toString(),
-                        isArabic
-                            ? 'يتابع'
-                            : 'Following',
+                        isArabic ? 'يتابع' : 'Following',
+                        onTap: () => _openFollowList('following'),
                       ),
                       _statDivider(),
                       _stat(
@@ -465,28 +478,60 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
   }
 
-  Widget _stat(String value, String label) {
+  Widget _stat(String value, String label, {VoidCallback? onTap}) {
+    final column = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 17,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: onTap != null ? const Color(0xFFD4AF37) : const Color(0xFF9E91B8),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (onTap != null)
+              const Icon(Icons.chevron_right_rounded,
+                  size: 13, color: Color(0xFFD4AF37)),
+          ],
+        ),
+      ],
+    );
     return Expanded(
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 17,
-              fontWeight: FontWeight.w900,
+      child: onTap == null
+          ? column
+          : InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: column,
+              ),
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFF9E91B8),
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
+    );
+  }
+
+  void _openFollowList(String kind) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => FollowListScreen(
+          userId: widget.userId,
+          kind: kind,
+          isArabic: widget.isArabic,
+        ),
       ),
     );
   }

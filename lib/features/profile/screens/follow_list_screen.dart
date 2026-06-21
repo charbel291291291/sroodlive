@@ -28,6 +28,7 @@ class _FollowListScreenState extends State<FollowListScreen> {
   bool _hasError = false;
   List<FollowUser> _users = const [];
   final Map<String, bool> _pending = {};
+  String? _meId;
 
   @override
   void initState() {
@@ -42,6 +43,7 @@ class _FollowListScreenState extends State<FollowListScreen> {
     });
     try {
       final me = SupabaseService.requiredClient.auth.currentUser?.id;
+      _meId = me;
       if (me == null) {
         setState(() => _isLoading = false);
         return;
@@ -170,6 +172,7 @@ class _FollowListScreenState extends State<FollowListScreen> {
         itemBuilder: (_, i) => _UserTile(
           user: _users[i],
           isArabic: isArabic,
+          isSelf: _users[i].id == _meId,
           isPending: _pending[_users[i].id] == true,
           onToggleFollow: () => _toggleFollow(_users[i]),
         ),
@@ -249,12 +252,14 @@ class _UserTile extends StatelessWidget {
   const _UserTile({
     required this.user,
     required this.isArabic,
+    required this.isSelf,
     required this.isPending,
     required this.onToggleFollow,
   });
 
   final FollowUser user;
   final bool isArabic;
+  final bool isSelf;
   final bool isPending;
   final VoidCallback onToggleFollow;
 
@@ -343,45 +348,48 @@ class _UserTile extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 10),
-            GestureDetector(
-              onTap: isPending ? null : onToggleFollow,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: user.viewerFollows
-                      ? const Color(0xFF1B102B)
-                      : const Color(0xFF8B26D9),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
+            // No follow button on your own row.
+            if (!isSelf) ...[
+              const SizedBox(width: 10),
+              GestureDetector(
+                onTap: isPending ? null : onToggleFollow,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
                     color: user.viewerFollows
-                        ? const Color(0xFF4A3470)
+                        ? const Color(0xFF1B102B)
                         : const Color(0xFF8B26D9),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: user.viewerFollows
+                          ? const Color(0xFF4A3470)
+                          : const Color(0xFF8B26D9),
+                    ),
                   ),
-                ),
-                child: isPending
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : Text(
-                        user.viewerFollows
-                            ? (isArabic ? 'إلغاء المتابعة' : 'Following')
-                            : (isArabic ? 'متابعة' : 'Follow'),
-                        style: TextStyle(
-                          color: user.viewerFollows
-                              ? const Color(0xFFBCAED6)
-                              : Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
+                  child: isPending
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : Text(
+                          user.viewerFollows
+                              ? (isArabic ? 'إلغاء المتابعة' : 'Following')
+                              : (isArabic ? 'متابعة' : 'Follow'),
+                          style: TextStyle(
+                            color: user.viewerFollows
+                                ? const Color(0xFFBCAED6)
+                                : Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
-                      ),
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
