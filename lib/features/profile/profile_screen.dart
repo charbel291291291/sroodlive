@@ -10,6 +10,7 @@ import '../../core/auth/safe_logout.dart';
 import '../../core/utils/vip_visuals.dart';
 import '../../core/vip/vip_frame_layout.dart';
 import '../../shared/widgets/avatar_with_frame.dart';
+import '../../shared/widgets/premium_ui.dart';
 import '../../shared/widgets/vip_badge.dart';
 import '../../shared/widgets/vip_username.dart';
 import '../profile_hub/screens/customer_service_screen.dart';
@@ -1843,11 +1844,12 @@ class _WalletCards extends StatelessWidget {
         Expanded(
           child: WalletBalanceCard(
             icon: Icons.monetization_on_rounded,
-            label: isArabic ? 'Ø§Ù„Ø¹Ù…Ù„Ø§Øª' : 'Coins',
+            label: isArabic ? 'Ø§Ù„Ø¹Ù…Ù„Ø§Øª' : 'Coin wallet',
             value: coins,
             isLoading: isLoading,
-            colors: const [Color(0xFFFFD978), Color(0xFFC9871C)],
-            glowColor: Color(0xFFF0C15A),
+            colors: const [Color(0xFFFFE9A8), Color(0xFFF0C15A), Color(0xFFC9871C)],
+            glowColor: const Color(0xFFF0C15A),
+            textColor: const Color(0xFF3A2606),
             onTap: onCoinsTap,
           ),
         ),
@@ -1855,11 +1857,12 @@ class _WalletCards extends StatelessWidget {
         Expanded(
           child: WalletBalanceCard(
             icon: Icons.diamond_rounded,
-            label: isArabic ? 'Ø§Ù„Ø£Ù„Ù…Ø§Ø³' : 'Diamonds',
+            label: isArabic ? 'Ø§Ù„Ø£Ù„Ù…Ø§Ø³' : 'Diamonds wallet',
             value: diamonds,
             isLoading: isLoading,
-            colors: const [Color(0xFFE4B5FF), Color(0xFF7D2BFF)],
-            glowColor: Color(0xFFB875FF),
+            colors: const [Color(0xFFF1A6FF), Color(0xFFB44CF0), Color(0xFF7D2BFF)],
+            glowColor: const Color(0xFFB875FF),
+            textColor: Colors.white,
             onTap: onDiamondsTap,
           ),
         ),
@@ -1876,6 +1879,7 @@ class WalletBalanceCard extends StatelessWidget {
     required this.colors,
     required this.glowColor,
     required this.onTap,
+    this.textColor = const Color(0xFF160B26),
     this.isLoading = false,
     super.key,
   });
@@ -1886,88 +1890,194 @@ class WalletBalanceCard extends StatelessWidget {
   final List<Color> colors;
   final Color glowColor;
   final VoidCallback onTap;
+  final Color textColor;
   final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
+    final onColor = textColor;
     return InkWell(
       borderRadius: BorderRadius.circular(22),
       onTap: onTap,
-      child: Container(
-        height: 96,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: colors,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          height: 104,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            // Premium 3D glossy gradient (identity colors preserved).
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: colors,
+            ),
+            // Beveled rim.
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.55),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: glowColor.withValues(alpha: 0.40),
+                blurRadius: 22,
+                offset: const Offset(0, 10),
+                spreadRadius: -2,
+              ),
+            ],
           ),
-          border: Border.all(color: glowColor.withValues(alpha: 0.45)),
-          boxShadow: [
-            BoxShadow(
-              color: glowColor.withValues(alpha: 0.28),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-              spreadRadius: -2,
-            ),
-          ],
+          child: Stack(
+            children: [
+              // Top glossy shine.
+              const Positioned.fill(child: GlossSheen(opacity: 0.30)),
+              // Right-side programmatic wallet artwork (decorative).
+              Positioned(
+                right: -14,
+                bottom: -10,
+                child: _WalletArt(accent: icon, tint: onColor),
+              ),
+              // Content.
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: onColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              height: 1.0,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          color: onColor.withValues(alpha: 0.5),
+                          size: 11,
+                        ),
+                      ],
+                    ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Raised currency coin/diamond chip.
+                        Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withValues(alpha: 0.28),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.55),
+                            ),
+                          ),
+                          child: Icon(icon, color: onColor, size: 16),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: isLoading
+                              ? Container(
+                                  width: 60,
+                                  height: 18,
+                                  decoration: BoxDecoration(
+                                    color: onColor.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                )
+                              : FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: AlignmentDirectional.centerStart,
+                                  child: Text(
+                                    _formatCount(value),
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      color: onColor,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w900,
+                                      height: 1.0,
+                                      shadows: [
+                                        Shadow(
+                                          color: Colors.white.withValues(alpha: 0.25),
+                                          blurRadius: 1,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
+      ),
+    );
+  }
+}
+
+/// Programmatic premium wallet artwork (tilted wallet body + flap + accent),
+/// used as a decorative element on the right of a wallet card. No assets.
+class _WalletArt extends StatelessWidget {
+  const _WalletArt({required this.accent, required this.tint});
+
+  final IconData accent;
+  final Color tint;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Opacity(
+        opacity: 0.28,
+        child: Transform.rotate(
+          angle: -0.18,
+          child: SizedBox(
+            width: 78,
+            height: 78,
+            child: Stack(
+              alignment: Alignment.center,
               children: [
-                Icon(icon, color: const Color(0xFF160B26), size: 20),
-                const Spacer(),
-                Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  color: const Color(0xFF160B26).withValues(alpha: 0.5),
-                  size: 12,
+                // Wallet body.
+                Container(
+                  width: 64,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white.withValues(alpha: 0.30),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      width: 1.4,
+                    ),
+                  ),
                 ),
-              ],
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (isLoading)
-                  Container(
-                    width: 60,
-                    height: 18,
+                // Wallet flap.
+                Positioned(
+                  right: 8,
+                  child: Container(
+                    width: 22,
+                    height: 22,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF160B26).withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(6),
+                      shape: BoxShape.circle,
+                      color: tint.withValues(alpha: 0.45),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.5),
+                      ),
                     ),
-                  )
-                else
-                  Text(
-                    _formatCount(value),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF160B26),
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                      height: 1.0,
-                    ),
-                  ),
-                const SizedBox(height: 2),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF160B26),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    height: 1.0,
+                    child: Icon(accent, size: 13, color: Colors.white),
                   ),
                 ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );
