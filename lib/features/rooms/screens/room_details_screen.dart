@@ -1501,9 +1501,29 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       _roomLog('[RoomImage] failed: $e');
       debugPrintStack(stackTrace: st);
       if (!mounted) return;
-      final msg = e is ArgumentError
-          ? e.message.toString()
-          : 'Failed to send image. Please try again.';
+      // Map known server error codes to clear, localized messages so a failure
+      // is never a silent / generic "try again".
+      final isArabic = context.isArabic;
+      final raw = e.toString();
+      String msg;
+      if (e is ArgumentError) {
+        msg = e.message.toString();
+      } else if (raw.contains('user_muted')) {
+        msg = isArabic
+            ? 'أنت مكتوم ولا يمكنك إرسال الصور.'
+            : 'You are muted and cannot send images.';
+      } else if (raw.contains('image_messages_unlock_at_vip_7') ||
+          raw.contains('vip7')) {
+        msg = isArabic
+            ? 'رسائل الصور تُفتح من VIP 7'
+            : 'Image messages unlock at VIP 7';
+      } else if (raw.contains('room_not_found')) {
+        msg = isArabic ? 'الغرفة غير متاحة.' : 'Room not available.';
+      } else {
+        msg = isArabic
+            ? 'تعذّر إرسال الصورة. حاول مرة أخرى.'
+            : 'Failed to send image. Please try again.';
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(msg),
