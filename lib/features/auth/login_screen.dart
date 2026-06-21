@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/supabase/supabase_service.dart';
 import '../../main.dart';
 import '../home/home_screen.dart';
+import 'legal_screens.dart';
 import 'registration_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -309,6 +310,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               ),
                             ),
+
+                            // Legal footer — Terms & Privacy, tappable.
+                            LegalFooter(isArabic: isArabic),
+
                             SizedBox(height: bottomSpacing),
                           ],
                         ),

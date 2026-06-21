@@ -4,6 +4,7 @@ import '../../core/config/app_config.dart';
 import '../../core/supabase/supabase_service.dart';
 import '../../main.dart';
 import '../../shared/branding/branding_assets.dart';
+import 'legal_screens.dart';
 import 'profile_setup_screen.dart';
 
 class RegistrationScreen extends StatefulWidget {
@@ -335,7 +336,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+
+                    // Legal footer — Terms & Privacy, tappable.
+                    LegalFooter(isArabic: isArabic),
                   ],
                 ),
               ),
