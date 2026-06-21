@@ -5,6 +5,7 @@ import '../../../shared/widgets/vip_username.dart';
 import '../../gifts/screens/gift_catalog_screen.dart';
 import '../../messages/screens/private_chat_screen.dart';
 import '../../social/screens/report_user_screen.dart';
+import '../../../shared/widgets/gender_chip.dart';
 import '../services/follow_service.dart';
 import 'follow_list_screen.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
@@ -61,7 +62,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         SupabaseService.requiredClient
             .from('profiles')
             .select(
-              'id, username, public_user_id, display_name, bio, avatar_url, vip_level, vip_expires_at, followers_count, following_count, gifts_received_count, visitors_count',
+              'id, username, public_user_id, display_name, bio, avatar_url, vip_level, vip_expires_at, gender, followers_count, following_count, gifts_received_count, visitors_count',
             )
             .eq('id', widget.userId)
             .maybeSingle(),
@@ -309,6 +310,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     if (vipLevel > 0) ...[
                       const SizedBox(width: 6),
                       VipBadge(vipLevel: vipLevel, compact: true),
+                    ],
+                    if (ProfileGenderChip.isKnown(p['gender']?.toString())) ...[
+                      const SizedBox(width: 6),
+                      ProfileGenderChip(
+                        gender: p['gender'].toString(),
+                        isArabic: isArabic,
+                      ),
                     ],
                   ],
                 ),

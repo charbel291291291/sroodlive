@@ -10,6 +10,7 @@ import '../../core/auth/safe_logout.dart';
 import '../../core/utils/vip_visuals.dart';
 import '../../core/vip/vip_frame_layout.dart';
 import '../../shared/widgets/avatar_with_frame.dart';
+import '../../shared/widgets/gender_chip.dart';
 import '../../shared/widgets/premium_ui.dart';
 import '../../shared/widgets/vip_badge.dart';
 import '../../shared/widgets/vip_username.dart';
@@ -481,6 +482,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             final selectedGender = genderOptions.contains(currentGender)
                 ? currentGender
                 : null;
+            // One-time locks (server-enforced; UI mirrors them).
+            final genderLocked = profile?['gender_changed_once'] == true;
+            final countryLocked = profile?['country_changed_once'] == true;
+            final lockHint = TextStyle(
+              color: Colors.white.withValues(alpha: 0.45),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            );
             return SafeArea(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
@@ -534,15 +543,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                       ),
-                      CountrySelector(
-                        selected: _selectedCountry,
-                        isArabic: context.isArabic,
-                        onSelected: (c) {
-                          setSheetState(() {
-                            _selectedCountry = c;
-                            countryController.text = c.name;
-                          });
-                        },
+                      IgnorePointer(
+                        ignoring: countryLocked,
+                        child: Opacity(
+                          opacity: countryLocked ? 0.5 : 1.0,
+                          child: CountrySelector(
+                            selected: _selectedCountry,
+                            isArabic: context.isArabic,
+                            onSelected: (c) {
+                              setSheetState(() {
+                                _selectedCountry = c;
+                                countryController.text = c.name;
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4, bottom: 8),
+                        child: Text(
+                          countryLocked
+                              ? (context.isArabic
+                                  ? 'الدولة مقفلة.'
+                                  : 'Country is locked.')
+                              : (context.isArabic
+                                  ? 'يمكنك تغيير الدولة مرة واحدة فقط.'
+                                  : 'You can change country only once.'),
+                          style: lockHint,
+                        ),
                       ),
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),
@@ -568,12 +596,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               );
                             }),
-                            onChanged: (v) {
-                              setSheetState(() {
-                                genderController.text = v ?? '';
-                              });
-                            },
+                            onChanged: genderLocked
+                                ? null
+                                : (v) {
+                                    setSheetState(() {
+                                      genderController.text = v ?? '';
+                                    });
+                                  },
                           ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text(
+                          genderLocked
+                              ? (context.isArabic
+                                  ? 'الجنس مقفل.'
+                                  : 'Gender is locked.')
+                              : (context.isArabic
+                                  ? 'يمكنك تغيير الجنس مرة واحدة فقط.'
+                                  : 'You can change gender only once.'),
+                          style: lockHint,
                         ),
                       ),
                       _ProfileInput(
@@ -908,36 +951,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final user = client.auth.currentUser;
       if (user == null) throw StateError('No logged-in user found.');
 
-      final values = {
-        'username': currentUsername.isEmpty ? displayName : currentUsername,
-        'display_name': displayName,
-        'date_of_birth': dateOfBirth.isEmpty ? null : dateOfBirth,
-        'bio': bio.isEmpty ? null : bio,
-        'country': country.isEmpty ? null : country,
-        'gender': gender.isEmpty ? null : gender,
-        'updated_at': DateTime.now().toIso8601String(),
-      };
-
+      // Profile updates go through the SECURITY DEFINER RPC, which enforces the
+      // one-time gender/country change rule server-side.
       try {
-        await client.from('profiles').update(values).eq('id', user.id);
+        await client.rpc('update_my_profile', params: {
+          'p_username': currentUsername,
+          'p_display_name': displayName,
+          'p_date_of_birth': dateOfBirth,
+          'p_bio': bio,
+          'p_country': country,
+          'p_gender': gender,
+        });
       } catch (error) {
-        final message = error.toString();
-        if (!message.contains('date_of_birth') &&
-            !message.contains('bio') &&
-            !message.contains('country') &&
-            !message.contains('gender')) {
-          rethrow;
+        final msg = error.toString();
+        if (msg.contains('gender_locked')) {
+          setState(() {
+            isSaving = false;
+            errorMessage = isArabic
+                ? 'يمكن تغيير الجنس مرة واحدة فقط.'
+                : 'Gender can only be changed once.';
+          });
+          return;
         }
-        await client
-            .from('profiles')
-            .update({
-              'username': currentUsername.isEmpty
-                  ? displayName
-                  : currentUsername,
-              'display_name': displayName,
-              'updated_at': DateTime.now().toIso8601String(),
-            })
-            .eq('id', user.id);
+        if (msg.contains('country_locked')) {
+          setState(() {
+            isSaving = false;
+            errorMessage = isArabic
+                ? 'يمكن تغيير الدولة مرة واحدة فقط.'
+                : 'Country can only be changed once.';
+          });
+          return;
+        }
+        rethrow;
       }
 
       await _loadProfile();
@@ -1451,12 +1496,8 @@ class _PremiumProfileHero extends StatelessWidget {
                           label: isArabic ? 'Ù…Ø³ØªÙˆÙ‰ $level' : 'Lv. $level',
                           highlighted: false,
                         ),
-                        if (gender.isNotEmpty)
-                          _ProfileBadge(
-                            icon: Icons.person_rounded,
-                            label: gender,
-                            highlighted: false,
-                          ),
+                        if (ProfileGenderChip.isKnown(gender))
+                          ProfileGenderChip(gender: gender, isArabic: isArabic),
                       ],
                     ),
                     const SizedBox(height: 10),
