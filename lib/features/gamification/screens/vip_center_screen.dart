@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/vip/vip_privileges.dart';
@@ -14,9 +14,10 @@ import '../../vip/models/user_vip.dart';
 import '../../vip/screens/vip_settings_screen.dart';
 import '../../vip/services/vip_service.dart';
 import '../services/gamification_service.dart';
+import 'vip_rules_screen.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
-// ── Palette ───────────────────────────────────────────────────────────────────
+// â”€â”€ Palette â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const _kBg = Color(0xFF07030D);
 const _kCard = Color(0xFF12091D);
@@ -29,7 +30,7 @@ const _kPurpleMid = Color(0xFF8B26D9);
 const _kGreen = Color(0xFF2ECC71);
 const _kRed = Color(0xFFFF5C7A);
 
-// ── VIP Center 2.0 (Srood VIP Prestige) ──────────────────────────────────────
+// â”€â”€ VIP Center 2.0 (Srood VIP Prestige) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Phase V1: presentational reskin. Flip this flag to false to instantly fall
 // back to the legacy VIP Center layout (kept fully intact below).
 final bool _kUseVip2Shell = true;
@@ -51,7 +52,7 @@ String _v2Fmt(int n) {
   return b.toString();
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class VipCenterScreen extends StatefulWidget {
   const VipCenterScreen({
@@ -111,7 +112,7 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
       });
       return;
     }
-    // VIP EXP data is supplementary — a failure here must not block the screen.
+    // VIP EXP data is supplementary â€” a failure here must not block the screen.
     try {
       final vip = await VipService().getMyVip();
       if (!mounted) return;
@@ -181,7 +182,7 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
           icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
         ),
         Text(
-          context.isArabic ? 'مركز VIP' : 'VIP Center',
+          context.isArabic ? 'Ù…Ø±ÙƒØ² VIP' : 'VIP Center',
           style: const TextStyle(
             color: Colors.white,
             fontSize: 22,
@@ -228,7 +229,7 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
           const SizedBox(height: 24),
           _SectionLabel(
             label: context.isArabic
-                ? 'استكشاف مستويات VIP'
+                ? 'Ø§Ø³ØªÙƒØ´Ø§Ù Ù…Ø³ØªÙˆÙŠØ§Øª VIP'
                 : 'Explore VIP Tiers',
             isArabic: context.isArabic,
           ),
@@ -279,7 +280,7 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
         TextButton(
           onPressed: _load,
           child: Text(
-            context.isArabic ? 'إعادة المحاولة' : 'Retry',
+            context.isArabic ? 'Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø©' : 'Retry',
             style: const TextStyle(color: _kGold),
           ),
         ),
@@ -287,9 +288,9 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
     ),
   );
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // VIP Center 2.0 — Phase V1 presentational shell (English-only)
-  // ───────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // VIP Center 2.0 â€” Phase V1 presentational shell (English-only)
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Widget _buildVip2Header() => Padding(
     padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
@@ -314,7 +315,7 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
               ),
               SizedBox(height: 2),
               Text(
-                'PRESTIGE CENTER',
+                'SROOD LIVE',
                 style: TextStyle(
                   color: _v2Lilac,
                   fontSize: 9,
@@ -334,27 +335,22 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
   );
 
   void _onVip2HelpTap() {
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text(
-            'VIP tiers unlock premium perks. Recharge to climb the ranks.',
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const VipRulesScreen()),
+    );
   }
 
-  // Phase V1 CTA — honest, no purchase logic. The existing economy grants VIP
+  // Phase V1 CTA â€” honest, no purchase logic. The existing economy grants VIP
   // through a recharge agent / admin, so this points the user there.
   void _onVip2UpgradeTap() {
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
       ..showSnackBar(
+        // Fixed (docked) behaviour so the snackbar never floats on top of the
+        // sticky recharge card the way the old floating snackbar did.
         const SnackBar(
           content: Text('Upgrade your VIP through a recharge agent or admin.'),
-          behavior: SnackBarBehavior.floating,
+          behavior: SnackBarBehavior.fixed,
         ),
       );
   }
@@ -415,9 +411,14 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
         ? (monthlyExp / monthlyTarget).clamp(0.0, 1.0)
         : 0.0;
     final monthText = '${_v2Fmt(monthlyExp)} / ${_v2Fmt(monthlyTarget)} EXP';
+    // At max tier there is no "away" distance â€” the inline hint note below the
+    // card carries the maintain message instead, keeping this row uncluttered.
     final awayText = owned >= 9
-        ? 'Max VIP reached - maintain your monthly recharge'
+        ? ''
         : '${_v2Fmt(away)} EXP away from your monthly target';
+    final rechargeHint = owned >= 9
+        ? 'Max VIP reached. Maintain your monthly recharge to keep benefits.'
+        : 'Recharge to upgrade your VIP tier.';
 
     // Button label follows the selected-vs-owned state.
     final btnLabel = isLocked
@@ -430,9 +431,10 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
           color: _kGold,
           backgroundColor: const Color(0xFF1B102A),
           onRefresh: _load,
-          // Bottom padding leaves room for the sticky recharge card.
+          // Bottom padding leaves room for the sticky recharge card (incl. the
+          // inline hint note beneath the button).
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 250),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 290),
             children: [
               const SizedBox(height: 4),
               _Vip2Crest(level: sel),
@@ -486,6 +488,7 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
               awayText: awayText,
               progress: progress.toDouble(),
               buttonLabel: btnLabel,
+              hint: rechargeHint,
               onUpgrade: _onVip2UpgradeTap,
             ),
           ),
@@ -495,9 +498,9 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Section label
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel({required this.label, required this.isArabic});
@@ -518,9 +521,9 @@ class _SectionLabel extends StatelessWidget {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Current status card
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _CurrentStatusCard extends StatelessWidget {
   const _CurrentStatusCard({
@@ -608,23 +611,23 @@ class _CurrentStatusCard extends StatelessWidget {
                   children: [
                     if (_isActive)
                       _StatusPill(
-                        label: isArabic ? 'نشط' : 'Active',
+                        label: isArabic ? 'Ù†Ø´Ø·' : 'Active',
                         color: const Color(0xFF22C55E),
                       )
                     else if (_isExpired)
                       _StatusPill(
-                        label: isArabic ? 'منتهي' : 'Expired',
+                        label: isArabic ? 'Ù…Ù†ØªÙ‡ÙŠ' : 'Expired',
                         color: _kRed,
                       )
                     else
                       _StatusPill(
-                        label: isArabic ? 'غير مفعّل' : 'No VIP',
+                        label: isArabic ? 'ØºÙŠØ± Ù…ÙØ¹Ù‘Ù„' : 'No VIP',
                         color: _kSubtext,
                       ),
                     if (_isActive && _isMax) ...[
                       const SizedBox(width: 6),
                       _StatusPill(
-                        label: isArabic ? 'الحد الأقصى' : 'MAX',
+                        label: isArabic ? 'Ø§Ù„Ø­Ø¯ Ø§Ù„Ø£Ù‚ØµÙ‰' : 'MAX',
                         color: tier!.start,
                       ),
                     ],
@@ -635,7 +638,7 @@ class _CurrentStatusCard extends StatelessWidget {
                 Text(
                   _isActive
                       ? 'VIP $_vipLabel'
-                      : (isArabic ? 'لا يوجد VIP نشط' : 'No Active VIP'),
+                      : (isArabic ? 'Ù„Ø§ ÙŠÙˆØ¬Ø¯ VIP Ù†Ø´Ø·' : 'No Active VIP'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -651,7 +654,7 @@ class _CurrentStatusCard extends StatelessWidget {
                   _InfoRow(
                     icon: Icons.calendar_today_rounded,
                     text: isArabic
-                        ? 'ينتهي: ${_fmtDate(expiresAt!)}'
+                        ? 'ÙŠÙ†ØªÙ‡ÙŠ: ${_fmtDate(expiresAt!)}'
                         : 'Expires: ${_fmtDate(expiresAt!)}',
                     color: _kText,
                   ),
@@ -659,7 +662,7 @@ class _CurrentStatusCard extends StatelessWidget {
                   _InfoRow(
                     icon: Icons.timer_rounded,
                     text: isArabic
-                        ? 'المتبقي: $_remainingDays يوم'
+                        ? 'Ø§Ù„Ù…ØªØ¨Ù‚ÙŠ: $_remainingDays ÙŠÙˆÙ…'
                         : 'Remaining: $_remainingDays day${_remainingDays == 1 ? '' : 's'}',
                     color: _remainingDaysColor,
                   ),
@@ -667,7 +670,7 @@ class _CurrentStatusCard extends StatelessWidget {
                   _InfoRow(
                     icon: Icons.timer_off_rounded,
                     text: isArabic
-                        ? 'انتهى في: ${_fmtDate(expiresAt!)}'
+                        ? 'Ø§Ù†ØªÙ‡Ù‰ ÙÙŠ: ${_fmtDate(expiresAt!)}'
                         : 'Expired on: ${_fmtDate(expiresAt!)}',
                     color: _kRed,
                   )
@@ -675,7 +678,7 @@ class _CurrentStatusCard extends StatelessWidget {
                   _InfoRow(
                     icon: Icons.info_outline_rounded,
                     text: isArabic
-                        ? 'تواصل مع الإدارة للحصول على VIP'
+                        ? 'ØªÙˆØ§ØµÙ„ Ù…Ø¹ Ø§Ù„Ø¥Ø¯Ø§Ø±Ø© Ù„Ù„Ø­ØµÙˆÙ„ Ø¹Ù„Ù‰ VIP'
                         : 'Contact admin to get VIP',
                     color: _kSubtext,
                   ),
@@ -743,9 +746,9 @@ class _InfoRow extends StatelessWidget {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // VIP Level Progress section
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _VipProgressSection extends StatelessWidget {
   const _VipProgressSection({
@@ -788,14 +791,14 @@ class _VipProgressSection extends StatelessWidget {
             ? CrossAxisAlignment.end
             : CrossAxisAlignment.start,
         children: [
-          // ── Header ──────────────────────────────────────────────────────────
+          // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           Row(
             textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
             children: [
               const Icon(Icons.trending_up_rounded, color: _kGold, size: 16),
               const SizedBox(width: 7),
               Text(
-                isArabic ? 'تقدم VIP' : 'VIP Progress',
+                isArabic ? 'ØªÙ‚Ø¯Ù… VIP' : 'VIP Progress',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 13,
@@ -815,7 +818,7 @@ class _VipProgressSection extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // ── 9-segment tier bar ───────────────────────────────────────────────
+          // â”€â”€ 9-segment tier bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           Row(
             children: List.generate(9, (i) {
               final segLevel = i + 1;
@@ -849,7 +852,7 @@ class _VipProgressSection extends StatelessWidget {
           ),
           const SizedBox(height: 14),
 
-          // ── EXP stats ────────────────────────────────────────────────────────
+          // â”€â”€ EXP stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           if (vip != null && hasExp) ...[
             // Promote to non-null inside builder via local
             _VipExpBlock(
@@ -860,15 +863,15 @@ class _VipProgressSection extends StatelessWidget {
               fmtExp: _fmtExp,
             ),
           ] else ...[
-            // No EXP data yet — show journey start prompt
+            // No EXP data yet â€” show journey start prompt
             _ExpStatRow(
               icon: Icons.rocket_launch_rounded,
               text: vipLevel <= 0
                   ? (isArabic
-                        ? 'ابدأ رحلة VIP بالشحن'
+                        ? 'Ø§Ø¨Ø¯Ø£ Ø±Ø­Ù„Ø© VIP Ø¨Ø§Ù„Ø´Ø­Ù†'
                         : 'Start your VIP journey by recharging')
                   : (isArabic
-                        ? 'استمر بالشحن للحفاظ على VIP'
+                        ? 'Ø§Ø³ØªÙ…Ø± Ø¨Ø§Ù„Ø´Ø­Ù† Ù„Ù„Ø­ÙØ§Ø¸ Ø¹Ù„Ù‰ VIP'
                         : 'Keep recharging to maintain your VIP'),
               color: _kSubtext,
               isArabic: isArabic,
@@ -880,7 +883,7 @@ class _VipProgressSection extends StatelessWidget {
   }
 }
 
-// ── EXP helper widgets ────────────────────────────────────────────────────────
+// â”€â”€ EXP helper widgets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // Separate stateless widget so Dart narrows vip to non-null via the constructor.
 class _VipExpBlock extends StatelessWidget {
@@ -909,7 +912,7 @@ class _VipExpBlock extends StatelessWidget {
         children: [
           Expanded(
             child: _ExpStat(
-              label: isArabic ? 'إجمالي الشحن' : 'Total Recharge EXP',
+              label: isArabic ? 'Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ø´Ø­Ù†' : 'Total Recharge EXP',
               value: fmtExp(vip.rechargeExp),
               icon: Icons.bolt_rounded,
               color: _kGold,
@@ -919,7 +922,7 @@ class _VipExpBlock extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: _ExpStat(
-              label: isArabic ? 'EXP هذا الشهر' : 'Monthly EXP',
+              label: isArabic ? 'EXP Ù‡Ø°Ø§ Ø§Ù„Ø´Ù‡Ø±' : 'Monthly EXP',
               value: fmtExp(vip.monthlyExp),
               icon: Icons.calendar_month_rounded,
               color: _kPurpleMid,
@@ -934,11 +937,11 @@ class _VipExpBlock extends StatelessWidget {
       if (!isMax) ...[
         _ExpProgressBar(
           label: isArabic
-              ? 'نحو VIP ${vipLevel + 1}'
+              ? 'Ù†Ø­Ùˆ VIP ${vipLevel + 1}'
               : 'Progress to VIP ${vipLevel + 1}',
           progress: vip.nextTierProgress ?? 0.0,
           remaining: vip.expToNextTier,
-          remainingLabel: isArabic ? 'متبقي' : 'remaining',
+          remainingLabel: isArabic ? 'Ù…ØªØ¨Ù‚ÙŠ' : 'remaining',
           gradientColors: const [_kPurpleDeep, _kPurpleMid],
           isArabic: isArabic,
           fmtExp: fmtExp,
@@ -948,7 +951,7 @@ class _VipExpBlock extends StatelessWidget {
         _ExpStatRow(
           icon: Icons.emoji_events_rounded,
           text: isArabic
-              ? 'وصلت إلى أعلى مستوى VIP!'
+              ? 'ÙˆØµÙ„Øª Ø¥Ù„Ù‰ Ø£Ø¹Ù„Ù‰ Ù…Ø³ØªÙˆÙ‰ VIP!'
               : 'Maximum VIP tier reached!',
           color: _kGold,
           isArabic: isArabic,
@@ -959,16 +962,16 @@ class _VipExpBlock extends StatelessWidget {
       // Monthly maintain progress (VIP > 0 only)
       if (vipLevel > 0)
         _ExpProgressBar(
-          label: isArabic ? 'تجديد الشهر الحالي' : 'Monthly Renewal',
+          label: isArabic ? 'ØªØ¬Ø¯ÙŠØ¯ Ø§Ù„Ø´Ù‡Ø± Ø§Ù„Ø­Ø§Ù„ÙŠ' : 'Monthly Renewal',
           progress: vip.monthlyMaintainProgress ?? 0.0,
           remaining: vip.expToMaintain,
-          remainingLabel: isArabic ? 'للتجديد' : 'to renew',
+          remainingLabel: isArabic ? 'Ù„Ù„ØªØ¬Ø¯ÙŠØ¯' : 'to renew',
           gradientColors: vip.isMonthlyMaintainMet
               ? const [Color(0xFF16A34A), Color(0xFF22C55E)]
               : const [Color(0xFF9A3412), Color(0xFFF59E0B)],
           isArabic: isArabic,
           fmtExp: fmtExp,
-          metLabel: isArabic ? 'تجديد مضمون ✓' : 'Renewal secured ✓',
+          metLabel: isArabic ? 'ØªØ¬Ø¯ÙŠØ¯ Ù…Ø¶Ù…ÙˆÙ† âœ“' : 'Renewal secured âœ“',
           isMet: vip.isMonthlyMaintainMet,
         ),
     ],
@@ -1183,9 +1186,9 @@ class _ExpStatRow extends StatelessWidget {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // VIP settings shortcut
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _VipSettingsButton extends StatelessWidget {
   const _VipSettingsButton({required this.vipLevel, required this.isArabic});
@@ -1222,7 +1225,7 @@ class _VipSettingsButton extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Text(
-              isArabic ? 'إعدادات VIP' : 'VIP Settings',
+              isArabic ? 'Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª VIP' : 'VIP Settings',
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
@@ -1242,9 +1245,9 @@ class _VipSettingsButton extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Tier selector — horizontal scroll VIP 1..9 (premium tier cards)
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Tier selector â€” horizontal scroll VIP 1..9 (premium tier cards)
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _TierSelector extends StatelessWidget {
   const _TierSelector({
@@ -1382,9 +1385,9 @@ class _VipTierCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Tier preview card
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _TierPreviewCard extends StatelessWidget {
   const _TierPreviewCard({
@@ -1435,7 +1438,7 @@ class _TierPreviewCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    isArabic ? 'أنت' : 'You',
+                    isArabic ? 'Ø£Ù†Øª' : 'You',
                     style: const TextStyle(
                       color: Colors.black,
                       fontSize: 9,
@@ -1467,12 +1470,12 @@ class _TierPreviewCard extends StatelessWidget {
                   children: [
                     _FeatureChip(
                       icon: Icons.crop_portrait_rounded,
-                      label: isArabic ? 'إطار' : 'Frame',
+                      label: isArabic ? 'Ø¥Ø·Ø§Ø±' : 'Frame',
                       active: spec.hasFrame,
                     ),
                     _FeatureChip(
                       icon: Icons.verified_rounded,
-                      label: isArabic ? 'شارة' : 'Badge',
+                      label: isArabic ? 'Ø´Ø§Ø±Ø©' : 'Badge',
                       active: spec.hasBadge,
                     ),
                   ],
@@ -1485,18 +1488,18 @@ class _TierPreviewCard extends StatelessWidget {
                   children: [
                     _ColorDot(
                       color: spec.glowColor,
-                      label: isArabic ? 'توهج' : 'Glow',
+                      label: isArabic ? 'ØªÙˆÙ‡Ø¬' : 'Glow',
                     ),
                     const SizedBox(width: 10),
                     _ColorDot(
                       color: spec.nameColor,
-                      label: isArabic ? 'اسم' : 'Name',
+                      label: isArabic ? 'Ø§Ø³Ù…' : 'Name',
                     ),
                     if (spec.bannerGradient.isNotEmpty) ...[
                       const SizedBox(width: 10),
                       _ColorDot(
                         color: spec.bannerGradient.first,
-                        label: isArabic ? 'لافتة' : 'Banner',
+                        label: isArabic ? 'Ù„Ø§ÙØªØ©' : 'Banner',
                       ),
                     ],
                   ],
@@ -1568,9 +1571,9 @@ class _FeatureChip extends StatelessWidget {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Benefits list
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _BenefitsList extends StatelessWidget {
   const _BenefitsList({required this.level, required this.isArabic});
@@ -1606,7 +1609,7 @@ class _BenefitsList extends StatelessWidget {
     final locked = VipPrivileges.lockedFor(level);
     final total = unlocked.length + locked.length;
 
-    // Tier color for the header counter — use the viewed tier, fall back to gold
+    // Tier color for the header counter â€” use the viewed tier, fall back to gold
     final headerColor = level > 0 ? VipTierColors.of(level).border : _kGold;
 
     return Container(
@@ -1618,7 +1621,7 @@ class _BenefitsList extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header ─────────────────────────────────────────────────────────
+          // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
             child: Row(
@@ -1631,7 +1634,7 @@ class _BenefitsList extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  isArabic ? 'المزايا' : 'Benefits',
+                  isArabic ? 'Ø§Ù„Ù…Ø²Ø§ÙŠØ§' : 'Benefits',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,
@@ -1666,13 +1669,13 @@ class _BenefitsList extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
-          // ── Unlocked section ───────────────────────────────────────────────
+          // â”€â”€ Unlocked section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           if (unlocked.isNotEmpty) ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
               child: _BenefitSectionLabel(
                 icon: Icons.check_circle_rounded,
-                label: isArabic ? 'مفعّلة' : 'Unlocked',
+                label: isArabic ? 'Ù…ÙØ¹Ù‘Ù„Ø©' : 'Unlocked',
                 color: const Color(0xFF22C55E),
                 isArabic: isArabic,
               ),
@@ -1687,7 +1690,7 @@ class _BenefitsList extends StatelessWidget {
             ),
           ],
 
-          // ── Divider + locked section ───────────────────────────────────────
+          // â”€â”€ Divider + locked section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           if (locked.isNotEmpty) ...[
             if (unlocked.isNotEmpty)
               Padding(
@@ -1700,7 +1703,7 @@ class _BenefitsList extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
               child: _BenefitSectionLabel(
                 icon: Icons.lock_rounded,
-                label: isArabic ? 'مزايا أعلى' : 'Higher Tier',
+                label: isArabic ? 'Ù…Ø²Ø§ÙŠØ§ Ø£Ø¹Ù„Ù‰' : 'Higher Tier',
                 color: _kSubtext,
                 isArabic: isArabic,
               ),
@@ -1880,9 +1883,9 @@ class _BenefitRow extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Contact admin CTA
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _ContactAdminButton extends StatelessWidget {
   const _ContactAdminButton({required this.isArabic});
@@ -1931,7 +1934,7 @@ class _ContactAdminButton extends StatelessWidget {
                   : CrossAxisAlignment.start,
               children: [
                 Text(
-                  isArabic ? 'تواصل مع الإدارة' : 'Contact Admin',
+                  isArabic ? 'ØªÙˆØ§ØµÙ„ Ù…Ø¹ Ø§Ù„Ø¥Ø¯Ø§Ø±Ø©' : 'Contact Admin',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 15,
@@ -1940,7 +1943,7 @@ class _ContactAdminButton extends StatelessWidget {
                 ),
                 Text(
                   isArabic
-                      ? 'للترقية إلى VIP عبر وكيل الشحن'
+                      ? 'Ù„Ù„ØªØ±Ù‚ÙŠØ© Ø¥Ù„Ù‰ VIP Ø¹Ø¨Ø± ÙˆÙƒÙŠÙ„ Ø§Ù„Ø´Ø­Ù†'
                       : 'Upgrade VIP through a recharge agent',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.75),
@@ -1961,9 +1964,9 @@ class _ContactAdminButton extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Admin VIP management panel
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _AdminVipPanel extends StatefulWidget {
   const _AdminVipPanel({required this.isArabic});
@@ -1974,31 +1977,31 @@ class _AdminVipPanel extends StatefulWidget {
 }
 
 class _AdminVipPanelState extends State<_AdminVipPanel> {
-  // ── Search ────────────────────────────────────────────────────────────────
+  // â”€â”€ Search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   final _searchController = TextEditingController();
   List<AdminUserSummary> _searchResults = [];
   AdminUserSummary? _selectedUser;
   bool _searching = false;
 
-  // ── Grant / Revoke ────────────────────────────────────────────────────────
+  // â”€â”€ Grant / Revoke â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   final _durationController = TextEditingController(text: '30');
   int _grantLevel = 1;
 
-  // ── Golden ID ─────────────────────────────────────────────────────────────
+  // â”€â”€ Golden ID â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   bool _goldenEnabled = true;
   final _goldenIdController = TextEditingController();
   final _goldenDurationController = TextEditingController();
   String _goldenStyle = 'gold';
   String _goldenFrame = 'classic';
 
-  // ── Country Flag Style ────────────────────────────────────────────────────
+  // â”€â”€ Country Flag Style â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   final _countryCodeController = TextEditingController();
   final _countryNameController = TextEditingController();
   final _flagDurationController = TextEditingController();
   String _flagStyle = 'normal';
   String _flagFrame = 'classic';
 
-  // ── Shared ────────────────────────────────────────────────────────────────
+  // â”€â”€ Shared â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   bool _busy = false;
   String? _result;
   bool _resultIsError = false;
@@ -2020,7 +2023,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
     super.dispose();
   }
 
-  // ── Search ────────────────────────────────────────────────────────────────
+  // â”€â”€ Search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Future<void> _searchUser() async {
     final q = _searchController.text.trim();
@@ -2037,12 +2040,12 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
       setState(() => _searchResults = results);
       if (results.isEmpty) {
         _setResult(
-          isArabic ? 'لم يُعثر على مستخدم بهذا البحث' : 'No user found',
+          isArabic ? 'Ù„Ù… ÙŠÙØ¹Ø«Ø± Ø¹Ù„Ù‰ Ù…Ø³ØªØ®Ø¯Ù… Ø¨Ù‡Ø°Ø§ Ø§Ù„Ø¨Ø­Ø«' : 'No user found',
           error: true,
         );
       }
     } catch (e) {
-      _setResult(isArabic ? 'فشل البحث: $e' : 'Search failed: $e', error: true);
+      _setResult(isArabic ? 'ÙØ´Ù„ Ø§Ù„Ø¨Ø­Ø«: $e' : 'Search failed: $e', error: true);
     } finally {
       if (mounted) setState(() => _searching = false);
     }
@@ -2076,13 +2079,13 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
     });
   }
 
-  // ── Actions ───────────────────────────────────────────────────────────────
+  // â”€â”€ Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Future<void> _grantVip() async {
     final user = _selectedUser;
     if (user == null) {
       _setResult(
-        isArabic ? 'اختر مستخدماً أولاً' : 'Select a valid user first',
+        isArabic ? 'Ø§Ø®ØªØ± Ù…Ø³ØªØ®Ø¯Ù…Ø§Ù‹ Ø£ÙˆÙ„Ø§Ù‹' : 'Select a valid user first',
         error: true,
       );
       return;
@@ -2100,7 +2103,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
       );
       _setResult(
         isArabic
-            ? 'تم منح VIP $_grantLevel لـ${user.title} لمدة $days يوم'
+            ? 'ØªÙ… Ù…Ù†Ø­ VIP $_grantLevel Ù„Ù€${user.title} Ù„Ù…Ø¯Ø© $days ÙŠÙˆÙ…'
             : 'Granted VIP $_grantLevel to ${user.title} for $days days',
       );
     } catch (e) {
@@ -2114,7 +2117,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
     final user = _selectedUser;
     if (user == null) {
       _setResult(
-        isArabic ? 'اختر مستخدماً أولاً' : 'Select a valid user first',
+        isArabic ? 'Ø§Ø®ØªØ± Ù…Ø³ØªØ®Ø¯Ù…Ø§Ù‹ Ø£ÙˆÙ„Ø§Ù‹' : 'Select a valid user first',
         error: true,
       );
       return;
@@ -2127,7 +2130,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
       await VipService().revokeVip(user.userId);
       _setResult(
         isArabic
-            ? 'تم إلغاء VIP لـ${user.title}'
+            ? 'ØªÙ… Ø¥Ù„ØºØ§Ø¡ VIP Ù„Ù€${user.title}'
             : 'VIP revoked for ${user.title}',
       );
     } catch (e) {
@@ -2141,14 +2144,14 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
     final user = _selectedUser;
     if (user == null) {
       _setResult(
-        isArabic ? 'اختر مستخدماً أولاً' : 'Select a valid user first',
+        isArabic ? 'Ø§Ø®ØªØ± Ù…Ø³ØªØ®Ø¯Ù…Ø§Ù‹ Ø£ÙˆÙ„Ø§Ù‹' : 'Select a valid user first',
         error: true,
       );
       return;
     }
     if (_goldenEnabled && _goldenIdController.text.trim().isEmpty) {
       _setResult(
-        isArabic ? 'أدخل رقم Golden ID' : 'Enter a Golden ID number',
+        isArabic ? 'Ø£Ø¯Ø®Ù„ Ø±Ù‚Ù… Golden ID' : 'Enter a Golden ID number',
         error: true,
       );
       return;
@@ -2172,10 +2175,10 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
       _setResult(
         _goldenEnabled
             ? (isArabic
-                  ? 'تم تحديث Golden ID إلى $publicId'
+                  ? 'ØªÙ… ØªØ­Ø¯ÙŠØ« Golden ID Ø¥Ù„Ù‰ $publicId'
                   : 'Golden ID updated to $publicId')
             : (isArabic
-                  ? 'تم إلغاء Golden ID لـ${user.title}'
+                  ? 'ØªÙ… Ø¥Ù„ØºØ§Ø¡ Golden ID Ù„Ù€${user.title}'
                   : 'Golden ID removed for ${user.title}'),
       );
     } catch (e) {
@@ -2183,14 +2186,14 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
       if (msg.contains('golden_id_taken')) {
         _setResult(
           isArabic
-              ? 'هذا الـ Golden ID مستخدم بالفعل.'
+              ? 'Ù‡Ø°Ø§ Ø§Ù„Ù€ Golden ID Ù…Ø³ØªØ®Ø¯Ù… Ø¨Ø§Ù„ÙØ¹Ù„.'
               : 'This Golden ID is already used.',
           error: true,
         );
       } else if (msg.contains('invalid_golden_id_style') ||
           msg.contains('invalid_golden_id_frame')) {
         _setResult(
-          isArabic ? 'نمط Golden ID غير صالح.' : 'Invalid Golden ID style.',
+          isArabic ? 'Ù†Ù…Ø· Golden ID ØºÙŠØ± ØµØ§Ù„Ø­.' : 'Invalid Golden ID style.',
           error: true,
         );
       } else {
@@ -2205,7 +2208,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
     final user = _selectedUser;
     if (user == null) {
       _setResult(
-        isArabic ? 'اختر مستخدماً أولاً' : 'Select a valid user first',
+        isArabic ? 'Ø§Ø®ØªØ± Ù…Ø³ØªØ®Ø¯Ù…Ø§Ù‹ Ø£ÙˆÙ„Ø§Ù‹' : 'Select a valid user first',
         error: true,
       );
       return;
@@ -2229,7 +2232,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
       );
       _setResult(
         isArabic
-            ? 'تم تحديث نمط العلم لـ${user.title}'
+            ? 'ØªÙ… ØªØ­Ø¯ÙŠØ« Ù†Ù…Ø· Ø§Ù„Ø¹Ù„Ù… Ù„Ù€${user.title}'
             : 'Country flag style updated for ${user.title}',
       );
     } catch (e) {
@@ -2237,7 +2240,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
       if (msg.contains('invalid_country_code')) {
         _setResult(
           isArabic
-              ? 'رمز البلد غير صالح. استخدم حرفين مثل LB، AO، AE.'
+              ? 'Ø±Ù…Ø² Ø§Ù„Ø¨Ù„Ø¯ ØºÙŠØ± ØµØ§Ù„Ø­. Ø§Ø³ØªØ®Ø¯Ù… Ø­Ø±ÙÙŠÙ† Ù…Ø«Ù„ LBØŒ AOØŒ AE.'
               : 'Invalid country code. Use two letters like LB, AO, AE.',
           error: true,
         );
@@ -2258,11 +2261,11 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
   }
 
   void _noUserResult() => _setResult(
-    isArabic ? 'اختر مستخدماً أولاً' : 'Select a valid user first',
+    isArabic ? 'Ø§Ø®ØªØ± Ù…Ø³ØªØ®Ø¯Ù…Ø§Ù‹ Ø£ÙˆÙ„Ø§Ù‹' : 'Select a valid user first',
     error: true,
   );
 
-  // ── Build ─────────────────────────────────────────────────────────────────
+  // â”€â”€ Build â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   @override
   Widget build(BuildContext context) {
@@ -2279,7 +2282,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
             ? CrossAxisAlignment.end
             : CrossAxisAlignment.start,
         children: [
-          // ── Header ─────────────────────────────────────────────────────
+          // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           Row(
             textDirection: dir,
             children: [
@@ -2297,7 +2300,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
               ),
               const SizedBox(width: 10),
               Text(
-                isArabic ? 'لوحة إدارة VIP' : 'VIP Admin Panel',
+                isArabic ? 'Ù„ÙˆØ­Ø© Ø¥Ø¯Ø§Ø±Ø© VIP' : 'VIP Admin Panel',
                 style: const TextStyle(
                   color: _kGold,
                   fontSize: 15,
@@ -2308,10 +2311,10 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           ),
           const SizedBox(height: 16),
 
-          // ── User search ─────────────────────────────────────────────────
+          // â”€â”€ User search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           _SubLabel(
             label: isArabic
-                ? 'بحث عن المستخدم'
+                ? 'Ø¨Ø­Ø« Ø¹Ù† Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…'
                 : 'Search user by ID, Golden ID, username, or name',
             isArabic: isArabic,
           ),
@@ -2323,7 +2326,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
                 child: _AdminField(
                   controller: _searchController,
                   label: isArabic
-                      ? 'UUID أو معرّف ذهبي أو اسم مستخدم'
+                      ? 'UUID Ø£Ùˆ Ù…Ø¹Ø±Ù‘Ù Ø°Ù‡Ø¨ÙŠ Ø£Ùˆ Ø§Ø³Ù… Ù…Ø³ØªØ®Ø¯Ù…'
                       : 'UUID / Golden ID / username / name',
                   isArabic: isArabic,
                 ),
@@ -2377,7 +2380,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
             ],
           ),
 
-          // ── Search results ──────────────────────────────────────────────
+          // â”€â”€ Search results â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           if (_searchResults.isNotEmpty) ...[
             const SizedBox(height: 8),
             ...(_searchResults.map(
@@ -2389,7 +2392,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
             )),
           ],
 
-          // ── Selected user ───────────────────────────────────────────────
+          // â”€â”€ Selected user â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           if (_selectedUser != null) ...[
             const SizedBox(height: 8),
             _SelectedUserCard(user: _selectedUser!, isArabic: isArabic),
@@ -2399,9 +2402,9 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           Divider(color: _kCardBorder, height: 1),
           const SizedBox(height: 16),
 
-          // ── Grant / Revoke ──────────────────────────────────────────────
+          // â”€â”€ Grant / Revoke â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           _SubLabel(
-            label: isArabic ? 'منح / إلغاء VIP' : 'Grant / Revoke VIP',
+            label: isArabic ? 'Ù…Ù†Ø­ / Ø¥Ù„ØºØ§Ø¡ VIP' : 'Grant / Revoke VIP',
             isArabic: isArabic,
           ),
           const SizedBox(height: 8),
@@ -2410,7 +2413,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
             textDirection: dir,
             children: [
               Text(
-                isArabic ? 'المستوى:' : 'Level:',
+                isArabic ? 'Ø§Ù„Ù…Ø³ØªÙˆÙ‰:' : 'Level:',
                 style: const TextStyle(color: _kText, fontSize: 13),
               ),
               const SizedBox(width: 10),
@@ -2458,7 +2461,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
 
           _AdminField(
             controller: _durationController,
-            label: isArabic ? 'المدة (أيام)' : 'Duration (days)',
+            label: isArabic ? 'Ø§Ù„Ù…Ø¯Ø© (Ø£ÙŠØ§Ù…)' : 'Duration (days)',
             isArabic: isArabic,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -2470,7 +2473,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
             children: [
               Expanded(
                 child: _AdminButton(
-                  label: isArabic ? 'منح VIP' : 'Grant VIP',
+                  label: isArabic ? 'Ù…Ù†Ø­ VIP' : 'Grant VIP',
                   color: _hasUser ? _kGreen : _kSubtext,
                   icon: Icons.workspace_premium_rounded,
                   busy: _busy,
@@ -2480,7 +2483,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
               const SizedBox(width: 10),
               Expanded(
                 child: _AdminButton(
-                  label: isArabic ? 'إلغاء VIP' : 'Revoke VIP',
+                  label: isArabic ? 'Ø¥Ù„ØºØ§Ø¡ VIP' : 'Revoke VIP',
                   color: _hasUser ? _kRed : _kSubtext,
                   icon: Icons.remove_circle_outline_rounded,
                   busy: _busy,
@@ -2494,7 +2497,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           Divider(color: _kCardBorder, height: 1),
           const SizedBox(height: 16),
 
-          // ── Golden ID ───────────────────────────────────────────────────
+          // â”€â”€ Golden ID â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           _SubLabel(label: 'Golden ID', isArabic: isArabic),
           const SizedBox(height: 8),
 
@@ -2503,7 +2506,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
             textDirection: dir,
             children: [
               Text(
-                isArabic ? 'تفعيل' : 'Enable',
+                isArabic ? 'ØªÙØ¹ÙŠÙ„' : 'Enable',
                 style: const TextStyle(color: _kText, fontSize: 13),
               ),
               Switch(
@@ -2517,7 +2520,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
                 child: _AdminField(
                   controller: _goldenDurationController,
                   label: isArabic
-                      ? 'أيام (فارغ = دائم)'
+                      ? 'Ø£ÙŠØ§Ù… (ÙØ§Ø±Øº = Ø¯Ø§Ø¦Ù…)'
                       : 'Days (blank = permanent)',
                   isArabic: isArabic,
                   keyboardType: TextInputType.number,
@@ -2532,14 +2535,14 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
             _AdminField(
               controller: _goldenIdController,
               label: isArabic
-                  ? 'رقم / نص الـ Golden ID'
+                  ? 'Ø±Ù‚Ù… / Ù†Øµ Ø§Ù„Ù€ Golden ID'
                   : 'Golden ID number or text',
               isArabic: isArabic,
             ),
             const SizedBox(height: 12),
 
             // Style selector
-            _SubLabel(label: isArabic ? 'النمط' : 'Style', isArabic: isArabic),
+            _SubLabel(label: isArabic ? 'Ø§Ù„Ù†Ù…Ø·' : 'Style', isArabic: isArabic),
             const SizedBox(height: 6),
             _GoldenChipRow(
               options: const [
@@ -2556,7 +2559,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
             const SizedBox(height: 10),
 
             // Frame selector
-            _SubLabel(label: isArabic ? 'الإطار' : 'Frame', isArabic: isArabic),
+            _SubLabel(label: isArabic ? 'Ø§Ù„Ø¥Ø·Ø§Ø±' : 'Frame', isArabic: isArabic),
             const SizedBox(height: 6),
             _GoldenChipRow(
               options: const [
@@ -2576,7 +2579,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           SizedBox(
             width: double.infinity,
             child: _AdminButton(
-              label: isArabic ? 'تطبيق Golden ID' : 'Apply Golden ID',
+              label: isArabic ? 'ØªØ·Ø¨ÙŠÙ‚ Golden ID' : 'Apply Golden ID',
               color: _hasUser ? _kGold : _kSubtext,
               icon: Icons.star_rounded,
               busy: _busy,
@@ -2588,9 +2591,9 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           Divider(color: _kCardBorder, height: 1),
           const SizedBox(height: 16),
 
-          // ── Country Flag Style ──────────────────────────────────────────
+          // â”€â”€ Country Flag Style â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           _SubLabel(
-            label: isArabic ? 'نمط علم البلد' : 'Country Flag Style',
+            label: isArabic ? 'Ù†Ù…Ø· Ø¹Ù„Ù… Ø§Ù„Ø¨Ù„Ø¯' : 'Country Flag Style',
             isArabic: isArabic,
           ),
           const SizedBox(height: 8),
@@ -2602,7 +2605,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
                 child: _AdminField(
                   controller: _countryCodeController,
                   label: isArabic
-                      ? 'رمز البلد (LB، AO، AE)'
+                      ? 'Ø±Ù…Ø² Ø§Ù„Ø¨Ù„Ø¯ (LBØŒ AOØŒ AE)'
                       : 'Country code (LB, AO, AE)',
                   isArabic: isArabic,
                 ),
@@ -2611,7 +2614,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
               Expanded(
                 child: _AdminField(
                   controller: _countryNameController,
-                  label: isArabic ? 'اسم البلد' : 'Country name',
+                  label: isArabic ? 'Ø§Ø³Ù… Ø§Ù„Ø¨Ù„Ø¯' : 'Country name',
                   isArabic: isArabic,
                 ),
               ),
@@ -2620,14 +2623,14 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           const SizedBox(height: 8),
           _AdminField(
             controller: _flagDurationController,
-            label: isArabic ? 'أيام (فارغ = دائم)' : 'Days (blank = permanent)',
+            label: isArabic ? 'Ø£ÙŠØ§Ù… (ÙØ§Ø±Øº = Ø¯Ø§Ø¦Ù…)' : 'Days (blank = permanent)',
             isArabic: isArabic,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           ),
           const SizedBox(height: 10),
 
-          _SubLabel(label: isArabic ? 'النمط' : 'Style', isArabic: isArabic),
+          _SubLabel(label: isArabic ? 'Ø§Ù„Ù†Ù…Ø·' : 'Style', isArabic: isArabic),
           const SizedBox(height: 6),
           _GoldenChipRow(
             options: const [
@@ -2644,7 +2647,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           ),
           const SizedBox(height: 10),
 
-          _SubLabel(label: isArabic ? 'الإطار' : 'Frame', isArabic: isArabic),
+          _SubLabel(label: isArabic ? 'Ø§Ù„Ø¥Ø·Ø§Ø±' : 'Frame', isArabic: isArabic),
           const SizedBox(height: 6),
           _GoldenChipRow(
             options: const ['classic', 'crown', 'glow', 'shield', 'luxury'],
@@ -2656,7 +2659,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           SizedBox(
             width: double.infinity,
             child: _AdminButton(
-              label: isArabic ? 'تطبيق نمط العلم' : 'Apply Country Flag Style',
+              label: isArabic ? 'ØªØ·Ø¨ÙŠÙ‚ Ù†Ù…Ø· Ø§Ù„Ø¹Ù„Ù…' : 'Apply Country Flag Style',
               color: _hasUser ? const Color(0xFF4DB6AC) : _kSubtext,
               icon: Icons.flag_rounded,
               busy: _busy,
@@ -2664,7 +2667,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
             ),
           ),
 
-          // ── Result banner ───────────────────────────────────────────────
+          // â”€â”€ Result banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           if (_result != null) ...[
             const SizedBox(height: 12),
             Container(
@@ -2698,7 +2701,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
   }
 }
 
-// ── Search result card ────────────────────────────────────────────────────────
+// â”€â”€ Search result card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _UserResultCard extends StatelessWidget {
   const _UserResultCard({
@@ -2804,7 +2807,7 @@ class _UserResultCard extends StatelessWidget {
   }
 }
 
-// ── Selected user card ────────────────────────────────────────────────────────
+// â”€â”€ Selected user card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _SelectedUserCard extends StatelessWidget {
   const _SelectedUserCard({required this.user, required this.isArabic});
@@ -2920,7 +2923,7 @@ class _SelectedUserCard extends StatelessWidget {
   }
 }
 
-// ── Admin panel helpers ───────────────────────────────────────────────────────
+// â”€â”€ Admin panel helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Horizontal scrolling row of option chips (used for style and frame selectors).
 class _GoldenChipRow extends StatelessWidget {
@@ -3117,10 +3120,10 @@ class _AdminButton extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// VIP Center 2.0 — Phase V1 presentational widgets (Srood VIP Prestige)
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// VIP Center 2.0 â€” Phase V1 presentational widgets (Srood VIP Prestige)
 // English-only. No new assets. No backend calls.
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _Vip2Crest extends StatelessWidget {
   const _Vip2Crest({required this.level});
@@ -3163,29 +3166,16 @@ class _Vip2Crest extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 6),
-        // Rank label with the tier badge asset alongside it.
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              VipAssets.badge(shown),
-              height: 22,
-              fit: BoxFit.contain,
-              filterQuality: FilterQuality.high,
-              errorBuilder: (_, _, _) => const SizedBox.shrink(),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'PRESTIGE RANK ${shown.toString().padLeft(2, '0')}',
-              style: const TextStyle(
-                color: _v2Gold,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 3,
-              ),
-            ),
-          ],
+        const SizedBox(height: 10),
+        // Clean tier title â€” supports the hero image without competing with it.
+        Text(
+          'VIP $shown',
+          style: const TextStyle(
+            color: _v2Gold,
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
+          ),
         ),
       ],
     );
@@ -3571,12 +3561,14 @@ class _Vip2RechargeCard extends StatelessWidget {
     required this.awayText,
     required this.progress,
     required this.buttonLabel,
+    required this.hint,
     required this.onUpgrade,
   });
   final String monthText;
   final String awayText;
   final double progress;
   final String buttonLabel;
+  final String hint;
   final VoidCallback onUpgrade;
 
   @override
@@ -3680,23 +3672,28 @@ class _Vip2RechargeCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 9),
-          Row(
-            children: [
-              const Icon(
-                Icons.north_east_rounded,
-                color: Color(0xFF8FC4F2),
-                size: 13,
-              ),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  awayText,
-                  style: const TextStyle(color: _v2Sub, fontSize: 12),
+          if (awayText.isNotEmpty) ...[
+            const SizedBox(height: 9),
+            Row(
+              children: [
+                const Icon(
+                  Icons.north_east_rounded,
+                  color: Color(0xFF8FC4F2),
+                  size: 13,
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    awayText,
+                    maxLines: 2,
+                    softWrap: true,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: _v2Sub, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 14),
           GestureDetector(
             onTap: onUpgrade,
@@ -3741,6 +3738,33 @@ class _Vip2RechargeCard extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+          // Inline info note under the recharge card â€” replaces the old floating
+          // message that overlapped this card. Supports the card, never covers.
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.info_outline_rounded,
+                color: _v2Lilac,
+                size: 13,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  hint,
+                  maxLines: 2,
+                  softWrap: true,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _v2Lilac,
+                    fontSize: 11.5,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -3956,3 +3980,4 @@ class _Vip2PerkCard extends StatelessWidget {
     );
   }
 }
+
