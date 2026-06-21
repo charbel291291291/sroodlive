@@ -75,6 +75,15 @@ flutter:
     - assets/sounds/
     - assets/images/
     - assets/images/vip_frames/
+    - assets/vip/vip1/
+    - assets/vip/vip2/
+    - assets/vip/vip3/
+    - assets/vip/vip4/
+    - assets/vip/vip5/
+    - assets/vip/vip6/
+    - assets/vip/vip7/
+    - assets/vip/vip8/
+    - assets/vip/vip9/
     - assets/images/games/
     - assets/gift_effects/videos/
     - assets/gifts/

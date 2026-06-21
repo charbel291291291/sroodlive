@@ -9,6 +9,7 @@ import '../../../features/admin/services/admin_service.dart';
 import '../../../shared/theme/vip_tier_colors.dart';
 import '../../../shared/widgets/premium_country_flag.dart';
 import '../../../shared/widgets/vip_framed_avatar.dart';
+import '../../profile/utils/vip_assets.dart';
 import '../../vip/models/user_vip.dart';
 import '../../vip/screens/vip_settings_screen.dart';
 import '../../vip/services/vip_service.dart';
@@ -3149,81 +3150,112 @@ class _Vip2Crest extends StatelessWidget {
                   ),
                 ),
               ),
-              const Positioned(
-                top: 4,
-                child: Icon(
-                  Icons.workspace_premium_rounded,
-                  color: _v2Gold,
-                  size: 36,
-                ),
-              ),
-              Positioned(
-                top: 32,
-                child: Container(
-                  width: 98,
-                  height: 104,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF4A2F92), Color(0xFF160E38)],
-                    ),
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(20),
-                      bottom: Radius.circular(46),
-                    ),
-                    border: Border.all(color: _v2GoldDim, width: 1.6),
-                    boxShadow: [
-                      BoxShadow(
-                        color: _v2GoldDim.withValues(alpha: 0.30),
-                        blurRadius: 22,
-                        spreadRadius: 1,
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'VIP',
-                        style: TextStyle(
-                          color: Color(0xFFFFF6D4),
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1,
-                          height: 1.1,
-                        ),
-                      ),
-                      Text(
-                        '$shown',
-                        style: const TextStyle(
-                          color: _v2Gold,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                          height: 1.0,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              // VIP hero/logo asset for this tier. Falls back to the stylized
+              // plaque if the asset is missing so the screen never breaks.
+              Image.asset(
+                VipAssets.hero(shown),
+                height: 148,
+                width: 148,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.high,
+                errorBuilder: (_, _, _) => _fallbackPlaque(shown),
               ),
             ],
           ),
         ),
         const SizedBox(height: 6),
-        Text(
-          'PRESTIGE RANK ${shown.toString().padLeft(2, '0')}',
-          style: const TextStyle(
-            color: _v2Gold,
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 3,
-          ),
+        // Rank label with the tier badge asset alongside it.
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              VipAssets.badge(shown),
+              height: 22,
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'PRESTIGE RANK ${shown.toString().padLeft(2, '0')}',
+              style: const TextStyle(
+                color: _v2Gold,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 3,
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
+
+  // Stylized plaque used when a tier's hero.webp asset is unavailable.
+  Widget _fallbackPlaque(int shown) => Stack(
+    alignment: Alignment.center,
+    children: [
+      const Positioned(
+        top: 4,
+        child: Icon(
+          Icons.workspace_premium_rounded,
+          color: _v2Gold,
+          size: 36,
+        ),
+      ),
+      Positioned(
+        top: 32,
+        child: Container(
+          width: 98,
+          height: 104,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF4A2F92), Color(0xFF160E38)],
+            ),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(20),
+              bottom: Radius.circular(46),
+            ),
+            border: Border.all(color: _v2GoldDim, width: 1.6),
+            boxShadow: [
+              BoxShadow(
+                color: _v2GoldDim.withValues(alpha: 0.30),
+                blurRadius: 22,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'VIP',
+                style: TextStyle(
+                  color: Color(0xFFFFF6D4),
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1,
+                  height: 1.1,
+                ),
+              ),
+              Text(
+                '$shown',
+                style: const TextStyle(
+                  color: _v2Gold,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  height: 1.0,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ],
+  );
 }
 
 enum _Vip2OwnState { owned, active, locked }
@@ -3415,25 +3447,52 @@ class _Vip2RailState extends State<_Vip2Rail> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 60,
-            height: 60,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isSel ? const Color(0xFF2E1D66) : const Color(0x14FFFFFF),
-              border: Border.all(color: border, width: isSel ? 2.4 : 1.4),
-              boxShadow: isSel
-                  ? [
-                      BoxShadow(
-                        color: _v2Gold.withValues(alpha: 0.38),
-                        blurRadius: 18,
-                        spreadRadius: 1,
-                      ),
-                    ]
-                  : null,
+          // Avatar-style node with the tier's VIP frame asset overlaid on top.
+          SizedBox(
+            width: 66,
+            height: 66,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  width: 60,
+                  height: 60,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isSel
+                        ? const Color(0xFF2E1D66)
+                        : const Color(0x14FFFFFF),
+                    border: Border.all(
+                      color: border,
+                      width: isSel ? 2.4 : 1.4,
+                    ),
+                    boxShadow: isSel
+                        ? [
+                            BoxShadow(
+                              color: _v2Gold.withValues(alpha: 0.38),
+                              blurRadius: 18,
+                              spreadRadius: 1,
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: inner,
+                ),
+                // VIP frame asset for this tier. Non-interactive; hidden if the
+                // asset is missing so the node still renders cleanly.
+                IgnorePointer(
+                  child: Image.asset(
+                    VipAssets.frame(level),
+                    width: 66,
+                    height: 66,
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.high,
+                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                  ),
+                ),
+              ],
             ),
-            child: inner,
           ),
           const SizedBox(height: 7),
           Text(
