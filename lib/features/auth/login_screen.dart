@@ -194,30 +194,20 @@ class _LoginScreenState extends State<LoginScreen> {
                           children: [
                             SizedBox(height: topSpacing),
 
-                            // Main title \u2014 centered
-                            Text(
-                              isArabic ? '\u0645\u0631\u062d\u0628\u0627\u064b \u0628\u0643' : 'Welcome Back',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 28,
-                                fontWeight: FontWeight.w900,
-                                height: 1.2,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-
-                            // Subtitle \u2014 centered
+                            // Subtitle under the Srood Live watermark \u2014 soft,
+                            // centered, the only header copy on the page.
                             Text(
                               isArabic
                                   ? '\u0627\u062f\u062e\u0644 \u0625\u0644\u0649 \u0639\u0627\u0644\u0645 Srood Live'
                                   : 'Enter your Srood Live world',
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Color(0xFFBCAED6),
+                              style: TextStyle(
+                                color: const Color(0xFFBCAED6)
+                                    .withValues(alpha: 0.82),
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
                                 height: 1.5,
+                                letterSpacing: 0.2,
                               ),
                             ),
                             const SizedBox(height: 36),
