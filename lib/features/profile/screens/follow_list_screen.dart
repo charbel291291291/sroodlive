@@ -4,35 +4,29 @@ import '../services/follow_service.dart';
 import 'user_profile_screen.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
+/// Shows a followers / following / friends list for [userId].
+/// [kind] is one of 'followers', 'following', 'friends'.
 class FollowListScreen extends StatefulWidget {
   const FollowListScreen({
     required this.userId,
-    required this.isFollowers,
+    required this.kind,
     required this.isArabic,
     super.key,
   });
 
   final String userId;
-  final bool isFollowers;
+  final String kind; // 'followers' | 'following' | 'friends'
   final bool isArabic;
 
   @override
   State<FollowListScreen> createState() => _FollowListScreenState();
 }
 
-class _UserEntry {
-  final String id;
-  final String displayName;
-  final String? avatarUrl;
-  bool isFollowingBack = false;
-
-  _UserEntry({required this.id, required this.displayName, this.avatarUrl});
-}
-
 class _FollowListScreenState extends State<FollowListScreen> {
   final FollowService _followService = const FollowService();
   bool _isLoading = true;
-  List<_UserEntry> _users = const [];
+  bool _hasError = false;
+  List<FollowUser> _users = const [];
   final Map<String, bool> _pending = {};
 
   @override
@@ -42,53 +36,19 @@ class _FollowListScreenState extends State<FollowListScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+    });
     try {
       final me = SupabaseService.requiredClient.auth.currentUser?.id;
       if (me == null) {
         setState(() => _isLoading = false);
         return;
       }
-
-      List<dynamic> rows;
-
-      if (widget.isFollowers) {
-        rows = await SupabaseService.requiredClient
-            .from('user_follows')
-            .select(
-              'follower:profiles!user_follows_follower_id_fkey(id, display_name, avatar_url)',
-            )
-            .eq('following_id', widget.userId);
-      } else {
-        rows = await SupabaseService.requiredClient
-            .from('user_follows')
-            .select(
-              'following:profiles!user_follows_following_id_fkey(id, display_name, avatar_url)',
-            )
-            .eq('follower_id', widget.userId);
-      }
-
-      final users = rows
-          .map((row) {
-            final profile =
-                (widget.isFollowers ? row['follower'] : row['following'])
-                    as Map?;
-            return _UserEntry(
-              id: profile?['id'] as String? ?? '',
-              displayName: profile?['display_name'] as String? ?? 'Unknown',
-              avatarUrl: profile?['avatar_url'] as String?,
-            );
-          })
-          .where((u) => u.id.isNotEmpty && u.id != me)
-          .toList();
-
-      // Check which ones we follow back
-      await Future.wait(
-        users.map((u) async {
-          u.isFollowingBack = await _followService.isFollowing(u.id);
-        }),
-      );
-
+      // Counts and list share the same source: the get_follow_list RPC over
+      // user_follows. viewer_follows comes back per row, so no N+1 queries.
+      final users = await _followService.getFollowList(widget.userId, widget.kind);
       if (!mounted) return;
       setState(() {
         _users = users;
@@ -96,34 +56,58 @@ class _FollowListScreenState extends State<FollowListScreen> {
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+        _hasError = true;
+      });
     }
   }
 
-  Future<void> _toggleFollow(_UserEntry user) async {
+  Future<void> _toggleFollow(FollowUser user) async {
     if (_pending[user.id] == true) return;
     setState(() => _pending[user.id] = true);
-
     try {
-      if (user.isFollowingBack) {
+      if (user.viewerFollows) {
         await _followService.unfollowUser(user.id);
       } else {
         await _followService.followUser(user.id);
       }
       if (!mounted) return;
-      setState(() => user.isFollowingBack = !user.isFollowingBack);
-    } catch (_) {}
-
+      setState(() => user.viewerFollows = !user.viewerFollows);
+    } catch (_) {
+      // leave state unchanged on failure
+    }
     if (!mounted) return;
     setState(() => _pending.remove(user.id));
+  }
+
+  String get _title {
+    final ar = widget.isArabic;
+    switch (widget.kind) {
+      case 'followers':
+        return ar ? 'المتابعون' : 'Followers';
+      case 'friends':
+        return ar ? 'الأصدقاء' : 'Friends';
+      default:
+        return ar ? 'يتابع' : 'Following';
+    }
+  }
+
+  String get _emptyText {
+    final ar = widget.isArabic;
+    switch (widget.kind) {
+      case 'followers':
+        return ar ? 'لا يوجد متابعون' : 'No followers yet';
+      case 'friends':
+        return ar ? 'لا يوجد أصدقاء' : 'No friends yet';
+      default:
+        return ar ? 'لا يتابع أحداً' : 'Not following anyone';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final isArabic = context.isArabic;
-    final title = isArabic
-        ? (widget.isFollowers ? 'المتابعون' : 'يتابع')
-        : (widget.isFollowers ? 'Followers' : 'Following');
 
     return Scaffold(
       backgroundColor: const Color(0xFF08060F),
@@ -138,34 +122,56 @@ class _FollowListScreenState extends State<FollowListScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              _buildHeader(title, isArabic),
-              Expanded(
-                child: _isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFF8B26D9),
-                        ),
-                      )
-                    : _users.isEmpty
-                    ? _buildEmpty(isArabic)
-                    : RefreshIndicator(
-                        onRefresh: _load,
-                        color: const Color(0xFF8B26D9),
-                        child: ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                          itemCount: _users.length,
-                          separatorBuilder: (_, _) => const SizedBox(height: 8),
-                          itemBuilder: (_, i) => _UserTile(
-                            user: _users[i],
-                            isArabic: isArabic,
-                            isPending: _pending[_users[i].id] == true,
-                            onToggleFollow: () => _toggleFollow(_users[i]),
-                          ),
-                        ),
-                      ),
-              ),
+              _buildHeader(_title, isArabic),
+              Expanded(child: _buildBody(isArabic)),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(bool isArabic) {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFF8B26D9)),
+      );
+    }
+    if (_hasError) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline_rounded,
+                color: Color(0xFFFF6B8A), size: 38),
+            const SizedBox(height: 12),
+            Text(
+              isArabic ? 'تعذّر تحميل القائمة' : 'Could not load the list',
+              style: const TextStyle(color: Colors.white, fontSize: 15),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: _load,
+              child: Text(isArabic ? 'إعادة المحاولة' : 'Retry',
+                  style: const TextStyle(color: Color(0xFFF0C15A))),
+            ),
+          ],
+        ),
+      );
+    }
+    if (_users.isEmpty) return _buildEmpty(isArabic);
+    return RefreshIndicator(
+      onRefresh: _load,
+      color: const Color(0xFF8B26D9),
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+        itemCount: _users.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 8),
+        itemBuilder: (_, i) => _UserTile(
+          user: _users[i],
+          isArabic: isArabic,
+          isPending: _pending[_users[i].id] == true,
+          onToggleFollow: () => _toggleFollow(_users[i]),
         ),
       ),
     );
@@ -194,14 +200,15 @@ class _FollowListScreenState extends State<FollowListScreen> {
             ),
           ),
           const Spacer(),
-          Text(
-            '${_users.length}',
-            style: const TextStyle(
-              color: Color(0xFF9E91B8),
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
+          if (!_isLoading && !_hasError)
+            Text(
+              '${_users.length}',
+              style: const TextStyle(
+                color: Color(0xFF9E91B8),
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -220,19 +227,12 @@ class _FollowListScreenState extends State<FollowListScreen> {
               shape: BoxShape.circle,
               border: Border.all(color: const Color(0xFF4A3470)),
             ),
-            child: const Icon(
-              Icons.people_outline_rounded,
-              color: Color(0xFF9E91B8),
-              size: 38,
-            ),
+            child: const Icon(Icons.people_outline_rounded,
+                color: Color(0xFF9E91B8), size: 38),
           ),
           const SizedBox(height: 16),
           Text(
-            isArabic
-                ? (widget.isFollowers ? 'لا يوجد متابعون' : 'لا يتابع أحداً')
-                : (widget.isFollowers
-                      ? 'No followers yet'
-                      : 'Not following anyone'),
+            _emptyText,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 17,
@@ -253,7 +253,7 @@ class _UserTile extends StatelessWidget {
     required this.onToggleFollow,
   });
 
-  final _UserEntry user;
+  final FollowUser user;
   final bool isArabic;
   final bool isPending;
   final VoidCallback onToggleFollow;
@@ -265,8 +265,7 @@ class _UserTile extends StatelessWidget {
     return GestureDetector(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) =>
-              UserProfileScreen(userId: user.id, isArabic: isArabic),
+          builder: (_) => UserProfileScreen(userId: user.id, isArabic: isArabic),
         ),
       ),
       child: Container(
@@ -274,9 +273,7 @@ class _UserTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFF160B24),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: const Color(0xFF6E3AA8).withValues(alpha: 0.4),
-          ),
+          border: Border.all(color: const Color(0xFF6E3AA8).withValues(alpha: 0.4)),
         ),
         child: Row(
           textDirection: dir,
@@ -284,9 +281,8 @@ class _UserTile extends StatelessWidget {
             CircleAvatar(
               radius: 26,
               backgroundColor: const Color(0xFF241638),
-              backgroundImage: user.avatarUrl != null
-                  ? NetworkImage(user.avatarUrl!)
-                  : null,
+              backgroundImage:
+                  user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
               child: user.avatarUrl == null
                   ? Text(
                       user.displayName.isNotEmpty
@@ -302,15 +298,49 @@ class _UserTile extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                user.displayName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                ),
+              child: Column(
+                crossAxisAlignment: isArabic
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    textDirection: dir,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          user.displayName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      if (user.gender != null && _genderColor(user.gender) != null) ...[
+                        const SizedBox(width: 6),
+                        _GenderChip(gender: user.gender!),
+                      ],
+                      if (user.vipLevel > 0) ...[
+                        const SizedBox(width: 6),
+                        _VipChip(level: user.vipLevel),
+                      ],
+                    ],
+                  ),
+                  if (user.publicUserId != null &&
+                      user.publicUserId!.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      'ID: ${user.publicUserId}',
+                      style: const TextStyle(
+                        color: Color(0xFF9E91B8),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
             const SizedBox(width: 10),
@@ -318,17 +348,15 @@ class _UserTile extends StatelessWidget {
               onTap: isPending ? null : onToggleFollow,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: user.isFollowingBack
+                  color: user.viewerFollows
                       ? const Color(0xFF1B102B)
                       : const Color(0xFF8B26D9),
                   borderRadius: BorderRadius.circular(999),
                   border: Border.all(
-                    color: user.isFollowingBack
+                    color: user.viewerFollows
                         ? const Color(0xFF4A3470)
                         : const Color(0xFF8B26D9),
                   ),
@@ -338,16 +366,14 @@ class _UserTile extends StatelessWidget {
                         width: 14,
                         height: 14,
                         child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
+                            strokeWidth: 2, color: Colors.white),
                       )
                     : Text(
-                        user.isFollowingBack
-                            ? (isArabic ? 'إلغاء المتابعة' : 'Unfollow')
+                        user.viewerFollows
+                            ? (isArabic ? 'إلغاء المتابعة' : 'Following')
                             : (isArabic ? 'متابعة' : 'Follow'),
                         style: TextStyle(
-                          color: user.isFollowingBack
+                          color: user.viewerFollows
                               ? const Color(0xFFBCAED6)
                               : Colors.white,
                           fontSize: 13,
@@ -357,6 +383,66 @@ class _UserTile extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  static Color? _genderColor(String? gender) {
+    switch (gender?.toLowerCase()) {
+      case 'male':
+        return const Color(0xFF3B9BFF); // blue
+      case 'female':
+        return const Color(0xFFFF5C8A); // rose/red
+      default:
+        return null;
+    }
+  }
+}
+
+class _GenderChip extends StatelessWidget {
+  const _GenderChip({required this.gender});
+  final String gender;
+
+  @override
+  Widget build(BuildContext context) {
+    final male = gender.toLowerCase() == 'male';
+    final color = male ? const Color(0xFF3B9BFF) : const Color(0xFFFF5C8A);
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.18),
+        shape: BoxShape.circle,
+        border: Border.all(color: color.withValues(alpha: 0.6)),
+      ),
+      child: Icon(
+        male ? Icons.male_rounded : Icons.female_rounded,
+        size: 12,
+        color: color,
+      ),
+    );
+  }
+}
+
+class _VipChip extends StatelessWidget {
+  const _VipChip({required this.level});
+  final int level;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0C15A).withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFF0C15A).withValues(alpha: 0.5)),
+      ),
+      child: Text(
+        'VIP $level',
+        style: const TextStyle(
+          color: Color(0xFFF0C15A),
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
         ),
       ),
     );

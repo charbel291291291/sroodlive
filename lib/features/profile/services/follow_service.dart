@@ -157,4 +157,51 @@ class FollowService {
       return 0;
     }
   }
+
+  /// Loads a relationship list for [userId] via the server-side RPC, which
+  /// resolves followers/following/friends from user_follows and returns only
+  /// public profile fields (same data source as the counts). [kind] is one of
+  /// 'followers', 'following', 'friends'.
+  Future<List<FollowUser>> getFollowList(String userId, String kind) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'get_follow_list',
+      params: {'p_user_id': userId, 'p_kind': kind},
+    );
+    return (data as List<dynamic>)
+        .map((e) => FollowUser.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+}
+
+/// One entry in a followers/following/friends list (public fields only).
+class FollowUser {
+  FollowUser({
+    required this.id,
+    required this.displayName,
+    this.avatarUrl,
+    this.publicUserId,
+    this.gender,
+    this.vipLevel = 0,
+    this.viewerFollows = false,
+  });
+
+  final String id;
+  final String displayName;
+  final String? avatarUrl;
+  final String? publicUserId;
+  final String? gender;
+  final int vipLevel;
+  bool viewerFollows;
+
+  factory FollowUser.fromJson(Map<String, dynamic> j) => FollowUser(
+    id: j['id']?.toString() ?? '',
+    displayName: (j['display_name'] as String?)?.trim().isNotEmpty == true
+        ? j['display_name'] as String
+        : 'User',
+    avatarUrl: j['avatar_url'] as String?,
+    publicUserId: j['public_user_id']?.toString(),
+    gender: j['gender']?.toString(),
+    vipLevel: (j['vip_level'] as int?) ?? 0,
+    viewerFollows: j['viewer_follows'] == true,
+  );
 }

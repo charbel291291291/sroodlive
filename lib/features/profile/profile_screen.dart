@@ -1072,7 +1072,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               MaterialPageRoute<void>(
                                 builder: (_) => FollowListScreen(
                                   userId: uid,
-                                  isFollowers: true,
+                                  kind: 'followers',
                                   isArabic: isArabic,
                                 ),
                               ),
@@ -1083,7 +1083,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               MaterialPageRoute<void>(
                                 builder: (_) => FollowListScreen(
                                   userId: uid,
-                                  isFollowers: false,
+                                  kind: 'following',
                                   isArabic: isArabic,
                                 ),
                               ),
@@ -1094,7 +1094,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               MaterialPageRoute<void>(
                                 builder: (_) => FollowListScreen(
                                   userId: uid,
-                                  isFollowers: true,
+                                  kind: 'friends',
                                   isArabic: isArabic,
                                 ),
                               ),
