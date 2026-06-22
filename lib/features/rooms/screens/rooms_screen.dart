@@ -494,6 +494,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
               _CountryFilterChip(
                 selectedCode: _selectedCountryCode,
                 isArabic: context.isArabic,
+                isCompact: isCompact,
                 onPick: _pickCountry,
                 onClear: () => setState(() => _selectedCountryCode = null),
               ),
@@ -567,12 +568,14 @@ class _CountryFilterChip extends StatelessWidget {
   const _CountryFilterChip({
     required this.selectedCode,
     required this.isArabic,
+    required this.isCompact,
     required this.onPick,
     required this.onClear,
   });
 
   final String? selectedCode;
   final bool isArabic;
+  final bool isCompact;
   final VoidCallback onPick;
   final VoidCallback onClear;
 
@@ -585,7 +588,7 @@ class _CountryFilterChip extends StatelessWidget {
       onTap: onPick,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        height: 40,
+        height: isCompact ? 36.0 : 40.0,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           gradient: hasFilter
@@ -883,8 +886,9 @@ class _RoomsHeroBannerState extends State<_RoomsHeroBanner> {
 
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (!mounted) return;
+      if (!mounted || _slides.isEmpty) return;
       final next = (_page + 1) % _slides.length;
+      if (next >= _slides.length) return;
       _pageCtrl.animateToPage(
         next,
         duration: const Duration(milliseconds: 520),

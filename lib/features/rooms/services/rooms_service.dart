@@ -366,6 +366,9 @@ class RoomsService {
       throw ArgumentError('Invalid role.');
     }
 
+    await _restrictions.throwIfRestricted('account_ban');
+    await _restrictions.throwIfRestricted('room_ban');
+
     // Use safe RPC function that verifies room ownership
     await SupabaseService.requiredClient.rpc(
       'update_room_member_role',
@@ -475,7 +478,7 @@ class RoomsService {
       final now = DateTime.now().toUtc().toIso8601String();
       await client
           .from('room_members')
-          .update({'is_muted': true, 'left_at': now, 'last_seen_at': now})
+          .update({'left_at': now, 'last_seen_at': now})
           .eq('room_id', roomId)
           .eq('user_id', client.auth.currentUser!.id);
     }

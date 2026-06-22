@@ -21,16 +21,27 @@ class RoomManagementService {
   Future<Map<String, int>> getRoomStats(String roomId) async {
     final client = SupabaseService.requiredClient;
 
-    final membersData = await client
-        .from('room_members')
-        .select('role')
-        .eq('room_id', roomId)
-        .filter('left_at', 'is', null);
+    // Run all three independent queries in parallel.
+    final results = await Future.wait([
+      client
+          .from('room_members')
+          .select('role')
+          .eq('room_id', roomId)
+          .filter('left_at', 'is', null),
+      client
+          .from('gift_transactions')
+          .select('gift_price_coins')
+          .eq('room_id', roomId),
+      client.from('room_bans').select('id').eq('room_id', roomId),
+    ]);
+
+    final membersData = results[0] as List<dynamic>;
+    final giftsData = results[1] as List<dynamic>;
+    final bansData = results[2] as List<dynamic>;
 
     int listeners = 0;
     int speakers = 0;
-
-    for (final item in membersData as List<dynamic>) {
+    for (final item in membersData) {
       final role = (item as Map<String, dynamic>)['role'] as String?;
       if (role == 'speaker' || role == 'host') {
         speakers++;
@@ -39,29 +50,19 @@ class RoomManagementService {
       }
     }
 
-    final giftsData = await client
-        .from('gift_transactions')
-        .select('gift_price_coins')
-        .eq('room_id', roomId);
-
     int totalCoins = 0;
-    for (final item in giftsData as List<dynamic>) {
+    for (final item in giftsData) {
       final v = (item as Map<String, dynamic>)['gift_price_coins'];
       if (v is int) totalCoins += v;
       if (v is double) totalCoins += v.toInt();
     }
-
-    final bansData = await client
-        .from('room_bans')
-        .select('id')
-        .eq('room_id', roomId);
 
     return {
       'listeners': listeners,
       'speakers': speakers,
       'total_members': listeners + speakers,
       'total_gift_coins': totalCoins,
-      'ban_count': (bansData as List<dynamic>).length,
+      'ban_count': bansData.length,
     };
   }
 
@@ -85,10 +86,14 @@ class RoomManagementService {
     if (clearBackground) updates['background_url'] = null;
     if (updates.isEmpty) return;
 
+    final uid = SupabaseService.requiredClient.auth.currentUser?.id;
+    if (uid == null) throw StateError('No logged-in user.');
+
     await SupabaseService.requiredClient
         .from('rooms')
         .update(updates)
-        .eq('id', roomId);
+        .eq('id', roomId)
+        .eq('owner_id', uid);
   }
 
   /// Uploads a background image to Supabase storage and returns the public URL.
@@ -320,13 +325,29 @@ class RoomManagementService {
 
   Future<void> saveAnnouncement(String roomId, String message) async {
     final uid = SupabaseService.requiredClient.auth.currentUser!.id;
-    await deactivateAnnouncements(roomId);
-    await SupabaseService.requiredClient.from('room_announcements').insert({
-      'room_id': roomId,
-      'created_by': uid,
-      'message': message,
-      'is_active': true,
-    });
+    // Insert the new announcement first so it is never lost if the second
+    // step fails.  Then deactivate all other active announcements for the
+    // room, excluding the one just created.
+    final inserted = await SupabaseService.requiredClient
+        .from('room_announcements')
+        .insert({
+          'room_id': roomId,
+          'created_by': uid,
+          'message': message,
+          'is_active': true,
+        })
+        .select('id')
+        .single();
+    final newId = inserted['id'] as String;
+    await SupabaseService.requiredClient
+        .from('room_announcements')
+        .update({
+          'is_active': false,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('room_id', roomId)
+        .eq('is_active', true)
+        .neq('id', newId);
   }
 
   Future<void> deactivateAnnouncements(String roomId) async {

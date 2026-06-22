@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:just_audio/just_audio.dart';
 import 'dart:math' as math;
 import 'dart:ui';
@@ -93,6 +93,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
   bool _leaving = false;
   bool _isClosingRoom = false;
+  // Consecutive load cycles where the current user was absent from active
+  // members.  Requires 2 misses before triggering auto-leave so a single
+  // slow heartbeat on a weak network doesn't kick the user spuriously.
+  int _missedHeartbeatCount = 0;
   bool _connectingAudio = false;
   bool _connectedAudio = false;
   bool _syncingMicConnection = false;
@@ -691,7 +695,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       unawaited(_loadWalletBalance());
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
-          context.isArabic ? '???? ??? $coins ????!' : 'You got $coins coins!',
+          context.isArabic ? 'حصلت على $coins عملة!' : 'You got $coins coins!',
           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
         ),
         backgroundColor: const Color(0xFFD4380D),
@@ -707,7 +711,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       final msg = e.toString();
       String friendly;
       if (msg.contains('already_claimed')) {
-        friendly = context.isArabic ? '?? ??? ??? ??????? ??????' : 'Already opened';
+        friendly = context.isArabic ? 'تم الفتح مسبقاً' : 'Already opened';
         _bannerAutoHideTimer?.cancel();
         setState(() {
           _openedLuckyBagIds.add(envelopeId);
@@ -715,13 +719,13 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
           _activeRedEnvelope = null;
         });
       } else if (msg.contains('envelope_full')) {
-        friendly = context.isArabic ? '???? ???????' : 'All bags claimed';
+        friendly = context.isArabic ? 'تم استلام جميع الأكياس' : 'All bags claimed';
         setState(() => _activeRedEnvelope = null);
       } else if (msg.contains('envelope_expired')) {
-        friendly = context.isArabic ? '????? ?????? ???????' : 'Lucky Bag expired';
+        friendly = context.isArabic ? 'انتهت صلاحية الكيس' : 'Lucky Bag expired';
         setState(() => _activeRedEnvelope = null);
       } else {
-        friendly = context.isArabic ? '??? ???' : 'An error occurred';
+        friendly = context.isArabic ? 'حدث خطأ' : 'An error occurred';
       }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(friendly, style: const TextStyle(color: Colors.white)),
@@ -989,7 +993,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  context.isArabic ? 'Live gift connection failed. Gifts may not appear instantly.' : 'Live gift connection failed. Gifts may not appear instantly.',
+                  context.isArabic ? 'فشل اتصال الهدايا المباشرة. قد لا تظهر الهدايا فوراً.' : 'Live gift connection failed. Gifts may not appear instantly.',
                 ),
               ),
             );
@@ -1059,27 +1063,36 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       // Detect if the current user was removed / kicked by someone else.
       // Guard: only check after the initial load (_members is non-empty or we
       // already had at least one successful load), and never during self-exit.
+      // Two consecutive misses are required before auto-leaving so a single
+      // slow heartbeat on a weak network doesn't eject the user spuriously.
       final currentUserId = _currentUserId;
       if (!_leaving &&
           currentUserId != null &&
           _members.isNotEmpty &&
           !members.any((m) => m.userId == currentUserId)) {
-        _roomLog('[MODERATION] kicked detection: user=$currentUserId not in active members');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                context.isArabic
-                    ? 'تمت إزالتك من الغرفة'
-                    : 'You were removed from the room',
+        _missedHeartbeatCount++;
+        _roomLog('[MODERATION] kicked detection: user=$currentUserId not in active members (miss #$_missedHeartbeatCount)');
+        if (_missedHeartbeatCount >= 2) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  context.isArabic
+                      ? 'تمت إزالتك من الغرفة'
+                      : 'You were removed from the room',
+                ),
+                duration: const Duration(seconds: 3),
               ),
-              duration: const Duration(seconds: 3),
-            ),
-          );
-          await _leaveRoom();
+            );
+            await _leaveRoom();
+          }
+          return;
         }
+        // First miss only — wait for the next load cycle before deciding.
         return;
       }
+      // User confirmed present — reset the miss counter.
+      _missedHeartbeatCount = 0;
 
       setState(() {
         _members = members;
@@ -1186,26 +1199,20 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             if (!mounted) return;
             try {
               final row = payload.newRecord;
-              // Fetch sender profile to enrich the message.
-              SupabaseService.requiredClient
-                  .from('profiles')
-                  .select('display_name, username, avatar_url, vip_level')
-                  .eq('id', row['sender_id'] as String)
-                  .maybeSingle()
-                  .then((profile) {
+              final senderId = row['sender_id'] as String?;
+
+              // Apply an enriched message row to the chat feed.
+              void applyProfile(Map<String, dynamic>? profile) {
                 if (!mounted) return;
-                final enriched = {
+                final enriched = <String, dynamic>{
                   ...row,
-                  'profiles': profile,
+                  'profiles': ?profile,
                 };
                 final msg = RoomMessage.fromJson(
                   enriched.map((k, v) => MapEntry(k, v)),
                 );
-                // Avoid duplicate: skip if real ID already present.
                 if (_chatMessages.any((m) => m.id == msg.id)) return;
                 setState(() {
-                  // Remove optimistic placeholder for this sender so the
-                  // confirmed server message replaces it without duplication.
                   _chatMessages.removeWhere(
                     (m) =>
                         m.id.startsWith('optimistic_') &&
@@ -1216,7 +1223,32 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                     _chatMessages.removeRange(0, _chatMessages.length - 100);
                   }
                 });
-              });
+              }
+
+              // Use local member cache first — avoids a DB round-trip per
+              // message, which on active chats was causing N serial queries.
+              final cached = senderId != null
+                  ? _members.where((m) => m.userId == senderId).firstOrNull
+                  : null;
+
+              if (cached != null) {
+                applyProfile({
+                  'display_name': cached.displayName,
+                  'username': cached.username,
+                  'avatar_url': cached.avatarUrl,
+                  'vip_level': cached.vipLevel,
+                });
+              } else if (senderId != null) {
+                // Cache miss (sender not yet in _members): fall back to DB.
+                SupabaseService.requiredClient
+                    .from('profiles')
+                    .select('display_name, username, avatar_url, vip_level')
+                    .eq('id', senderId)
+                    .maybeSingle()
+                    .then(applyProfile);
+              } else {
+                applyProfile(null);
+              }
             } catch (_) {}
           },
         )
@@ -1542,7 +1574,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       _chatMessages.clear();
       _chatMessages.add(RoomMessage.local(
         roomId: widget.room.id,
-        message: context.isArabic ? 'The room owner has cleaned the chat.' : 'The room owner has cleaned the chat.',
+        message: context.isArabic ? 'قام المضيف بمسح الدردشة.' : 'The room owner has cleaned the chat.',
       ));
     });
   }
@@ -1577,7 +1609,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            context.isArabic ? 'Could not stop music. Please try again.' : 'Could not stop music. Please try again.',
+            context.isArabic ? 'تعذّر إيقاف الموسيقى. حاول مجدداً.' : 'Could not stop music. Please try again.',
           ),
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 3),
