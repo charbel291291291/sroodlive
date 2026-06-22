@@ -14,6 +14,8 @@ import '../models/room_user_profile.dart';
 import '../services/room_user_profile_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 import '../../wealth/widgets/wealth_badge_widget.dart';
+import '../../wealth/models/wealth_models.dart';
+import '../../profile_hub/widgets/level_frame_badge.dart';
 
 // ── Public entry point ────────────────────────────────────────────────────────
 
@@ -740,9 +742,10 @@ class _SheetBody extends StatelessWidget {
                 end: Alignment.bottomRight,
                 colors: vip >= 2
                     ? prestige.bannerGradient
-                    : [
-                        const Color(0xFF1E0E38),
-                        const Color(0xFF130728),
+                    : const [
+                        Color(0xFF2A0E42),
+                        Color(0xFF180928),
+                        Color(0xFF0E0520),
                       ],
               ),
               border: Border.all(
@@ -769,7 +772,7 @@ class _SheetBody extends StatelessWidget {
         ),
         const SizedBox(height: 12),
 
-        // ── VIP + Noble cards ─────────────────────────────────────────────────
+        // ── Stat grid (VIP | Wealth / Charm | Followers) ─────────────────────
         Row(
           children: [
             Expanded(
@@ -786,31 +789,31 @@ class _SheetBody extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: _NobleLevelCard(
-                nobleLevel: profile.nobleLevel,
+              child: _WealthLevelCard(
+                wealthLevel: profile.wealthLevel,
                 isArabic: isArabic,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
-
-        // ── Stats row ──────────────────────────────────────────────────────────
+        const SizedBox(height: 10),
         Row(
           children: [
             Expanded(
               child: _StatPill(
-                icon: Icons.group_rounded,
-                label: _fmt(profile.followersCount) +
-                    (isArabic ? ' متابع' : ' followers'),
+                icon: Icons.auto_awesome_rounded,
+                label: _fmt(profile.charmScore) +
+                    (isArabic ? ' سحر' : ' charm'),
+                color: const Color(0xFFE879F9),
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: _StatPill(
-                icon: Icons.favorite_rounded,
-                label: _fmt(profile.charmScore) +
-                    (isArabic ? ' سحر' : ' charm'),
+                icon: Icons.group_rounded,
+                label: _fmt(profile.followersCount) +
+                    (isArabic ? ' متابع' : ' followers'),
+                color: const Color(0xFF60A5FA),
               ),
             ),
           ],
@@ -1343,36 +1346,55 @@ class _LevelCard extends StatelessWidget {
   }
 }
 
-// ── Noble/prestige level card ─────────────────────────────────────────────────
+// ── Wealth level card ─────────────────────────────────────────────────────────
 
-class _NobleLevelCard extends StatelessWidget {
-  const _NobleLevelCard({required this.nobleLevel, required this.isArabic});
-  final int nobleLevel;
+class _WealthLevelCard extends StatelessWidget {
+  const _WealthLevelCard({
+    required this.wealthLevel,
+    required this.isArabic,
+  });
+  final int wealthLevel;
   final bool isArabic;
 
   @override
   Widget build(BuildContext context) {
-    final hasLevel = nobleLevel > 0;
+    final hasLevel = wealthLevel > 1;
+    final tier = WealthTier.fromLevel(wealthLevel.clamp(1, 100));
+    final c = tier.color;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
         gradient: hasLevel
-            ? const LinearGradient(
+            ? LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFF4A1D96), Color(0xFF2D0F6B)],
+                colors: [
+                  c.withValues(alpha: 0.28),
+                  c.withValues(alpha: 0.10),
+                ],
               )
             : null,
         color: hasLevel ? null : const Color(0xFF1A0D2E),
-        border: hasLevel ? null : Border.all(color: const Color(0xFF4A3470)),
+        border: Border.all(
+          color: hasLevel ? c.withValues(alpha: 0.45) : const Color(0xFF4A3470),
+        ),
+        boxShadow: hasLevel
+            ? [
+                BoxShadow(
+                  color: c.withValues(alpha: 0.18),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.military_tech_rounded,
-            color: hasLevel ? const Color(0xFFF0C15A) : const Color(0xFF6B7280),
-            size: 22,
+          LevelFrameBadge(
+            level: hasLevel ? wealthLevel : 1,
+            size: 34,
+            showNumber: false,
           ),
           const SizedBox(width: 10),
           Flexible(
@@ -1380,25 +1402,21 @@ class _NobleLevelCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isArabic ? 'نبيل' : 'Noble',
+                  isArabic ? 'ثروة' : 'Wealth',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: hasLevel
-                        ? const Color(0xFFD8CFEA)
-                        : const Color(0xFF6B7280),
+                    color: hasLevel ? c.withValues(alpha: 0.80) : const Color(0xFF6B7280),
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 Text(
-                  hasLevel ? 'Lv $nobleLevel' : '–',
+                  hasLevel ? 'Lv $wealthLevel' : '–',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: hasLevel
-                        ? const Color(0xFFF0C15A)
-                        : const Color(0xFF4A3470),
+                    color: hasLevel ? c : const Color(0xFF4A3470),
                     fontSize: 16,
                     fontWeight: FontWeight.w900,
                   ),
@@ -1415,31 +1433,36 @@ class _NobleLevelCard extends StatelessWidget {
 // ── Stat pill ─────────────────────────────────────────────────────────────────
 
 class _StatPill extends StatelessWidget {
-  const _StatPill({required this.icon, required this.label});
+  const _StatPill({
+    required this.icon,
+    required this.label,
+    this.color = const Color(0xFFF0C15A),
+  });
   final IconData icon;
   final String label;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: const Color(0xFF12091D),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFF3D2860)),
+        color: color.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.28)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 14, color: const Color(0xFFF0C15A)),
+          Icon(icon, size: 14, color: color),
           const SizedBox(width: 6),
           Flexible(
             child: Text(
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Color(0xFFD8CFEA),
+              style: TextStyle(
+                color: color.withValues(alpha: 0.90),
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
               ),
@@ -1462,36 +1485,54 @@ class _GiftWall extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E0620),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF3D2860)),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF130828), Color(0xFF0A0418)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFF0C15A).withValues(alpha: 0.22),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.card_giftcard_rounded,
-                  size: 14, color: Color(0xFFF0C15A)),
-              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0C15A).withValues(alpha: 0.13),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.card_giftcard_rounded,
+                    size: 12, color: Color(0xFFF0C15A)),
+              ),
+              const SizedBox(width: 8),
               Text(
                 isArabic ? 'جدار الهدايا' : 'Gift Wall',
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: Color(0xFFF0C15A),
                   fontWeight: FontWeight.w900,
                   fontSize: 13,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           if (items.isEmpty)
-            Text(
-              isArabic ? 'لا توجد هدايا بعد' : 'No gifts yet',
-              style: const TextStyle(
-                  color: Color(0xFF6B7280), fontSize: 12),
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  isArabic ? 'لا توجد هدايا بعد' : 'No gifts yet',
+                  style: const TextStyle(
+                      color: Color(0xFF6B7280), fontSize: 12),
+                ),
+              ),
             )
           else
             Row(
@@ -1501,16 +1542,30 @@ class _GiftWall extends StatelessWidget {
                     (g) => Expanded(
                       child: Container(
                         margin: const EdgeInsets.symmetric(horizontal: 3),
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1A0D2E),
-                          borderRadius: BorderRadius.circular(14),
+                          gradient: const LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Color(0xFF241040), Color(0xFF160B2C)],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: const Color(0xFFF0C15A).withValues(alpha: 0.15),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFF0C15A).withValues(alpha: 0.06),
+                              blurRadius: 8,
+                            ),
+                          ],
                         ),
                         child: Column(
                           children: [
                             SizedBox(
-                              width: 36,
-                              height: 36,
+                              width: 38,
+                              height: 38,
                               child: g.imageUrl == null
                                   ? const Icon(Icons.card_giftcard_rounded,
                                       color: Color(0xFFF0C15A))
@@ -1523,7 +1578,7 @@ class _GiftWall extends StatelessWidget {
                                       ),
                                     ),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 6),
                             Text(
                               g.giftName,
                               maxLines: 1,
@@ -1534,6 +1589,26 @@ class _GiftWall extends StatelessWidget {
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
+                            if (g.count > 1) ...[
+                              const SizedBox(height: 3),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF0C15A)
+                                      .withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  '×${g.count}',
+                                  style: const TextStyle(
+                                    color: Color(0xFFF0C15A),
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
