@@ -66,7 +66,9 @@ class _MyLevelScreenState extends State<MyLevelScreen> {
         surfaceTintColor: Colors.transparent,
         iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
-          isArabic ? 'مستواي' : 'My level',
+          // TEMP build marker — confirms the fresh APK opens the new Charm/Wealth
+          // screen. Remove once verified on device.
+          '${isArabic ? 'مستواي' : 'My level'}  ·  v2',
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w800,
