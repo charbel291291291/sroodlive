@@ -1357,24 +1357,29 @@ class _PremiumProfileHero extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 190),
-      // Extra bottom padding so bio line has breathing room from the card edge.
-      padding: const EdgeInsets.fromLTRB(18, 16, 14, 20),
+      padding: const EdgeInsets.fromLTRB(18, 14, 14, 18),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(26),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF3B105A), Color(0xFF180821), Color(0xFF2A0B35)],
+          colors: [Color(0xFF2C0A44), Color(0xFF130720), Color(0xFF1E0B2E)],
+          stops: [0.0, 0.52, 1.0],
         ),
         border: Border.all(
-          color: const Color(0xFFF0C15A).withValues(alpha: 0.32),
+          color: const Color(0xFFF0C15A).withValues(alpha: 0.35),
+          width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF8B26D9).withValues(alpha: 0.28),
-            blurRadius: 30,
-            offset: const Offset(0, 18),
+            color: const Color(0xFF8B26D9).withValues(alpha: 0.32),
+            blurRadius: 36,
+            offset: const Offset(0, 20),
+          ),
+          BoxShadow(
+            color: const Color(0xFFF0C15A).withValues(alpha: 0.06),
+            blurRadius: 20,
+            spreadRadius: -2,
           ),
           ...VipVisualStyle.glow(vipLevel),
         ],
@@ -1382,42 +1387,93 @@ class _PremiumProfileHero extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.hardEdge,
         children: [
-          // Background glow orb
+          // Background glow orb — radial gradient, softer
           Positioned(
-            right: isArabic ? null : -46,
-            left: isArabic ? -46 : null,
-            top: -42,
+            right: isArabic ? null : -40,
+            left: isArabic ? -40 : null,
+            top: -38,
             child: Container(
-              width: 128,
-              height: 128,
+              width: 144,
+              height: 144,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFC13BFF).withValues(alpha: 0.16),
+                gradient: RadialGradient(
+                  colors: [
+                    const Color(0xFFB03CF5).withValues(alpha: 0.22),
+                    const Color(0xFF8B26D9).withValues(alpha: 0.10),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.55, 1.0],
+                ),
               ),
             ),
           ),
-          // Edit button
+          // Top-edge inner glow for depth
           Positioned(
-            right: isArabic ? null : 6,
-            left: isArabic ? 6 : null,
-            top: 4,
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: 44,
+              decoration: BoxDecoration(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(26),
+                ),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.055),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Edit button — gold pill (icon + label), visually anchored
+          Positioned(
+            right: isArabic ? null : 4,
+            left: isArabic ? 4 : null,
+            top: 8,
             child: InkWell(
-              customBorder: const CircleBorder(),
+              borderRadius: BorderRadius.circular(999),
               onTap: onEditTap,
               child: Container(
-                width: 40,
-                height: 40,
+                height: 30,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.black.withValues(alpha: 0.30),
+                  borderRadius: BorderRadius.circular(999),
+                  color: const Color(0xFFF0C15A).withValues(alpha: 0.13),
                   border: Border.all(
-                    color: const Color(0xFFF0C15A).withValues(alpha: 0.42),
+                    color: const Color(0xFFF0C15A).withValues(alpha: 0.52),
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFF0C15A).withValues(alpha: 0.10),
+                      blurRadius: 8,
+                    ),
+                  ],
                 ),
-                child: const Icon(
-                  Icons.edit_rounded,
-                  color: Color(0xFFF0C15A),
-                  size: 18,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.edit_rounded,
+                      color: Color(0xFFF0C15A),
+                      size: 13,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      isArabic ? 'تعديل' : 'Edit',
+                      style: const TextStyle(
+                        color: Color(0xFFF0C15A),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        height: 1.0,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -1441,50 +1497,55 @@ class _PremiumProfileHero extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: crossAxisAlignment,
                   children: [
-                    // Profile label chip
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.22),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.14),
+                    // "Srood Profile" label — padded from top to clear edit pill
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Container(
+                        height: 28,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.28),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: const Color(
+                              0xFFF0C15A,
+                            ).withValues(alpha: 0.30),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          textDirection: isArabic
+                              ? TextDirection.rtl
+                              : TextDirection.ltr,
+                          children: [
+                            const Icon(
+                              Icons.workspace_premium_rounded,
+                              color: Color(0xFFF0C15A),
+                              size: 12,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              isArabic ? 'ملف سرود' : 'Srood Profile',
+                              style: TextStyle(
+                                color: const Color(
+                                  0xFFF0C15A,
+                                ).withValues(alpha: 0.88),
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                                height: 1.0,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        textDirection: isArabic
-                            ? TextDirection.rtl
-                            : TextDirection.ltr,
-                        children: [
-                          const Icon(
-                            Icons.workspace_premium_rounded,
-                            color: Color(0xFFF0C15A),
-                            size: 14,
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            isArabic ? 'ملف سرود' : 'Srood Profile',
-                            style: const TextStyle(
-                              color: Color(0xFFD8CFEA),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w900,
-                              height: 1.0,
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
-                    const SizedBox(height: 10),
-                    // Display name
-                    // the VIP pill below; no separate floating badge needed.
+                    const SizedBox(height: 8),
+                    // Display name — primary identity element
                     VipUsername(
                       name: displayName,
                       vipLevel: vipLevel,
-                      fontSize: 27,
+                      fontSize: 24,
                       textAlign: textAlign,
                     ),
                     const SizedBox(height: 8),
@@ -1544,39 +1605,87 @@ class _PremiumProfileHero extends StatelessWidget {
                           ),
                         ),
                       ),
-                    const SizedBox(height: 10),
-                    // Badges row
-                    Wrap(
-                      alignment: isArabic
-                          ? WrapAlignment.end
-                          : WrapAlignment.start,
-                      spacing: 6,
-                      runSpacing: 5,
-                      children: [
-                        if (flag.isNotEmpty)
-                          _ProfileBadge(label: flag, highlighted: false),
-                        if (vipLevel > 0) VipBadge(vipLevel: vipLevel),
-                        _LevelBadgeRow(
-                          charmLevel: charmLevel,
-                          wealthLevel: wealthLevel,
-                          isArabic: isArabic,
+                    const SizedBox(height: 8),
+                    // Chip row 1 — country + VIP
+                    if (flag.isNotEmpty || vipLevel > 0)
+                      Wrap(
+                        alignment: isArabic
+                            ? WrapAlignment.end
+                            : WrapAlignment.start,
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          if (flag.isNotEmpty)
+                            _ProfileBadge(label: flag, highlighted: false),
+                          if (vipLevel > 0) VipBadge(vipLevel: vipLevel),
+                        ],
+                      ),
+                    const SizedBox(height: 5),
+                    // Charm + Wealth — matched luxury pair on one row
+                    if (charmLevel != null || wealthLevel != null)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (charmLevel != null)
+                            _LuxuryLevelChip(
+                              icon: Icons.favorite_rounded,
+                              label: isArabic ? 'سحر' : 'Charm',
+                              level: charmLevel!,
+                              gradientColors: const [
+                                Color(0xFF7A1250),
+                                Color(0xFFB8236E),
+                                Color(0xFFE0449A),
+                              ],
+                              glowColor: const Color(0xFFE0449A),
+                              highlightColor: const Color(0xFFFFB3E6),
+                            ),
+                          if (charmLevel != null && wealthLevel != null)
+                            const SizedBox(width: 7),
+                          if (wealthLevel != null)
+                            _LuxuryLevelChip(
+                              icon: Icons.diamond_rounded,
+                              label: isArabic ? 'ثروة' : 'Wealth',
+                              level: wealthLevel!,
+                              gradientColors: const [
+                                Color(0xFF6B4800),
+                                Color(0xFFA87000),
+                                Color(0xFFD4A017),
+                              ],
+                              glowColor: const Color(0xFFD4A017),
+                              highlightColor: const Color(0xFFFFF0B3),
+                            ),
+                        ],
+                      ),
+                    // Gender chip — separate row
+                    if (ProfileGenderChip.isKnown(gender)) ...[
+                      const SizedBox(height: 4),
+                      ProfileGenderChip(gender: gender, isArabic: isArabic),
+                    ],
+                    // Bio — subtle top rule, softer text
+                    Container(
+                      margin: const EdgeInsets.only(top: 10),
+                      padding: const EdgeInsets.only(top: 9),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          top: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.07),
+                          ),
                         ),
-                        if (ProfileGenderChip.isKnown(gender))
-                          ProfileGenderChip(gender: gender, isArabic: isArabic),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    // Bio / status — up to two lines, softer premium tone.
-                    Text(
-                      subtitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: textAlign,
-                      style: TextStyle(
-                        color: const Color(0xFFBCAED6).withValues(alpha: 0.82),
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        height: 1.4,
+                      ),
+                      child: Text(
+                        subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: textAlign,
+                        style: TextStyle(
+                          color: const Color(
+                            0xFFBCAED6,
+                          ).withValues(alpha: 0.70),
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                          height: 1.45,
+                          letterSpacing: 0.1,
+                        ),
                       ),
                     ),
                   ],
@@ -1631,23 +1740,35 @@ class _PremiumProfileHero extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    const Color(0xFF7B22CC).withValues(alpha: 0.52),
-                    const Color(0xFFC13BFF).withValues(alpha: 0.18),
-                    const Color(0xFFFF4ECD).withValues(alpha: 0.06),
+                    const Color(0xFF7B22CC).withValues(alpha: 0.60),
+                    const Color(0xFFC13BFF).withValues(alpha: 0.22),
+                    const Color(0xFFFF4ECD).withValues(alpha: 0.07),
                     Colors.transparent,
                   ],
                   stops: const [0.0, 0.44, 0.70, 1.0],
                 ),
               ),
             ),
-            // Subtle gold halo ring
+            // Inner gold halo ring
             Container(
               width: glowDiam + 4,
               height: glowDiam + 4,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: const Color(0xFFF0C15A).withValues(alpha: 0.13),
+                  color: const Color(0xFFF0C15A).withValues(alpha: 0.24),
+                  width: 1.2,
+                ),
+              ),
+            ),
+            // Outer gold halo ring (diffuse)
+            Container(
+              width: glowDiam + 14,
+              height: glowDiam + 14,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: const Color(0xFFF0C15A).withValues(alpha: 0.08),
                   width: 1.0,
                 ),
               ),
@@ -3099,77 +3220,115 @@ class _GoldMiniButton extends StatelessWidget {
   }
 }
 
-// Charm + Wealth level badges on the profile card.
-// Activity Level is intentionally hidden — it is confusing and redundant.
-// _userLevel is still loaded separately for animated-avatar eligibility checks.
-class _LevelBadgeRow extends StatelessWidget {
-  const _LevelBadgeRow({
-    required this.isArabic,
-    this.charmLevel,
-    this.wealthLevel,
-  });
-
-  final int? charmLevel;
-  final int? wealthLevel;
-  final bool isArabic;
-
-  @override
-  Widget build(BuildContext context) {
-    if (charmLevel == null && wealthLevel == null)
-      return const SizedBox.shrink();
-    return Wrap(
-      spacing: 5,
-      runSpacing: 4,
-      children: [
-        if (charmLevel != null)
-          _MiniLevelBadge(
-            icon: Icons.favorite_rounded,
-            color: const Color(0xFFFF4ECD),
-            label: isArabic ? 'سحر $charmLevel' : 'Charm Lv. $charmLevel',
-          ),
-        if (wealthLevel != null)
-          _MiniLevelBadge(
-            icon: Icons.diamond_rounded,
-            color: const Color(0xFFF0C15A),
-            label: isArabic ? 'ثروة $wealthLevel' : 'Wealth Lv. $wealthLevel',
-          ),
-      ],
-    );
-  }
-}
-
-class _MiniLevelBadge extends StatelessWidget {
-  const _MiniLevelBadge({
+// Premium rectangular chip — 3-stop vertical gradient, gloss strip, glow shadow.
+// Used for Charm and Wealth level display in the profile hero card.
+class _LuxuryLevelChip extends StatelessWidget {
+  const _LuxuryLevelChip({
     required this.icon,
-    required this.color,
     required this.label,
+    required this.level,
+    required this.gradientColors,
+    required this.glowColor,
+    required this.highlightColor,
   });
 
   final IconData icon;
-  final Color color;
   final String label;
+  final int level;
+  final List<Color> gradientColors; // 3 stops: dark → mid → light
+  final Color glowColor;
+  final Color highlightColor;
 
   @override
   Widget build(BuildContext context) {
+    const h = 30.0;
+    const br = 10.0;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      height: h,
+      constraints: const BoxConstraints(minWidth: 70, maxWidth: 120),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.45)),
+        borderRadius: BorderRadius.circular(br),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: gradientColors,
+          stops: const [0.0, 0.45, 1.0],
+        ),
+        border: Border.all(
+          color: highlightColor.withValues(alpha: 0.38),
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: glowColor.withValues(alpha: 0.40),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.38),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Stack(
+        clipBehavior: Clip.hardEdge,
         children: [
-          Icon(icon, size: 11, color: color),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.2,
+          // Top gloss strip
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: h * 0.38,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(br),
+                ),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.28),
+                    Colors.white.withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Content
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 9),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 12, color: highlightColor),
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: highlightColor.withValues(alpha: 0.88),
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
+                    height: 1.0,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '$level',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.0,
+                    height: 1.0,
+                    shadows: [Shadow(color: Colors.black38, blurRadius: 3)],
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -3187,7 +3346,8 @@ class _ProfileBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      height: 26,
+      padding: const EdgeInsets.symmetric(horizontal: 9),
       decoration: BoxDecoration(
         color: highlighted
             ? const Color(0xFFF0C15A).withValues(alpha: 0.18)
@@ -3196,7 +3356,7 @@ class _ProfileBadge extends StatelessWidget {
         border: Border.all(
           color: highlighted
               ? const Color(0xFFF0C15A)
-              : Colors.white.withValues(alpha: 0.18),
+              : Colors.white.withValues(alpha: 0.20),
         ),
       ),
       child: Text(
