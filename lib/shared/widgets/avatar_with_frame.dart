@@ -30,6 +30,9 @@ class AvatarWithFrame extends StatelessWidget {
     this.showVipBadge = false,
     this.autoVipFrame = true,
     this.compact = false,
+    this.avatarScale,
+    this.frameScale,
+    this.imageAlignment = Alignment.center,
     this.fallbackIcon = Icons.person_rounded,
     super.key,
   });
@@ -41,12 +44,16 @@ class AvatarWithFrame extends StatelessWidget {
   final String? nickname;
   final int? vipLevel;
   final bool showVipBadge;
+
   /// When true (default) and no explicit [frameKey] is selected, a VIP user
   /// automatically gets the matching `vip_$level` PNG frame. Set to false when
   /// the caller draws its own VIP frame (e.g. the profile hero's webp frame) to
   /// avoid stacking two frames on one avatar.
   final bool autoVipFrame;
   final bool compact;
+  final double? avatarScale;
+  final double? frameScale;
+  final Alignment imageAlignment;
   final IconData fallbackIcon;
 
   @override
@@ -54,17 +61,23 @@ class AvatarWithFrame extends StatelessWidget {
     final frame = _effectiveFrameKey(frameKey?.trim());
     final hasFrame = frame != null && frame.isNotEmpty;
     final isVipPngFrame = hasFrame && frame.startsWith('vip_');
-    final avatarSize = radius * 2;
+    final baseAvatarSize = radius * 2;
     final frameSize = hasFrame
-        ? avatarSize * _frameScale(frame, compact: compact)
-        : avatarSize;
+        ? baseAvatarSize * (frameScale ?? _frameScale(frame, compact: compact))
+        : baseAvatarSize;
+    final avatarSize =
+        baseAvatarSize *
+        (hasFrame ? (avatarScale ?? _avatarScale(frame)) : 1.0).clamp(
+          0.70,
+          1.0,
+        );
     final frameAssetPath = _frameAssetPath(frame);
     final url = imageUrl?.trim();
 
     // VIP wreath frames have a crown on top + a "VIP" label at the bottom that
     // push the visual opening below the geometric centre. Nudge the photo down
     // so it sits inside the opening instead of behind the crown.
-    final avatarDy = isVipPngFrame ? frameSize * 0.045 : 0.0;
+    final avatarDy = isVipPngFrame ? frameSize * 0.035 : 0.0;
 
     return SizedBox(
       width: frameSize,
@@ -83,6 +96,7 @@ class AvatarWithFrame extends StatelessWidget {
                     ? CachedNetworkImage(
                         imageUrl: url,
                         fit: BoxFit.cover,
+                        alignment: imageAlignment,
                         width: avatarSize,
                         height: avatarSize,
                         errorWidget: (context, error, stackTrace) =>
@@ -190,11 +204,20 @@ class AvatarWithFrame extends StatelessWidget {
       'custom_super_admin' ||
       'custom_admin' ||
       'custom_luxury_gold' ||
-      'custom_luxury_diamond' =>
-        vipFrameScale(0, compact: compact, custom: true),
+      'custom_luxury_diamond' => vipFrameScale(
+        0,
+        compact: compact,
+        custom: true,
+      ),
       'luxury_ruby_royal' || 'luxury_ruby_royal_dark' => 1.42,
       _ => compact ? 1.08 : 1.18,
     };
+  }
+
+  double _avatarScale(String? frameKey) {
+    if (frameKey == null || frameKey.isEmpty) return 1.0;
+    if (frameKey.startsWith('vip_')) return 0.94;
+    return 0.92;
   }
 
   String? _frameAssetPath(String? frameKey) {
@@ -733,4 +756,3 @@ class _FrameStyle {
     };
   }
 }
-
