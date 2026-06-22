@@ -407,22 +407,39 @@ class RoomsService {
     required String roomId,
     required int seatNumber,
   }) async {
-    final client = SupabaseService.requiredClient;
-    final user = client.auth.currentUser;
-
-    if (user == null) {
+    if (SupabaseService.requiredClient.auth.currentUser == null) {
       throw StateError('No logged-in user found.');
     }
 
+    // Client-side restriction check (fast path before hitting the network).
     await _restrictions.throwIfRestricted('account_ban');
     await _restrictions.throwIfRestricted('room_ban');
 
-    await client
-        .from('room_members')
-        .update({'role': 'speaker', 'seat_number': seatNumber})
-        .eq('room_id', roomId)
-        .eq('user_id', user.id)
-        .filter('left_at', 'is', null);
+    // All remaining checks (membership, ban, force-mute, seat availability,
+    // capacity, atomic uniqueness) are enforced server-side by the RPC.
+    try {
+      await SupabaseService.requiredClient.rpc(
+        'claim_speaker_seat',
+        params: {'p_room_id': roomId, 'p_seat_number': seatNumber},
+      );
+    } on PostgrestException catch (e) {
+      final code = e.message;
+      if (code.contains('seat_taken')) {
+        throw Exception('This seat is already taken.');
+      } else if (code.contains('force_muted')) {
+        throw Exception('You have been muted from speaking by the host.');
+      } else if (code.contains('banned_from_room')) {
+        throw Exception('You are banned from this room.');
+      } else if (code.contains('invalid_seat_number')) {
+        throw Exception('Invalid seat number.');
+      } else if (code.contains('not_in_room')) {
+        throw Exception('You are not an active member of this room.');
+      } else if (code.contains('room_closed')) {
+        throw Exception('This room is closed.');
+      } else {
+        rethrow;
+      }
+    }
   }
 
   Future<void> updateMemberSeatNumber({
