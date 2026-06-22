@@ -1557,7 +1557,6 @@ class _PremiumProfileHero extends StatelessWidget {
                           _ProfileBadge(label: flag, highlighted: false),
                         if (vipLevel > 0) VipBadge(vipLevel: vipLevel),
                         _LevelBadgeRow(
-                          activityLevel: level,
                           charmLevel: charmLevel,
                           wealthLevel: wealthLevel,
                           isArabic: isArabic,
@@ -3100,43 +3099,39 @@ class _GoldMiniButton extends StatelessWidget {
   }
 }
 
-// Three-track level row shown on the profile card.
-// Charm and Wealth are nullable — if loading failed, only Activity is shown.
+// Charm + Wealth level badges on the profile card.
+// Activity Level is intentionally hidden — it is confusing and redundant.
+// _userLevel is still loaded separately for animated-avatar eligibility checks.
 class _LevelBadgeRow extends StatelessWidget {
   const _LevelBadgeRow({
-    required this.activityLevel,
     required this.isArabic,
     this.charmLevel,
     this.wealthLevel,
   });
 
-  final int activityLevel;
   final int? charmLevel;
   final int? wealthLevel;
   final bool isArabic;
 
   @override
   Widget build(BuildContext context) {
+    if (charmLevel == null && wealthLevel == null)
+      return const SizedBox.shrink();
     return Wrap(
       spacing: 5,
       runSpacing: 4,
       children: [
-        _MiniLevelBadge(
-          icon: Icons.military_tech_rounded,
-          color: const Color(0xFF9B59F5),
-          label: isArabic ? 'نشاط $activityLevel' : 'Act. $activityLevel',
-        ),
         if (charmLevel != null)
           _MiniLevelBadge(
             icon: Icons.favorite_rounded,
             color: const Color(0xFFFF4ECD),
-            label: isArabic ? 'سحر $charmLevel' : 'Charm $charmLevel',
+            label: isArabic ? 'سحر $charmLevel' : 'Charm Lv. $charmLevel',
           ),
         if (wealthLevel != null)
           _MiniLevelBadge(
             icon: Icons.diamond_rounded,
             color: const Color(0xFFF0C15A),
-            label: isArabic ? 'ثروة $wealthLevel' : 'Wealth $wealthLevel',
+            label: isArabic ? 'ثروة $wealthLevel' : 'Wealth Lv. $wealthLevel',
           ),
       ],
     );

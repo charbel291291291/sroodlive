@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../wealth/models/wealth_models.dart';
 import '../../wealth/services/wealth_service.dart';
 import '../services/charm_service.dart';
+import '../widgets/level_frame_badge.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
 // ── XP formatter ─────────────────────────────────────────────────────────────
@@ -31,18 +32,22 @@ class _MyLevelScreenState extends State<MyLevelScreen> {
   late Future<UserCharm> _charmFuture;
   late Future<UserWealth> _wealthFuture;
 
-  // Level range rows — index 9 fixed: '91–99' (level 90 belongs to royal tier).
+  // Badge numbers are the MINIMUM (first) level in each tier range so that
+  // LevelFrameBadge derives the correct tier color via WealthTier.fromLevel.
+  // Backend tier boundaries: bronze 1-10, silver 11-20, …, legend 91-100.
+  // Note: reference image shows 1-9/10-19/… boundaries (off by one vs backend)
+  // and sub-tiers at 80+. Kept backend-consistent here for correctness.
   static const List<({String label, int badge, WealthTier tier})> _rows = [
-    (label: '1–10', badge: 10, tier: WealthTier.bronze),
-    (label: '11–20', badge: 20, tier: WealthTier.silver),
-    (label: '21–30', badge: 30, tier: WealthTier.gold),
-    (label: '31–40', badge: 40, tier: WealthTier.emerald),
-    (label: '41–50', badge: 50, tier: WealthTier.sapphire),
-    (label: '51–60', badge: 60, tier: WealthTier.ruby),
-    (label: '61–70', badge: 70, tier: WealthTier.diamond),
-    (label: '71–80', badge: 80, tier: WealthTier.master),
-    (label: '81–90', badge: 90, tier: WealthTier.royal),
-    (label: '91–99', badge: 99, tier: WealthTier.legend),
+    (label: '1–10', badge: 1, tier: WealthTier.bronze),
+    (label: '11–20', badge: 11, tier: WealthTier.silver),
+    (label: '21–30', badge: 21, tier: WealthTier.gold),
+    (label: '31–40', badge: 31, tier: WealthTier.emerald),
+    (label: '41–50', badge: 41, tier: WealthTier.sapphire),
+    (label: '51–60', badge: 51, tier: WealthTier.ruby),
+    (label: '61–70', badge: 61, tier: WealthTier.diamond),
+    (label: '71–80', badge: 71, tier: WealthTier.master),
+    (label: '81–90', badge: 81, tier: WealthTier.royal),
+    (label: '91–99', badge: 91, tier: WealthTier.legend),
     (label: '100', badge: 100, tier: WealthTier.legend),
   ];
 
@@ -476,29 +481,12 @@ class _LevelHeroCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Header row: tier icon / labels + journey dots ─────────────────
+          // ── Header row: tier badge / labels + journey dots ────────────────
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Tier icon circle
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: c.withValues(alpha: 0.18),
-                  border: Border.all(
-                    color: c.withValues(alpha: 0.55),
-                    width: 1.3,
-                  ),
-                  boxShadow: [
-                    BoxShadow(color: c.withValues(alpha: 0.35), blurRadius: 8),
-                  ],
-                ),
-                child: Center(
-                  child: Text(tier.icon, style: const TextStyle(fontSize: 19)),
-                ),
-              ),
+              // Premium tier badge (gem + level number)
+              LevelFrameBadge(level: level, tier: tier, size: 44),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -1022,8 +1010,8 @@ class _LevelTableRow extends StatelessWidget {
             child: Center(
               child: Opacity(
                 opacity: isUnlocked ? 1.0 : 0.30,
-                child: _TierLevelBadge(
-                  number: row.badge,
+                child: LevelFrameBadge(
+                  level: row.badge,
                   tier: row.tier,
                   size: 38,
                 ),
@@ -1034,7 +1022,7 @@ class _LevelTableRow extends StatelessWidget {
           if (showEntryEffect)
             Expanded(
               flex: 5,
-              child: row.badge <= 10
+              child: row.tier == WealthTier.bronze
                   ? Text(
                       '—',
                       textAlign: TextAlign.center,
@@ -1046,113 +1034,6 @@ class _LevelTableRow extends StatelessWidget {
                     )
                   : _EntrancePreview(tier: row.tier, isArabic: isArabic),
             ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Glossy tier badge capsule ─────────────────────────────────────────────────
-class _TierLevelBadge extends StatelessWidget {
-  const _TierLevelBadge({
-    required this.number,
-    required this.tier,
-    required this.size,
-  });
-  final int number;
-  final WealthTier tier;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = tier.color;
-    final light = _lighten(c, 0.55);
-    final dark = _darken(c, 0.42);
-
-    return Container(
-      height: size,
-      constraints: BoxConstraints(minWidth: size * 1.55),
-      padding: EdgeInsets.fromLTRB(size * 0.12, 0, size * 0.26, 0),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [light, c, dark],
-          stops: const [0.0, 0.5, 1.0],
-        ),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.65),
-          width: 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(color: c.withValues(alpha: 0.55), blurRadius: size * 0.30),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.35),
-            blurRadius: size * 0.12,
-            offset: Offset(0, size * 0.06),
-          ),
-        ],
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Shine highlight
-          Positioned(
-            top: size * 0.06,
-            left: size * 0.18,
-            right: size * 0.18,
-            child: Container(
-              height: size * 0.28,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(999),
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.white.withValues(alpha: 0.55),
-                    Colors.white.withValues(alpha: 0.0),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: size * 0.62,
-                height: size * 0.62,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [Colors.white, light, dark],
-                    stops: const [0.0, 0.45, 1.0],
-                    center: const Alignment(-0.3, -0.4),
-                  ),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    width: 1,
-                  ),
-                  boxShadow: [
-                    BoxShadow(color: c.withValues(alpha: 0.7), blurRadius: 4),
-                  ],
-                ),
-              ),
-              SizedBox(width: size * 0.12),
-              Text(
-                '$number',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  fontSize: size * 0.42,
-                  height: 1.0,
-                  shadows: const [Shadow(color: Colors.black54, blurRadius: 2)],
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
