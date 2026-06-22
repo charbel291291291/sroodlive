@@ -1153,54 +1153,40 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     final ar = widget.isArabic;
     switch (code) {
       case 'insufficient_coins':
-        return ar ? 'Ø±ØµÙŠØ¯ ØºÙŠØ± ÙƒØ§ÙÙ' : 'Insufficient coins';
+        return ar ? 'رصيد غير كافٍ' : 'Insufficient coins';
       case 'not_authenticated':
-        return ar
-            ? 'ÙŠØ±Ø¬Ù‰ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ù…Ø¬Ø¯Ø¯Ø§Ù‹'
-            : 'Please sign in again';
+        return ar ? 'يرجى تسجيل الدخول مجدداً' : 'Please sign in again';
       case 'already_settled':
-        return ar ? 'ØªÙ…Øª Ø§Ù„Ø¹Ù…Ù„ÙŠØ© Ù…Ø³Ø¨Ù‚Ø§Ù‹' : 'Already processed';
+        return ar ? 'تمت العملية مسبقاً' : 'Already processed';
       case 'bet_not_found':
-        return ar ? 'Ø§Ù„Ø±Ù‡Ø§Ù† ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯' : 'Bet not found';
+        return ar ? 'الرهان غير موجود' : 'Bet not found';
       case 'not_refundable':
-        return ar
-            ? 'Ù„Ø§ ÙŠÙ…ÙƒÙ† Ø§Ø³ØªØ±Ø¯Ø§Ø¯ Ù‡Ø°Ø§ Ø§Ù„Ø±Ù‡Ø§Ù†'
-            : 'Bet is not refundable';
+        return ar ? 'لا يمكن استرداد هذا الرهان' : 'Bet is not refundable';
       case 'round_not_found':
-        return ar ? 'Ø§Ù„Ø¬ÙˆÙ„Ø© ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯Ø©' : 'Round not found';
+        return ar ? 'الجولة غير موجودة' : 'Round not found';
       case 'betting_closed':
-        return ar ? 'Ø§Ù†ØªÙ‡Ù‰ ÙˆÙ‚Øª Ø§Ù„Ø±Ù‡Ø§Ù†' : 'Betting is closed';
+        return ar ? 'انتهى وقت الرهان' : 'Betting is closed';
       case 'game_disabled':
-        return ar
-            ? 'Ø§Ù„Ù„Ø¹Ø¨Ø© ØºÙŠØ± Ù…ØªØ§Ø­Ø© Ø­Ø§Ù„ÙŠØ§Ù‹'
-            : 'Game is currently unavailable';
+        return ar ? 'اللعبة غير متاحة حالياً' : 'Game is currently unavailable';
       case 'round_not_flying':
-        return ar
-            ? 'Ø§Ù„ØµØ§Ø±ÙˆØ® Ù„Ù… ÙŠÙ†Ø·Ù„Ù‚ Ø¨Ø¹Ø¯'
-            : 'Round is not in flight';
+        return ar ? 'الصاروخ لم ينطلق بعد' : 'Round is not in flight';
       case 'round_already_crashed':
-        return ar
-            ? 'Ø§Ù†Ù‡Ø§Ø± Ø§Ù„ØµØ§Ø±ÙˆØ® Ø¨Ø§Ù„ÙØ¹Ù„'
-            : 'Rocket already crashed';
+        return ar ? 'انهار الصاروخ بالفعل' : 'Rocket already crashed';
       case 'invalid_auto_cashout':
         return ar
-            ? 'Ù…Ø¶Ø§Ø¹Ù Ø§Ù„Ø³Ø­Ø¨ Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠ ØºÙŠØ± ØµØ§Ù„Ø­'
+            ? 'مضاعف السحب التلقائي غير صالح'
             : 'Invalid auto cashout multiplier';
       case 'round_crashed':
-        return ar
-            ? 'Ø§Ù†Ù‡Ø§Ø± Ø§Ù„ØµØ§Ø±ÙˆØ® Ù‚Ø¨Ù„ Ø§Ù„Ø³Ø­Ø¨'
-            : 'Rocket crashed before cashout';
+        return ar ? 'انهار الصاروخ قبل السحب' : 'Rocket crashed before cashout';
       case 'server_not_ready':
         return ar
-            ? 'Ø¬Ø§Ø±ÙŠ Ø§Ù„Ù…Ø²Ø§Ù…Ù†Ø©ØŒ ÙŠØ±Ø¬Ù‰ Ø§Ù„Ø§Ù†ØªØ¸Ø§Ø±...'
+            ? 'جاري المزامنة، يرجى الانتظار...'
             : 'Syncing with server...';
       case 'invalid_amount':
-        return ar
-            ? 'Ù…Ø¨Ù„Øº Ø§Ù„Ø±Ù‡Ø§Ù† ØºÙŠØ± ØµØ§Ù„Ø­'
-            : 'Invalid bet amount';
+        return ar ? 'مبلغ الرهان غير صالح' : 'Invalid bet amount';
       default:
         return ar
-            ? 'Ø­Ø¯Ø« Ø®Ø·Ø£ØŒ ÙŠØ±Ø¬Ù‰ Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø© Ù…Ø¬Ø¯Ø¯Ø§Ù‹'
+            ? 'حدث خطأ، يرجى المحاولة مجدداً'
             : 'Something went wrong, please retry';
     }
   }
@@ -1260,7 +1246,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
             const SizedBox(height: 16),
             Text(
               widget.isArabic
-                  ? 'Ø¬Ø§Ø±ÙŠ Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ø¬ÙˆÙ„Ø© Ø§Ù„Ø­ÙŠØ©...'
+                  ? 'جاري الاتصال بالجولة الحية...'
                   : 'Connecting to live round...',
               style: TextStyle(
                 color: const Color(0xFF00D4FF).withValues(alpha: 0.8),
@@ -1344,9 +1330,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
                       );
                     },
                     child: Text(
-                      widget.isArabic
-                          ? 'Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø©'
-                          : 'Try again',
+                      widget.isArabic ? 'إعادة المحاولة' : 'Try again',
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
@@ -1366,7 +1350,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
   String _friendlyWebError(String? raw) {
     if (raw == null || raw.isEmpty) {
       return widget.isArabic
-          ? 'ØªØ¹Ø°Ø± Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ù„Ø¹Ø¨Ø©. ÙŠØ±Ø¬Ù‰ Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† Ø§ØªØµØ§Ù„Ùƒ Ø¨Ø§Ù„Ø¥Ù†ØªØ±Ù†Øª.'
+          ? 'تعذر الاتصال باللعبة. يرجى التحقق من اتصالك بالإنترنت.'
           : 'Could not connect to the game. Check your internet connection.';
     }
     if (raw == 'sync_timeout') {
@@ -1379,16 +1363,16 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
         lower.contains('net::err_name') ||
         lower.contains('offline')) {
       return widget.isArabic
-          ? 'Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ø¥Ù†ØªØ±Ù†Øª.'
+          ? 'لا يوجد اتصال بالإنترنت.'
           : 'No internet connection.';
     }
     if (lower.contains('ssl') || lower.contains('certificate')) {
       return widget.isArabic
-          ? 'Ø®Ø·Ø£ ÙÙŠ Ø´Ù‡Ø§Ø¯Ø© Ø§Ù„Ø£Ù…Ø§Ù†.'
+          ? 'خطأ في شهادة الأمان.'
           : 'Security certificate error.';
     }
     return widget.isArabic
-        ? 'ØªØ¹Ø°Ø± ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ù„Ø¹Ø¨Ø©. ÙŠØ±Ø¬Ù‰ Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø© Ù…Ø¬Ø¯Ø¯Ø§Ù‹.'
+        ? 'تعذر تحميل اللعبة. يرجى المحاولة مجدداً.'
         : 'Failed to load the game. Please try again.';
   }
 }
