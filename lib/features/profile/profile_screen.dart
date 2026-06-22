@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -332,7 +332,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            context.isArabic ? 'ÙØ´Ù„ ÙØªØ­ Ø§Ù„ØºØ±ÙØ©: $e' : 'Failed to open room: $e',
+            context.isArabic
+                ? 'ÙØ´Ù„ ÙØªØ­ Ø§Ù„ØºØ±ÙØ©: $e'
+                : 'Failed to open room: $e',
           ),
           behavior: SnackBarBehavior.floating,
         ),
@@ -463,7 +465,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(context.isArabic ? 'ØªÙ… Ù†Ø³Ø® Ø§Ù„Ù…Ø¹Ø±Ù' : 'ID copied'),
+        content: Text(
+          context.isArabic ? 'ØªÙ… Ù†Ø³Ø® Ø§Ù„Ù…Ø¹Ø±Ù' : 'ID copied',
+        ),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -512,7 +516,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         : CrossAxisAlignment.start,
                     children: [
                       Text(
-                        context.isArabic ? 'ØªØ¹Ø¯ÙŠÙ„ Ø§Ù„Ù…Ù„Ù' : 'Edit Profile',
+                        context.isArabic
+                            ? 'ØªØ¹Ø¯ÙŠÙ„ Ø§Ù„Ù…Ù„Ù'
+                            : 'Edit Profile',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 22,
@@ -570,11 +576,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: Text(
                           countryLocked
                               ? (context.isArabic
-                                  ? 'الدولة مقفلة.'
-                                  : 'Country is locked.')
+                                    ? 'الدولة مقفلة.'
+                                    : 'Country is locked.')
                               : (context.isArabic
-                                  ? 'يمكنك تغيير الدولة مرة واحدة فقط.'
-                                  : 'You can change country only once.'),
+                                    ? 'يمكنك تغيير الدولة مرة واحدة فقط.'
+                                    : 'You can change country only once.'),
                           style: lockHint,
                         ),
                       ),
@@ -587,7 +593,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: DropdownButtonFormField<String>(
                             initialValue: selectedGender,
                             decoration: InputDecoration(
-                              labelText: context.isArabic ? 'Ø§Ù„Ø¬Ù†Ø³' : 'Gender',
+                              labelText: context.isArabic
+                                  ? 'Ø§Ù„Ø¬Ù†Ø³'
+                                  : 'Gender',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(18),
                               ),
@@ -617,11 +625,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: Text(
                           genderLocked
                               ? (context.isArabic
-                                  ? 'الجنس مقفل.'
-                                  : 'Gender is locked.')
+                                    ? 'الجنس مقفل.'
+                                    : 'Gender is locked.')
                               : (context.isArabic
-                                  ? 'يمكنك تغيير الجنس مرة واحدة فقط.'
-                                  : 'You can change gender only once.'),
+                                    ? 'يمكنك تغيير الجنس مرة واحدة فقط.'
+                                    : 'You can change gender only once.'),
                           style: lockHint,
                         ),
                       ),
@@ -967,14 +975,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // Profile updates go through the SECURITY DEFINER RPC, which enforces the
       // one-time gender/country change rule server-side.
       try {
-        await client.rpc('update_my_profile', params: {
-          'p_username': currentUsername,
-          'p_display_name': displayName,
-          'p_date_of_birth': dateOfBirth,
-          'p_bio': bio,
-          'p_country': country,
-          'p_gender': gender,
-        });
+        await client.rpc(
+          'update_my_profile',
+          params: {
+            'p_username': currentUsername,
+            'p_display_name': displayName,
+            'p_date_of_birth': dateOfBirth,
+            'p_bio': bio,
+            'p_country': country,
+            'p_gender': gender,
+          },
+        );
       } catch (error) {
         final msg = error.toString();
         if (msg.contains('gender_locked')) {
@@ -1000,11 +1011,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       await _loadProfile();
       setState(() {
-        successMessage = isArabic ? 'ØªÙ… Ø­ÙØ¸ Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠ.' : 'Profile saved.';
+        successMessage = isArabic
+            ? 'ØªÙ… Ø­ÙØ¸ Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠ.'
+            : 'Profile saved.';
       });
     } catch (error) {
       setState(() {
-        errorMessage = isArabic ? 'ÙØ´Ù„ Ø§Ù„Ø­ÙØ¸: $error' : 'Save failed: $error';
+        errorMessage = isArabic
+            ? 'ÙØ´Ù„ Ø§Ù„Ø­ÙØ¸: $error'
+            : 'Save failed: $error';
       });
     } finally {
       if (mounted) setState(() => isSaving = false);
@@ -1506,7 +1521,9 @@ class _PremiumProfileHero extends StatelessWidget {
                         if (vipLevel > 0) VipBadge(vipLevel: vipLevel),
                         _ProfileBadge(
                           icon: Icons.military_tech_rounded,
-                          label: isArabic ? 'Ù…Ø³ØªÙˆÙ‰ $level' : 'Lv. $level',
+                          label: isArabic
+                              ? 'Ù…Ø³ØªÙˆÙ‰ Ø§Ù„Ù†Ø´Ø§Ø· $level'
+                              : 'Activity Lv. $level',
                           highlighted: false,
                         ),
                         if (ProfileGenderChip.isKnown(gender))
@@ -1550,129 +1567,132 @@ class _PremiumProfileHero extends StatelessWidget {
     // The premium webp VIP frame is the single frame when the user has no
     // custom frame selected. Per-tier calibration sizes/centres the avatar so
     // it fits that tier's opening instead of a one-size-fits-all 92px circle.
-    final showWebpFrame = VipAssets.hasVip(vipLevel) &&
+    final showWebpFrame =
+        VipAssets.hasVip(vipLevel) &&
         (frameKey == null || frameKey!.trim().isEmpty);
     final frameLayout = VipFrameLayout.of(vipLevel);
-    final avatarRadius =
-        showWebpFrame ? (frameBox * frameLayout.avatarFillRatio) / 2 : 46.0;
-    final avatarDy =
-        showWebpFrame ? frameBox * frameLayout.avatarDyFraction : 0.0;
+    final avatarRadius = showWebpFrame
+        ? (frameBox * frameLayout.avatarFillRatio) / 2
+        : 46.0;
+    final avatarDy = showWebpFrame
+        ? frameBox * frameLayout.avatarDyFraction
+        : 0.0;
 
     return Padding(
       // A little breathing room from the card's right edge so the frame is not
       // crowded against it.
       padding: const EdgeInsets.only(right: 5),
       child: SizedBox(
-      width: zoneWidth,
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.center,
-        children: [
-          // Soft premium glow â€” no hard rectangular edges
-          Container(
-            width: glowDiam,
-            height: glowDiam,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  const Color(0xFF7B22CC).withValues(alpha: 0.52),
-                  const Color(0xFFC13BFF).withValues(alpha: 0.18),
-                  const Color(0xFFFF4ECD).withValues(alpha: 0.06),
-                  Colors.transparent,
-                ],
-                stops: const [0.0, 0.44, 0.70, 1.0],
-              ),
-            ),
-          ),
-          // Subtle gold halo ring
-          Container(
-            width: glowDiam + 4,
-            height: glowDiam + 4,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: const Color(0xFFF0C15A).withValues(alpha: 0.13),
-                width: 1.0,
-              ),
-            ),
-          ),
-          // Avatar â€” tappable to open frame picker. The VIP frame is drawn as
-          // a single clean webp layer below (or the user's custom frameKey), so
-          // the shared widget renders only the photo here (no auto PNG frame,
-          // no badge pill) to avoid stacking two frames on one avatar. Sized and
-          // nudged per VipFrameLayout so it sits inside this tier's opening.
-          Transform.translate(
-            offset: Offset(0, avatarDy),
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: onFrameTap,
-              child: AvatarWithFrame(
-                imageUrl: avatarUrl,
-                radius: avatarRadius,
-                frameKey: frameKey,
-                vipLevel: vipLevel,
-                showVipBadge: false,
-                autoVipFrame: false,
-                compact: true,
-              ),
-            ),
-          ),
-          // Single premium VIP frame â€” the new webp asset, centered over the
-          // avatar. Only shown when the user has not picked a custom frame
-          // (a custom frameKey is rendered by AvatarWithFrame above instead),
-          // so the avatar + frame always read as one composed unit.
-          if (showWebpFrame)
-            IgnorePointer(
-              child: Image.asset(
-                VipAssets.frame(vipLevel),
-                width: frameBox,
-                height: frameBox,
-                fit: BoxFit.contain,
-                errorBuilder: (_, _, _) => const SizedBox.shrink(),
-              ),
-            ),
-          // Camera button â€” anchored bottom-right, clean gradient
-          Positioned(
-            right: 2,
-            bottom: 0,
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: isUploadingAvatar ? null : onAvatarTap,
-              child: Container(
-                width: cameraSize,
-                height: cameraSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFFF5D070), Color(0xFFD4A017)],
-                  ),
-                  border: Border.all(
-                    color: const Color(0xFF160B26),
-                    width: 1.8,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFF0C15A).withValues(alpha: 0.35),
-                      blurRadius: 7,
-                      offset: const Offset(0, 2),
-                    ),
+        width: zoneWidth,
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            // Soft premium glow â€” no hard rectangular edges
+            Container(
+              width: glowDiam,
+              height: glowDiam,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    const Color(0xFF7B22CC).withValues(alpha: 0.52),
+                    const Color(0xFFC13BFF).withValues(alpha: 0.18),
+                    const Color(0xFFFF4ECD).withValues(alpha: 0.06),
+                    Colors.transparent,
                   ],
-                ),
-                child: Icon(
-                  isUploadingAvatar
-                      ? Icons.hourglass_top_rounded
-                      : Icons.camera_alt_rounded,
-                  color: const Color(0xFF160B26),
-                  size: cameraIcon,
+                  stops: const [0.0, 0.44, 0.70, 1.0],
                 ),
               ),
             ),
-          ),
-        ],
-      ),
+            // Subtle gold halo ring
+            Container(
+              width: glowDiam + 4,
+              height: glowDiam + 4,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: const Color(0xFFF0C15A).withValues(alpha: 0.13),
+                  width: 1.0,
+                ),
+              ),
+            ),
+            // Avatar â€” tappable to open frame picker. The VIP frame is drawn as
+            // a single clean webp layer below (or the user's custom frameKey), so
+            // the shared widget renders only the photo here (no auto PNG frame,
+            // no badge pill) to avoid stacking two frames on one avatar. Sized and
+            // nudged per VipFrameLayout so it sits inside this tier's opening.
+            Transform.translate(
+              offset: Offset(0, avatarDy),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: onFrameTap,
+                child: AvatarWithFrame(
+                  imageUrl: avatarUrl,
+                  radius: avatarRadius,
+                  frameKey: frameKey,
+                  vipLevel: vipLevel,
+                  showVipBadge: false,
+                  autoVipFrame: false,
+                  compact: true,
+                ),
+              ),
+            ),
+            // Single premium VIP frame â€” the new webp asset, centered over the
+            // avatar. Only shown when the user has not picked a custom frame
+            // (a custom frameKey is rendered by AvatarWithFrame above instead),
+            // so the avatar + frame always read as one composed unit.
+            if (showWebpFrame)
+              IgnorePointer(
+                child: Image.asset(
+                  VipAssets.frame(vipLevel),
+                  width: frameBox,
+                  height: frameBox,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                ),
+              ),
+            // Camera button â€” anchored bottom-right, clean gradient
+            Positioned(
+              right: 2,
+              bottom: 0,
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: isUploadingAvatar ? null : onAvatarTap,
+                child: Container(
+                  width: cameraSize,
+                  height: cameraSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFFF5D070), Color(0xFFD4A017)],
+                    ),
+                    border: Border.all(
+                      color: const Color(0xFF160B26),
+                      width: 1.8,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFF0C15A).withValues(alpha: 0.35),
+                        blurRadius: 7,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    isUploadingAvatar
+                        ? Icons.hourglass_top_rounded
+                        : Icons.camera_alt_rounded,
+                    color: const Color(0xFF160B26),
+                    size: cameraIcon,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1873,7 +1893,6 @@ class _StatDivider extends StatelessWidget {
   }
 }
 
-
 // -----------------------------------------------------------------------------
 // Wallet Cards
 // -----------------------------------------------------------------------------
@@ -1906,7 +1925,11 @@ class _WalletCards extends StatelessWidget {
             label: isArabic ? 'Ø§Ù„Ø¹Ù…Ù„Ø§Øª' : 'Coin wallet',
             value: coins,
             isLoading: isLoading,
-            colors: const [Color(0xFFFFE9A8), Color(0xFFF0C15A), Color(0xFFC9871C)],
+            colors: const [
+              Color(0xFFFFE9A8),
+              Color(0xFFF0C15A),
+              Color(0xFFC9871C),
+            ],
             glowColor: const Color(0xFFF0C15A),
             textColor: const Color(0xFF3A2606),
             onTap: onCoinsTap,
@@ -1919,7 +1942,11 @@ class _WalletCards extends StatelessWidget {
             label: isArabic ? 'Ø§Ù„Ø£Ù„Ù…Ø§Ø³' : 'Diamonds wallet',
             value: diamonds,
             isLoading: isLoading,
-            colors: const [Color(0xFFF1A6FF), Color(0xFFB44CF0), Color(0xFF7D2BFF)],
+            colors: const [
+              Color(0xFFF1A6FF),
+              Color(0xFFB44CF0),
+              Color(0xFF7D2BFF),
+            ],
             glowColor: const Color(0xFFB875FF),
             textColor: Colors.white,
             onTap: onDiamondsTap,
@@ -1996,7 +2023,10 @@ class WalletBalanceCard extends StatelessWidget {
               ),
               // Content.
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2063,7 +2093,9 @@ class WalletBalanceCard extends StatelessWidget {
                                       height: 1.0,
                                       shadows: [
                                         Shadow(
-                                          color: Colors.white.withValues(alpha: 0.25),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.25,
+                                          ),
                                           blurRadius: 1,
                                         ),
                                       ],
@@ -2247,8 +2279,7 @@ class _VipUpgradeBanner extends StatelessWidget {
                         alignment: isArabic
                             ? Alignment.centerLeft
                             : Alignment.centerRight,
-                        errorBuilder: (_, _, _) =>
-                            const SizedBox.shrink(),
+                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
                       ),
                     ),
                   ),
@@ -2257,8 +2288,9 @@ class _VipUpgradeBanner extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.all(14),
                 child: Row(
-                  textDirection:
-                      isArabic ? TextDirection.rtl : TextDirection.ltr,
+                  textDirection: isArabic
+                      ? TextDirection.rtl
+                      : TextDirection.ltr,
                   children: [
                     Container(
                       width: 48,
@@ -2382,7 +2414,7 @@ class _QuickActionsGrid extends StatelessWidget {
       ),
       _FeatureTileData(
         icon: Icons.diamond_rounded,
-        label: isArabic ? 'Ù…Ø±ÙƒØ² Ø§Ù„Ø«Ø±ÙˆØ©' : 'Level',
+        label: isArabic ? 'Ø§Ù„Ø³Ø­Ø± / Ø§Ù„Ø«Ø±ÙˆØ©' : 'Charm / Wealth',
         onTap: onWealthCenter,
         gradientColors: const [Color(0xFFFFD700), Color(0xFF8B26D9)],
       ),
@@ -2525,7 +2557,9 @@ class _AccountSection extends StatelessWidget {
           icon: Icons.account_balance_wallet_rounded,
           iconColor: const Color(0xFF2ECC71),
           title: isArabic ? 'Ø§Ù„Ù…Ø­ÙØ¸Ø©' : 'Wallet',
-          subtitle: isArabic ? 'Ø§Ù„Ø´Ø­Ù† ÙˆØ§Ù„Ù…Ø¹Ø§Ù…Ù„Ø§Øª' : 'Recharge & transactions',
+          subtitle: isArabic
+              ? 'Ø§Ù„Ø´Ø­Ù† ÙˆØ§Ù„Ù…Ø¹Ø§Ù…Ù„Ø§Øª'
+              : 'Recharge & transactions',
           isArabic: isArabic,
           onTap: onWallet,
         ),
