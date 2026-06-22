@@ -102,7 +102,6 @@ const List<Country> kAllCountries = [
   Country(name: 'Iran', code: 'IR', flag: '🇮🇷'),
   Country(name: 'Iraq', code: 'IQ', flag: '🇮🇶'),
   Country(name: 'Ireland', code: 'IE', flag: '🇮🇪'),
-  Country(name: 'Israel', code: 'IL', flag: '🇮🇱'),
   Country(name: 'Italy', code: 'IT', flag: '🇮🇹'),
   Country(name: 'Ivory Coast', code: 'CI', flag: '🇨🇮'),
   Country(name: 'Jamaica', code: 'JM', flag: '🇯🇲'),

@@ -49,7 +49,7 @@ class RoomsService {
   Future<List<Room>> getRooms() async {
     final data = await SupabaseService.requiredClient
         .from('rooms')
-        .select()
+        .select('*, profiles!owner_id(country)')
         .eq('is_closed', false)
         .order('created_at', ascending: false);
 

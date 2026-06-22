@@ -16,6 +16,7 @@ class Room {
     this.avatarUrl,
     this.roomPinEnabled = false,
     this.isPersonalRoom = false,
+    this.ownerCountry,
   });
 
   final String id;
@@ -31,6 +32,7 @@ class Room {
   final bool roomPinEnabled;
   final bool isPersonalRoom;
   final DateTime createdAt;
+  final String? ownerCountry;
   final String? coverUrl;
   final String? backgroundUrl;
   final String? avatarUrl;
@@ -57,6 +59,8 @@ class Room {
       coverUrl: json['cover_url']?.toString(),
       backgroundUrl: json['background_url']?.toString(),
       avatarUrl: json['room_avatar_url']?.toString(),
+      ownerCountry: (json['profiles'] as Map<String, dynamic>?)?['country']
+          ?.toString(),
     );
   }
 }

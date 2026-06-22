@@ -9,6 +9,7 @@ import '../../../features/gifts/screens/gift_catalog_screen.dart';
 import '../../../features/notifications/screens/notifications_screen.dart';
 import '../../../features/search/screens/search_screen.dart';
 import '../../../features/social/screens/leaderboard_screen.dart';
+import '../../../features/profile/widgets/country_picker_sheet.dart';
 import '../models/room.dart';
 import '../services/rooms_service.dart';
 import '../widgets/vault_pin_sheet.dart';
@@ -33,6 +34,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
   bool _loading = true;
   bool _openingMyRoom = false;
   String? _error;
+  String? _selectedCountryCode;
 
   @override
   void initState() {
@@ -112,6 +114,25 @@ class _RoomsScreenState extends State<RoomsScreen> {
       setState(() => _error = error.toString());
     } finally {
       if (mounted) setState(() => _openingMyRoom = false);
+    }
+  }
+
+  List<Room> get _filteredRooms {
+    final code = _selectedCountryCode;
+    if (code == null) return _rooms;
+    return _rooms.where((r) => r.ownerCountry == code).toList();
+  }
+
+  Future<void> _pickCountry() async {
+    final current = countryFromStored(_selectedCountryCode);
+    final picked = await showCountryPicker(
+      context,
+      selected: current,
+      isArabic: context.isArabic,
+    );
+    if (!mounted) return;
+    if (picked != null) {
+      setState(() => _selectedCountryCode = picked.code);
     }
   }
 
@@ -468,7 +489,15 @@ class _RoomsScreenState extends State<RoomsScreen> {
                   }
                 },
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 16),
+              // \u2500\u2500 Country filter \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+              _CountryFilterChip(
+                selectedCode: _selectedCountryCode,
+                isArabic: context.isArabic,
+                onPick: _pickCountry,
+                onClear: () => setState(() => _selectedCountryCode = null),
+              ),
+              const SizedBox(height: 16),
               if (_loading)
                 const Center(
                   child: Padding(
@@ -486,20 +515,30 @@ class _RoomsScreenState extends State<RoomsScreen> {
                   crossAxisAlignment: crossAxisAlignment,
                   textAlign: textAlign,
                 )
-              else if (_rooms.isEmpty)
+              else if (_filteredRooms.isEmpty)
                 _RoomsMessageCard(
-                  title: context.isArabic
-                      ? '\u0644\u0627 \u062a\u0648\u062c\u062f \u063a\u0631\u0641 \u0628\u0639\u062f'
-                      : 'No rooms yet',
-                  message: context.isArabic
-                      ? '\u0627\u0636\u063a\u0637 \u0639\u0644\u0649 \u0632\u0631 + \u0644\u0625\u0646\u0634\u0627\u0621 \u0623\u0648\u0644 \u063a\u0631\u0641\u0629.'
-                      : 'Tap + to create the first room.',
-                  icon: Icons.meeting_room_outlined,
+                  title: _selectedCountryCode != null
+                      ? (context.isArabic
+                          ? '\u0644\u0627 \u062a\u0648\u062c\u062f \u063a\u0631\u0641 \u0645\u0646 \u0647\u0630\u0627 \u0627\u0644\u0628\u0644\u062f'
+                          : 'No rooms from this country')
+                      : (context.isArabic
+                          ? '\u0644\u0627 \u062a\u0648\u062c\u062f \u063a\u0631\u0641 \u0628\u0639\u062f'
+                          : 'No rooms yet'),
+                  message: _selectedCountryCode != null
+                      ? (context.isArabic
+                          ? '\u062c\u0631\u0651\u0628 \u0627\u062e\u062a\u064a\u0627\u0631 \u0628\u0644\u062f \u0622\u062e\u0631 \u0623\u0648 \u0639\u0631\u0636 \u0627\u0644\u0643\u0644.'
+                          : 'Try a different country or view all.')
+                      : (context.isArabic
+                          ? '\u0627\u0636\u063a\u0637 \u0639\u0644\u0649 \u0632\u0631 + \u0644\u0625\u0646\u0634\u0627\u0621 \u0623\u0648\u0644 \u063a\u0631\u0641\u0629.'
+                          : 'Tap + to create the first room.'),
+                  icon: _selectedCountryCode != null
+                      ? Icons.public_off_rounded
+                      : Icons.meeting_room_outlined,
                   crossAxisAlignment: crossAxisAlignment,
                   textAlign: textAlign,
                 )
               else
-                ..._rooms.map(
+                ..._filteredRooms.map(
                   (room) => Padding(
                     padding: const EdgeInsets.only(bottom: 16),
                     child: _RoomCard(
@@ -521,6 +560,113 @@ class _RoomsScreenState extends State<RoomsScreen> {
 // \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 // Promotional carousel banner
 // \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+// ── Country filter chip ───────────────────────────────────────────────────────
+
+class _CountryFilterChip extends StatelessWidget {
+  const _CountryFilterChip({
+    required this.selectedCode,
+    required this.isArabic,
+    required this.onPick,
+    required this.onClear,
+  });
+
+  final String? selectedCode;
+  final bool isArabic;
+  final VoidCallback onPick;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = countryFromStored(selectedCode);
+    final hasFilter = selected != null;
+
+    return GestureDetector(
+      onTap: onPick,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        height: 40,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: hasFilter
+              ? const LinearGradient(
+                  colors: [Color(0xFF3A1070), Color(0xFF5B1A9A)],
+                )
+              : null,
+          color: hasFilter ? null : Colors.white.withValues(alpha: 0.06),
+          border: Border.all(
+            color: hasFilter
+                ? const Color(0xFFF0C15A).withValues(alpha: 0.60)
+                : Colors.white.withValues(alpha: 0.16),
+            width: 1.0,
+          ),
+          boxShadow: hasFilter
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF8B26D9).withValues(alpha: 0.30),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.public_rounded,
+                size: 16,
+                color: hasFilter
+                    ? const Color(0xFFF0C15A)
+                    : Colors.white.withValues(alpha: 0.50),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                hasFilter
+                    ? '${selected.flag}  ${selected.name}'
+                    : (isArabic ? 'كل الدول' : 'All Countries'),
+                style: TextStyle(
+                  color: hasFilter
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: 0.55),
+                  fontSize: 13,
+                  fontWeight:
+                      hasFilter ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: 6),
+              if (hasFilter)
+                GestureDetector(
+                  onTap: onClear,
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 2),
+                    child: Icon(
+                      Icons.close_rounded,
+                      size: 15,
+                      color: Colors.white.withValues(alpha: 0.70),
+                    ),
+                  ),
+                )
+              else
+                Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 18,
+                  color: Colors.white.withValues(alpha: 0.40),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Promotional carousel banner
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _SlideData {
   const _SlideData({
