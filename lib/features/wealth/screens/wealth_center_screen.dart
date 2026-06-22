@@ -186,15 +186,21 @@ class _WealthCenterScreenState extends State<WealthCenterScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.error_outline_rounded,
-                      color: Color(0xFFFF5C7A), size: 36),
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    color: Color(0xFFFF5C7A),
+                    size: 36,
+                  ),
                   const SizedBox(height: 12),
                   Text(
-                    ar ? 'تعذّر تحميل بيانات السحر' : 'Could not load charm data',
+                    ar
+                        ? 'تعذّر تحميل بيانات السحر'
+                        : 'Could not load charm data',
                     style: const TextStyle(
-                        color: Color(0xFFD8CFEA),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700),
+                      color: Color(0xFFD8CFEA),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
@@ -205,7 +211,9 @@ class _WealthCenterScreenState extends State<WealthCenterScreen> {
         // Derive tier from level to avoid stored-value drift.
         final tier = WealthTier.fromLevel(c.charmLevel);
         final progress = (c.levelProgress ?? 0).clamp(0.0, 1.0);
-        final nextXp = c.xpToNextLevel != null ? c.charmXp + c.xpToNextLevel! : null;
+        final nextXp = c.xpToNextLevel != null
+            ? c.charmXp + c.xpToNextLevel!
+            : null;
 
         return SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -274,8 +282,8 @@ class _WealthCenterScreenState extends State<WealthCenterScreen> {
                             c.isMaxLevel
                                 ? (ar ? 'أعلى مستوى' : 'MAX LEVEL')
                                 : nextXp != null
-                                    ? 'EXP ${_fmt(c.charmXp)}/${_fmt(nextXp)}'
-                                    : 'EXP ${_fmt(c.charmXp)}',
+                                ? 'EXP ${_fmt(c.charmXp)}/${_fmt(nextXp)}'
+                                : 'EXP ${_fmt(c.charmXp)}',
                             style: const TextStyle(
                               color: Color(0xFF5A1A3A),
                               fontSize: 13,
@@ -289,10 +297,7 @@ class _WealthCenterScreenState extends State<WealthCenterScreen> {
                 ),
               ),
               const SizedBox(height: 18),
-              _LevelRangeTable(
-                currentTierNumber: tier.number,
-                isArabic: ar,
-              ),
+              _LevelRangeTable(currentTierNumber: tier.number, isArabic: ar),
             ],
           ),
         );

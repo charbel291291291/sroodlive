@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../../wealth/models/wealth_models.dart';
@@ -18,13 +17,9 @@ Color _lighten(Color c, [double t = 0.45]) => Color.lerp(c, Colors.white, t)!;
 Color _darken(Color c, [double t = 0.42]) => Color.lerp(c, Colors.black, t)!;
 
 // ── Screen ────────────────────────────────────────────────────────────────────
-
-/// My Level — Charm (gifts received) and Wealth (gifts sent) tracks.
-/// Both read from live server RPCs. No fake values.
 class MyLevelScreen extends StatefulWidget {
   const MyLevelScreen({required this.isArabic, super.key});
   final bool isArabic;
-
   @override
   State<MyLevelScreen> createState() => _MyLevelScreenState();
 }
@@ -36,19 +31,19 @@ class _MyLevelScreenState extends State<MyLevelScreen> {
   late Future<UserCharm> _charmFuture;
   late Future<UserWealth> _wealthFuture;
 
-  // Fixed: index 9 was '90-99' (wrong — level 90 is royal). Corrected to '91-99'.
+  // Level range rows — index 9 fixed: '91–99' (level 90 belongs to royal tier).
   static const List<({String label, int badge, WealthTier tier})> _rows = [
-    (label: '1–10',  badge: 10,  tier: WealthTier.bronze),
-    (label: '11–20', badge: 20,  tier: WealthTier.silver),
-    (label: '21–30', badge: 30,  tier: WealthTier.gold),
-    (label: '31–40', badge: 40,  tier: WealthTier.emerald),
-    (label: '41–50', badge: 50,  tier: WealthTier.sapphire),
-    (label: '51–60', badge: 60,  tier: WealthTier.ruby),
-    (label: '61–70', badge: 70,  tier: WealthTier.diamond),
-    (label: '71–80', badge: 80,  tier: WealthTier.master),
-    (label: '81–90', badge: 90,  tier: WealthTier.royal),
-    (label: '91–99', badge: 99,  tier: WealthTier.legend),
-    (label: '100',   badge: 100, tier: WealthTier.legend),
+    (label: '1–10', badge: 10, tier: WealthTier.bronze),
+    (label: '11–20', badge: 20, tier: WealthTier.silver),
+    (label: '21–30', badge: 30, tier: WealthTier.gold),
+    (label: '31–40', badge: 40, tier: WealthTier.emerald),
+    (label: '41–50', badge: 50, tier: WealthTier.sapphire),
+    (label: '51–60', badge: 60, tier: WealthTier.ruby),
+    (label: '61–70', badge: 70, tier: WealthTier.diamond),
+    (label: '71–80', badge: 80, tier: WealthTier.master),
+    (label: '81–90', badge: 90, tier: WealthTier.royal),
+    (label: '91–99', badge: 99, tier: WealthTier.legend),
+    (label: '100', badge: 100, tier: WealthTier.legend),
   ];
 
   @override
@@ -94,21 +89,19 @@ class _MyLevelScreenState extends State<MyLevelScreen> {
       ),
       body: Stack(
         children: [
-          // Tier-reactive radial background glow
+          // Background radial glow — reactive to track accent colour.
           Positioned(
-            top: 0, left: 0, right: 0,
-            height: 340,
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 320,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeInOut,
+              duration: const Duration(milliseconds: 380),
               decoration: BoxDecoration(
                 gradient: RadialGradient(
-                  center: const Alignment(0, -0.6),
+                  center: const Alignment(0, -0.5),
                   radius: 1.0,
-                  colors: [
-                    accent.withValues(alpha: isCharm ? 0.20 : 0.16),
-                    Colors.transparent,
-                  ],
+                  colors: [accent.withValues(alpha: 0.18), Colors.transparent],
                 ),
               ),
             ),
@@ -116,14 +109,14 @@ class _MyLevelScreenState extends State<MyLevelScreen> {
           SafeArea(
             child: ListView(
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 44),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 48),
               children: [
                 _LuxuryTrackSwitch(
                   track: _track,
                   isArabic: isArabic,
                   onChanged: (t) => setState(() => _track = t),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
                 if (isCharm)
                   _CharmSection(
                     future: _charmFuture,
@@ -148,7 +141,6 @@ class _MyLevelScreenState extends State<MyLevelScreen> {
 typedef _LevelRow = ({String label, int badge, WealthTier tier});
 
 // ── Track switch ──────────────────────────────────────────────────────────────
-
 class _LuxuryTrackSwitch extends StatelessWidget {
   const _LuxuryTrackSwitch({
     required this.track,
@@ -162,11 +154,11 @@ class _LuxuryTrackSwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 52,
+      height: 50,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.045),
-        borderRadius: BorderRadius.circular(17),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withValues(alpha: 0.09)),
       ),
       child: Row(
@@ -201,25 +193,25 @@ class _LuxuryTrackSwitch extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
+          duration: const Duration(milliseconds: 200),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(13),
+            borderRadius: BorderRadius.circular(12),
             gradient: selected
                 ? LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      color.withValues(alpha: 0.88),
-                      color.withValues(alpha: 0.54),
+                      color.withValues(alpha: 0.85),
+                      color.withValues(alpha: 0.52),
                     ],
                   )
                 : null,
             boxShadow: selected
                 ? [
                     BoxShadow(
-                      color: color.withValues(alpha: 0.32),
-                      blurRadius: 14,
+                      color: color.withValues(alpha: 0.30),
+                      blurRadius: 12,
                       spreadRadius: -1,
                     ),
                   ]
@@ -230,18 +222,16 @@ class _LuxuryTrackSwitch extends StatelessWidget {
             children: [
               Icon(
                 icon,
-                size: 15,
-                color: selected
-                    ? Colors.white
-                    : color.withValues(alpha: 0.60),
+                size: 14,
+                color: selected ? Colors.white : color.withValues(alpha: 0.55),
               ),
-              const SizedBox(width: 7),
+              const SizedBox(width: 6),
               Text(
                 label,
                 style: TextStyle(
                   color: selected
                       ? Colors.white
-                      : Colors.white.withValues(alpha: 0.50),
+                      : Colors.white.withValues(alpha: 0.48),
                   fontWeight: selected ? FontWeight.w900 : FontWeight.w600,
                   fontSize: 14,
                   letterSpacing: 0.2,
@@ -256,24 +246,23 @@ class _LuxuryTrackSwitch extends StatelessWidget {
 }
 
 // ── Loading / Error states ────────────────────────────────────────────────────
-
 class _LevelLoadingCard extends StatelessWidget {
   const _LevelLoadingCard();
   @override
   Widget build(BuildContext context) => Container(
-        height: 170,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
-        ),
-        child: const Center(
-          child: CircularProgressIndicator(
-            color: Color(0xFFF0C15A),
-            strokeWidth: 2.2,
-          ),
-        ),
-      );
+    height: 160,
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: 0.04),
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+    ),
+    child: const Center(
+      child: CircularProgressIndicator(
+        color: Color(0xFFF0C15A),
+        strokeWidth: 2.2,
+      ),
+    ),
+  );
 }
 
 class _LevelErrorCard extends StatelessWidget {
@@ -293,8 +282,11 @@ class _LevelErrorCard extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.error_outline_rounded,
-              color: Color(0xFFFF5C7A), size: 36),
+          const Icon(
+            Icons.error_outline_rounded,
+            color: Color(0xFFFF5C7A),
+            size: 36,
+          ),
           const SizedBox(height: 12),
           Text(
             isArabic ? 'تعذّر تحميل البيانات' : 'Could not load data',
@@ -319,7 +311,6 @@ class _LevelErrorCard extends StatelessWidget {
 }
 
 // ── Charm section ─────────────────────────────────────────────────────────────
-
 class _CharmSection extends StatelessWidget {
   const _CharmSection({
     required this.future,
@@ -341,46 +332,27 @@ class _CharmSection extends StatelessWidget {
           return const _LevelLoadingCard();
         }
         if (snap.hasError || !snap.hasData) {
-          return _LevelErrorCard(
-            isArabic: isArabic,
-            onRetry: () {},
-          );
+          return _LevelErrorCard(isArabic: isArabic, onRetry: () {});
         }
         final c = snap.data!;
-        // Derive tier from level (never stored tier_number which can drift).
+        // Derive tier from level — never use stored tier_number (can drift).
         final tier = WealthTier.fromLevel(c.charmLevel);
-        final nextXp = c.xpToNextLevel != null
-            ? c.charmXp + c.xpToNextLevel!
-            : null;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _LuxuryHeroCard(
+            _LevelHeroCard(
               level: c.charmLevel,
               tier: tier,
               progress: c.levelProgress ?? 0,
-              currentXp: c.charmXp,
-              nextLevelXp: nextXp,
+              xpToNextLevel: c.xpToNextLevel,
               isMax: c.isMaxLevel,
               isArabic: isArabic,
               accent: _accent,
-              trackLabel: isArabic ? 'مستوى السحر' : 'CHARM LEVEL',
+              isCharm: true,
             ),
             const SizedBox(height: 20),
-            _TierProgressPath(
-              currentTierNumber: tier.number,
-              isArabic: isArabic,
-            ),
-            const SizedBox(height: 20),
-            _LuxuryDescriptionCard(
-              icon: Icons.favorite_rounded,
-              color: _accent,
-              title: isArabic ? 'كيف يعمل السحر؟' : 'How does Charm work?',
-              body: isArabic
-                  ? 'عند استلام هدايا بقيمة 10 عملات ذهبية تحصل على نقطة خبرة سحر واحدة. كلما ارتفع مستواك، يتغيّر لون أيقونتك ويتجدد ألق حضورك.'
-                  : 'Every 10 coins worth of gifts received earns 1 Charm XP. As your level rises, your badge colour upgrades and your presence becomes more radiant.',
-            ),
+            _LevelDescriptionCard(isArabic: isArabic, isCharm: true),
             const SizedBox(height: 20),
             _LuxuryLevelTable(
               rows: rows,
@@ -396,7 +368,6 @@ class _CharmSection extends StatelessWidget {
 }
 
 // ── Wealth section ────────────────────────────────────────────────────────────
-
 class _WealthSection extends StatelessWidget {
   const _WealthSection({
     required this.future,
@@ -418,10 +389,7 @@ class _WealthSection extends StatelessWidget {
           return const _LevelLoadingCard();
         }
         if (snap.hasError || !snap.hasData) {
-          return _LevelErrorCard(
-            isArabic: isArabic,
-            onRetry: () {},
-          );
+          return _LevelErrorCard(isArabic: isArabic, onRetry: () {});
         }
         final w = snap.data!;
         final tier = WealthTier.fromLevel(w.wealthLevel);
@@ -429,31 +397,18 @@ class _WealthSection extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _LuxuryHeroCard(
+            _LevelHeroCard(
               level: w.wealthLevel,
               tier: tier,
               progress: w.levelProgress ?? 0,
-              currentXp: w.wealthXp,
-              nextLevelXp: w.nextLevelRequiredXp,
+              xpToNextLevel: w.xpToNextLevel,
               isMax: w.isMaxLevel,
               isArabic: isArabic,
               accent: _accent,
-              trackLabel: isArabic ? 'مستوى الثروة' : 'WEALTH LEVEL',
+              isCharm: false,
             ),
             const SizedBox(height: 20),
-            _TierProgressPath(
-              currentTierNumber: tier.number,
-              isArabic: isArabic,
-            ),
-            const SizedBox(height: 20),
-            _LuxuryDescriptionCard(
-              icon: Icons.diamond_rounded,
-              color: _accent,
-              title: isArabic ? 'كيف تعمل الثروة؟' : 'How does Wealth work?',
-              body: isArabic
-                  ? 'عند إرسال هدايا بقيمة 10 عملات ذهبية تحصل على نقطة خبرة ثروة واحدة. كلما ارتفع مستواك، تُفتح أيقونات حصرية وتأثيرات دخول أكثر إبهاراً.'
-                  : 'Every 10 coins worth of gifts sent earns 1 Wealth XP. As you level up, you unlock exclusive icons and increasingly spectacular entrance effects.',
-            ),
+            _LevelDescriptionCard(isArabic: isArabic, isCharm: false),
             const SizedBox(height: 20),
             _LuxuryLevelTable(
               rows: rows,
@@ -468,238 +423,290 @@ class _WealthSection extends StatelessWidget {
   }
 }
 
-// ── Luxury hero card ──────────────────────────────────────────────────────────
-
-class _LuxuryHeroCard extends StatelessWidget {
-  const _LuxuryHeroCard({
+// ── Level hero card (reference style) ────────────────────────────────────────
+class _LevelHeroCard extends StatelessWidget {
+  const _LevelHeroCard({
     required this.level,
     required this.tier,
     required this.progress,
-    required this.currentXp,
-    required this.nextLevelXp,
+    required this.xpToNextLevel,
     required this.isMax,
     required this.isArabic,
     required this.accent,
-    required this.trackLabel,
+    required this.isCharm,
   });
 
   final int level;
   final WealthTier tier;
   final double progress;
-  final int currentXp;
-  final int? nextLevelXp;
+  final int? xpToNextLevel; // delta XP to next level
   final bool isMax;
   final bool isArabic;
   final Color accent;
-  final String trackLabel;
+  final bool isCharm;
 
   @override
   Widget build(BuildContext context) {
     final c = tier.color;
     final clamped = progress.clamp(0.0, 1.0);
+    final nextLevel = isMax ? level : level + 1;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(28),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                c.withValues(alpha: 0.26),
-                const Color(0xFF07020E).withValues(alpha: 0.80),
-              ],
-            ),
-            border: Border.all(
-              color: c.withValues(alpha: 0.52),
-              width: 1.6,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: c.withValues(alpha: 0.30),
-                blurRadius: 38,
-                offset: const Offset(0, 10),
-              ),
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.55),
-                blurRadius: 18,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Tier emblem
-                  _TierEmblem(tier: tier, size: 74),
-                  const SizedBox(width: 18),
-                  // Level text info
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          trackLabel,
-                          style: TextStyle(
-                            color: c.withValues(alpha: 0.75),
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          isArabic ? 'المستوى $level' : 'Level $level',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 40,
-                            fontWeight: FontWeight.w900,
-                            height: 1.0,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          tier.displayName.toUpperCase(),
-                          style: TextStyle(
-                            color: c,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 2.2,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              // Progress section
-              Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        isArabic ? 'نقاط الخبرة' : 'Experience',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.50),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                      Text(
-                        isMax
-                            ? (isArabic ? '✦ أعلى مستوى' : '✦ Max Level')
-                            : nextLevelXp != null
-                                ? '${_fmt(currentXp)} / ${_fmt(nextLevelXp!)} XP'
-                                : '${_fmt(currentXp)} XP',
-                        style: TextStyle(
-                          color: c,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 9),
-                  _LuxuryProgressBar(
-                    progress: isMax ? 1.0 : clamped,
-                    color: accent,
-                    tierColor: c,
-                  ),
-                  const SizedBox(height: 8),
-                  if (!isMax && nextLevelXp != null)
-                    Align(
-                      alignment: isArabic
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
-                      child: Text(
-                        isArabic
-                            ? '${_fmt(nextLevelXp! - currentXp)} XP للمستوى ${level + 1}'
-                            : '${_fmt(nextLevelXp! - currentXp)} XP to Level ${level + 1}',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.45),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ],
-          ),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            _darken(c, 0.60).withValues(alpha: 0.98),
+            const Color(0xFF0C0612),
+          ],
         ),
+        border: Border.all(color: c.withValues(alpha: 0.48), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: c.withValues(alpha: 0.26),
+            blurRadius: 28,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // ── Header row: tier icon / labels + journey dots ─────────────────
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Tier icon circle
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: c.withValues(alpha: 0.18),
+                  border: Border.all(
+                    color: c.withValues(alpha: 0.55),
+                    width: 1.3,
+                  ),
+                  boxShadow: [
+                    BoxShadow(color: c.withValues(alpha: 0.35), blurRadius: 8),
+                  ],
+                ),
+                child: Center(
+                  child: Text(tier.icon, style: const TextStyle(fontSize: 19)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      isCharm
+                          ? (isArabic ? 'مستوى السحر' : 'Charm Level')
+                          : (isArabic ? 'مستوى الثروة' : 'Wealth Level'),
+                      style: TextStyle(
+                        color: c.withValues(alpha: 0.72),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      tier.displayName.toUpperCase(),
+                      style: TextStyle(
+                        color: c,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.8,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Compact 10-dot tier journey — max ~160px wide, never overflows.
+              _TierJourneyDots(currentTierNumber: tier.number),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+
+          // ── Large level number ─────────────────────────────────────────────
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: isArabic ? Alignment.centerRight : Alignment.centerLeft,
+            child: Text(
+              isArabic ? 'المستوى $level' : 'Level $level',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 46,
+                fontWeight: FontWeight.w900,
+                height: 1.0,
+                letterSpacing: -0.5,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // ── LV labels ─────────────────────────────────────────────────────
+          Row(
+            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _LvLabel(label: 'LV $level', color: c),
+              _LvLabel(
+                label: isMax ? '—' : 'LV $nextLevel',
+                color: Colors.white.withValues(alpha: 0.38),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+
+          // ── Progress bar ───────────────────────────────────────────────────
+          _LuxuryProgressBar(progress: isMax ? 1.0 : clamped, color: accent),
+          const SizedBox(height: 10),
+
+          // ── "Need X Exp to upgrade" ────────────────────────────────────────
+          Center(
+            child: Text(
+              isMax
+                  ? (isArabic ? '✦ وصلت إلى أعلى مستوى' : '✦ Max level reached')
+                  : xpToNextLevel != null
+                  ? (isArabic
+                        ? 'تحتاج ${_fmt(xpToNextLevel!)} خبرة للترقية'
+                        : 'Need ${_fmt(xpToNextLevel!)} Exp to upgrade')
+                  : '',
+              style: TextStyle(
+                color: isMax ? c : Colors.white.withValues(alpha: 0.62),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-// ── Luxury progress bar ───────────────────────────────────────────────────────
+// Tiny "LV X" label used in the hero card.
+class _LvLabel extends StatelessWidget {
+  const _LvLabel({required this.label, required this.color});
+  final String label;
+  final Color color;
 
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: TextStyle(
+        color: color,
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.4,
+      ),
+    );
+  }
+}
+
+// ── Compact tier journey dots ─────────────────────────────────────────────────
+// 10 pill segments; current is wider. Total width ≤ 160px on any device.
+class _TierJourneyDots extends StatelessWidget {
+  const _TierJourneyDots({required this.currentTierNumber});
+  final int currentTierNumber;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(10, (i) {
+        final tierNum = i + 1;
+        final tier = WealthTier.fromNumber(tierNum);
+        final isCurrent = tierNum == currentTierNumber;
+        final isUnlocked = tierNum <= currentTierNumber;
+        final c = tier.color;
+
+        return Padding(
+          padding: EdgeInsets.only(left: i == 0 ? 0 : 3),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            width: isCurrent ? 16 : 8,
+            height: 8,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              color: isCurrent
+                  ? c
+                  : isUnlocked
+                  ? c.withValues(alpha: 0.50)
+                  : Colors.white.withValues(alpha: 0.10),
+              boxShadow: isCurrent
+                  ? [BoxShadow(color: c.withValues(alpha: 0.65), blurRadius: 6)]
+                  : null,
+            ),
+          ),
+        );
+      }),
+    );
+  }
+}
+
+// ── Progress bar ──────────────────────────────────────────────────────────────
 class _LuxuryProgressBar extends StatelessWidget {
-  const _LuxuryProgressBar({
-    required this.progress,
-    required this.color,
-    required this.tierColor,
-  });
+  const _LuxuryProgressBar({required this.progress, required this.color});
   final double progress;
   final Color color;
-  final Color tierColor;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (_, constraints) {
-        final fillWidth =
-            (constraints.maxWidth * progress).clamp(0.0, constraints.maxWidth);
+        final fillWidth = (constraints.maxWidth * progress).clamp(
+          0.0,
+          constraints.maxWidth,
+        );
         return Stack(
+          clipBehavior: Clip.none,
           children: [
             // Track
             Container(
-              height: 11,
+              height: 10,
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.42),
+                color: Colors.black.withValues(alpha: 0.40),
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.06)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
               ),
             ),
             // Fill
             AnimatedContainer(
-              duration: const Duration(milliseconds: 700),
+              duration: const Duration(milliseconds: 650),
               curve: Curves.easeOut,
-              height: 11,
+              height: 10,
               width: fillWidth,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(999),
                 gradient: LinearGradient(
-                  colors: [
-                    _lighten(color, 0.38),
-                    color,
-                  ],
+                  colors: [_lighten(color, 0.35), color],
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: color.withValues(alpha: 0.60),
-                    blurRadius: 10,
+                    color: color.withValues(alpha: 0.55),
+                    blurRadius: 8,
                     spreadRadius: -1,
                   ),
                 ],
               ),
             ),
-            // Shimmer end-glow dot
+            // End-glow dot
             if (progress > 0.04)
               Positioned(
-                left: (fillWidth - 5).clamp(0, constraints.maxWidth - 5),
+                left: (fillWidth - 5).clamp(0.0, constraints.maxWidth - 5),
                 top: 0,
                 bottom: 0,
                 child: Center(
@@ -709,12 +716,7 @@ class _LuxuryProgressBar extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.white.withValues(alpha: 0.85),
-                      boxShadow: [
-                        BoxShadow(
-                          color: color,
-                          blurRadius: 6,
-                        ),
-                      ],
+                      boxShadow: [BoxShadow(color: color, blurRadius: 6)],
                     ),
                   ),
                 ),
@@ -726,76 +728,78 @@ class _LuxuryProgressBar extends StatelessWidget {
   }
 }
 
-// ── Tier emblem ───────────────────────────────────────────────────────────────
-
-class _TierEmblem extends StatelessWidget {
-  const _TierEmblem({required this.tier, required this.size});
-  final WealthTier tier;
-  final double size;
+// ── Level description card ────────────────────────────────────────────────────
+class _LevelDescriptionCard extends StatelessWidget {
+  const _LevelDescriptionCard({required this.isArabic, required this.isCharm});
+  final bool isArabic;
+  final bool isCharm;
 
   @override
   Widget build(BuildContext context) {
-    final c = tier.color;
-    final light = _lighten(c, 0.50);
+    final color = isCharm ? const Color(0xFFFF4ECD) : const Color(0xFFF0C15A);
+    final title = isArabic ? 'وصف المستوى' : 'Level description';
+    final desc = isCharm
+        ? (isArabic
+              ? 'استلام هدايا العملات الذهبية يزيد من خبرة مستوى السحر.'
+              : 'Receiving gold coin gifts increases Charm Level EXP.')
+        : (isArabic
+              ? 'إرسال هدايا العملات الذهبية يزيد من خبرة مستوى الثروة.'
+              : 'Sending gold coin gifts increases Wealth Level EXP.');
 
-    return SizedBox(
-      width: size,
-      height: size,
-      child: Stack(
-        alignment: Alignment.center,
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Outer glow ring
-          Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                    color: c.withValues(alpha: 0.55),
-                    blurRadius: size * 0.36,
-                    spreadRadius: 1),
-                BoxShadow(
-                    color: c.withValues(alpha: 0.22),
-                    blurRadius: size * 0.65,
-                    spreadRadius: 4),
-              ],
+          // Section title
+          Row(
+            children: [
+              Icon(
+                isCharm ? Icons.favorite_rounded : Icons.diamond_rounded,
+                color: color,
+                size: 15,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            desc,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.78),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              height: 1.5,
             ),
           ),
-          // Outer metallic ring
-          Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: SweepGradient(
-                colors: [light, c, Colors.white, c, light],
-              ),
-            ),
-            padding: const EdgeInsets.all(2.5),
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  center: const Alignment(-0.35, -0.45),
-                  radius: 0.80,
-                  colors: [
-                    c.withValues(alpha: 0.30),
-                    const Color(0xFF0C0715),
-                  ],
-                ),
-                border: Border.all(
-                  color: c.withValues(alpha: 0.55),
-                  width: 1.2,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  tier.icon,
-                  style: TextStyle(fontSize: size * 0.40),
-                ),
-              ),
-            ),
+          const SizedBox(height: 10),
+          _RuleRow(
+            isArabic: isArabic,
+            label: isArabic ? 'هدايا عادية:' : 'Non-Lucky Gifts:',
+            value: isArabic ? '1 عملة = 1 خبرة' : '1 coin = 1 EXP',
+            color: color,
+          ),
+          const SizedBox(height: 6),
+          _RuleRow(
+            isArabic: isArabic,
+            label: isArabic ? 'هدايا محظوظة:' : 'Lucky Gifts:',
+            value: isArabic ? '1 عملة = 0.1 خبرة' : '1 coin = 0.1 EXP',
+            color: color,
           ),
         ],
       ),
@@ -803,50 +807,47 @@ class _TierEmblem extends StatelessWidget {
   }
 }
 
-// ── Tier progress path (horizontal scroll) ────────────────────────────────────
-
-class _TierProgressPath extends StatelessWidget {
-  const _TierProgressPath({
-    required this.currentTierNumber,
+class _RuleRow extends StatelessWidget {
+  const _RuleRow({
     required this.isArabic,
+    required this.label,
+    required this.value,
+    required this.color,
   });
-  final int currentTierNumber;
   final bool isArabic;
+  final String label;
+  final String value;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
       children: [
-        Text(
-          isArabic ? 'مسار الترقي' : 'Tier Progression',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0.4,
+        Container(
+          width: 5,
+          height: 5,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: color.withValues(alpha: 0.70),
           ),
         ),
-        const SizedBox(height: 14),
-        SizedBox(
-          height: 112,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 2),
-            itemCount: WealthTier.values.length,
-            separatorBuilder: (context, i) => const SizedBox(width: 10),
-            itemBuilder: (_, i) {
-              final tier = WealthTier.values[i];
-              final isCurrent = tier.number == currentTierNumber;
-              final isUnlocked = tier.number <= currentTierNumber;
-              return _TierMiniCard(
-                tier: tier,
-                isCurrent: isCurrent,
-                isUnlocked: isUnlocked,
-                isArabic: isArabic,
-              );
-            },
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.52),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          value,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.85),
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ],
@@ -854,193 +855,7 @@ class _TierProgressPath extends StatelessWidget {
   }
 }
 
-class _TierMiniCard extends StatelessWidget {
-  const _TierMiniCard({
-    required this.tier,
-    required this.isCurrent,
-    required this.isUnlocked,
-    required this.isArabic,
-  });
-  final WealthTier tier;
-  final bool isCurrent;
-  final bool isUnlocked;
-  final bool isArabic;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = tier.color;
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
-      width: isCurrent ? 92 : 82,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            c.withValues(
-                alpha: isCurrent
-                    ? 0.30
-                    : isUnlocked
-                        ? 0.15
-                        : 0.06),
-            Colors.black.withValues(alpha: 0.45),
-          ],
-        ),
-        border: Border.all(
-          color: isCurrent
-              ? c.withValues(alpha: 0.88)
-              : isUnlocked
-                  ? c.withValues(alpha: 0.38)
-                  : c.withValues(alpha: 0.14),
-          width: isCurrent ? 1.8 : 1.0,
-        ),
-        boxShadow: isCurrent
-            ? [
-                BoxShadow(
-                  color: c.withValues(alpha: 0.38),
-                  blurRadius: 16,
-                  spreadRadius: -1,
-                ),
-              ]
-            : null,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              tier.icon,
-              style: TextStyle(fontSize: isCurrent ? 26 : 22),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              tier.displayName,
-              style: TextStyle(
-                color: isCurrent
-                    ? c
-                    : isUnlocked
-                        ? c.withValues(alpha: 0.72)
-                        : Colors.white.withValues(alpha: 0.28),
-                fontSize: 10.5,
-                fontWeight: isCurrent ? FontWeight.w900 : FontWeight.w600,
-                letterSpacing: 0.2,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              '${tier.minLevel}–${tier.maxLevel}',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: isCurrent ? 0.60 : 0.30),
-                fontSize: 9.5,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            if (isCurrent) ...[
-              const SizedBox(height: 5),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: c.withValues(alpha: 0.22),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: c.withValues(alpha: 0.65)),
-                ),
-                child: Text(
-                  isArabic ? 'أنت' : 'You',
-                  style: TextStyle(
-                    color: c,
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Description card ──────────────────────────────────────────────────────────
-
-class _LuxuryDescriptionCard extends StatelessWidget {
-  const _LuxuryDescriptionCard({
-    required this.icon,
-    required this.color,
-    required this.title,
-    required this.body,
-  });
-  final IconData icon;
-  final Color color;
-  final String title;
-  final String body;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.24)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color.withValues(alpha: 0.18),
-              border: Border.all(
-                  color: color.withValues(alpha: 0.48), width: 1.2),
-              boxShadow: [
-                BoxShadow(
-                    color: color.withValues(alpha: 0.28), blurRadius: 8),
-              ],
-            ),
-            child: Icon(icon, color: color, size: 19),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  body,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.62),
-                    fontSize: 12.5,
-                    height: 1.58,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // ── Level table ───────────────────────────────────────────────────────────────
-
 class _LuxuryLevelTable extends StatelessWidget {
   const _LuxuryLevelTable({
     required this.rows,
@@ -1053,10 +868,18 @@ class _LuxuryLevelTable extends StatelessWidget {
   final bool isArabic;
   final bool showEntryEffect;
 
+  static const _hStyle = TextStyle(
+    color: Color(0xFF9E91B8),
+    fontSize: 11.5,
+    fontWeight: FontWeight.w800,
+    letterSpacing: 0.5,
+  );
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           isArabic ? 'جدول المستويات' : 'Level Table',
@@ -1071,28 +894,31 @@ class _LuxuryLevelTable extends StatelessWidget {
         Container(
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.03),
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               // Header
               Container(
                 color: Colors.white.withValues(alpha: 0.05),
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 12),
+                  horizontal: 14,
+                  vertical: 11,
+                ),
                 child: Row(
-                  textDirection:
-                      isArabic ? TextDirection.rtl : TextDirection.ltr,
+                  textDirection: isArabic
+                      ? TextDirection.rtl
+                      : TextDirection.ltr,
                   children: [
                     Expanded(
                       flex: 3,
                       child: Text(
                         isArabic ? 'المستوى' : 'Level',
                         style: _hStyle,
-                        textAlign:
-                            isArabic ? TextAlign.right : TextAlign.left,
+                        textAlign: isArabic ? TextAlign.right : TextAlign.left,
                       ),
                     ),
                     Expanded(
@@ -1116,9 +942,7 @@ class _LuxuryLevelTable extends StatelessWidget {
                 ),
               ),
               for (var i = 0; i < rows.length; i++) ...[
-                Divider(
-                    height: 1,
-                    color: Colors.white.withValues(alpha: 0.05)),
+                Divider(height: 1, color: Colors.white.withValues(alpha: 0.05)),
                 _LevelTableRow(
                   row: rows[i],
                   isCurrent: rows[i].tier.number == currentTierNumber,
@@ -1133,13 +957,6 @@ class _LuxuryLevelTable extends StatelessWidget {
       ],
     );
   }
-
-  static const _hStyle = TextStyle(
-    color: Color(0xFF9E91B8),
-    fontSize: 11.5,
-    fontWeight: FontWeight.w800,
-    letterSpacing: 0.5,
-  );
 }
 
 class _LevelTableRow extends StatelessWidget {
@@ -1162,10 +979,11 @@ class _LevelTableRow extends StatelessWidget {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
       color: isCurrent ? c.withValues(alpha: 0.10) : Colors.transparent,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
         children: [
+          // Level range
           Expanded(
             flex: 3,
             child: Column(
@@ -1180,11 +998,10 @@ class _LevelTableRow extends StatelessWidget {
                     color: isCurrent
                         ? Colors.white
                         : Colors.white.withValues(
-                            alpha: isUnlocked ? 0.82 : 0.35),
-                    fontSize: 14,
-                    fontWeight: isCurrent
-                        ? FontWeight.w800
-                        : FontWeight.w600,
+                            alpha: isUnlocked ? 0.80 : 0.32,
+                          ),
+                    fontSize: 13.5,
+                    fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
                   ),
                 ),
                 if (isCurrent)
@@ -1192,26 +1009,28 @@ class _LevelTableRow extends StatelessWidget {
                     isArabic ? '← أنت هنا' : 'You →',
                     style: TextStyle(
                       color: c,
-                      fontSize: 9.5,
+                      fontSize: 9,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
               ],
             ),
           ),
+          // Badge
           Expanded(
             flex: 3,
             child: Center(
               child: Opacity(
-                opacity: isUnlocked ? 1.0 : 0.32,
+                opacity: isUnlocked ? 1.0 : 0.30,
                 child: _TierLevelBadge(
                   number: row.badge,
                   tier: row.tier,
-                  size: 40,
+                  size: 38,
                 ),
               ),
             ),
           ),
+          // Entry effect
           if (showEntryEffect)
             Expanded(
               flex: 5,
@@ -1220,13 +1039,12 @@ class _LevelTableRow extends StatelessWidget {
                       '—',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.22),
+                        color: Colors.white.withValues(alpha: 0.20),
                         fontWeight: FontWeight.w700,
-                        fontSize: 15,
+                        fontSize: 14,
                       ),
                     )
-                  : _EntrancePreview(
-                      tier: row.tier, isArabic: isArabic),
+                  : _EntrancePreview(tier: row.tier, isArabic: isArabic),
             ),
         ],
       ),
@@ -1234,8 +1052,7 @@ class _LevelTableRow extends StatelessWidget {
   }
 }
 
-// ── Glossy tier badge capsule (original design, preserved) ───────────────────
-
+// ── Glossy tier badge capsule ─────────────────────────────────────────────────
 class _TierLevelBadge extends StatelessWidget {
   const _TierLevelBadge({
     required this.number,
@@ -1265,10 +1082,11 @@ class _TierLevelBadge extends StatelessWidget {
           stops: const [0.0, 0.5, 1.0],
         ),
         border: Border.all(
-            color: Colors.white.withValues(alpha: 0.65), width: 1.2),
+          color: Colors.white.withValues(alpha: 0.65),
+          width: 1.2,
+        ),
         boxShadow: [
-          BoxShadow(
-              color: c.withValues(alpha: 0.55), blurRadius: size * 0.30),
+          BoxShadow(color: c.withValues(alpha: 0.55), blurRadius: size * 0.30),
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.35),
             blurRadius: size * 0.12,
@@ -1279,6 +1097,7 @@ class _TierLevelBadge extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
+          // Shine highlight
           Positioned(
             top: size * 0.06,
             left: size * 0.18,
@@ -1317,8 +1136,7 @@ class _TierLevelBadge extends StatelessWidget {
                     width: 1,
                   ),
                   boxShadow: [
-                    BoxShadow(
-                        color: c.withValues(alpha: 0.7), blurRadius: 4),
+                    BoxShadow(color: c.withValues(alpha: 0.7), blurRadius: 4),
                   ],
                 ),
               ),
@@ -1330,9 +1148,7 @@ class _TierLevelBadge extends StatelessWidget {
                   fontWeight: FontWeight.w900,
                   fontSize: size * 0.42,
                   height: 1.0,
-                  shadows: const [
-                    Shadow(color: Colors.black54, blurRadius: 2)
-                  ],
+                  shadows: const [Shadow(color: Colors.black54, blurRadius: 2)],
                 ),
               ),
             ],
@@ -1343,8 +1159,7 @@ class _TierLevelBadge extends StatelessWidget {
   }
 }
 
-// ── Entrance effect preview (original design, preserved) ─────────────────────
-
+// ── Entrance effect preview ───────────────────────────────────────────────────
 class _EntrancePreview extends StatelessWidget {
   const _EntrancePreview({required this.tier, required this.isArabic});
   final WealthTier tier;
@@ -1356,40 +1171,35 @@ class _EntrancePreview extends StatelessWidget {
     final light = _lighten(c, 0.5);
 
     return Container(
-      height: 42,
-      padding: const EdgeInsets.fromLTRB(4, 0, 8, 0),
+      height: 40,
+      padding: const EdgeInsets.fromLTRB(4, 0, 6, 0),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
         gradient: LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
           colors: [
-            c.withValues(alpha: 0.70),
-            c.withValues(alpha: 0.28),
+            c.withValues(alpha: 0.68),
+            c.withValues(alpha: 0.26),
             c.withValues(alpha: 0.04),
           ],
           stops: const [0.0, 0.55, 1.0],
         ),
-        border:
-            Border.all(color: light.withValues(alpha: 0.7), width: 1.2),
-        boxShadow: [
-          BoxShadow(
-              color: c.withValues(alpha: 0.50), blurRadius: 10),
-        ],
+        border: Border.all(color: light.withValues(alpha: 0.65), width: 1.1),
+        boxShadow: [BoxShadow(color: c.withValues(alpha: 0.45), blurRadius: 8)],
       ),
       child: Row(
         children: [
           Container(
-            width: 34,
-            height: 34,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: SweepGradient(
                 colors: [light, c, Colors.white, c, light],
               ),
               boxShadow: [
-                BoxShadow(
-                    color: c.withValues(alpha: 0.8), blurRadius: 6)
+                BoxShadow(color: c.withValues(alpha: 0.8), blurRadius: 6),
               ],
             ),
             padding: const EdgeInsets.all(2.5),
@@ -1404,12 +1214,12 @@ class _EntrancePreview extends StatelessWidget {
               ),
               child: Icon(
                 Icons.person_rounded,
-                size: 16,
+                size: 14,
                 color: Colors.white.withValues(alpha: 0.9),
               ),
             ),
           ),
-          const SizedBox(width: 7),
+          const SizedBox(width: 6),
           Expanded(
             child: Text(
               isArabic ? 'دخل المستخدم الغرفة' : 'User enters the room',
@@ -1417,7 +1227,7 @@ class _EntrancePreview extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 10.5,
+                fontSize: 9.5,
                 fontWeight: FontWeight.w800,
                 shadows: [Shadow(color: Colors.black54, blurRadius: 2)],
               ),
@@ -1425,8 +1235,8 @@ class _EntrancePreview extends StatelessWidget {
           ),
           Icon(
             Icons.auto_awesome_rounded,
-            size: 13,
-            color: light.withValues(alpha: 0.9),
+            size: 11,
+            color: light.withValues(alpha: 0.85),
           ),
         ],
       ),

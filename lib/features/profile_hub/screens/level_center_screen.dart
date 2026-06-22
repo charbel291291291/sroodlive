@@ -60,8 +60,14 @@ class _LevelCenterScreenState extends State<LevelCenterScreen> {
               );
             }
             final (myLevel, rules) = snapshot.data!;
-            debugPrint('[LevelCenter] current level=${myLevel.level} rules=${rules.length}');
-            return _LevelLadder(myLevel: myLevel, rules: rules, isArabic: isArabic);
+            debugPrint(
+              '[LevelCenter] current level=${myLevel.level} rules=${rules.length}',
+            );
+            return _LevelLadder(
+              myLevel: myLevel,
+              rules: rules,
+              isArabic: isArabic,
+            );
           },
         ),
       ],
@@ -97,80 +103,100 @@ class _TierGroup {
 
 const _tierGroups = [
   _TierGroup(
-    start: 1, end: 10,
-    nameEn: 'Bronze Spark', nameAr: 'شرارة البرونز',
+    start: 1,
+    end: 10,
+    nameEn: 'Bronze Spark',
+    nameAr: 'شرارة البرونز',
     primaryColor: Color(0xFFCD7F32),
     glowColor: Color(0xFFCD7F32),
     bgGradient: [Color(0xFF2A1500), Color(0xFF1A0C00)],
     icon: Icons.local_fire_department_rounded,
   ),
   _TierGroup(
-    start: 11, end: 20,
-    nameEn: 'Silver Rise', nameAr: 'صعود الفضة',
+    start: 11,
+    end: 20,
+    nameEn: 'Silver Rise',
+    nameAr: 'صعود الفضة',
     primaryColor: Color(0xFFC0C0C0),
     glowColor: Color(0xFFD8D8D8),
     bgGradient: [Color(0xFF1A1A2A), Color(0xFF0D0D1A)],
     icon: Icons.trending_up_rounded,
   ),
   _TierGroup(
-    start: 21, end: 30,
-    nameEn: 'Gold Flame', nameAr: 'لهب الذهب',
+    start: 21,
+    end: 30,
+    nameEn: 'Gold Flame',
+    nameAr: 'لهب الذهب',
     primaryColor: Color(0xFFFFD700),
     glowColor: Color(0xFFFFD700),
     bgGradient: [Color(0xFF2A2000), Color(0xFF1A1400)],
     icon: Icons.star_rounded,
   ),
   _TierGroup(
-    start: 31, end: 40,
-    nameEn: 'Emerald Aura', nameAr: 'هالة الزمرد',
+    start: 31,
+    end: 40,
+    nameEn: 'Emerald Aura',
+    nameAr: 'هالة الزمرد',
     primaryColor: Color(0xFF2ECC71),
     glowColor: Color(0xFF27AE60),
     bgGradient: [Color(0xFF002A10), Color(0xFF001A0A)],
     icon: Icons.eco_rounded,
   ),
   _TierGroup(
-    start: 41, end: 50,
-    nameEn: 'Sapphire Pulse', nameAr: 'نبضة الياقوت الأزرق',
+    start: 41,
+    end: 50,
+    nameEn: 'Sapphire Pulse',
+    nameAr: 'نبضة الياقوت الأزرق',
     primaryColor: Color(0xFF2980B9),
     glowColor: Color(0xFF3498DB),
     bgGradient: [Color(0xFF00162A), Color(0xFF000E1A)],
     icon: Icons.water_drop_rounded,
   ),
   _TierGroup(
-    start: 51, end: 60,
-    nameEn: 'Ruby Crown', nameAr: 'تاج الياقوت',
+    start: 51,
+    end: 60,
+    nameEn: 'Ruby Crown',
+    nameAr: 'تاج الياقوت',
     primaryColor: Color(0xFFE74C3C),
     glowColor: Color(0xFFC0392B),
     bgGradient: [Color(0xFF2A0000), Color(0xFF1A0000)],
     icon: Icons.workspace_premium_rounded,
   ),
   _TierGroup(
-    start: 61, end: 70,
-    nameEn: 'Diamond Halo', nameAr: 'هالة الألماس',
+    start: 61,
+    end: 70,
+    nameEn: 'Diamond Halo',
+    nameAr: 'هالة الألماس',
     primaryColor: Color(0xFF44D4FF),
     glowColor: Color(0xFF44D4FF),
     bgGradient: [Color(0xFF001A2A), Color(0xFF00111A)],
     icon: Icons.diamond_rounded,
   ),
   _TierGroup(
-    start: 71, end: 80,
-    nameEn: 'Master Eclipse', nameAr: 'كسوف الأسياد',
+    start: 71,
+    end: 80,
+    nameEn: 'Master Eclipse',
+    nameAr: 'كسوف الأسياد',
     primaryColor: Color(0xFF9B59F5),
     glowColor: Color(0xFF8E44AD),
     bgGradient: [Color(0xFF15002A), Color(0xFF0E001A)],
     icon: Icons.nights_stay_rounded,
   ),
   _TierGroup(
-    start: 81, end: 90,
-    nameEn: 'Royal Nebula', nameAr: 'سديم الملوك',
+    start: 81,
+    end: 90,
+    nameEn: 'Royal Nebula',
+    nameAr: 'سديم الملوك',
     primaryColor: Color(0xFFFF4ECD),
     glowColor: Color(0xFFE91E8C),
     bgGradient: [Color(0xFF2A0020), Color(0xFF1A0015)],
     icon: Icons.auto_awesome_rounded,
   ),
   _TierGroup(
-    start: 91, end: 100,
-    nameEn: 'Legendary Sun', nameAr: 'شمس الأساطير',
+    start: 91,
+    end: 100,
+    nameEn: 'Legendary Sun',
+    nameAr: 'شمس الأساطير',
     primaryColor: Color(0xFFFF6B00),
     glowColor: Color(0xFFFFD700),
     bgGradient: [Color(0xFF2A1000), Color(0xFF1A0800)],
@@ -226,17 +252,17 @@ class _CurrentLevelBadge extends StatelessWidget {
 
   Color get _color {
     return switch (myLevel.currentLevelColor) {
-      'bronze'    => const Color(0xFFCD7F32),
-      'silver'    => const Color(0xFFC0C0C0),
-      'gold'      => const Color(0xFFFFD700),
-      'emerald'   => const Color(0xFF2ECC71),
-      'sapphire'  => const Color(0xFF2E86DE),
-      'ruby'      => const Color(0xFFE74C3C),
-      'diamond'   => const Color(0xFF44D4FF),
-      'master'    => const Color(0xFF9B59F5),
-      'royal'     => const Color(0xFFFF4ECD),
+      'bronze' => const Color(0xFFCD7F32),
+      'silver' => const Color(0xFFC0C0C0),
+      'gold' => const Color(0xFFFFD700),
+      'emerald' => const Color(0xFF2ECC71),
+      'sapphire' => const Color(0xFF2E86DE),
+      'ruby' => const Color(0xFFE74C3C),
+      'diamond' => const Color(0xFF44D4FF),
+      'master' => const Color(0xFF9B59F5),
+      'royal' => const Color(0xFFFF4ECD),
       'legendary' => const Color(0xFFFF6B00),
-      _           => const Color(0xFFCD7F32), // bronze default
+      _ => const Color(0xFFCD7F32), // bronze default
     };
   }
 
@@ -251,10 +277,7 @@ class _CurrentLevelBadge extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            color.withValues(alpha: 0.18),
-            const Color(0xFF12091D),
-          ],
+          colors: [color.withValues(alpha: 0.18), const Color(0xFF12091D)],
         ),
         border: Border.all(color: color.withValues(alpha: 0.55), width: 1.2),
         boxShadow: [
@@ -272,7 +295,9 @@ class _CurrentLevelBadge extends StatelessWidget {
           const SizedBox(width: 14),
           Expanded(
             child: Column(
-              crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isArabic
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 Text(
                   isArabic ? 'مستواك الحالي' : 'Your Current Level',
@@ -335,7 +360,10 @@ class _CurrentLevelBadge extends StatelessWidget {
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.20),
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: color.withValues(alpha: 0.7), width: 1.2),
+              border: Border.all(
+                color: color.withValues(alpha: 0.7),
+                width: 1.2,
+              ),
             ),
             child: Text(
               '${_fmtXp(myLevel.xp)} XP',
@@ -426,7 +454,9 @@ class _TierGroupCardState extends State<_TierGroupCard> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(
-                textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+                textDirection: widget.isArabic
+                    ? TextDirection.rtl
+                    : TextDirection.ltr,
                 children: [
                   // Tier icon
                   Container(
@@ -435,7 +465,10 @@ class _TierGroupCardState extends State<_TierGroupCard> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: color.withValues(alpha: 0.15),
-                      border: Border.all(color: color.withValues(alpha: 0.45), width: 1.2),
+                      border: Border.all(
+                        color: color.withValues(alpha: 0.45),
+                        width: 1.2,
+                      ),
                     ),
                     child: Icon(group.icon, color: color, size: 22),
                   ),
@@ -447,7 +480,9 @@ class _TierGroupCardState extends State<_TierGroupCard> {
                           : CrossAxisAlignment.start,
                       children: [
                         Row(
-                          textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+                          textDirection: widget.isArabic
+                              ? TextDirection.rtl
+                              : TextDirection.ltr,
                           children: [
                             Text(
                               widget.isArabic ? group.nameAr : group.nameEn,
@@ -460,11 +495,17 @@ class _TierGroupCardState extends State<_TierGroupCard> {
                             if (isCurrent) ...[
                               const SizedBox(width: 8),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: color.withValues(alpha: 0.25),
                                   borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(color: color.withValues(alpha: 0.8), width: 1),
+                                  border: Border.all(
+                                    color: color.withValues(alpha: 0.8),
+                                    width: 1,
+                                  ),
                                 ),
                                 child: Text(
                                   widget.isArabic ? 'أنت هنا' : 'You',
@@ -494,7 +535,9 @@ class _TierGroupCardState extends State<_TierGroupCard> {
                     Icon(Icons.check_circle_rounded, color: color, size: 22)
                   else
                     Icon(
-                      _expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+                      _expanded
+                          ? Icons.expand_less_rounded
+                          : Icons.expand_more_rounded,
                       color: Colors.white.withValues(alpha: 0.45),
                       size: 22,
                     ),
@@ -515,7 +558,9 @@ class _TierGroupCardState extends State<_TierGroupCard> {
               child: Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                textDirection: widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+                textDirection: widget.isArabic
+                    ? TextDirection.rtl
+                    : TextDirection.ltr,
                 children: [
                   for (int lvl = group.start; lvl <= group.end; lvl++)
                     _LevelChip(
@@ -565,14 +610,14 @@ class _LevelChip extends StatelessWidget {
         color: isCurrent
             ? color.withValues(alpha: 0.28)
             : isUnlocked
-                ? color.withValues(alpha: 0.10)
-                : Colors.white.withValues(alpha: 0.04),
+            ? color.withValues(alpha: 0.10)
+            : Colors.white.withValues(alpha: 0.04),
         border: Border.all(
           color: isCurrent
               ? color.withValues(alpha: 0.90)
               : isUnlocked
-                  ? color.withValues(alpha: 0.40)
-                  : Colors.white.withValues(alpha: 0.12),
+              ? color.withValues(alpha: 0.40)
+              : Colors.white.withValues(alpha: 0.12),
           width: isCurrent ? 1.5 : 1.0,
         ),
         boxShadow: isCurrent
@@ -594,8 +639,8 @@ class _LevelChip extends StatelessWidget {
               color: isCurrent
                   ? color
                   : isUnlocked
-                      ? color.withValues(alpha: 0.80)
-                      : Colors.white.withValues(alpha: 0.35),
+                  ? color.withValues(alpha: 0.80)
+                  : Colors.white.withValues(alpha: 0.35),
               fontSize: 15,
               fontWeight: isCurrent ? FontWeight.w900 : FontWeight.w700,
             ),
