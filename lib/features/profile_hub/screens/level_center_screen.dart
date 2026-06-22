@@ -301,6 +301,32 @@ class _CurrentLevelBadge extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
+                if (myLevel.levelProgress != null) ...[
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      value: myLevel.levelProgress!.clamp(0.0, 1.0),
+                      minHeight: 6,
+                      backgroundColor: Colors.white.withValues(alpha: 0.10),
+                      valueColor: AlwaysStoppedAnimation<Color>(color),
+                    ),
+                  ),
+                  if (!myLevel.isMaxLevel && myLevel.xpToNextLevel != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        isArabic
+                            ? '${_fmtXp(myLevel.xpToNextLevel!)} XP للمستوى التالي'
+                            : '${_fmtXp(myLevel.xpToNextLevel!)} XP to next level',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.48),
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                ],
               ],
             ),
           ),
@@ -312,7 +338,7 @@ class _CurrentLevelBadge extends StatelessWidget {
               border: Border.all(color: color.withValues(alpha: 0.7), width: 1.2),
             ),
             child: Text(
-              '${myLevel.xp} XP',
+              '${_fmtXp(myLevel.xp)} XP',
               style: TextStyle(
                 color: color,
                 fontSize: 12,
@@ -588,4 +614,11 @@ class _LevelChip extends StatelessWidget {
       ),
     );
   }
+}
+
+String _fmtXp(int v) {
+  if (v >= 1000000000) return '${(v / 1000000000).toStringAsFixed(1)}B';
+  if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
+  if (v >= 1000) return '${(v / 1000).toStringAsFixed(1)}K';
+  return '$v';
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/wealth_models.dart';
 import '../services/wealth_service.dart';
+import '../../profile_hub/services/charm_service.dart';
 
 /// Luxury "My Level" screen.
 ///
@@ -22,9 +23,11 @@ class WealthCenterScreen extends StatefulWidget {
 
 class _WealthCenterScreenState extends State<WealthCenterScreen> {
   static const _service = WealthService();
+  static const _charmService = CharmService();
 
   UserWealth? _wealth;
   bool _loading = true;
+  late final Future<UserCharm> _charmFuture = _charmService.getMyCharm();
 
   // 0 = Charisma (placeholder), 1 = Contribution (real Wealth data).
   // Default to Contribution so the real data shows first.
@@ -99,7 +102,7 @@ class _WealthCenterScreenState extends State<WealthCenterScreen> {
                         ),
                       )
                     : _tab == 0
-                    ? _buildCharismaPlaceholder(ar)
+                    ? _buildCharisma(ar)
                     : _buildContribution(ar),
               ),
             ],
@@ -162,59 +165,138 @@ class _WealthCenterScreenState extends State<WealthCenterScreen> {
     );
   }
 
-  // ── Charisma (placeholder, no fake values) ──────────────────────────────────
+  // ── Charisma (real data from CharmService) ──────────────────────────────────
 
-  Widget _buildCharismaPlaceholder(bool ar) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('✨', style: TextStyle(fontSize: 56)),
-            const SizedBox(height: 16),
-            Text(
-              ar ? 'الجاذبية' : 'Charisma',
-              style: const TextStyle(
-                color: Color(0xFFF0C15A),
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
+  Widget _buildCharisma(bool ar) {
+    return FutureBuilder<UserCharm>(
+      future: _charmFuture,
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const Center(
+            child: CircularProgressIndicator(
+              color: Color(0xFFFF4ECD),
+              strokeWidth: 2.5,
+            ),
+          );
+        }
+        if (snap.hasError || !snap.hasData) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline_rounded,
+                      color: Color(0xFFFF5C7A), size: 36),
+                  const SizedBox(height: 12),
+                  Text(
+                    ar ? 'تعذّر تحميل بيانات السحر' : 'Could not load charm data',
+                    style: const TextStyle(
+                        color: Color(0xFFD8CFEA),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 10),
-            Text(
-              ar
-                  ? 'تقيس مدى الدعم الذي تتلقاه من الآخرين: الهدايا المستلمة، الألماس، المتابعون، وشعبية الغرفة.'
-                  : 'Measures how much you are supported by others: gifts received, diamonds, followers, and room popularity.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.6),
-                fontSize: 13,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0C15A).withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: const Color(0xFFF0C15A).withValues(alpha: 0.5),
+          );
+        }
+        final c = snap.data!;
+        // Derive tier from level to avoid stored-value drift.
+        final tier = WealthTier.fromLevel(c.charmLevel);
+        final progress = (c.levelProgress ?? 0).clamp(0.0, 1.0);
+        final nextXp = c.xpToNextLevel != null ? c.charmXp + c.xpToNextLevel! : null;
+
+        return SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.only(bottom: 32),
+          child: Column(
+            children: [
+              // Charm hero card (reuses the gold style but with pink accent)
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+                padding: const EdgeInsets.fromLTRB(16, 16, 18, 18),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      _lighten(tier.color, 0.35),
+                      tier.color,
+                      _darken(tier.color, 0.35),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: _lighten(tier.color, 0.55),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: tier.color.withValues(alpha: 0.40),
+                      blurRadius: 26,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    _LaurelAvatar(tier: tier, level: c.charmLevel),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Lv. ${c.charmLevel}',
+                            style: const TextStyle(
+                              color: Color(0xFF2D0A1A),
+                              fontSize: 38,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.3,
+                              height: 1.0,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(99),
+                            child: LinearProgressIndicator(
+                              value: c.isMaxLevel ? 1.0 : progress,
+                              minHeight: 9,
+                              backgroundColor: const Color(0x33000000),
+                              valueColor: const AlwaysStoppedAnimation<Color>(
+                                Color(0xFF8B26D9),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            c.isMaxLevel
+                                ? (ar ? 'أعلى مستوى' : 'MAX LEVEL')
+                                : nextXp != null
+                                    ? 'EXP ${_fmt(c.charmXp)}/${_fmt(nextXp)}'
+                                    : 'EXP ${_fmt(c.charmXp)}',
+                            style: const TextStyle(
+                              color: Color(0xFF5A1A3A),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: Text(
-                ar ? 'قريباً' : 'Coming soon',
-                style: const TextStyle(
-                  color: Color(0xFFF0C15A),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
+              const SizedBox(height: 18),
+              _LevelRangeTable(
+                currentTierNumber: tier.number,
+                isArabic: ar,
               ),
-            ),
-          ],
-        ),
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
