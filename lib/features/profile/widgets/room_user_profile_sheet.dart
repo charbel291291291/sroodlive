@@ -802,8 +802,9 @@ class _SheetBody extends StatelessWidget {
             Expanded(
               child: _StatPill(
                 icon: Icons.auto_awesome_rounded,
-                label: _fmt(profile.charmScore) +
-                    (isArabic ? ' سحر' : ' charm'),
+                label: isArabic
+                    ? 'سحر ${profile.charmLevel}'
+                    : 'Charm Lv. ${profile.charmLevel}',
                 color: const Color(0xFFE879F9),
               ),
             ),
@@ -1283,64 +1284,101 @@ class _LevelCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasGradient = prestige.level > 0;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: hasGradient
-            ? LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: prestige.badgeGradient,
-              )
-            : null,
-        color: hasGradient ? null : const Color(0xFF1A0D2E),
-        border: hasGradient
-            ? null
-            : Border.all(color: const Color(0xFF4A3470)),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            color: hasGradient
-                ? prestige.badgeTextColor
-                : const Color(0xFF6B7280),
-            size: 22,
-          ),
-          const SizedBox(width: 10),
-          Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: hasGradient
-                        ? prestige.badgeTextColor.withValues(alpha: 0.80)
-                        : const Color(0xFF6B7280),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          gradient: hasGradient
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: prestige.badgeGradient,
+                )
+              : null,
+          color: hasGradient ? null : const Color(0xFF1A0D2E),
+          border: hasGradient
+              ? null
+              : Border.all(color: const Color(0xFF4A3470)),
+          boxShadow: hasGradient
+              ? [
+                  BoxShadow(
+                    color: prestige.badgeGradient.last.withValues(alpha: 0.30),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
-                ),
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+                ]
+              : null,
+        ),
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(
+                    icon,
                     color: hasGradient
                         ? prestige.badgeTextColor
-                        : const Color(0xFF4A3470),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
+                        : const Color(0xFF6B7280),
+                    size: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: hasGradient
+                                ? prestige.badgeTextColor.withValues(alpha: 0.80)
+                                : const Color(0xFF6B7280),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          value,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: hasGradient
+                                ? prestige.badgeTextColor
+                                : const Color(0xFF4A3470),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (hasGradient)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 14,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.white.withValues(alpha: 0.22),
+                        Colors.white.withValues(alpha: 0.0),
+                      ],
+                    ),
                   ),
                 ),
-              ],
-            ),
-          ),
-        ],
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -1361,70 +1399,105 @@ class _WealthLevelCard extends StatelessWidget {
     final hasLevel = wealthLevel > 1;
     final tier = WealthTier.fromLevel(wealthLevel.clamp(1, 100));
     final c = tier.color;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: hasLevel
-            ? LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  c.withValues(alpha: 0.28),
-                  c.withValues(alpha: 0.10),
-                ],
-              )
-            : null,
-        color: hasLevel ? null : const Color(0xFF1A0D2E),
-        border: Border.all(
-          color: hasLevel ? c.withValues(alpha: 0.45) : const Color(0xFF4A3470),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          gradient: hasLevel
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    c.withValues(alpha: 0.38),
+                    c.withValues(alpha: 0.14),
+                    const Color(0xFF0E0520),
+                  ],
+                  stops: const [0.0, 0.55, 1.0],
+                )
+              : null,
+          color: hasLevel ? null : const Color(0xFF1A0D2E),
+          border: Border.all(
+            color: hasLevel ? c.withValues(alpha: 0.55) : const Color(0xFF4A3470),
+          ),
+          boxShadow: hasLevel
+              ? [
+                  BoxShadow(
+                    color: c.withValues(alpha: 0.28),
+                    blurRadius: 14,
+                    offset: const Offset(0, 5),
+                  ),
+                ]
+              : null,
         ),
-        boxShadow: hasLevel
-            ? [
-                BoxShadow(
-                  color: c.withValues(alpha: 0.18),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-            : null,
-      ),
-      child: Row(
-        children: [
-          LevelFrameBadge(
-            level: hasLevel ? wealthLevel : 1,
-            size: 34,
-            showNumber: false,
-          ),
-          const SizedBox(width: 10),
-          Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isArabic ? 'ثروة' : 'Wealth',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: hasLevel ? c.withValues(alpha: 0.80) : const Color(0xFF6B7280),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                children: [
+                  LevelFrameBadge(
+                    level: hasLevel ? wealthLevel : 1,
+                    size: 34,
+                    showNumber: false,
                   ),
-                ),
-                Text(
-                  hasLevel ? 'Lv $wealthLevel' : '–',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: hasLevel ? c : const Color(0xFF4A3470),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isArabic ? 'ثروة' : 'Wealth',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: hasLevel
+                                ? c.withValues(alpha: 0.85)
+                                : const Color(0xFF6B7280),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          hasLevel ? 'Lv $wealthLevel' : '–',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: hasLevel ? c : const Color(0xFF4A3470),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            shadows: hasLevel
+                                ? [Shadow(color: c.withValues(alpha: 0.50), blurRadius: 6)]
+                                : null,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+            if (hasLevel)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 14,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.white.withValues(alpha: 0.20),
+                        Colors.white.withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -1447,9 +1520,23 @@ class _StatPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.28)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            color.withValues(alpha: 0.18),
+            color.withValues(alpha: 0.06),
+          ],
+        ),
+        border: Border.all(color: color.withValues(alpha: 0.40)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.18),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1462,7 +1549,7 @@ class _StatPill extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: color.withValues(alpha: 0.90),
+                color: color.withValues(alpha: 0.95),
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
               ),

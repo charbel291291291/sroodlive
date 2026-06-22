@@ -23,6 +23,7 @@ class RoomUserProfile {
     this.friendsCount = 0,
     this.giftReceivedCount = 0,
     this.charmScore = 0,
+    this.charmLevel = 1,
     this.nobleLevel = 0,
     this.wealthLevel = 1,
     this.wealthTierNumber = 1,
@@ -51,6 +52,7 @@ class RoomUserProfile {
   final int friendsCount;
   final int giftReceivedCount;
   final int charmScore;
+  final int charmLevel;
   final int nobleLevel;
   final int wealthLevel;
   final int wealthTierNumber;
@@ -110,6 +112,7 @@ class RoomUserProfile {
       friendsCount: friendsCount,
       giftReceivedCount: giftReceivedCount,
       charmScore: charmScore,
+      charmLevel: charmLevel,
       nobleLevel: nobleLevel,
       wealthLevel: wealthLevel,
       wealthTierNumber: wealthTierNumber,

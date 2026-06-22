@@ -35,6 +35,23 @@ class RoomUserProfileService {
       wealthTierNumber = w.tierNumber;
     } catch (_) {}
 
+    // Fetch charm level via RPC (non-fatal - defaults to 1).
+    int charmLevel = 1;
+    try {
+      final charmData = await client.rpc(
+        'get_user_charm_level',
+        params: {'p_user_id': userId},
+      );
+      if (charmData is Map) {
+        final v = charmData['charm_level'];
+        if (v is int) {
+          charmLevel = v;
+        } else if (v is num) {
+          charmLevel = v.toInt();
+        }
+      }
+    } catch (_) {}
+
     return RoomUserProfile(
       userId: userId,
       nickname: _safeDisplayName(data),
@@ -57,6 +74,7 @@ class RoomUserProfileService {
       followingCount: following,
       giftReceivedCount: gifts,
       charmScore: gifts,
+      charmLevel: charmLevel,
       nobleLevel: 0,
       wealthLevel: wealthLevel,
       wealthTierNumber: wealthTierNumber,

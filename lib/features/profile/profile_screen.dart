@@ -3250,24 +3250,25 @@ class _LuxuryLevelChip extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(br),
         gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: gradientColors,
-          stops: const [0.0, 0.45, 1.0],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          // reversed: light top-left (lit surface) → dark bottom-right (shadow edge)
+          colors: gradientColors.reversed.toList(),
+          stops: const [0.0, 0.55, 1.0],
         ),
         border: Border.all(
-          color: highlightColor.withValues(alpha: 0.38),
+          color: highlightColor.withValues(alpha: 0.50),
           width: 1.0,
         ),
         boxShadow: [
           BoxShadow(
-            color: glowColor.withValues(alpha: 0.40),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            color: glowColor.withValues(alpha: 0.55),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.38),
-            blurRadius: 4,
+            color: Colors.black.withValues(alpha: 0.45),
+            blurRadius: 5,
             offset: const Offset(0, 2),
           ),
         ],
@@ -3275,60 +3276,90 @@ class _LuxuryLevelChip extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.hardEdge,
         children: [
-          // Top gloss strip
+          // Top-left gloss shine
           Positioned(
             top: 0,
             left: 0,
             right: 0,
-            height: h * 0.38,
+            height: h * 0.42,
             child: DecoratedBox(
               decoration: BoxDecoration(
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(br),
                 ),
                 gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                   colors: [
-                    Colors.white.withValues(alpha: 0.28),
+                    Colors.white.withValues(alpha: 0.38),
                     Colors.white.withValues(alpha: 0.0),
                   ],
                 ),
               ),
             ),
           ),
-          // Content
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 9),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: 12, color: highlightColor),
-                const SizedBox(width: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: highlightColor.withValues(alpha: 0.88),
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.2,
-                    height: 1.0,
-                  ),
+          // Bottom shadow edge (depth)
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: h * 0.28,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(br),
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  '$level',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.0,
-                    height: 1.0,
-                    shadows: [Shadow(color: Colors.black38, blurRadius: 3)],
-                  ),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.28),
+                  ],
                 ),
-              ],
+              ),
+            ),
+          ),
+          // Content — centered vertically and horizontally
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 9),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 12, color: highlightColor),
+                  const SizedBox(width: 4),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: highlightColor.withValues(alpha: 0.92),
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.2,
+                      height: 1.0,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$level',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.0,
+                      height: 1.0,
+                      shadows: [
+                        Shadow(
+                          color: glowColor.withValues(alpha: 0.60),
+                          blurRadius: 4,
+                        ),
+                        const Shadow(color: Colors.black38, blurRadius: 2),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
