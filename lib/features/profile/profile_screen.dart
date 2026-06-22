@@ -28,7 +28,9 @@ import '../rooms/services/rooms_service.dart';
 import '../rooms/screens/room_details_screen.dart';
 import '../profile_hub/models/profile_hub_models.dart';
 import '../profile_hub/screens/my_level_screen.dart';
+import '../profile_hub/services/charm_service.dart';
 import '../profile_hub/services/level_service.dart';
+import '../wealth/services/wealth_service.dart';
 import 'models/avatar_frame.dart';
 import 'screens/follow_list_screen.dart';
 import 'services/follow_service.dart';
@@ -127,6 +129,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int visitorsCount = 0;
   UserWallet? wallet;
   UserLevel? _userLevel;
+  int? _charmLevel;
+  int? _wealthLevel;
 
   @override
   void initState() {
@@ -225,6 +229,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
         debugPrint('[LevelSync] failed to load level: $e');
       }
 
+      // Charm and Wealth levels are secondary — failures never block the screen.
+      int? loadedCharmLevel;
+      int? loadedWealthLevel;
+      await Future.wait([
+        () async {
+          try {
+            loadedCharmLevel =
+                (await const CharmService().getMyCharm()).charmLevel;
+          } catch (e) {
+            debugPrint('[ProfileBadge] charm load failed: $e');
+          }
+        }(),
+        () async {
+          try {
+            loadedWealthLevel =
+                (await const WealthService().getMyWealth()).wealthLevel;
+          } catch (e) {
+            debugPrint('[ProfileBadge] wealth load failed: $e');
+          }
+        }(),
+      ]);
+
       setState(() {
         profile = data;
         avatarFrames = frames;
@@ -239,6 +265,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         visitorsCount = _intFromProfile(data, 'visitors_count');
         wallet = loadedWallet;
         _userLevel = loadedLevel;
+        _charmLevel = loadedCharmLevel;
+        _wealthLevel = loadedWealthLevel;
         isLoading = false;
       });
     } catch (error) {
@@ -390,25 +418,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
         builder: (_) => MyLevelScreen(isArabic: context.isArabic),
       ),
     );
-    // Refresh level in case XP was earned while on My Level screen
-    try {
-      final refreshed = await const LevelService().getMyLevel();
-      if (mounted) setState(() => _userLevel = refreshed);
-    } catch (_) {}
+    // Refresh all three levels in case XP was earned while on My Level screen.
+    _refreshLevelBadges();
   }
 
   Future<void> _openWealthCenter() async {
-    // The visible profile tile now opens the official Charm/Wealth level screen
-    // (MyLevelScreen) instead of the old Charisma/Contribution WealthCenterScreen.
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => MyLevelScreen(isArabic: context.isArabic),
       ),
     );
-    try {
-      final refreshed = await const LevelService().getMyLevel();
-      if (mounted) setState(() => _userLevel = refreshed);
-    } catch (_) {}
+    _refreshLevelBadges();
+  }
+
+  void _refreshLevelBadges() {
+    const LevelService()
+        .getMyLevel()
+        .then((r) {
+          if (mounted) setState(() => _userLevel = r);
+        })
+        .catchError((_) {});
+    const CharmService()
+        .getMyCharm()
+        .then((r) {
+          if (mounted) setState(() => _charmLevel = r.charmLevel);
+        })
+        .catchError((_) {});
+    const WealthService()
+        .getMyWealth()
+        .then((r) {
+          if (mounted) setState(() => _wealthLevel = r.wealthLevel);
+        })
+        .catchError((_) {});
   }
 
   Future<void> _confirmLogout() async {
@@ -1109,6 +1150,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       frameKey: selectedAvatarFrameKey,
                       vipLevel: displayVipLevel,
                       level: level,
+                      charmLevel: _charmLevel,
+                      wealthLevel: _wealthLevel,
                       isGoldenId: isGoldenId,
                       goldenIdStyle: goldenIdStyle,
                       goldenIdFrame: goldenIdFrame,
@@ -1272,6 +1315,8 @@ class _PremiumProfileHero extends StatelessWidget {
     required this.onEditTap,
     required this.onFrameTap,
     required this.onCopyId,
+    this.charmLevel,
+    this.wealthLevel,
     this.goldenIdStyle = 'gold',
     this.goldenIdFrame = 'classic',
   });
@@ -1282,6 +1327,8 @@ class _PremiumProfileHero extends StatelessWidget {
   final String? frameKey;
   final int vipLevel;
   final int level;
+  final int? charmLevel;
+  final int? wealthLevel;
   final bool isGoldenId;
   final String goldenIdStyle;
   final String goldenIdFrame;
@@ -1509,12 +1556,11 @@ class _PremiumProfileHero extends StatelessWidget {
                         if (flag.isNotEmpty)
                           _ProfileBadge(label: flag, highlighted: false),
                         if (vipLevel > 0) VipBadge(vipLevel: vipLevel),
-                        _ProfileBadge(
-                          icon: Icons.military_tech_rounded,
-                          label: isArabic
-                              ? 'مستوى النشاط $level'
-                              : 'Activity Lv. $level',
-                          highlighted: false,
+                        _LevelBadgeRow(
+                          activityLevel: level,
+                          charmLevel: charmLevel,
+                          wealthLevel: wealthLevel,
+                          isArabic: isArabic,
                         ),
                         if (ProfileGenderChip.isKnown(gender))
                           ProfileGenderChip(gender: gender, isArabic: isArabic),
@@ -3054,14 +3100,92 @@ class _GoldMiniButton extends StatelessWidget {
   }
 }
 
-class _ProfileBadge extends StatelessWidget {
-  const _ProfileBadge({
-    this.icon,
-    required this.label,
-    required this.highlighted,
+// Three-track level row shown on the profile card.
+// Charm and Wealth are nullable — if loading failed, only Activity is shown.
+class _LevelBadgeRow extends StatelessWidget {
+  const _LevelBadgeRow({
+    required this.activityLevel,
+    required this.isArabic,
+    this.charmLevel,
+    this.wealthLevel,
   });
 
-  final IconData? icon;
+  final int activityLevel;
+  final int? charmLevel;
+  final int? wealthLevel;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 5,
+      runSpacing: 4,
+      children: [
+        _MiniLevelBadge(
+          icon: Icons.military_tech_rounded,
+          color: const Color(0xFF9B59F5),
+          label: isArabic ? 'نشاط $activityLevel' : 'Act. $activityLevel',
+        ),
+        if (charmLevel != null)
+          _MiniLevelBadge(
+            icon: Icons.favorite_rounded,
+            color: const Color(0xFFFF4ECD),
+            label: isArabic ? 'سحر $charmLevel' : 'Charm $charmLevel',
+          ),
+        if (wealthLevel != null)
+          _MiniLevelBadge(
+            icon: Icons.diamond_rounded,
+            color: const Color(0xFFF0C15A),
+            label: isArabic ? 'ثروة $wealthLevel' : 'Wealth $wealthLevel',
+          ),
+      ],
+    );
+  }
+}
+
+class _MiniLevelBadge extends StatelessWidget {
+  const _MiniLevelBadge({
+    required this.icon,
+    required this.color,
+    required this.label,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileBadge extends StatelessWidget {
+  const _ProfileBadge({required this.label, required this.highlighted});
+
   final String label;
   final bool highlighted;
 
@@ -3080,26 +3204,13 @@ class _ProfileBadge extends StatelessWidget {
               : Colors.white.withValues(alpha: 0.18),
         ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(
-              icon!,
-              size: 13,
-              color: highlighted ? const Color(0xFFF0C15A) : Colors.white,
-            ),
-            const SizedBox(width: 5),
-          ],
-          Text(
-            label,
-            style: TextStyle(
-              color: highlighted ? const Color(0xFFF0C15A) : Colors.white,
-              fontWeight: FontWeight.w900,
-              fontSize: 11,
-            ),
-          ),
-        ],
+      child: Text(
+        label,
+        style: TextStyle(
+          color: highlighted ? const Color(0xFFF0C15A) : Colors.white,
+          fontWeight: FontWeight.w900,
+          fontSize: 11,
+        ),
       ),
     );
   }
