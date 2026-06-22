@@ -709,7 +709,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       final extension = _avatarExtension(image.name, image.mimeType);
 
-      // â”€â”€ Animated GIF path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // Animated GIF path
       if (extension == 'gif') {
         final vipLevel = _effectiveProfileVipLevel();
         final userLevel = _userLevel?.level ?? 0;
@@ -739,7 +739,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           return;
         }
 
-        // Read raw bytes directly from disk â€” bypasses any picker-level
+        // Read raw bytes directly from disk
         // transcoding that could strip GIF animation frames.
         final bytes = await File(image.path).readAsBytes();
         final fileSizeMb = bytes.length / (1024 * 1024);
@@ -789,7 +789,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return; // GIF path done
       }
 
-      // â”€â”€ Static image path (jpg / png / webp) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // Static image path
       // Crop/adjust step — the picked image is NOT uploaded until the user taps
       // Save on the crop screen. Cancel returns null and uploads nothing.
       if (!mounted) return;
@@ -1349,7 +1349,7 @@ class _PremiumProfileHero extends StatelessWidget {
               ),
             ),
           ),
-          // Edit button â€” inset 6 px from edge so it never touches the border
+          // Edit button
           Positioned(
             right: isArabic ? null : 6,
             left: isArabic ? 6 : null,
@@ -1432,7 +1432,7 @@ class _PremiumProfileHero extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    // Display name â€” VIP styling is carried by VipUsername and
+                    // Display name
                     // the VIP pill below; no separate floating badge needed.
                     VipUsername(
                       name: displayName,
@@ -1578,7 +1578,7 @@ class _PremiumProfileHero extends StatelessWidget {
           clipBehavior: Clip.none,
           alignment: Alignment.center,
           children: [
-            // Soft premium glow â€” no hard rectangular edges
+            // Soft premium glow
             Container(
               width: glowDiam,
               height: glowDiam,
@@ -1607,7 +1607,7 @@ class _PremiumProfileHero extends StatelessWidget {
                 ),
               ),
             ),
-            // Avatar â€” tappable to open frame picker. The VIP frame is drawn as
+            // Avatar
             // a single clean webp layer below (or the user's custom frameKey), so
             // the shared widget renders only the photo here (no auto PNG frame,
             // no badge pill) to avoid stacking two frames on one avatar. Sized and
@@ -1628,7 +1628,7 @@ class _PremiumProfileHero extends StatelessWidget {
                 ),
               ),
             ),
-            // Single premium VIP frame â€” the new webp asset, centered over the
+            // Section
             // avatar. Only shown when the user has not picked a custom frame
             // (a custom frameKey is rendered by AvatarWithFrame above instead),
             // so the avatar + frame always read as one composed unit.
@@ -1642,7 +1642,7 @@ class _PremiumProfileHero extends StatelessWidget {
                   errorBuilder: (_, _, _) => const SizedBox.shrink(),
                 ),
               ),
-            // Camera button â€” anchored bottom-right, clean gradient
+            // Camera button
             Positioned(
               right: 2,
               bottom: 0,

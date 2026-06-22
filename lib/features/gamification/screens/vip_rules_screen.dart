@@ -1,10 +1,10 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 // =============================================================================
-// VIP Rules â€” explains what VIP is, how VIP Exp is earned, and the per-level
+// VIP Rules
 // recharge / upgrade / maintain Exp requirements for Srood Live.
 //
-// UI/text only. No VIP, wallet, recharge, or Supabase logic lives here â€” the
+// Section
 // numbers below are presentational copy that mirror the Srood Live economy
 // (1 coin = 1 VIP Exp). Matches the VIP Center's dark purple / gold styling.
 // =============================================================================
@@ -17,7 +17,12 @@ const Color _kText = Color(0xFFD8CFEA);
 
 /// One row of the VIP Exp requirements table.
 class _VipExpRow {
-  const _VipExpRow(this.level, this.totalRecharge, this.upgradeExp, this.maintainExp);
+  const _VipExpRow(
+    this.level,
+    this.totalRecharge,
+    this.upgradeExp,
+    this.maintainExp,
+  );
   final int level;
   final int totalRecharge;
   final int upgradeExp;
@@ -178,7 +183,10 @@ class _ExpTable extends StatelessWidget {
               // Header row.
               Container(
                 color: _kGold.withValues(alpha: 0.10),
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 10,
+                ),
                 child: const Row(
                   children: [
                     _Cell('Level', flex: 2, header: true),
@@ -194,8 +202,10 @@ class _ExpTable extends StatelessWidget {
                   color: i.isEven
                       ? Colors.transparent
                       : Colors.white.withValues(alpha: 0.025),
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 11, horizontal: 10),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 11,
+                    horizontal: 10,
+                  ),
                   child: Row(
                     children: [
                       _Cell('Lv.${_kExpTable[i].level}', flex: 2, accent: true),
@@ -230,8 +240,8 @@ class _Cell extends StatelessWidget {
     final color = header
         ? _kGold
         : accent
-            ? Colors.white
-            : _kText;
+        ? Colors.white
+        : _kText;
     return Expanded(
       flex: flex,
       child: Padding(
@@ -247,9 +257,7 @@ class _Cell extends StatelessWidget {
               color: color,
               fontSize: header ? 11 : 12.5,
               height: 1.25,
-              fontWeight: header || accent
-                  ? FontWeight.w800
-                  : FontWeight.w600,
+              fontWeight: header || accent ? FontWeight.w800 : FontWeight.w600,
               letterSpacing: 0.1,
             ),
           ),
@@ -258,4 +266,3 @@ class _Cell extends StatelessWidget {
     );
   }
 }
-

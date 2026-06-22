@@ -31,7 +31,7 @@ const _kPurpleMid = Color(0xFF8B26D9);
 const _kGreen = Color(0xFF2ECC71);
 const _kRed = Color(0xFFFF5C7A);
 
-// â”€â”€ VIP Center 2.0 (Srood VIP Prestige) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// VIP Center 2.0
 // Phase V1: presentational reskin. Flip this flag to false to instantly fall
 // back to the legacy VIP Center layout (kept fully intact below).
 final bool _kUseVip2Shell = true;
@@ -68,7 +68,7 @@ String _v2Fmt(int n) {
   return b.toString();
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Section
 
 class VipCenterScreen extends StatefulWidget {
   const VipCenterScreen({
@@ -128,7 +128,7 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
       });
       return;
     }
-    // VIP EXP data is supplementary â€” a failure here must not block the screen.
+    // VIP EXP data is supplementary
     try {
       final vip = await VipService().getMyVip();
       if (!mounted) return;
@@ -304,9 +304,9 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
     ),
   );
 
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  // VIP Center 2.0 â€” Phase V1 presentational shell (English-only)
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Section
+  // VIP Center 2.0
+  // Section
 
   Widget _buildVip2Header() => Padding(
     padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
@@ -356,7 +356,7 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
     ).push(MaterialPageRoute<void>(builder: (_) => const VipRulesScreen()));
   }
 
-  // Phase V1 CTA â€” honest, no purchase logic. The existing economy grants VIP
+  // Phase V1 CTA
   // through a recharge agent / admin, so this points the user there.
   void _onVip2UpgradeTap() {
     ScaffoldMessenger.of(context)
@@ -509,9 +509,9 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Section
 // Section label
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Section
 
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel({required this.label, required this.isArabic});
@@ -532,9 +532,9 @@ class _SectionLabel extends StatelessWidget {
   );
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Section
 // Current status card
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Section
 
 class _CurrentStatusCard extends StatelessWidget {
   const _CurrentStatusCard({
@@ -757,9 +757,9 @@ class _InfoRow extends StatelessWidget {
   );
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Section
 // VIP Level Progress section
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Section
 
 class _VipProgressSection extends StatelessWidget {
   const _VipProgressSection({
@@ -802,7 +802,7 @@ class _VipProgressSection extends StatelessWidget {
             ? CrossAxisAlignment.end
             : CrossAxisAlignment.start,
         children: [
-          // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          // Header
           Row(
             textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
             children: [
@@ -829,7 +829,7 @@ class _VipProgressSection extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // â”€â”€ 9-segment tier bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          // Section
           Row(
             children: List.generate(9, (i) {
               final segLevel = i + 1;
@@ -863,7 +863,7 @@ class _VipProgressSection extends StatelessWidget {
           ),
           const SizedBox(height: 14),
 
-          // â”€â”€ EXP stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          // Section
           if (vip != null && hasExp) ...[
             // Promote to non-null inside builder via local
             _VipExpBlock(
@@ -874,7 +874,7 @@ class _VipProgressSection extends StatelessWidget {
               fmtExp: _fmtExp,
             ),
           ] else ...[
-            // No EXP data yet â€” show journey start prompt
+            // Section
             _ExpStatRow(
               icon: Icons.rocket_launch_rounded,
               text: vipLevel <= 0
@@ -894,7 +894,7 @@ class _VipProgressSection extends StatelessWidget {
   }
 }
 
-// â”€â”€ EXP helper widgets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Section
 
 // Separate stateless widget so Dart narrows vip to non-null via the constructor.
 class _VipExpBlock extends StatelessWidget {
@@ -1197,9 +1197,9 @@ class _ExpStatRow extends StatelessWidget {
   );
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Section
 // VIP settings shortcut
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Section
 
 class _VipSettingsButton extends StatelessWidget {
   const _VipSettingsButton({required this.vipLevel, required this.isArabic});
@@ -1256,9 +1256,9 @@ class _VipSettingsButton extends StatelessWidget {
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Tier selector â€” horizontal scroll VIP 1..9 (premium tier cards)
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Section
+// Section
+// Section
 
 class _TierSelector extends StatelessWidget {
   const _TierSelector({
@@ -1396,9 +1396,9 @@ class _VipTierCard extends StatelessWidget {
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Section
 // Tier preview card
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Section
 
 class _TierPreviewCard extends StatelessWidget {
   const _TierPreviewCard({
@@ -1582,9 +1582,9 @@ class _FeatureChip extends StatelessWidget {
   );
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Section
 // Benefits list
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Section
 
 class _BenefitsList extends StatelessWidget {
   const _BenefitsList({required this.level, required this.isArabic});
@@ -1620,7 +1620,7 @@ class _BenefitsList extends StatelessWidget {
     final locked = VipPrivileges.lockedFor(level);
     final total = unlocked.length + locked.length;
 
-    // Tier color for the header counter â€” use the viewed tier, fall back to gold
+    // Section
     final headerColor = level > 0 ? VipTierColors.of(level).border : _kGold;
 
     return Container(
@@ -1632,7 +1632,7 @@ class _BenefitsList extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
             child: Row(
@@ -1680,7 +1680,7 @@ class _BenefitsList extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
-          // â”€â”€ Unlocked section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          // Section
           if (unlocked.isNotEmpty) ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
@@ -1701,7 +1701,7 @@ class _BenefitsList extends StatelessWidget {
             ),
           ],
 
-          // â”€â”€ Divider + locked section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          // Section
           if (locked.isNotEmpty) ...[
             if (unlocked.isNotEmpty)
               Padding(
@@ -1894,9 +1894,9 @@ class _BenefitRow extends StatelessWidget {
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Section
 // Contact admin CTA
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Section
 
 class _ContactAdminButton extends StatelessWidget {
   const _ContactAdminButton({required this.isArabic});
@@ -1945,7 +1945,7 @@ class _ContactAdminButton extends StatelessWidget {
                   : CrossAxisAlignment.start,
               children: [
                 Text(
-                  isArabic ? 'ØªÙˆØ§ØµÙ„ Ù…Ø¹ Ø§Ù„Ø¥Ø¯Ø§Ø±Ø©' : 'Contact Admin',
+                  isArabic ? 'تواصل مع الإدارة' : 'Contact Admin',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 15,
@@ -1975,9 +1975,9 @@ class _ContactAdminButton extends StatelessWidget {
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Section
 // Admin VIP management panel
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Section
 
 class _AdminVipPanel extends StatefulWidget {
   const _AdminVipPanel({required this.isArabic});
@@ -1988,31 +1988,31 @@ class _AdminVipPanel extends StatefulWidget {
 }
 
 class _AdminVipPanelState extends State<_AdminVipPanel> {
-  // â”€â”€ Search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Search
   final _searchController = TextEditingController();
   List<AdminUserSummary> _searchResults = [];
   AdminUserSummary? _selectedUser;
   bool _searching = false;
 
-  // â”€â”€ Grant / Revoke â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Grant / Revoke
   final _durationController = TextEditingController(text: '30');
   int _grantLevel = 1;
 
-  // â”€â”€ Golden ID â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Golden ID
   bool _goldenEnabled = true;
   final _goldenIdController = TextEditingController();
   final _goldenDurationController = TextEditingController();
   String _goldenStyle = 'gold';
   String _goldenFrame = 'classic';
 
-  // â”€â”€ Country Flag Style â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Country Flag Style
   final _countryCodeController = TextEditingController();
   final _countryNameController = TextEditingController();
   final _flagDurationController = TextEditingController();
   String _flagStyle = 'normal';
   String _flagFrame = 'classic';
 
-  // â”€â”€ Shared â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Section
   bool _busy = false;
   String? _result;
   bool _resultIsError = false;
@@ -2034,7 +2034,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
     super.dispose();
   }
 
-  // â”€â”€ Search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Search
 
   Future<void> _searchUser() async {
     final q = _searchController.text.trim();
@@ -2095,7 +2095,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
     });
   }
 
-  // â”€â”€ Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Actions
 
   Future<void> _grantVip() async {
     final user = _selectedUser;
@@ -2281,7 +2281,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
     error: true,
   );
 
-  // â”€â”€ Build â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Build
 
   @override
   Widget build(BuildContext context) {
@@ -2298,7 +2298,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
             ? CrossAxisAlignment.end
             : CrossAxisAlignment.start,
         children: [
-          // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          // Header
           Row(
             textDirection: dir,
             children: [
@@ -2327,7 +2327,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           ),
           const SizedBox(height: 16),
 
-          // â”€â”€ User search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          // Section
           _SubLabel(
             label: isArabic
                 ? 'بحث عن المستخدم'
@@ -2396,7 +2396,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
             ],
           ),
 
-          // â”€â”€ Search results â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          // Search
           if (_searchResults.isNotEmpty) ...[
             const SizedBox(height: 8),
             ...(_searchResults.map(
@@ -2408,7 +2408,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
             )),
           ],
 
-          // â”€â”€ Selected user â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          // Section
           if (_selectedUser != null) ...[
             const SizedBox(height: 8),
             _SelectedUserCard(user: _selectedUser!, isArabic: isArabic),
@@ -2418,7 +2418,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           Divider(color: _kCardBorder, height: 1),
           const SizedBox(height: 16),
 
-          // â”€â”€ Grant / Revoke â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          // Grant / Revoke
           _SubLabel(
             label: isArabic ? 'منح / إلغاء VIP' : 'Grant / Revoke VIP',
             isArabic: isArabic,
@@ -2513,7 +2513,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           Divider(color: _kCardBorder, height: 1),
           const SizedBox(height: 16),
 
-          // â”€â”€ Golden ID â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          // Golden ID
           _SubLabel(label: 'Golden ID', isArabic: isArabic),
           const SizedBox(height: 8),
 
@@ -2607,7 +2607,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           Divider(color: _kCardBorder, height: 1),
           const SizedBox(height: 16),
 
-          // â”€â”€ Country Flag Style â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          // Country Flag Style
           _SubLabel(
             label: isArabic ? 'نمط علم البلد' : 'Country Flag Style',
             isArabic: isArabic,
@@ -2685,7 +2685,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
             ),
           ),
 
-          // â”€â”€ Result banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          // Section
           if (_result != null) ...[
             const SizedBox(height: 12),
             Container(
@@ -2719,7 +2719,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
   }
 }
 
-// â”€â”€ Search result card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Search
 
 class _UserResultCard extends StatelessWidget {
   const _UserResultCard({
@@ -2825,7 +2825,7 @@ class _UserResultCard extends StatelessWidget {
   }
 }
 
-// â”€â”€ Selected user card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Section
 
 class _SelectedUserCard extends StatelessWidget {
   const _SelectedUserCard({required this.user, required this.isArabic});
@@ -2941,7 +2941,7 @@ class _SelectedUserCard extends StatelessWidget {
   }
 }
 
-// â”€â”€ Admin panel helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Section
 
 /// Horizontal scrolling row of option chips (used for style and frame selectors).
 class _GoldenChipRow extends StatelessWidget {
@@ -3138,10 +3138,10 @@ class _AdminButton extends StatelessWidget {
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// VIP Center 2.0 â€” Phase V1 presentational widgets (Srood VIP Prestige)
+// Section
+// VIP Center 2.0
 // English-only. No new assets. No backend calls.
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Section
 
 class _Vip2Crest extends StatelessWidget {
   const _Vip2Crest({required this.level});
@@ -3185,7 +3185,7 @@ class _Vip2Crest extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        // Clean tier title â€” supports the hero image without competing with it.
+        // Section
         Text(
           'VIP $shown',
           style: const TextStyle(
