@@ -58,24 +58,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _retry() => setState(() => _future = _load());
 
-  Future<void> _update(
+  Future<bool> _update(
     Map<String, dynamic> values, {
     required List<String> keys,
   }) async {
-    if (keys.any(_savingKeys.contains)) return;
+    if (keys.any(_savingKeys.contains)) return false;
     setState(() {
       _savingKeys.addAll(keys);
     });
 
     try {
       final settings = await _service.updateSettings(values);
-      if (!mounted) return;
+      if (!mounted) return false;
       setState(() {
         _settings = settings;
         _future = Future.value(settings);
       });
-    } catch (_) {
-      if (!mounted) return;
+      return true;
+    } catch (e) {
+      debugPrint('[Settings._update] failed: $e');
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -85,6 +87,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       );
+      return false;
     } finally {
       if (mounted) {
         setState(() {
@@ -367,10 +370,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: isArabic ? 'اللغة' : 'Language',
                   subtitle: settings.language == 'ar' ? 'العربية' : 'English',
                   isArabic: isArabic,
-                  onTap: () {
+                  onTap: () async {
                     final next = settings.language == 'ar' ? 'en' : 'ar';
-                    language.setLocale(Locale(next));
-                    _update({'language': next}, keys: const ['language']);
+                    final ok = await _update(
+                      {'language': next},
+                      keys: const ['language'],
+                    );
+                    if (ok && mounted) language.setLocale(Locale(next));
                   },
                 ),
                 SettingsToggleTile(
@@ -383,14 +389,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   isArabic: isArabic,
                   isEnabled: !_savingKeys.contains('notifications_enabled'),
                   onChanged: (value) => _update(
-                    {
-                      'notifications_enabled': value,
-                      'push_notifications_enabled': value,
-                    },
-                    keys: const [
-                      'notifications_enabled',
-                      'push_notifications_enabled',
-                    ],
+                    {'notifications_enabled': value},
+                    keys: const ['notifications_enabled'],
                   ),
                 ),
                 SettingsToggleTile(
@@ -418,7 +418,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 SettingsToggleTile(
-                  icon: Icons.visibility_rounded,
+                  icon: Icons.online_prediction_rounded,
                   title: isArabic ? 'إظهار الحالة' : 'Show online status',
                   value: settings.privacyShowOnline,
                   isArabic: isArabic,
@@ -788,7 +788,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   isArabic: isArabic,
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) => PreferencesScreen(isArabic: isArabic),
+                      builder: (_) => const PreferencesScreen(),
                     ),
                   ),
                 ),

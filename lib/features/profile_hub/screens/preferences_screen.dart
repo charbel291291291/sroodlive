@@ -3,9 +3,7 @@ import '../../../core/supabase/supabase_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class PreferencesScreen extends StatefulWidget {
-  const PreferencesScreen({required this.isArabic, super.key});
-
-  final bool isArabic;
+  const PreferencesScreen({super.key});
 
   @override
   State<PreferencesScreen> createState() => _PreferencesScreenState();
@@ -14,10 +12,10 @@ class PreferencesScreen extends StatefulWidget {
 class _PreferencesScreenState extends State<PreferencesScreen> {
   bool _loading = true;
   bool _saving = false;
+  String? _loadError;
 
   bool _notifSound = true;
   bool _notifVibrate = true;
-  bool _showOnline = true;
   bool _allowMessages = true;
   bool _allowCalls = true;
   bool _autoPlay = true;
@@ -34,7 +32,10 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
     try {
       final me = SupabaseService.requiredClient.auth.currentUser?.id;
       if (me == null) {
@@ -51,7 +52,6 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
         setState(() {
           _notifSound = rows['notif_sound'] as bool? ?? true;
           _notifVibrate = rows['notif_vibrate'] as bool? ?? true;
-          _showOnline = rows['show_online'] as bool? ?? true;
           _allowMessages = rows['allow_messages'] as bool? ?? true;
           _allowCalls = rows['allow_calls'] as bool? ?? true;
           _autoPlay = rows['auto_play'] as bool? ?? true;
@@ -61,7 +61,10 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           _fontSize = rows['font_size'] as String? ?? 'medium';
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[Preferences._load] error: $e');
+      if (mounted) setState(() => _loadError = e.toString());
+    }
     if (mounted) setState(() => _loading = false);
   }
 
@@ -74,7 +77,6 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
         'user_id': me,
         'notif_sound': _notifSound,
         'notif_vibrate': _notifVibrate,
-        'show_online': _showOnline,
         'allow_messages': _allowMessages,
         'allow_calls': _allowCalls,
         'auto_play': _autoPlay,
@@ -90,7 +92,20 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           backgroundColor: const Color(0xFF1A3A28),
         ),
       );
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[Preferences._save] error: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.isArabic
+                ? 'تعذر الحفظ. حاول مرة أخرى.'
+                : 'Could not save. Please try again.',
+          ),
+          backgroundColor: Colors.red.shade900,
+        ),
+      );
+    }
     if (mounted) setState(() => _saving = false);
   }
 
@@ -116,6 +131,45 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                 const Expanded(
                   child: Center(
                     child: CircularProgressIndicator(color: Color(0xFF8B26D9)),
+                  ),
+                )
+              else if (_loadError != null)
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.error_outline_rounded,
+                            color: Color(0xFFBCAED6),
+                            size: 48,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            context.isArabic
+                                ? 'تعذر تحميل التفضيلات'
+                                : 'Could not load preferences',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          FilledButton(
+                            onPressed: _load,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFF8B26D9),
+                            ),
+                            child: Text(
+                              context.isArabic ? 'إعادة المحاولة' : 'Retry',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 )
               else
@@ -144,14 +198,6 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                             ),
                           ]),
                           _section(isArabic ? 'الخصوصية' : 'Privacy', [
-                            _toggle(
-                              isArabic
-                                  ? 'إظهار حالة الاتصال'
-                                  : 'Show online status',
-                              Icons.circle_rounded,
-                              _showOnline,
-                              (v) => setState(() => _showOnline = v),
-                            ),
                             _toggle(
                               isArabic ? 'السماح بالرسائل' : 'Allow messages',
                               Icons.chat_bubble_rounded,

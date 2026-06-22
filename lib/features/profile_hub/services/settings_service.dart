@@ -20,7 +20,7 @@ class SettingsService {
 
     final data = await client
         .from('user_settings')
-        .update({...values, 'updated_at': DateTime.now().toIso8601String()})
+        .update(values)
         .eq('user_id', userId)
         .select()
         .single();
