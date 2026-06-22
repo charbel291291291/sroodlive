@@ -32,6 +32,7 @@ import '../profile_hub/services/level_service.dart';
 import 'models/avatar_frame.dart';
 import 'screens/follow_list_screen.dart';
 import 'services/follow_service.dart';
+import 'widgets/avatar_crop_screen.dart';
 import 'widgets/country_picker_sheet.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 import 'utils/vip_assets.dart';
@@ -682,16 +683,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return 'jpg';
   }
 
-  String _avatarContentType(String extension, String? mimeType) {
-    if (mimeType != null && mimeType.startsWith('image/')) return mimeType;
-    return switch (extension) {
-      'png' => 'image/png',
-      'webp' => 'image/webp',
-      'gif' => 'image/gif',
-      _ => 'image/jpeg',
-    };
-  }
-
   Future<void> _uploadAvatar() async {
     final isArabic = context.isArabic;
     setState(() {
@@ -797,17 +788,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
 
       // â”€â”€ Static image path (jpg / png / webp) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-      final Uint8List bytes = await image.readAsBytes();
+      // Crop/adjust step — the picked image is NOT uploaded until the user taps
+      // Save on the crop screen. Cancel returns null and uploads nothing.
+      if (!mounted) return;
+      final croppedBytes = await Navigator.of(context).push<Uint8List>(
+        MaterialPageRoute<Uint8List>(
+          builder: (_) => AvatarCropScreen(
+            imageFile: File(image.path),
+            isArabic: isArabic,
+            vipLevel: _effectiveProfileVipLevel(),
+          ),
+        ),
+      );
+      if (croppedBytes == null) {
+        if (mounted) setState(() => isUploadingAvatar = false);
+        return;
+      }
+
+      final Uint8List bytes = croppedBytes;
       final path =
-          '${user.id}/avatar_${DateTime.now().millisecondsSinceEpoch}.$extension';
-      final contentType = _avatarContentType(extension, image.mimeType);
+          '${user.id}/avatar_${DateTime.now().millisecondsSinceEpoch}.png';
+      const contentType = 'image/png';
 
       await client.storage
           .from('avatars')
           .uploadBinary(
             path,
             bytes,
-            fileOptions: FileOptions(contentType: contentType),
+            fileOptions: const FileOptions(contentType: contentType),
           );
 
       final publicUrl = client.storage.from('avatars').getPublicUrl(path);
