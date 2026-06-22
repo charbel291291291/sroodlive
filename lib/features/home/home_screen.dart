@@ -22,9 +22,9 @@ class _HomeScreenState extends State<HomeScreen> {
   int selectedIndex = 0;
   int _messagesUnread = 0;
 
-  // Auto-show the daily reward at most once per app session (UI-only guard;
-  // claim eligibility is still validated server-side).
-  static bool _dailyRewardShownThisSession = false;
+  // Auto-show the daily reward at most once per widget instance. Non-static so
+  // it resets on logout/re-login (which creates a new HomeScreen instance).
+  bool _dailyRewardShownThisSession = false;
 
   @override
   void initState() {

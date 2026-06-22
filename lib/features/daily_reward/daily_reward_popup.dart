@@ -36,7 +36,8 @@ class DailyRewardPopup extends StatefulWidget {
     DailyRewardState state;
     try {
       state = await const DailyRewardService().getState();
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[DailyRewardPopup.show] failed to load state: $e');
       return;
     }
     if (!context.mounted) return;
@@ -81,15 +82,19 @@ class _DailyRewardPopupState extends State<DailyRewardPopup> {
     setState(() => _claiming = true);
     try {
       final res = await const DailyRewardService().claim();
-      final fresh = await const DailyRewardService().getState();
       if (!mounted) return;
+      // Show success immediately from the claim result — don't block on refresh.
       setState(() {
-        _state = fresh;
         _claiming = false;
         _flash = widget.isArabic
-            ? 'تم استلام المكافأة بنجاح!'
-            : 'Reward claimed successfully! (+${_fmt(res.amount)})';
+            ? 'تم استلام المكافأة بنجاح! (+${_fmt(res.amount)})'
+            : 'Reward claimed! (+${_fmt(res.amount)})';
       });
+      // Refresh grid state best-effort; failure doesn't mask the success.
+      try {
+        final fresh = await const DailyRewardService().getState();
+        if (mounted) setState(() => _state = fresh);
+      } catch (_) {}
     } catch (e) {
       if (!mounted) return;
       final raw = e.toString();
@@ -262,8 +267,10 @@ class _DailyRewardPopupState extends State<DailyRewardPopup> {
   }
 
   Widget _day7(bool isArabic) {
+    final rule = _state.ruleForDay(7);
     return DailyRewardDay7Card(
-      amount: _state.ruleForDay(7)?.amount ?? 0,
+      amount: rule?.amount ?? 0,
+      rewardType: rule?.rewardType ?? 'coins',
       claimed: 7 <= _claimedThrough,
       claimable: _state.canClaimToday && _state.claimDay == 7,
       isArabic: isArabic,
@@ -328,13 +335,10 @@ class _Coin extends StatelessWidget {
           ),
         ],
       ),
-      child: Text(
-        '\$',
-        style: TextStyle(
-          color: const Color(0xFF7A4E07),
-          fontWeight: FontWeight.w900,
-          fontSize: size * 0.52,
-        ),
+      child: Icon(
+        Icons.monetization_on_rounded,
+        color: const Color(0xFF7A4E07),
+        size: size * 0.58,
       ),
     );
   }
@@ -451,6 +455,7 @@ class DailyReward3DCell extends StatelessWidget {
 class DailyRewardDay7Card extends StatelessWidget {
   const DailyRewardDay7Card({
     required this.amount,
+    required this.rewardType,
     required this.claimed,
     required this.claimable,
     required this.isArabic,
@@ -459,6 +464,7 @@ class DailyRewardDay7Card extends StatelessWidget {
   });
 
   final int amount;
+  final String rewardType;
   final bool claimed;
   final bool claimable;
   final bool isArabic;
@@ -525,7 +531,13 @@ class DailyRewardDay7Card extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '${fmt(amount)} ${isArabic ? 'عملة' : 'coins'}',
+                    () {
+                      final isDiamond = rewardType == 'diamonds';
+                      final label = isArabic
+                          ? (isDiamond ? 'ماسة' : 'عملة')
+                          : (isDiamond ? 'diamonds' : 'coins');
+                      return '${fmt(amount)} $label';
+                    }(),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 13,
