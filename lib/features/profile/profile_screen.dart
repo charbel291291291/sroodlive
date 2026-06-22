@@ -1501,17 +1501,17 @@ class _PremiumProfileHero extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    // Bio / status â€” single line with generous height for RTL
+                    // Bio / status — up to two lines, softer premium tone.
                     Text(
                       subtitle,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       textAlign: textAlign,
-                      style: const TextStyle(
-                        color: Color(0xFFBCAED6),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        height: 1.35,
+                      style: TextStyle(
+                        color: const Color(0xFFBCAED6).withValues(alpha: 0.82),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        height: 1.4,
                       ),
                     ),
                   ],
@@ -1530,8 +1530,8 @@ class _PremiumProfileHero extends StatelessWidget {
   Widget _buildAvatarZone() {
     const zoneWidth = 108.0;
     const glowDiam = 100.0;
-    const cameraSize = 36.0;
-    const cameraIcon = 17.0;
+    const cameraSize = 31.0; // slightly smaller, cleaner
+    const cameraIcon = 15.0;
     const frameBox = 132.0;
 
     // The premium webp VIP frame is the single frame when the user has no
@@ -1545,7 +1545,11 @@ class _PremiumProfileHero extends StatelessWidget {
     final avatarDy =
         showWebpFrame ? frameBox * frameLayout.avatarDyFraction : 0.0;
 
-    return SizedBox(
+    return Padding(
+      // A little breathing room from the card's right edge so the frame is not
+      // crowded against it.
+      padding: const EdgeInsets.only(right: 5),
+      child: SizedBox(
       width: zoneWidth,
       child: Stack(
         clipBehavior: Clip.none,
@@ -1634,12 +1638,12 @@ class _PremiumProfileHero extends StatelessWidget {
                   ),
                   border: Border.all(
                     color: const Color(0xFF160B26),
-                    width: 2.0,
+                    width: 1.8,
                   ),
                   boxShadow: [
                     BoxShadow(
                       color: const Color(0xFFF0C15A).withValues(alpha: 0.35),
-                      blurRadius: 8,
+                      blurRadius: 7,
                       offset: const Offset(0, 2),
                     ),
                   ],
@@ -1655,6 +1659,7 @@ class _PremiumProfileHero extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -2078,42 +2083,86 @@ class _WalletArt extends StatelessWidget {
   Widget build(BuildContext context) {
     return IgnorePointer(
       child: Opacity(
-        opacity: 0.28,
+        opacity: 0.34,
         child: Transform.rotate(
-          angle: -0.18,
+          angle: -0.16,
           child: SizedBox(
-            width: 78,
-            height: 78,
+            width: 84,
+            height: 84,
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // Wallet body.
-                Container(
-                  width: 64,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    color: Colors.white.withValues(alpha: 0.30),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.5),
-                      width: 1.4,
+                // A card slipping out behind the wallet (depth).
+                Positioned(
+                  top: 14,
+                  child: Container(
+                    width: 50,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(7),
+                      color: Colors.white.withValues(alpha: 0.22),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.4),
+                      ),
                     ),
                   ),
                 ),
-                // Wallet flap.
+                // Wallet body (glossy).
+                Container(
+                  width: 66,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(13),
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.white.withValues(alpha: 0.42),
+                        Colors.white.withValues(alpha: 0.18),
+                      ],
+                    ),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.55),
+                      width: 1.5,
+                    ),
+                  ),
+                ),
+                // Clasp / button on the wallet.
                 Positioned(
-                  right: 8,
+                  right: 12,
                   child: Container(
-                    width: 22,
-                    height: 22,
+                    width: 6,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(4),
+                      color: Colors.white.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ),
+                // Glossy currency coin/diamond accent (raised, top-right).
+                Positioned(
+                  top: 6,
+                  right: 4,
+                  child: Container(
+                    width: 26,
+                    height: 26,
+                    alignment: Alignment.center,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: tint.withValues(alpha: 0.45),
+                      gradient: RadialGradient(
+                        colors: [
+                          Colors.white,
+                          Color.lerp(tint, Colors.white, 0.3)!,
+                          tint,
+                        ],
+                        stops: const [0.0, 0.4, 1.0],
+                        center: const Alignment(-0.3, -0.4),
+                      ),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.5),
+                        color: Colors.white.withValues(alpha: 0.85),
                       ),
                     ),
-                    child: Icon(accent, size: 13, color: Colors.white),
+                    child: Icon(accent, size: 14, color: Colors.white),
                   ),
                 ),
               ],
