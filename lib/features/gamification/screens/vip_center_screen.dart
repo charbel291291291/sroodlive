@@ -245,7 +245,7 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
           const SizedBox(height: 24),
           _SectionLabel(
             label: context.isArabic
-                ? 'Ø§Ø³ØªÙƒØ´Ø§Ù Ù…Ø³ØªÙˆÙŠØ§Øª VIP'
+                ? 'استكشف مستويات VIP'
                 : 'Explore VIP Tiers',
             isArabic: context.isArabic,
           ),
@@ -632,7 +632,7 @@ class _CurrentStatusCard extends StatelessWidget {
                       )
                     else
                       _StatusPill(
-                        label: isArabic ? 'ØºÙŠØ± Ù…ÙØ¹Ù‘Ù„' : 'No VIP',
+                        label: isArabic ? 'غير مفعّل' : 'No VIP',
                         color: _kSubtext,
                       ),
                     if (_isActive && _isMax) ...[
@@ -681,7 +681,7 @@ class _CurrentStatusCard extends StatelessWidget {
                   _InfoRow(
                     icon: Icons.timer_off_rounded,
                     text: isArabic
-                        ? 'Ø§Ù†ØªÙ‡Ù‰ ÙÙŠ: ${_fmtDate(expiresAt!)}'
+                        ? 'انتهى في: ${_fmtDate(expiresAt!)}'
                         : 'Expired on: ${_fmtDate(expiresAt!)}',
                     color: _kRed,
                   )
@@ -882,7 +882,7 @@ class _VipProgressSection extends StatelessWidget {
                         ? 'ابدأ رحلة VIP بالشحن'
                         : 'Start your VIP journey by recharging')
                   : (isArabic
-                        ? 'Ø§Ø³ØªÙ…Ø± Ø¨Ø§Ù„Ø´Ø­Ù† Ù„Ù„Ø­ÙØ§Ø¸ Ø¹Ù„Ù‰ VIP'
+                        ? 'استمر بالشحن للحفاظ على VIP'
                         : 'Keep recharging to maintain your VIP'),
               color: _kSubtext,
               isArabic: isArabic,
@@ -1510,7 +1510,7 @@ class _TierPreviewCard extends StatelessWidget {
                       const SizedBox(width: 10),
                       _ColorDot(
                         color: spec.bannerGradient.first,
-                        label: isArabic ? 'Ù„Ø§ÙØªØ©' : 'Banner',
+                        label: isArabic ? 'لافتة' : 'Banner',
                       ),
                     ],
                   ],
@@ -1686,7 +1686,7 @@ class _BenefitsList extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
               child: _BenefitSectionLabel(
                 icon: Icons.check_circle_rounded,
-                label: isArabic ? 'Ù…ÙØ¹Ù‘Ù„Ø©' : 'Unlocked',
+                label: isArabic ? 'مفعّلة' : 'Unlocked',
                 color: const Color(0xFF22C55E),
                 isArabic: isArabic,
               ),
@@ -1954,7 +1954,7 @@ class _ContactAdminButton extends StatelessWidget {
                 ),
                 Text(
                   isArabic
-                      ? 'Ù„Ù„ØªØ±Ù‚ÙŠØ© Ø¥Ù„Ù‰ VIP Ø¹Ø¨Ø± ÙˆÙƒÙŠÙ„ Ø§Ù„Ø´Ø­Ù†'
+                      ? 'للترقية إلى VIP عبر وكيل الشحن'
                       : 'Upgrade VIP through a recharge agent',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.75),
@@ -2051,17 +2051,12 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
       setState(() => _searchResults = results);
       if (results.isEmpty) {
         _setResult(
-          isArabic
-              ? 'Ù„Ù… ÙŠÙØ¹Ø«Ø± Ø¹Ù„Ù‰ Ù…Ø³ØªØ®Ø¯Ù… Ø¨Ù‡Ø°Ø§ Ø§Ù„Ø¨Ø­Ø«'
-              : 'No user found',
+          isArabic ? 'لم يُعثر على مستخدم بهذا البحث' : 'No user found',
           error: true,
         );
       }
     } catch (e) {
-      _setResult(
-        isArabic ? 'ÙØ´Ù„ Ø§Ù„Ø¨Ø­Ø«: $e' : 'Search failed: $e',
-        error: true,
-      );
+      _setResult(isArabic ? 'فشل البحث: $e' : 'Search failed: $e', error: true);
     } finally {
       if (mounted) setState(() => _searching = false);
     }
@@ -2202,7 +2197,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
       if (msg.contains('golden_id_taken')) {
         _setResult(
           isArabic
-              ? 'Ù‡Ø°Ø§ Ø§Ù„Ù€ Golden ID Ù…Ø³ØªØ®Ø¯Ù… Ø¨Ø§Ù„ÙØ¹Ù„.'
+              ? 'هذا الـ Golden ID مستخدم بالفعل.'
               : 'This Golden ID is already used.',
           error: true,
         );
@@ -2256,7 +2251,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
       if (msg.contains('invalid_country_code')) {
         _setResult(
           isArabic
-              ? 'Ø±Ù…Ø² Ø§Ù„Ø¨Ù„Ø¯ ØºÙŠØ± ØµØ§Ù„Ø­. Ø§Ø³ØªØ®Ø¯Ù… Ø­Ø±ÙÙŠÙ† Ù…Ø«Ù„ LBØŒ AOØŒ AE.'
+              ? 'رمز البلد غير صالح. استخدم حرفين مثل LB، AO، AE.'
               : 'Invalid country code. Use two letters like LB, AO, AE.',
           error: true,
         );
@@ -2342,7 +2337,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
                 child: _AdminField(
                   controller: _searchController,
                   label: isArabic
-                      ? 'UUID Ø£Ùˆ Ù…Ø¹Ø±Ù‘Ù Ø°Ù‡Ø¨ÙŠ Ø£Ùˆ Ø§Ø³Ù… Ù…Ø³ØªØ®Ø¯Ù…'
+                      ? 'UUID أو معرّف ذهبي أو اسم مستخدم'
                       : 'UUID / Golden ID / username / name',
                   isArabic: isArabic,
                 ),
@@ -2522,7 +2517,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
             textDirection: dir,
             children: [
               Text(
-                isArabic ? 'ØªÙØ¹ÙŠÙ„' : 'Enable',
+                isArabic ? 'تفعيل' : 'Enable',
                 style: const TextStyle(color: _kText, fontSize: 13),
               ),
               Switch(
@@ -2536,7 +2531,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
                 child: _AdminField(
                   controller: _goldenDurationController,
                   label: isArabic
-                      ? 'Ø£ÙŠØ§Ù… (ÙØ§Ø±Øº = Ø¯Ø§Ø¦Ù…)'
+                      ? 'أيام (فارغ = دائم)'
                       : 'Days (blank = permanent)',
                   isArabic: isArabic,
                   keyboardType: TextInputType.number,
@@ -2639,9 +2634,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           const SizedBox(height: 8),
           _AdminField(
             controller: _flagDurationController,
-            label: isArabic
-                ? 'Ø£ÙŠØ§Ù… (ÙØ§Ø±Øº = Ø¯Ø§Ø¦Ù…)'
-                : 'Days (blank = permanent)',
+            label: isArabic ? 'أيام (فارغ = دائم)' : 'Days (blank = permanent)',
             isArabic: isArabic,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
