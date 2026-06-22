@@ -42,6 +42,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late Future<UserSettings> _future;
   UserSettings? _settings;
   bool _isLoggingOut = false;
+  final Set<String> _savingKeys = <String>{};
 
   @override
   void initState() {
@@ -57,13 +58,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _retry() => setState(() => _future = _load());
 
-  Future<void> _update(Map<String, dynamic> values) async {
-    final settings = await _service.updateSettings(values);
-    if (!mounted) return;
+  Future<void> _update(
+    Map<String, dynamic> values, {
+    required List<String> keys,
+  }) async {
+    if (keys.any(_savingKeys.contains)) return;
     setState(() {
-      _settings = settings;
-      _future = Future.value(settings);
+      _savingKeys.addAll(keys);
     });
+
+    try {
+      final settings = await _service.updateSettings(values);
+      if (!mounted) return;
+      setState(() {
+        _settings = settings;
+        _future = Future.value(settings);
+      });
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.isArabic
+                ? 'تعذر حفظ الإعداد. حاول مرة أخرى.'
+                : 'Could not save setting. Please try again.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _savingKeys.removeAll(keys);
+        });
+      }
+    }
   }
 
   Future<void> _checkForUpdate() async {
@@ -73,19 +101,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.isArabic
-                ? 'التطبيق محدّث بالفعل'
-                : 'App is up to date',
+            widget.isArabic ? 'التطبيق محدّث بالفعل' : 'App is up to date',
           ),
         ),
       );
       return;
     }
-    await showAppUpdateDialog(
-      context,
-      info: info,
-      isArabic: widget.isArabic,
-    );
+    await showAppUpdateDialog(context, info: info, isArabic: widget.isArabic);
   }
 
   Future<void> _logout() async {
@@ -98,7 +120,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // Navigation is handled by the root-level auth listener in main.dart
       // (_SrOOdLiveAppState._onAuthStateChange). We wait briefly to let it fire;
       // if it hasn't navigated yet we fall back here.
-      debugPrint('[SettingsLogout] SafeLogout done — root auth listener will navigate');
+      debugPrint(
+        '[SettingsLogout] SafeLogout done — root auth listener will navigate',
+      );
       await Future<void>.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
       // Fallback: root listener may not have fired yet (e.g. in tests or edge cases).
@@ -136,6 +160,169 @@ class _SettingsScreenState extends State<SettingsScreen> {
           isArabic: context.isArabic,
         ),
       ),
+    );
+  }
+
+  String _visibilityLabel(String value, bool isArabic) {
+    return switch (value) {
+      'public' => isArabic ? 'عام' : 'Public',
+      'friends' => isArabic ? 'الأصدقاء فقط' : 'Friends only',
+      'private' => isArabic ? 'خاص' : 'Private',
+      _ => value,
+    };
+  }
+
+  Future<void> _showProfileVisibilityPicker(UserSettings settings) async {
+    final isArabic = context.isArabic;
+    final next = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: profileHubCard,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        final options =
+            <({String key, IconData icon, String title, String body})>[
+              (
+                key: 'public',
+                icon: Icons.public_rounded,
+                title: isArabic ? 'عام' : 'Public',
+                body: isArabic
+                    ? 'يمكن للجميع رؤية ملفك.'
+                    : 'Everyone can view your profile.',
+              ),
+              (
+                key: 'friends',
+                icon: Icons.group_rounded,
+                title: isArabic ? 'الأصدقاء فقط' : 'Friends only',
+                body: isArabic
+                    ? 'يظهر ملفك للأصدقاء والمتابعين المسموحين.'
+                    : 'Visible to friends and allowed connections.',
+              ),
+              (
+                key: 'private',
+                icon: Icons.lock_rounded,
+                title: isArabic ? 'خاص' : 'Private',
+                body: isArabic
+                    ? 'تقليل ظهور ملفك للآخرين.'
+                    : 'Limit profile visibility to others.',
+              ),
+            ];
+
+        return SafeArea(
+          child: Directionality(
+            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: profileHubBorder,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Align(
+                    alignment: isArabic
+                        ? Alignment.centerRight
+                        : Alignment.centerLeft,
+                    child: Text(
+                      isArabic ? 'ظهور الملف' : 'Profile visibility',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ...options.map((option) {
+                    final selected =
+                        option.key == settings.privacyProfileVisibility;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () => Navigator.of(context).pop(option.key),
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? profileHubGold.withValues(alpha: 0.12)
+                                  : const Color(0xFF1A0D2A),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: selected
+                                    ? profileHubGold
+                                    : profileHubBorder,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  option.icon,
+                                  color: profileHubGold,
+                                  size: 22,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: isArabic
+                                        ? CrossAxisAlignment.end
+                                        : CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        option.title,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        option.body,
+                                        style: const TextStyle(
+                                          color: profileHubMuted,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (selected)
+                                  const Icon(
+                                    Icons.check_circle_rounded,
+                                    color: profileHubGold,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (next == null || next == settings.privacyProfileVisibility || !mounted) {
+      return;
+    }
+
+    await _update(
+      {'privacy_profile_visibility': next},
+      keys: const ['privacy_profile_visibility'],
     );
   }
 
@@ -183,52 +370,76 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: () {
                     final next = settings.language == 'ar' ? 'en' : 'ar';
                     language.setLocale(Locale(next));
-                    _update({'language': next});
+                    _update({'language': next}, keys: const ['language']);
                   },
                 ),
                 SettingsToggleTile(
+                  icon: Icons.notifications_active_rounded,
                   title: isArabic ? 'إشعارات الدفع' : 'Push notifications',
                   subtitle: isArabic
                       ? 'تفعيل إشعارات الجهاز'
                       : 'System-level notification alerts',
                   value: settings.notificationsEnabled,
                   isArabic: isArabic,
-                  onChanged: (value) =>
-                      _update({'notifications_enabled': value}),
+                  isEnabled: !_savingKeys.contains('notifications_enabled'),
+                  onChanged: (value) => _update(
+                    {
+                      'notifications_enabled': value,
+                      'push_notifications_enabled': value,
+                    },
+                    keys: const [
+                      'notifications_enabled',
+                      'push_notifications_enabled',
+                    ],
+                  ),
                 ),
                 SettingsToggleTile(
+                  icon: Icons.meeting_room_rounded,
                   title: isArabic ? 'دعوات الغرف' : 'Room invites',
                   value: settings.roomInvitesEnabled,
                   isArabic: isArabic,
-                  onChanged: (value) =>
-                      _update({'room_invites_enabled': value}),
+                  isEnabled: !_savingKeys.contains('room_invites_enabled'),
+                  onChanged: (value) => _update(
+                    {'room_invites_enabled': value},
+                    keys: const ['room_invites_enabled'],
+                  ),
                 ),
                 SettingsToggleTile(
+                  icon: Icons.card_giftcard_rounded,
                   title: isArabic ? 'إشعارات الهدايا' : 'Gift notifications',
                   value: settings.giftNotificationsEnabled,
                   isArabic: isArabic,
-                  onChanged: (value) =>
-                      _update({'gift_notifications_enabled': value}),
+                  isEnabled: !_savingKeys.contains(
+                    'gift_notifications_enabled',
+                  ),
+                  onChanged: (value) => _update(
+                    {'gift_notifications_enabled': value},
+                    keys: const ['gift_notifications_enabled'],
+                  ),
                 ),
                 SettingsToggleTile(
+                  icon: Icons.visibility_rounded,
                   title: isArabic ? 'إظهار الحالة' : 'Show online status',
                   value: settings.privacyShowOnline,
                   isArabic: isArabic,
-                  onChanged: (value) => _update({'privacy_show_online': value}),
+                  isEnabled: !_savingKeys.contains('privacy_show_online'),
+                  onChanged: (value) => _update(
+                    {'privacy_show_online': value},
+                    keys: const ['privacy_show_online'],
+                  ),
                 ),
                 ProfileMenuItem(
                   icon: Icons.visibility_rounded,
                   title: isArabic ? 'ظهور الملف' : 'Profile visibility',
-                  subtitle: settings.privacyProfileVisibility,
+                  subtitle: _visibilityLabel(
+                    settings.privacyProfileVisibility,
+                    isArabic,
+                  ),
                   isArabic: isArabic,
-                  onTap: () {
-                    final next = switch (settings.privacyProfileVisibility) {
-                      'public' => 'friends',
-                      'friends' => 'private',
-                      _ => 'public',
-                    };
-                    _update({'privacy_profile_visibility': next});
-                  },
+                  isEnabled: !_savingKeys.contains(
+                    'privacy_profile_visibility',
+                  ),
+                  onTap: () => _showProfileVisibilityPicker(settings),
                 ),
                 ProfileSectionTitle(
                   title: isArabic ? 'السياسات' : 'Policies',

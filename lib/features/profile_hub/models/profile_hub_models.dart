@@ -333,7 +333,9 @@ class UserSettings {
   factory UserSettings.fromJson(Map<String, dynamic> json) => UserSettings(
     language: json['language']?.toString() ?? 'en',
     themeMode: json['theme_mode']?.toString() ?? 'dark',
-    notificationsEnabled: json['notifications_enabled'] != false,
+    notificationsEnabled:
+        (json['notifications_enabled'] ?? json['push_notifications_enabled']) !=
+        false,
     roomInvitesEnabled: json['room_invites_enabled'] != false,
     giftNotificationsEnabled: json['gift_notifications_enabled'] != false,
     privacyProfileVisibility:

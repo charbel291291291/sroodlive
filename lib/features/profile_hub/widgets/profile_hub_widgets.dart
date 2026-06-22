@@ -378,29 +378,34 @@ class TicketCard extends StatelessWidget {
 
 class SettingsToggleTile extends StatelessWidget {
   const SettingsToggleTile({
+    this.icon = Icons.tune_rounded,
     required this.title,
     required this.value,
     required this.onChanged,
     required this.isArabic,
     this.subtitle,
+    this.isEnabled = true,
     super.key,
   });
 
+  final IconData icon;
   final String title;
   final String? subtitle;
   final bool value;
   final ValueChanged<bool> onChanged;
   final bool isArabic;
+  final bool isEnabled;
 
   @override
   Widget build(BuildContext context) {
     return ProfileMenuItem(
-      icon: Icons.tune_rounded,
+      icon: icon,
       title: title,
       subtitle: subtitle,
       isArabic: isArabic,
+      isEnabled: isEnabled,
       onTap: () => onChanged(!value),
-      trailing: Switch(value: value, onChanged: onChanged),
+      trailing: Switch(value: value, onChanged: isEnabled ? onChanged : null),
     );
   }
 }
