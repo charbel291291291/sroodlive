@@ -34,7 +34,6 @@ import 'screens/follow_list_screen.dart';
 import 'services/follow_service.dart';
 import 'widgets/country_picker_sheet.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
-import '../wealth/screens/wealth_center_screen.dart';
 import 'utils/vip_assets.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -398,11 +397,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _openWealthCenter() async {
+    // The visible profile tile now opens the official Charm/Wealth level screen
+    // (MyLevelScreen) instead of the old Charisma/Contribution WealthCenterScreen.
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => WealthCenterScreen(isArabic: context.isArabic),
+        builder: (_) => MyLevelScreen(isArabic: context.isArabic),
       ),
     );
+    try {
+      final refreshed = await const LevelService().getMyLevel();
+      if (mounted) setState(() => _userLevel = refreshed);
+    } catch (_) {}
   }
 
   Future<void> _confirmLogout() async {
@@ -2369,7 +2374,7 @@ class _QuickActionsGrid extends StatelessWidget {
       ),
       _FeatureTileData(
         icon: Icons.diamond_rounded,
-        label: isArabic ? 'Ù…Ø±ÙƒØ² Ø§Ù„Ø«Ø±ÙˆØ©' : 'Wealth',
+        label: isArabic ? 'Ù…Ø±ÙƒØ² Ø§Ù„Ø«Ø±ÙˆØ©' : 'Level',
         onTap: onWealthCenter,
         gradientColors: const [Color(0xFFFFD700), Color(0xFF8B26D9)],
       ),
