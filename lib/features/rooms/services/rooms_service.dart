@@ -58,22 +58,21 @@ class RoomsService {
         .toList();
   }
 
-  Future<Map<String, int>> getActiveMemberCounts() async {
-    final data = await SupabaseService.requiredClient
-        .from('room_members')
-        .select('room_id')
-        .filter('left_at', 'is', null)
-        .gte('last_seen_at', _activeSince.toIso8601String());
+  Future<Map<String, int>> getActiveMemberCounts(List<String> roomIds) async {
+    if (roomIds.isEmpty) return {};
+
+    final data = await SupabaseService.requiredClient.rpc(
+      'get_active_member_counts',
+      params: {'p_room_ids': roomIds},
+    );
 
     final counts = <String, int>{};
-
     for (final item in data as List<dynamic>) {
       final map = item as Map<String, dynamic>;
       final roomId = map['room_id'] as String;
-
-      counts[roomId] = (counts[roomId] ?? 0) + 1;
+      final count = map['active_count'];
+      counts[roomId] = count is int ? count : (count as num).toInt();
     }
-
     return counts;
   }
 

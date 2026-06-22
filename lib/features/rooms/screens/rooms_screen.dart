@@ -57,7 +57,9 @@ class _RoomsScreenState extends State<RoomsScreen> {
       // Active counts are optional — a failure here must not hide the room list.
       Map<String, int> activeCounts = {};
       try {
-        activeCounts = await _roomsService.getActiveMemberCounts();
+        activeCounts = await _roomsService.getActiveMemberCounts(
+          rooms.map((r) => r.id).toList(),
+        );
       } catch (_) {}
 
       if (!mounted) return;
