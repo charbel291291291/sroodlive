@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/vip/vip_frame_layout.dart';
@@ -351,9 +351,9 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
   );
 
   void _onVip2HelpTap() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const VipRulesScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const VipRulesScreen()));
   }
 
   // Phase V1 CTA â€” honest, no purchase logic. The existing economy grants VIP
@@ -649,7 +649,9 @@ class _CurrentStatusCard extends StatelessWidget {
                 Text(
                   _isActive
                       ? 'VIP $_vipLabel'
-                      : (isArabic ? 'Ù„Ø§ ÙŠÙˆØ¬Ø¯ VIP Ù†Ø´Ø·' : 'No Active VIP'),
+                      : (isArabic
+                            ? 'Ù„Ø§ ÙŠÙˆØ¬Ø¯ VIP Ù†Ø´Ø·'
+                            : 'No Active VIP'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -923,7 +925,9 @@ class _VipExpBlock extends StatelessWidget {
         children: [
           Expanded(
             child: _ExpStat(
-              label: isArabic ? 'Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ø´Ø­Ù†' : 'Total Recharge EXP',
+              label: isArabic
+                  ? 'Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ø´Ø­Ù†'
+                  : 'Total Recharge EXP',
               value: fmtExp(vip.rechargeExp),
               icon: Icons.bolt_rounded,
               color: _kGold,
@@ -973,7 +977,9 @@ class _VipExpBlock extends StatelessWidget {
       // Monthly maintain progress (VIP > 0 only)
       if (vipLevel > 0)
         _ExpProgressBar(
-          label: isArabic ? 'ØªØ¬Ø¯ÙŠØ¯ Ø§Ù„Ø´Ù‡Ø± Ø§Ù„Ø­Ø§Ù„ÙŠ' : 'Monthly Renewal',
+          label: isArabic
+              ? 'ØªØ¬Ø¯ÙŠØ¯ Ø§Ù„Ø´Ù‡Ø± Ø§Ù„Ø­Ø§Ù„ÙŠ'
+              : 'Monthly Renewal',
           progress: vip.monthlyMaintainProgress ?? 0.0,
           remaining: vip.expToMaintain,
           remainingLabel: isArabic ? 'Ù„Ù„ØªØ¬Ø¯ÙŠØ¯' : 'to renew',
@@ -982,7 +988,9 @@ class _VipExpBlock extends StatelessWidget {
               : const [Color(0xFF9A3412), Color(0xFFF59E0B)],
           isArabic: isArabic,
           fmtExp: fmtExp,
-          metLabel: isArabic ? 'ØªØ¬Ø¯ÙŠØ¯ Ù…Ø¶Ù…ÙˆÙ† âœ“' : 'Renewal secured âœ“',
+          metLabel: isArabic
+              ? 'ØªØ¬Ø¯ÙŠØ¯ Ù…Ø¶Ù…ÙˆÙ† âœ“'
+              : 'Renewal secured âœ“',
           isMet: vip.isMonthlyMaintainMet,
         ),
     ],
@@ -1236,7 +1244,7 @@ class _VipSettingsButton extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Text(
-              isArabic ? 'Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª VIP' : 'VIP Settings',
+              isArabic ? 'إعدادات VIP' : 'VIP Settings',
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
@@ -1481,12 +1489,12 @@ class _TierPreviewCard extends StatelessWidget {
                   children: [
                     _FeatureChip(
                       icon: Icons.crop_portrait_rounded,
-                      label: isArabic ? 'Ø¥Ø·Ø§Ø±' : 'Frame',
+                      label: isArabic ? 'إطار' : 'Frame',
                       active: spec.hasFrame,
                     ),
                     _FeatureChip(
                       icon: Icons.verified_rounded,
-                      label: isArabic ? 'Ø´Ø§Ø±Ø©' : 'Badge',
+                      label: isArabic ? 'شارة' : 'Badge',
                       active: spec.hasBadge,
                     ),
                   ],
@@ -2051,12 +2059,17 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
       setState(() => _searchResults = results);
       if (results.isEmpty) {
         _setResult(
-          isArabic ? 'Ù„Ù… ÙŠÙØ¹Ø«Ø± Ø¹Ù„Ù‰ Ù…Ø³ØªØ®Ø¯Ù… Ø¨Ù‡Ø°Ø§ Ø§Ù„Ø¨Ø­Ø«' : 'No user found',
+          isArabic
+              ? 'Ù„Ù… ÙŠÙØ¹Ø«Ø± Ø¹Ù„Ù‰ Ù…Ø³ØªØ®Ø¯Ù… Ø¨Ù‡Ø°Ø§ Ø§Ù„Ø¨Ø­Ø«'
+              : 'No user found',
           error: true,
         );
       }
     } catch (e) {
-      _setResult(isArabic ? 'ÙØ´Ù„ Ø§Ù„Ø¨Ø­Ø«: $e' : 'Search failed: $e', error: true);
+      _setResult(
+        isArabic ? 'ÙØ´Ù„ Ø§Ù„Ø¨Ø­Ø«: $e' : 'Search failed: $e',
+        error: true,
+      );
     } finally {
       if (mounted) setState(() => _searching = false);
     }
@@ -2096,7 +2109,9 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
     final user = _selectedUser;
     if (user == null) {
       _setResult(
-        isArabic ? 'Ø§Ø®ØªØ± Ù…Ø³ØªØ®Ø¯Ù…Ø§Ù‹ Ø£ÙˆÙ„Ø§Ù‹' : 'Select a valid user first',
+        isArabic
+            ? 'Ø§Ø®ØªØ± Ù…Ø³ØªØ®Ø¯Ù…Ø§Ù‹ Ø£ÙˆÙ„Ø§Ù‹'
+            : 'Select a valid user first',
         error: true,
       );
       return;
@@ -2128,7 +2143,9 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
     final user = _selectedUser;
     if (user == null) {
       _setResult(
-        isArabic ? 'Ø§Ø®ØªØ± Ù…Ø³ØªØ®Ø¯Ù…Ø§Ù‹ Ø£ÙˆÙ„Ø§Ù‹' : 'Select a valid user first',
+        isArabic
+            ? 'Ø§Ø®ØªØ± Ù…Ø³ØªØ®Ø¯Ù…Ø§Ù‹ Ø£ÙˆÙ„Ø§Ù‹'
+            : 'Select a valid user first',
         error: true,
       );
       return;
@@ -2155,7 +2172,9 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
     final user = _selectedUser;
     if (user == null) {
       _setResult(
-        isArabic ? 'Ø§Ø®ØªØ± Ù…Ø³ØªØ®Ø¯Ù…Ø§Ù‹ Ø£ÙˆÙ„Ø§Ù‹' : 'Select a valid user first',
+        isArabic
+            ? 'Ø§Ø®ØªØ± Ù…Ø³ØªØ®Ø¯Ù…Ø§Ù‹ Ø£ÙˆÙ„Ø§Ù‹'
+            : 'Select a valid user first',
         error: true,
       );
       return;
@@ -2204,7 +2223,9 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
       } else if (msg.contains('invalid_golden_id_style') ||
           msg.contains('invalid_golden_id_frame')) {
         _setResult(
-          isArabic ? 'Ù†Ù…Ø· Golden ID ØºÙŠØ± ØµØ§Ù„Ø­.' : 'Invalid Golden ID style.',
+          isArabic
+              ? 'Ù†Ù…Ø· Golden ID ØºÙŠØ± ØµØ§Ù„Ø­.'
+              : 'Invalid Golden ID style.',
           error: true,
         );
       } else {
@@ -2219,7 +2240,9 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
     final user = _selectedUser;
     if (user == null) {
       _setResult(
-        isArabic ? 'Ø§Ø®ØªØ± Ù…Ø³ØªØ®Ø¯Ù…Ø§Ù‹ Ø£ÙˆÙ„Ø§Ù‹' : 'Select a valid user first',
+        isArabic
+            ? 'Ø§Ø®ØªØ± Ù…Ø³ØªØ®Ø¯Ù…Ø§Ù‹ Ø£ÙˆÙ„Ø§Ù‹'
+            : 'Select a valid user first',
         error: true,
       );
       return;
@@ -2272,7 +2295,9 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
   }
 
   void _noUserResult() => _setResult(
-    isArabic ? 'Ø§Ø®ØªØ± Ù…Ø³ØªØ®Ø¯Ù…Ø§Ù‹ Ø£ÙˆÙ„Ø§Ù‹' : 'Select a valid user first',
+    isArabic
+        ? 'Ø§Ø®ØªØ± Ù…Ø³ØªØ®Ø¯Ù…Ø§Ù‹ Ø£ÙˆÙ„Ø§Ù‹'
+        : 'Select a valid user first',
     error: true,
   );
 
@@ -2553,7 +2578,10 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
             const SizedBox(height: 12),
 
             // Style selector
-            _SubLabel(label: isArabic ? 'Ø§Ù„Ù†Ù…Ø·' : 'Style', isArabic: isArabic),
+            _SubLabel(
+              label: isArabic ? 'Ø§Ù„Ù†Ù…Ø·' : 'Style',
+              isArabic: isArabic,
+            ),
             const SizedBox(height: 6),
             _GoldenChipRow(
               options: const [
@@ -2570,7 +2598,10 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
             const SizedBox(height: 10),
 
             // Frame selector
-            _SubLabel(label: isArabic ? 'Ø§Ù„Ø¥Ø·Ø§Ø±' : 'Frame', isArabic: isArabic),
+            _SubLabel(
+              label: isArabic ? 'Ø§Ù„Ø¥Ø·Ø§Ø±' : 'Frame',
+              isArabic: isArabic,
+            ),
             const SizedBox(height: 6),
             _GoldenChipRow(
               options: const [
@@ -2634,14 +2665,19 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           const SizedBox(height: 8),
           _AdminField(
             controller: _flagDurationController,
-            label: isArabic ? 'Ø£ÙŠØ§Ù… (ÙØ§Ø±Øº = Ø¯Ø§Ø¦Ù…)' : 'Days (blank = permanent)',
+            label: isArabic
+                ? 'Ø£ÙŠØ§Ù… (ÙØ§Ø±Øº = Ø¯Ø§Ø¦Ù…)'
+                : 'Days (blank = permanent)',
             isArabic: isArabic,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           ),
           const SizedBox(height: 10),
 
-          _SubLabel(label: isArabic ? 'Ø§Ù„Ù†Ù…Ø·' : 'Style', isArabic: isArabic),
+          _SubLabel(
+            label: isArabic ? 'Ø§Ù„Ù†Ù…Ø·' : 'Style',
+            isArabic: isArabic,
+          ),
           const SizedBox(height: 6),
           _GoldenChipRow(
             options: const [
@@ -2658,7 +2694,10 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           ),
           const SizedBox(height: 10),
 
-          _SubLabel(label: isArabic ? 'Ø§Ù„Ø¥Ø·Ø§Ø±' : 'Frame', isArabic: isArabic),
+          _SubLabel(
+            label: isArabic ? 'Ø§Ù„Ø¥Ø·Ø§Ø±' : 'Frame',
+            isArabic: isArabic,
+          ),
           const SizedBox(height: 6),
           _GoldenChipRow(
             options: const ['classic', 'crown', 'glow', 'shield', 'luxury'],
@@ -2670,7 +2709,9 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           SizedBox(
             width: double.infinity,
             child: _AdminButton(
-              label: isArabic ? 'ØªØ·Ø¨ÙŠÙ‚ Ù†Ù…Ø· Ø§Ù„Ø¹Ù„Ù…' : 'Apply Country Flag Style',
+              label: isArabic
+                  ? 'ØªØ·Ø¨ÙŠÙ‚ Ù†Ù…Ø· Ø§Ù„Ø¹Ù„Ù…'
+                  : 'Apply Country Flag Style',
               color: _hasUser ? const Color(0xFF4DB6AC) : _kSubtext,
               icon: Icons.flag_rounded,
               busy: _busy,
@@ -3198,11 +3239,7 @@ class _Vip2Crest extends StatelessWidget {
     children: [
       const Positioned(
         top: 4,
-        child: Icon(
-          Icons.workspace_premium_rounded,
-          color: _v2Gold,
-          size: 36,
-        ),
+        child: Icon(Icons.workspace_premium_rounded, color: _v2Gold, size: 36),
       ),
       Positioned(
         top: 32,
@@ -3668,7 +3705,11 @@ class _Vip2RechargeCard extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFFFFF1C9), Color(0xFFEDC25C), Color(0xFFD9A93C)],
+                  colors: [
+                    Color(0xFFFFF1C9),
+                    Color(0xFFEDC25C),
+                    Color(0xFFD9A93C),
+                  ],
                 ),
                 borderRadius: BorderRadius.circular(14),
               ),
@@ -3907,4 +3948,3 @@ class _Vip2PerkCard extends StatelessWidget {
     );
   }
 }
-
