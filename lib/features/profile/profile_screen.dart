@@ -1225,9 +1225,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       wealthLevel: _wealthLevel,
                       isArabic: isArabic,
                     ),
+                    const SizedBox(height: 10),
+
+                    // 3. Moments / Gallery
+                    _ProfileMomentsCard(isArabic: isArabic),
                     const SizedBox(height: 14),
 
-                    // 3. Wallet Cards (Coins + Diamonds)
+                    // 4. Wallet Cards (Coins + Diamonds)
                     _WalletCards(
                       coins: coins,
                       diamonds: diamonds,
@@ -1238,7 +1242,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 14),
 
-                    // 4. VIP Banner
+                    // 5. VIP Banner
                     _VipUpgradeBanner(
                       vipLevel: displayVipLevel,
                       isArabic: isArabic,
@@ -1246,7 +1250,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 14),
 
-                    // 5. Quick Actions Grid (6 items)
+                    // 6. Quick Actions Grid (6 items)
                     _QuickActionsGrid(
                       isArabic: isArabic,
                       onVipCenter: _openVipCenter,
@@ -4186,6 +4190,281 @@ class _VerticalDivider extends StatelessWidget {
       width: 1,
       margin: const EdgeInsets.symmetric(vertical: 6),
       color: const Color(0xFF7040B8).withValues(alpha: 0.35),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Moments / Gallery Card
+// -----------------------------------------------------------------------------
+
+class _ProfileMomentsCard extends StatelessWidget {
+  const _ProfileMomentsCard({required this.isArabic});
+
+  final bool isArabic;
+
+  // No moments data exists in the app yet — this renders a premium empty state
+  // that communicates the feature and looks polished.  When a moments backend
+  // is added the tile grid below can be swapped in without touching the shell.
+
+  static const _purple  = Color(0xFF8B26D9);
+  static const _purple2 = Color(0xFF5A28A0);
+  static const _gold    = Color(0xFFF0C15A);
+
+  @override
+  Widget build(BuildContext context) {
+    return _GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header
+          Row(
+            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _purple.withValues(alpha: 0.18),
+                ),
+                child: const Icon(
+                  Icons.auto_awesome_mosaic_rounded,
+                  color: _purple,
+                  size: 15,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isArabic ? 'اللحظات' : 'Moments',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.88),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // Empty-state body
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final tileSize = (constraints.maxWidth - 8 * 2) / 3;
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Ghost tile row — 3 placeholder tiles that hint at the grid
+                  // layout without showing fake content.
+                  Row(
+                    textDirection:
+                        isArabic ? TextDirection.rtl : TextDirection.ltr,
+                    children: List.generate(3, (i) {
+                      return Padding(
+                        padding: EdgeInsets.only(
+                          right: isArabic ? 0 : (i < 2 ? 8 : 0),
+                          left:  isArabic ? (i < 2 ? 8 : 0) : 0,
+                        ),
+                        child: _GhostTile(
+                          size: tileSize,
+                          opacity: 1.0 - i * 0.22,
+                        ),
+                      );
+                    }),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Empty state message
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 16,
+                      horizontal: 20,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      color: Colors.black.withValues(alpha: 0.22),
+                      border: Border.all(
+                        color: _purple.withValues(alpha: 0.22),
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Camera icon with soft glow ring
+                        Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(
+                              colors: [
+                                _purple.withValues(alpha: 0.28),
+                                _purple.withValues(alpha: 0.08),
+                                Colors.transparent,
+                              ],
+                              stops: const [0.0, 0.55, 1.0],
+                            ),
+                            border: Border.all(
+                              color: _purple.withValues(alpha: 0.40),
+                              width: 1.0,
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.add_a_photo_rounded,
+                            color: _purple2.withValues(alpha: 0.80),
+                            size: 22,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          isArabic
+                              ? 'لا توجد لحظات بعد'
+                              : 'No moments yet',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.78),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          isArabic
+                              ? 'شارك لحظاتك مع مجتمع سرود لايف'
+                              : 'Share your moments with the Srood Live community',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.42),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        // "Coming soon" pill — passive, non-tappable
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(999),
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                _purple.withValues(alpha: 0.35),
+                                _purple2.withValues(alpha: 0.25),
+                              ],
+                            ),
+                            border: Border.all(
+                              color: _purple.withValues(alpha: 0.50),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.schedule_rounded,
+                                color: _gold.withValues(alpha: 0.75),
+                                size: 13,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                isArabic ? 'قريباً' : 'Coming soon',
+                                style: TextStyle(
+                                  color: _gold.withValues(alpha: 0.82),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Ghost tile — decorative placeholder that shows the grid skeleton without
+// displaying any fake content.
+class _GhostTile extends StatelessWidget {
+  const _GhostTile({required this.size, required this.opacity});
+
+  final double size;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: opacity.clamp(0.15, 1.0),
+      child: Container(
+        width: size,
+        height: size * 0.88, // slight landscape ratio
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF2A1250), Color(0xFF1A0B38)],
+          ),
+          border: Border.all(
+            color: const Color(0xFF7040B8).withValues(alpha: 0.35),
+          ),
+        ),
+        child: Stack(
+          children: [
+            // Top-left shimmer accent
+            Positioned(
+              top: 6,
+              left: 6,
+              child: Container(
+                width: 24,
+                height: 6,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(3),
+                  color: Colors.white.withValues(alpha: 0.06),
+                ),
+              ),
+            ),
+            // Centre icon hint
+            Center(
+              child: Icon(
+                Icons.image_rounded,
+                color: Colors.white.withValues(alpha: 0.08),
+                size: size * 0.30,
+              ),
+            ),
+            // Bottom shimmer bar
+            Positioned(
+              bottom: 7,
+              left: 6,
+              right: 6,
+              child: Container(
+                height: 5,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(3),
+                  color: Colors.white.withValues(alpha: 0.05),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
