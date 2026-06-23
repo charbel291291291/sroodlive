@@ -271,16 +271,18 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     _isInitializing = true;
     _serverRoundReady = false;
     if (mounted) {
-      setState(() {
-        _isInitializing = true;
-        _serverRoundReady = false;
-      });
+      setState(() {});
     }
 
     try {
-      final balance = await _service.fetchBalance();
-      final round = await _service.getOrCreateRocketRound();
-      final history = await _service.getRocketResults();
+      final initResults = await Future.wait<Object>([
+        _service.fetchBalance(),
+        _service.getOrCreateRocketRound(),
+        _service.getRocketResults(),
+      ]);
+      final balance = initResults[0] as int;
+      final round = initResults[1] as Map<String, dynamic>;
+      final history = initResults[2] as List<Map<String, dynamic>>;
 
       _roundId = round['round_id']?.toString();
       final phase = round['status']?.toString() ?? 'betting';
@@ -307,14 +309,6 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
           .toList();
 
       debugPrint('[RocketCrash] INIT_GAME history len=${histValues.length}');
-
-      // Update all UI-driving state in one batch.
-      if (mounted) {
-        setState(() {
-          _serverRoundReady =
-              _roundId != null && roundNumber > 0 && phase != 'crashed';
-        });
-      }
 
       // Dispose any previous channel before creating a new subscription.
       _disposeRoundChannel();
@@ -355,7 +349,6 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     } catch (e, st) {
       debugPrint('[RocketCrash] init error: $e\n$st');
       _serverRoundReady = false;
-      if (mounted) setState(() => _serverRoundReady = false);
       if (!mounted) return;
       _post('INIT_GAME', {
         'balance': 0,
@@ -369,7 +362,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
       });
     } finally {
       _isInitializing = false;
-      if (mounted) setState(() => _isInitializing = false);
+      if (mounted) setState(() {});
       // Always run the reconciliation poll, even after an init error, so the
       // client keeps trying to converge on the live server round.
       _startReconcilePoll();
@@ -591,12 +584,12 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
   }
 
   // Starts (or restarts) the periodic reconciliation poll. Cheap insurance
-  // against unreliable realtime: every 2 s the client re-reads the live round
+  // against unreliable realtime: every 8 s the client re-reads the live round
   // and converges the WebView to it, so it can never get stuck on
   // LAUNCHING/FLYING if a realtime phase-transition event is missed.
   void _startReconcilePoll() {
     _reconcilePoll?.cancel();
-    _reconcilePoll = Timer.periodic(const Duration(seconds: 2), (_) {
+    _reconcilePoll = Timer.periodic(const Duration(seconds: 8), (_) {
       if (!mounted) {
         _reconcilePoll?.cancel();
         return;
