@@ -6,6 +6,30 @@ import 'package:flutter/material.dart';
 import '../../core/vip/vip_spec.dart';
 import '../../features/rooms/utils/vip_room_features.dart';
 
+enum _FrameAnimType {
+  glowPulse,
+  shimmerSweep,
+  sparkleAura;
+
+  static _FrameAnimType _forKey(String frameKey) {
+    if (frameKey == 'custom_super_admin' ||
+        frameKey == 'custom_admin' ||
+        frameKey == 'custom_srood_live' ||
+        frameKey == 'luxury_diamond_purple' ||
+        frameKey == 'luxury_black_gold_crown') {
+      return sparkleAura;
+    }
+    if (frameKey.contains('gold') ||
+        frameKey.contains('diamond') ||
+        frameKey.startsWith('luxury_') ||
+        frameKey == 'custom_luxury_gold' ||
+        frameKey == 'custom_luxury_diamond') {
+      return shimmerSweep;
+    }
+    return glowPulse;
+  }
+}
+
 const Map<String, String> avatarFrameAssetPaths = {
   'luxury_ruby_royal': 'assets/avatar_frames/luxury_ruby_royal.png',
   'luxury_ruby_royal_dark': 'assets/avatar_frames/luxury_ruby_royal_dark.png',
@@ -34,6 +58,7 @@ class AvatarWithFrame extends StatelessWidget {
     this.frameScale,
     this.imageAlignment = Alignment.center,
     this.fallbackIcon = Icons.person_rounded,
+    this.animated = false,
     super.key,
   });
 
@@ -55,6 +80,11 @@ class AvatarWithFrame extends StatelessWidget {
   final double? frameScale;
   final Alignment imageAlignment;
   final IconData fallbackIcon;
+
+  /// When true, overlays a lightweight animation on the frame ring.
+  /// Has no effect when there is no active frame. Defaults to false so
+  /// existing call sites are unaffected.
+  final bool animated;
 
   @override
   Widget build(BuildContext context) {
@@ -79,7 +109,7 @@ class AvatarWithFrame extends StatelessWidget {
     // so it sits inside the opening instead of behind the crown.
     final avatarDy = isVipPngFrame ? frameSize * 0.035 : 0.0;
 
-    return SizedBox(
+    final sizedBox = SizedBox(
       width: frameSize,
       height: frameSize,
       child: Stack(
@@ -171,6 +201,33 @@ class AvatarWithFrame extends StatelessWidget {
         ],
       ),
     );
+    if (animated && hasFrame) {
+      return RepaintBoundary(
+        child: _AnimatedFrameWrapper(
+          frameSize: frameSize,
+          glowColor: _effectiveGlowColor(frame),
+          animType: _FrameAnimType._forKey(frame),
+          child: sizedBox,
+        ),
+      );
+    }
+    return sizedBox;
+  }
+
+  static Color _effectiveGlowColor(String? frameKey) {
+    if (frameKey == null) return Colors.transparent;
+    if (frameKey == 'luxury_ruby_royal' || frameKey == 'luxury_ruby_royal_dark') {
+      return const Color(0x88FF244A);
+    }
+    return switch (frameKey) {
+      'custom_luxury_gold' => const Color(0x99FFD978),
+      'custom_luxury_diamond' => const Color(0x998B26D9),
+      'custom_super_admin' => const Color(0xAA8B26D9),
+      'custom_admin' => const Color(0xAA316BFF),
+      String s when s.startsWith('custom_') => const Color(0x99B000FF),
+      String s when s.startsWith('vip_') => const Color(0x99F0C15A),
+      _ => _FrameStyle.fromKey(frameKey).glowColor,
+    };
   }
 
   String? _effectiveFrameKey(String? value) {
@@ -755,4 +812,141 @@ class _FrameStyle {
       ),
     };
   }
+}
+
+// ── Animation layer ───────────────────────────────────────────────────────────
+
+class _AnimatedFrameWrapper extends StatefulWidget {
+  const _AnimatedFrameWrapper({
+    required this.frameSize,
+    required this.glowColor,
+    required this.animType,
+    required this.child,
+  });
+
+  final double frameSize;
+  final Color glowColor;
+  final _FrameAnimType animType;
+  final Widget child;
+
+  @override
+  State<_AnimatedFrameWrapper> createState() => _AnimatedFrameWrapperState();
+}
+
+class _AnimatedFrameWrapperState extends State<_AnimatedFrameWrapper>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: switch (widget.animType) {
+        _FrameAnimType.glowPulse => const Duration(milliseconds: 2000),
+        _FrameAnimType.shimmerSweep => const Duration(milliseconds: 2800),
+        _FrameAnimType.sparkleAura => const Duration(milliseconds: 1600),
+      },
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, child) => CustomPaint(
+        foregroundPainter: _FrameAnimPainter(
+          t: _ctrl.value,
+          glowColor: widget.glowColor,
+          animType: widget.animType,
+        ),
+        child: child,
+      ),
+      child: widget.child,
+    );
+  }
+}
+
+class _FrameAnimPainter extends CustomPainter {
+  const _FrameAnimPainter({
+    required this.t,
+    required this.glowColor,
+    required this.animType,
+  });
+
+  final double t;
+  final Color glowColor;
+  final _FrameAnimType animType;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = math.min(size.width, size.height) / 2;
+    switch (animType) {
+      case _FrameAnimType.glowPulse:
+        _paintGlowPulse(canvas, center, radius);
+      case _FrameAnimType.shimmerSweep:
+        _paintShimmerSweep(canvas, center, radius);
+      case _FrameAnimType.sparkleAura:
+        _paintSparkleAura(canvas, center, radius);
+    }
+  }
+
+  void _paintGlowPulse(Canvas canvas, Offset center, double radius) {
+    final pulse = (math.sin(t * math.pi * 2) + 1) / 2;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = radius * 0.10
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, radius * 0.12)
+      ..color = glowColor.withValues(alpha: 0.25 + pulse * 0.45);
+    canvas.drawCircle(center, radius * 0.88, paint);
+  }
+
+  void _paintShimmerSweep(Canvas canvas, Offset center, double radius) {
+    _paintGlowPulse(canvas, center, radius);
+    final sweepStart = t * math.pi * 2;
+    final sweepPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = radius * 0.07
+      ..strokeCap = StrokeCap.round
+      ..shader = SweepGradient(
+        startAngle: sweepStart,
+        endAngle: sweepStart + math.pi * 0.55,
+        colors: [
+          Colors.transparent,
+          glowColor.withValues(alpha: 0.85),
+          Colors.transparent,
+        ],
+      ).createShader(Rect.fromCircle(center: center, radius: radius * 0.88));
+    canvas.drawCircle(center, radius * 0.88, sweepPaint);
+  }
+
+  void _paintSparkleAura(Canvas canvas, Offset center, double radius) {
+    _paintGlowPulse(canvas, center, radius);
+    final dotPaint = Paint()..style = PaintingStyle.fill;
+    for (var i = 0; i < 4; i++) {
+      final angle = (i * math.pi / 2) + t * math.pi * 2;
+      final phase = (t + i * 0.25) % 1.0;
+      final alpha = (math.sin(phase * math.pi * 2) + 1) / 2 * 0.7 + 0.15;
+      dotPaint.color = glowColor.withValues(alpha: alpha);
+      canvas.drawCircle(
+        Offset(
+          center.dx + math.cos(angle) * radius * 0.92,
+          center.dy + math.sin(angle) * radius * 0.92,
+        ),
+        radius * 0.055,
+        dotPaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _FrameAnimPainter old) =>
+      old.t != t || old.glowColor != glowColor || old.animType != animType;
 }
