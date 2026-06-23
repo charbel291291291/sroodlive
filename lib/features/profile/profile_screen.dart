@@ -1793,6 +1793,7 @@ class _PremiumProfileHero extends StatelessWidget {
                   showVipBadge: false,
                   autoVipFrame: false,
                   compact: true,
+                  animated: _isPremiumFrameKey(frameKey),
                 ),
               ),
             ),
@@ -3610,7 +3611,7 @@ class _AvatarFrameGroup extends StatelessWidget {
               crossAxisCount: 3,
               mainAxisSpacing: 10,
               crossAxisSpacing: 10,
-              childAspectRatio: 0.78,
+              childAspectRatio: 0.70,
             ),
             itemBuilder: (context, index) {
               final frame = frames[index];
@@ -3668,7 +3669,7 @@ class _AvatarFramePickerTile extends StatelessWidget {
         );
       },
       child: Container(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
         decoration: BoxDecoration(
           color: selected ? const Color(0xFF2D1247) : const Color(0xFF12091D),
           borderRadius: BorderRadius.circular(18),
@@ -3677,29 +3678,38 @@ class _AvatarFramePickerTile extends StatelessWidget {
           ),
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             AvatarWithFrame(
               imageUrl: avatarUrl,
-              radius: 28,
+              radius: 24,
               frameKey: frame?.frameKey,
               vipLevel: vipLevel,
               showVipBadge: false,
+              animated: _isPremiumFrameKey(frame?.frameKey),
             ),
-            const SizedBox(height: 8),
-            Text(
-              frame?.name ?? (isArabic ? 'بدون إطار' : 'No Frame'),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+            const SizedBox(height: 5),
+            Flexible(
+              child: Text(
+                frame?.name ?? (isArabic ? 'بدون إطار' : 'No Frame'),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  height: 1.25,
+                ),
+              ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               unlocked
                   ? (selected ? (isArabic ? 'محدد' : 'Selected') : '')
                   : (isArabic
                         ? 'VIP ${requiredVip ?? 1}'
-                        : 'Requires VIP ${requiredVip ?? 1}'),
+                        : 'VIP ${requiredVip ?? 1}'),
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -3726,4 +3736,11 @@ String _formatCount(int value) {
   if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
   if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}K';
   return value.toString();
+}
+
+bool _isPremiumFrameKey(String? key) {
+  if (key == null || key.isEmpty) return false;
+  return key.startsWith('luxury_') ||
+      key.startsWith('custom_') ||
+      key.startsWith('vip_');
 }

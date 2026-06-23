@@ -24,6 +24,7 @@ class _BackpackScreenState extends State<BackpackScreen> {
   String? _error;
   String _filter = 'all';
   int _userVipLevel = 0;
+  String? _equippingId;
 
   @override
   void initState() {
@@ -92,6 +93,8 @@ class _BackpackScreenState extends State<BackpackScreen> {
   }
 
   Future<void> _equip(BackpackItem bp) async {
+    if (_equippingId != null) return;
+    setState(() => _equippingId = bp.id);
     try {
       await _service.equipBackpackItem(bp.id);
       if (!mounted) return;
@@ -112,6 +115,8 @@ class _BackpackScreenState extends State<BackpackScreen> {
           backgroundColor: const Color(0xFFFF4D6D),
         ),
       );
+    } finally {
+      if (mounted) setState(() => _equippingId = null);
     }
   }
 
@@ -284,7 +289,7 @@ class _BackpackScreenState extends State<BackpackScreen> {
               isArabic: context.isArabic,
               isVipLocked: isVipLocked,
               requiredVipLevel: requiredVip,
-              onEquip: () => _equip(bp),
+              onEquip: _equippingId == null ? () => _equip(bp) : null,
             );
           },
         ),
@@ -317,7 +322,7 @@ class _BackpackScreenState extends State<BackpackScreen> {
               isArabic: context.isArabic,
               isVipLocked: isVipLocked,
               requiredVipLevel: requiredVip,
-              onEquip: () => _equip(bp),
+              onEquip: _equippingId == null ? () => _equip(bp) : null,
             );
           },
         ),
@@ -337,13 +342,14 @@ class _BackpackScreenState extends State<BackpackScreen> {
           final bp = _filtered[i];
           final requiredVip = _metaVipLevel(bp);
           final isVipLocked = requiredVip > 0 && _userVipLevel < requiredVip;
+          final onEquip = _equippingId == null ? () => _equip(bp) : null;
           if (bp.isFrame) {
             return _FrameCard(
               bp: bp,
               isArabic: context.isArabic,
               isVipLocked: isVipLocked,
               requiredVipLevel: requiredVip,
-              onEquip: () => _equip(bp),
+              onEquip: onEquip,
             );
           }
           if (bp.itemType == 'entrance_banner') {
@@ -352,13 +358,13 @@ class _BackpackScreenState extends State<BackpackScreen> {
               isArabic: context.isArabic,
               isVipLocked: isVipLocked,
               requiredVipLevel: requiredVip,
-              onEquip: () => _equip(bp),
+              onEquip: onEquip,
             );
           }
           return _BackpackItemCard(
             bp: bp,
             isArabic: context.isArabic,
-            onEquip: () => _equip(bp),
+            onEquip: onEquip,
           );
         },
       ),
@@ -520,7 +526,7 @@ class _FrameCard extends StatelessWidget {
   final bool isArabic;
   final bool isVipLocked;
   final int requiredVipLevel;
-  final VoidCallback onEquip;
+  final VoidCallback? onEquip;
 
   @override
   Widget build(BuildContext context) {
@@ -692,7 +698,7 @@ class _EquippedBadge extends StatelessWidget {
 class _EquipButton extends StatelessWidget {
   const _EquipButton({required this.isArabic, required this.onEquip});
   final bool isArabic;
-  final VoidCallback onEquip;
+  final VoidCallback? onEquip;
 
   @override
   Widget build(BuildContext context) {
@@ -759,7 +765,7 @@ class _BadgeCard extends StatelessWidget {
   final bool isArabic;
   final bool isVipLocked;
   final int requiredVipLevel;
-  final VoidCallback onEquip;
+  final VoidCallback? onEquip;
 
   @override
   Widget build(BuildContext context) {
@@ -829,7 +835,7 @@ class _BadgePreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = (bp.item.metadata['image_url'] as String?)?.trim();
+    final imageUrl = bp.item.metadata['image_url']?.toString().trim();
 
     return SizedBox(
       width: 64,
@@ -903,8 +909,8 @@ class _BadgeMetaChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rarity = bp.item.metadata['rarity'] as String?;
-    final category = bp.item.metadata['category'] as String?;
+    final rarity = bp.item.metadata['rarity']?.toString();
+    final category = bp.item.metadata['category']?.toString();
     final label = (rarity ?? category ?? '').trim();
     if (label.isEmpty) return const SizedBox.shrink();
 
@@ -946,7 +952,7 @@ class _EntranceBannerCard extends StatelessWidget {
   final bool isArabic;
   final bool isVipLocked;
   final int requiredVipLevel;
-  final VoidCallback onEquip;
+  final VoidCallback? onEquip;
 
   @override
   Widget build(BuildContext context) {
@@ -1052,7 +1058,7 @@ class _EntranceBannerPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = (bp.item.metadata['image_url'] as String?)?.trim();
+    final imageUrl = bp.item.metadata['image_url']?.toString().trim();
 
     return SizedBox(
       height: 120,
@@ -1153,7 +1159,7 @@ class _BannerGradientBg extends StatelessWidget {
 class _FullWidthEquipButton extends StatelessWidget {
   const _FullWidthEquipButton({required this.isArabic, required this.onEquip});
   final bool isArabic;
-  final VoidCallback onEquip;
+  final VoidCallback? onEquip;
 
   @override
   Widget build(BuildContext context) {
@@ -1192,7 +1198,7 @@ class _BackpackItemCard extends StatelessWidget {
   });
   final BackpackItem bp;
   final bool isArabic;
-  final VoidCallback onEquip;
+  final VoidCallback? onEquip;
 
   @override
   Widget build(BuildContext context) {

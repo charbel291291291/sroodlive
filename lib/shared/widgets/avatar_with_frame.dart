@@ -902,9 +902,9 @@ class _FrameAnimPainter extends CustomPainter {
     final pulse = (math.sin(t * math.pi * 2) + 1) / 2;
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = radius * 0.10
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, radius * 0.12)
-      ..color = glowColor.withValues(alpha: 0.25 + pulse * 0.45);
+      ..strokeWidth = radius * 0.15
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, radius * 0.20)
+      ..color = glowColor.withValues(alpha: 0.35 + pulse * 0.50);
     canvas.drawCircle(center, radius * 0.88, paint);
   }
 
@@ -913,14 +913,14 @@ class _FrameAnimPainter extends CustomPainter {
     final sweepStart = t * math.pi * 2;
     final sweepPaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = radius * 0.07
+      ..strokeWidth = radius * 0.11
       ..strokeCap = StrokeCap.round
       ..shader = SweepGradient(
         startAngle: sweepStart,
-        endAngle: sweepStart + math.pi * 0.55,
+        endAngle: sweepStart + math.pi * 0.65,
         colors: [
           Colors.transparent,
-          glowColor.withValues(alpha: 0.85),
+          glowColor.withValues(alpha: 0.90),
           Colors.transparent,
         ],
       ).createShader(Rect.fromCircle(center: center, radius: radius * 0.88));
@@ -933,14 +933,14 @@ class _FrameAnimPainter extends CustomPainter {
     for (var i = 0; i < 4; i++) {
       final angle = (i * math.pi / 2) + t * math.pi * 2;
       final phase = (t + i * 0.25) % 1.0;
-      final alpha = (math.sin(phase * math.pi * 2) + 1) / 2 * 0.7 + 0.15;
+      final alpha = (math.sin(phase * math.pi * 2) + 1) / 2 * 0.70 + 0.20;
       dotPaint.color = glowColor.withValues(alpha: alpha);
       canvas.drawCircle(
         Offset(
           center.dx + math.cos(angle) * radius * 0.92,
           center.dy + math.sin(angle) * radius * 0.92,
         ),
-        radius * 0.055,
+        radius * 0.080,
         dotPaint,
       );
     }

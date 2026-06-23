@@ -1025,6 +1025,7 @@ class _HeaderContent extends StatelessWidget {
               frameKey: profile.selectedAvatarFrame,
               vipLevel: vip,
               showVipBadge: false,
+              animated: _isPremiumFrameKey(profile.selectedAvatarFrame),
             ),
             if (isMuted)
               Positioned(
@@ -1827,4 +1828,11 @@ class _ActionBtn extends StatelessWidget {
       ),
     );
   }
+}
+
+bool _isPremiumFrameKey(String? key) {
+  if (key == null || key.isEmpty) return false;
+  return key.startsWith('luxury_') ||
+      key.startsWith('custom_') ||
+      key.startsWith('vip_');
 }
