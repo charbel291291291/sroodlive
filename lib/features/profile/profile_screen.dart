@@ -1623,8 +1623,12 @@ class _PremiumProfileHero extends StatelessWidget {
                     const SizedBox(height: 5),
                     // Charm + Wealth — matched luxury pair on one row
                     if (charmLevel != null || wealthLevel != null)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
+                      Wrap(
+                        alignment: isArabic
+                            ? WrapAlignment.end
+                            : WrapAlignment.start,
+                        spacing: 7,
+                        runSpacing: 5,
                         children: [
                           if (charmLevel != null)
                             _LuxuryLevelChip(
@@ -1639,8 +1643,6 @@ class _PremiumProfileHero extends StatelessWidget {
                               glowColor: const Color(0xFFE0449A),
                               highlightColor: const Color(0xFFFFB3E6),
                             ),
-                          if (charmLevel != null && wealthLevel != null)
-                            const SizedBox(width: 7),
                           if (wealthLevel != null)
                             _LuxuryLevelChip(
                               icon: Icons.diamond_rounded,
@@ -1702,7 +1704,7 @@ class _PremiumProfileHero extends StatelessWidget {
   }
 
   Widget _buildAvatarZone() {
-    const zoneWidth = 108.0;
+    const zoneWidth = 132.0;
     const glowDiam = 100.0;
     const cameraSize = 31.0; // slightly smaller, cleaner
     const cameraIcon = 15.0;
