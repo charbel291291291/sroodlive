@@ -48,6 +48,12 @@ class RocketCrashWebviewScreen extends StatefulWidget {
 
 class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     with WidgetsBindingObserver {
+  static const Set<String> _dedupePostTypes = {
+    'INIT_GAME',
+    'SET_ROUND_STATE',
+    'WALLET_UPDATED',
+  };
+
   late final WebViewController _controller;
   final _service = const CrashGameService();
 
@@ -101,6 +107,9 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
 
   // Debounce _refreshHistory: only fire 3 s after the last crashed event.
   Timer? _historyDebounce;
+
+  Future<void>? _balanceRefreshFuture;
+  final Map<String, String> _lastPostedMessages = {};
 
   // Server-local clock offset (serverNowMs - localNowMs), set on every
   // successful init. Used so realtime callbacks can send an accurate
@@ -490,7 +499,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
         _refreshPending = false;
         final pendingReason = _refreshPendingReason ?? reason;
         _refreshPendingReason = null;
-        _runRoundRefresh(pendingReason);
+        _refreshRoundFromServer(pendingReason);
       }
     }
   }
@@ -1063,7 +1072,18 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     }
   }
 
-  Future<void> _refreshBalance() async {
+  Future<void> _refreshBalance() {
+    final inFlight = _balanceRefreshFuture;
+    if (inFlight != null) return inFlight;
+
+    final refresh = _runBalanceRefresh().whenComplete(() {
+      _balanceRefreshFuture = null;
+    });
+    _balanceRefreshFuture = refresh;
+    return refresh;
+  }
+
+  Future<void> _runBalanceRefresh() async {
     try {
       final balance = await _service.fetchBalance();
       if (!mounted) return;
@@ -1078,8 +1098,17 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
 
   void _post(String type, Map<String, dynamic> payload) {
     if (!mounted) return;
-    debugPrint('[RocketCrash] -> $type');
     final message = jsonEncode({'type': type, 'payload': payload});
+    if (_dedupePostTypes.contains(type) &&
+        _lastPostedMessages[type] == message) {
+      debugPrint('[RocketCrash] -> $type skipped duplicate');
+      return;
+    }
+    if (_dedupePostTypes.contains(type)) {
+      _lastPostedMessages[type] = message;
+    }
+
+    debugPrint('[RocketCrash] -> $type');
     final encoded = jsonEncode(message);
     _controller.runJavaScript(
       'window.onSroodMessage && window.onSroodMessage(JSON.parse($encoded));',
