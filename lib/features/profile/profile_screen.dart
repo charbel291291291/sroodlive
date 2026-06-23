@@ -1209,6 +1209,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 14),
 
+                    // 2. Achievements + Gift Wall
+                    _ProfileAchievementsCard(
+                      vipLevel: displayVipLevel,
+                      level: level,
+                      isGoldenId: isGoldenId,
+                      followers: followersCount,
+                      isArabic: isArabic,
+                    ),
+                    const SizedBox(height: 10),
+                    _ProfileGiftWallCard(
+                      giftsReceived: giftsReceivedCount,
+                      visitors: visitorsCount,
+                      charmLevel: _charmLevel,
+                      wealthLevel: _wealthLevel,
+                      isArabic: isArabic,
+                    ),
+                    const SizedBox(height: 14),
+
                     // 3. Wallet Cards (Coins + Diamonds)
                     _WalletCards(
                       coins: coins,
@@ -3730,6 +3748,448 @@ class _AvatarFramePickerTile extends StatelessWidget {
 
 // -----------------------------------------------------------------------------
 // Utilities
+// -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Achievements Card
+// -----------------------------------------------------------------------------
+
+class _ProfileAchievementsCard extends StatelessWidget {
+  const _ProfileAchievementsCard({
+    required this.vipLevel,
+    required this.level,
+    required this.isGoldenId,
+    required this.followers,
+    required this.isArabic,
+  });
+
+  final int vipLevel;
+  final int level;
+  final bool isGoldenId;
+  final int followers;
+  final bool isArabic;
+
+  static const _gold   = Color(0xFFF0C15A);
+  static const _purple = Color(0xFF8B26D9);
+
+  @override
+  Widget build(BuildContext context) {
+    final items = _buildItems();
+    return _GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _CardHeader(
+            icon: Icons.emoji_events_rounded,
+            label: isArabic ? 'الإنجازات' : 'Achievements',
+            iconColor: _gold,
+            isArabic: isArabic,
+          ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final itemW = (constraints.maxWidth - 12 * (items.length - 1)) /
+                  items.length;
+              return Row(
+                textDirection:
+                    isArabic ? TextDirection.rtl : TextDirection.ltr,
+                children: [
+                  for (var i = 0; i < items.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 12),
+                    SizedBox(width: itemW, child: items[i]),
+                  ],
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildItems() {
+    return [
+      _AchievementBadge(
+        icon: Icons.star_rounded,
+        label: isArabic ? 'المستوى' : 'Level',
+        value: level.toString(),
+        gradientColors: const [Color(0xFF3D1A6E), Color(0xFF6A28C0)],
+        glowColor: _purple,
+        iconColor: const Color(0xFFD8AAFF),
+      ),
+      _AchievementBadge(
+        icon: Icons.workspace_premium_rounded,
+        label: isArabic ? 'VIP' : 'VIP',
+        value: vipLevel > 0 ? 'V$vipLevel' : '—',
+        gradientColors: const [Color(0xFF1A3A10), Color(0xFF2E6A20)],
+        glowColor: const Color(0xFF4CAF50),
+        iconColor: const Color(0xFF88EE88),
+      ),
+      _AchievementBadge(
+        icon: isGoldenId
+            ? Icons.verified_rounded
+            : Icons.tag_rounded,
+        label: isArabic ? 'المعرّف' : 'ID',
+        value: isGoldenId ? (isArabic ? 'ذهبي' : 'Gold') : (isArabic ? 'عادي' : 'Basic'),
+        gradientColors: isGoldenId
+            ? const [Color(0xFF4A3000), Color(0xFF7A5500)]
+            : const [Color(0xFF1E1040), Color(0xFF2E1C60)],
+        glowColor: isGoldenId ? _gold : _purple,
+        iconColor: isGoldenId ? _gold : const Color(0xFFBCAED6),
+      ),
+      _AchievementBadge(
+        icon: Icons.people_rounded,
+        label: isArabic ? 'المتابعون' : 'Followers',
+        value: _formatCount(followers),
+        gradientColors: const [Color(0xFF1A0830), Color(0xFF3A1260)],
+        glowColor: const Color(0xFFE040FB),
+        iconColor: const Color(0xFFE8B0FF),
+      ),
+    ];
+  }
+}
+
+class _AchievementBadge extends StatelessWidget {
+  const _AchievementBadge({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.gradientColors,
+    required this.glowColor,
+    required this.iconColor,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final List<Color> gradientColors;
+  final Color glowColor;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: gradientColors,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: glowColor.withValues(alpha: 0.35),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: glowColor.withValues(alpha: 0.18),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: glowColor.withValues(alpha: 0.15),
+              border: Border.all(
+                color: glowColor.withValues(alpha: 0.40),
+                width: 1.0,
+              ),
+            ),
+            child: Icon(icon, color: iconColor, size: 17),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: iconColor,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+              height: 1.0,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.50),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.0,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Gift Wall Summary Card
+// -----------------------------------------------------------------------------
+
+class _ProfileGiftWallCard extends StatelessWidget {
+  const _ProfileGiftWallCard({
+    required this.giftsReceived,
+    required this.visitors,
+    this.charmLevel,
+    this.wealthLevel,
+    required this.isArabic,
+  });
+
+  final int giftsReceived;
+  final int visitors;
+  final int? charmLevel;
+  final int? wealthLevel;
+  final bool isArabic;
+
+  static const _gold   = Color(0xFFF0C15A);
+  static const _rose   = Color(0xFFE0449A);
+  static const _teal   = Color(0xFF26D9B8);
+
+  @override
+  Widget build(BuildContext context) {
+    final textDir = isArabic ? TextDirection.rtl : TextDirection.ltr;
+    return _GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _CardHeader(
+            icon: Icons.card_giftcard_rounded,
+            label: isArabic ? 'الهدايا والزيارات' : 'Gifts & Visits',
+            iconColor: _rose,
+            isArabic: isArabic,
+          ),
+          const SizedBox(height: 12),
+          IntrinsicHeight(
+            child: Row(
+              textDirection: textDir,
+              children: [
+                Expanded(
+                  child: _GiftStatItem(
+                    icon: Icons.card_giftcard_rounded,
+                    label: isArabic ? 'الهدايا المستلمة' : 'Gifts Received',
+                    value: _formatCount(giftsReceived),
+                    iconColor: _rose,
+                    glowColor: _rose,
+                  ),
+                ),
+                _VerticalDivider(),
+                Expanded(
+                  child: _GiftStatItem(
+                    icon: Icons.remove_red_eye_rounded,
+                    label: isArabic ? 'الزيارات' : 'Profile Visits',
+                    value: _formatCount(visitors),
+                    iconColor: _teal,
+                    glowColor: _teal,
+                  ),
+                ),
+                if (charmLevel != null) ...[
+                  _VerticalDivider(),
+                  Expanded(
+                    child: _GiftStatItem(
+                      icon: Icons.favorite_rounded,
+                      label: isArabic ? 'مستوى السحر' : 'Charm Lv.',
+                      value: charmLevel.toString(),
+                      iconColor: _rose,
+                      glowColor: _rose,
+                    ),
+                  ),
+                ],
+                if (wealthLevel != null) ...[
+                  _VerticalDivider(),
+                  Expanded(
+                    child: _GiftStatItem(
+                      icon: Icons.diamond_rounded,
+                      label: isArabic ? 'مستوى الثروة' : 'Wealth Lv.',
+                      value: wealthLevel.toString(),
+                      iconColor: _gold,
+                      glowColor: _gold,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GiftStatItem extends StatelessWidget {
+  const _GiftStatItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.iconColor,
+    required this.glowColor,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color iconColor;
+  final Color glowColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: glowColor.withValues(alpha: 0.12),
+              border: Border.all(
+                color: glowColor.withValues(alpha: 0.35),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: glowColor.withValues(alpha: 0.22),
+                  blurRadius: 8,
+                ),
+              ],
+            ),
+            child: Icon(icon, color: iconColor, size: 18),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: iconColor,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              height: 1.0,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.48),
+              fontSize: 9.5,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Shared card shell
+class _GlassCard extends StatelessWidget {
+  const _GlassCard({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1E0D36), Color(0xFF130820), Color(0xFF0E061A)],
+          stops: [0.0, 0.55, 1.0],
+        ),
+        border: Border.all(
+          color: const Color(0xFF7040B8).withValues(alpha: 0.45),
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF8B26D9).withValues(alpha: 0.18),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+// Shared card header row
+class _CardHeader extends StatelessWidget {
+  const _CardHeader({
+    required this.icon,
+    required this.label,
+    required this.iconColor,
+    required this.isArabic,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color iconColor;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+      children: [
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: iconColor.withValues(alpha: 0.14),
+          ),
+          child: Icon(icon, color: iconColor, size: 15),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.88),
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.2,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// Thin vertical divider for the gift wall row
+class _VerticalDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      color: const Color(0xFF7040B8).withValues(alpha: 0.35),
+    );
+  }
+}
+
 // -----------------------------------------------------------------------------
 
 String _formatCount(int value) {
