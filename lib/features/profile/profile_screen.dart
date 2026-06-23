@@ -1627,8 +1627,8 @@ class _PremiumProfileHero extends StatelessWidget {
                         alignment: isArabic
                             ? WrapAlignment.end
                             : WrapAlignment.start,
-                        spacing: 7,
-                        runSpacing: 5,
+                        spacing: 6,
+                        runSpacing: 4,
                         children: [
                           if (charmLevel != null)
                             _LuxuryLevelChip(
@@ -3244,12 +3244,12 @@ class _LuxuryLevelChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const h = 30.0;
-    const br = 10.0;
+    const h = 26.0;
+    const br = 8.0;
 
     return Container(
       height: h,
-      constraints: const BoxConstraints(minWidth: 70, maxWidth: 120),
+      constraints: const BoxConstraints(minWidth: 56, maxWidth: 100),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(br),
         gradient: LinearGradient(
@@ -3266,12 +3266,12 @@ class _LuxuryLevelChip extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: glowColor.withValues(alpha: 0.55),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.45),
-            blurRadius: 5,
+            blurRadius: 4,
             offset: const Offset(0, 2),
           ),
         ],
@@ -3326,29 +3326,29 @@ class _LuxuryLevelChip extends StatelessWidget {
           // Content — centered vertically and horizontally
           Center(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 9),
+              padding: const EdgeInsets.symmetric(horizontal: 7),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Icon(icon, size: 12, color: highlightColor),
-                  const SizedBox(width: 4),
+                  Icon(icon, size: 10, color: highlightColor),
+                  const SizedBox(width: 3),
                   Text(
                     label,
                     style: TextStyle(
                       color: highlightColor.withValues(alpha: 0.92),
-                      fontSize: 9.5,
+                      fontSize: 9,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.2,
                       height: 1.0,
                     ),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 3),
                   Text(
                     '$level',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 0.0,
                       height: 1.0,
