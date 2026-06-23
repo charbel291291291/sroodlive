@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -97,10 +96,6 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
   // the screen is foregrounded.
   Timer? _reconcilePoll;
 
-  // Rounds for which a settle_rocket_crash_round RPC is currently in flight.
-  // Prevents the client from spamming the settle RPC for the same stuck round.
-  final Set<String> _settleInFlightRoundIds = {};
-
   // Throttle _sendBetFeed: skip if same roundId called within 2 s.
   String? _lastBetFeedRoundId;
   int _lastBetFeedMs = 0;
@@ -186,10 +181,19 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      debugPrint('[RocketCrash] app resumed - refreshing round');
-      _initGame();
+      // If the channel was disposed while backgrounded, do a full reinit.
+      // Otherwise just refresh the round state — no need to tear down and
+      // recreate a healthy channel (avoids a ~500ms gap where realtime events
+      // could be missed between unsubscribe and resubscribe).
+      if (_roundChannel == null) {
+        debugPrint('[RocketCrash] app resumed - channel gone, full reinit');
+        _initGame();
+      } else {
+        debugPrint('[RocketCrash] app resumed - channel alive, refreshing round');
+        _refreshRoundFromServer('app_resumed');
+        _startReconcilePoll();
+      }
     } else if (state == AppLifecycleState.paused) {
-      // Stop polling while backgrounded; _initGame() restarts it on resume.
       _reconcilePoll?.cancel();
     }
   }
@@ -254,9 +258,11 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
       case 'REQUEST_BET_LOST':
         _handleBetLost(payload);
       case 'REQUEST_START_FLIGHT':
-        await _handleStartFlight(payload);
       case 'REQUEST_SETTLE_ROUND':
-        await _handleSettleRound(payload);
+        // Backend pg_cron drives the full lifecycle (betting→flying→crashed).
+        // Ignoring these JS triggers prevents any user from forcing premature
+        // settlement of a live round via the JS bridge or the REST API.
+        break;
       case 'REQUEST_WALLET_REFRESH':
         await _refreshBalance();
       case 'SET_SOUND_SETTING':
@@ -276,12 +282,10 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
       return;
     }
 
-    // Set directly for the security guard, then setState for UI.
+    // Set security guards directly (cannot wait for setState scheduling).
     _isInitializing = true;
     _serverRoundReady = false;
-    if (mounted) {
-      setState(() {});
-    }
+    if (mounted) setState(() {});
 
     try {
       final initResults = await Future.wait<Object>([
@@ -307,7 +311,6 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
       }
       _currentRoundNumber = roundNumber;
 
-      // Server round is now valid; financial actions are unblocked.
       _serverRoundReady =
           _roundId != null && roundNumber > 0 && phase != 'crashed';
 
@@ -317,7 +320,31 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
           .take(20)
           .toList();
 
-      debugPrint('[RocketCrash] INIT_GAME history len=${histValues.length}');
+      // Recover active bets for mid-round rejoin (M2/M3 fix).
+      // Fetches the caller's own active bets so the JS can restore the cashout
+      // button if the user re-opens the screen during a live betting/flying phase.
+      final myBets = <dynamic>[null, null];
+      if (_roundId != null && (phase == 'betting' || phase == 'flying')) {
+        try {
+          final allBets = await _service.getRocketRoundBets(_roundId!);
+          final ownActive = allBets
+              .where((b) => b['is_own'] == true && b['status'] == 'active')
+              .toList();
+          for (var i = 0; i < ownActive.length && i < 2; i++) {
+            final b = ownActive[i];
+            myBets[i] = {
+              'betId': b['bet_id']?.toString(),
+              'amount': b['bet_amount'],
+              'autoCashoutMultiplier': b['auto_cashout_multiplier'],
+              'status': b['status'],
+            };
+          }
+        } catch (_) {
+          // Non-fatal: UI shows no active bet; user can still place new ones.
+        }
+      }
+
+      debugPrint('[RocketCrash] INIT_GAME history=${histValues.length} myBets=${myBets.where((b) => b != null).length}');
 
       // Dispose any previous channel before creating a new subscription.
       _disposeRoundChannel();
@@ -338,8 +365,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
         'flightStartsAtMs': flightStartsAtMs,
         'serverNowMs': serverNowMs,
         'history': histValues,
-        'myBets': [null, null],
-        // Tells JS the user joined mid-flight so it can show a graceful state.
+        'myBets': myBets,
         'midRoundJoin': phase == 'flying',
       };
       if (phase == 'crashed') {
@@ -427,13 +453,8 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
       final prevRoundNumber = _currentRoundNumber;
       _roundId = roundId;
       _currentRoundNumber = roundNumber;
-      _serverRoundReady =
-          roundId != null && roundNumber > 0 && phase != 'crashed';
-
-      setState(() {
-        _serverRoundReady =
-            roundId != null && roundNumber > 0 && phase != 'crashed';
-      });
+      _serverRoundReady = roundId != null && roundNumber > 0 && phase != 'crashed';
+      if (mounted) setState(() {});
 
       debugPrint(
         '[RocketCrash] refreshed round phase=$phase roundId=$roundId '
@@ -466,30 +487,8 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
           (prevRoundNumber > 0 && roundNumber > prevRoundNumber)) {
         _refreshHistory();
       }
-
-      // Safety settlement: if the round is still 'flying' but, by the server's
-      // own crash point and flight start time, it should already have crashed
-      // (e.g. cron settlement stalled - DB showed crash_multiplier 1.05 stuck
-      // flying for 13s), drive the existing settle RPC once. The server stays
-      // authoritative: it computes payouts; we only ask it to settle.
-      if (phase == 'flying' &&
-          roundId != null &&
-          crashMultiplier > 0 &&
-          flightStartsAtMs > 0) {
-        final nowMs = serverNowMs > 0 ? serverNowMs : _serverNowMs;
-        final elapsedSec = (nowMs - flightStartsAtMs) / 1000.0;
-        if (elapsedSec > 0) {
-          final currentMult = math.exp(0.055 * elapsedSec);
-          if (currentMult >= crashMultiplier) {
-            debugPrint(
-              '[RocketCrash] stuck flying detected round=$roundId '
-              'currentMult=${currentMult.toStringAsFixed(2)} '
-              'crashMult=${crashMultiplier.toStringAsFixed(2)} - settling',
-            );
-            _trySettleStuckRound(roundId);
-          }
-        }
-      }
+      // Note: stuck-flying client settlement removed (S5 fix). The 1s pg_cron
+      // job (advance_rocket_crash_rounds) settles overdue rounds server-side.
     } catch (e, st) {
       debugPrint('[RocketCrash] refreshRound error reason=$reason: $e\n$st');
     } finally {
@@ -501,94 +500,6 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
         _refreshPendingReason = null;
         _refreshRoundFromServer(pendingReason);
       }
-    }
-  }
-
-  // Drives the betting -> flying transition. The JS sends REQUEST_START_FLIGHT
-  // when the betting countdown ends; we call the existing server RPC (the
-  // server commits the crash point and flight start time - we never decide it).
-  Future<void> _handleStartFlight(Map<String, dynamic> payload) async {
-    final roundId = payload['roundId']?.toString() ?? _roundId;
-    if (roundId == null || roundId.isEmpty) {
-      debugPrint('[RocketCrash] start flight rejected: no roundId');
-      return;
-    }
-    try {
-      final result = await _service.startRocketFlight(roundId);
-      if (!mounted) return;
-
-      final flightStartsAtMs = _parseTimestampMs(result['flight_starts_at']);
-      final serverNowMs = _toDouble(result['server_now']);
-      if (serverNowMs > 0) {
-        _serverTimeOffsetMs =
-            serverNowMs - DateTime.now().millisecondsSinceEpoch;
-      }
-
-      _roundId = roundId;
-      _serverRoundReady = true;
-      setState(() => _serverRoundReady = true);
-
-      debugPrint(
-        '[RocketCrash] start flight ok round=$roundId fsMs=$flightStartsAtMs',
-      );
-
-      // Forward the flying state to JS. crash_multiplier is intentionally NOT
-      // sent: the JS must never know the crash point before the round crashes
-      // (server authority / no JS-decided payouts).
-      _post('SET_ROUND_STATE', {
-        'roundId': roundId,
-        'roundNumber': _currentRoundNumber,
-        'phase': 'flying',
-        'serverSynced': true,
-        'bettingEndsAtMs': null,
-        'flightStartsAtMs': flightStartsAtMs > 0 ? flightStartsAtMs : null,
-        'serverNowMs': serverNowMs > 0 ? serverNowMs : _serverNowMs,
-        'midRoundJoin': false,
-      });
-
-      _sendBetFeed(roundId);
-      // Reconcile against the server shortly after, in case the round had
-      // already advanced (e.g. another client started it first).
-      _refreshRoundFromServer('start_flight_after_rpc');
-    } catch (e) {
-      if (!mounted) return;
-      debugPrint('[RocketCrash] start flight error round=$roundId: $e');
-      _refreshRoundFromServer('start_flight_error');
-    }
-  }
-
-  // Drives settlement of a round via the existing server RPC. The server
-  // auto-cashes qualifying bets, marks the rest lost, and flips the round to
-  // 'crashed'. We never compute payouts here.
-  Future<void> _handleSettleRound(Map<String, dynamic> payload) async {
-    final roundId = payload['roundId']?.toString() ?? _roundId;
-    if (roundId == null || roundId.isEmpty) return;
-    if (_settleInFlightRoundIds.contains(roundId)) return;
-    _settleInFlightRoundIds.add(roundId);
-    debugPrint('[RocketCrash] settle requested round=$roundId');
-    try {
-      await _service.settleRocketRound(roundId);
-    } catch (e) {
-      debugPrint('[RocketCrash] settle round error round=$roundId: $e');
-    } finally {
-      _settleInFlightRoundIds.remove(roundId);
-      _refreshRoundFromServer('settle_round_after_rpc');
-    }
-  }
-
-  // Settles a round that the client has determined is overdue (still flying
-  // past its crash point). Guarded so the settle RPC is not spammed.
-  Future<void> _trySettleStuckRound(String roundId) async {
-    if (_settleInFlightRoundIds.contains(roundId)) return;
-    _settleInFlightRoundIds.add(roundId);
-    debugPrint('[RocketCrash] settling stuck flying round=$roundId');
-    try {
-      await _service.settleRocketRound(roundId);
-    } catch (e) {
-      debugPrint('[RocketCrash] settle stuck round error round=$roundId: $e');
-    } finally {
-      _settleInFlightRoundIds.remove(roundId);
-      _refreshRoundFromServer('settle_stuck_flying');
     }
   }
 
@@ -863,55 +774,13 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
   }
 
   Future<void> _handleBetDebit(Map<String, dynamic> payload) async {
-    final slotIndex = _parseInt(payload['slotIndex']);
-    // Reject legacy debit path once the server round is active.
-    if (_serverRoundReady) {
-      _post('BET_REJECTED', {
-        'slotIndex': slotIndex,
-        'code': 'use_place_bet',
-        'userMessage': _friendlyCode('server_not_ready'),
-      });
-      return;
-    }
-    final amount = _parseInt(payload['amount']);
-    if (amount <= 0) {
-      _post('BET_REJECTED', {
-        'slotIndex': slotIndex,
-        'code': 'invalid_amount',
-        'userMessage': _friendlyCode('invalid_amount'),
-      });
-      return;
-    }
-    try {
-      final result = await _service.armBet(amount, slotIndex: slotIndex);
-      if (!mounted) return;
-      final betId = result['bet_id']?.toString();
-      final newBalance = _parseInt(result['new_balance']);
-      if (betId == null || betId.isEmpty) {
-        _post('BET_REJECTED', {
-          'slotIndex': slotIndex,
-          'code': 'no_bet_id',
-          'userMessage': _friendlyCode('network_error'),
-        });
-        return;
-      }
-      HapticFeedback.lightImpact();
-      _post('BET_ACCEPTED', {
-        'slotIndex': slotIndex,
-        'betId': betId,
-        'amount': amount,
-        'newBalance': newBalance,
-      });
-    } catch (e) {
-      if (!mounted) return;
-      debugPrint('[RocketCrash] armBet error: $e');
-      final code = _mapError('$e');
-      _post('BET_REJECTED', {
-        'slotIndex': slotIndex,
-        'code': code,
-        'userMessage': _friendlyCode(code),
-      });
-    }
+    // Legacy local-round debit path. Always rejected: the global round path
+    // uses REQUEST_PLACE_BET exclusively. Kept to avoid unhandled message drops.
+    _post('BET_REJECTED', {
+      'slotIndex': _parseInt(payload['slotIndex']),
+      'code': 'use_place_bet',
+      'userMessage': _friendlyCode('server_not_ready'),
+    });
   }
 
   Future<void> _handleBetRefund(Map<String, dynamic> payload) async {
@@ -1245,7 +1114,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('ðŸš€', style: TextStyle(fontSize: 64)),
+            const Text('🚀', style: TextStyle(fontSize: 64)),
             const SizedBox(height: 20),
             const Text(
               'Rocket Crash',
@@ -1308,7 +1177,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('ðŸš€', style: TextStyle(fontSize: 48)),
+                const Text('🚀', style: TextStyle(fontSize: 48)),
                 const SizedBox(height: 10),
                 const Text(
                   'Rocket Crash',

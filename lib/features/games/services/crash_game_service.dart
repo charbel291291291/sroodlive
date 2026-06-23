@@ -96,16 +96,6 @@ class CrashGameService {
     return data;
   }
 
-  /// Transitions the round from betting → flying and commits the crash point.
-  /// Returns {flight_starts_at (epoch ms), crash_multiplier, server_now}.
-  Future<Map<String, dynamic>> startRocketFlight(String roundId) async {
-    final data = await _client.rpc(
-      'start_rocket_crash_flight',
-      params: {'p_round_id': roundId},
-    ) as Map<String, dynamic>;
-    return data;
-  }
-
   /// Server-calculated cashout (multiplier = exp(0.055 × elapsed_seconds)).
   /// Returns {status, cashout_multiplier, win_amount, new_balance?}.
   Future<Map<String, dynamic>> cashOutRocketBet(String betId) async {
@@ -114,15 +104,6 @@ class CrashGameService {
       params: {'p_bet_id': betId},
     ) as Map<String, dynamic>;
     return data;
-  }
-
-  /// Settles the round: auto-cashouts qualifying bets, marks rest lost,
-  /// transitions round to 'crashed' (triggers Realtime UPDATE).
-  Future<void> settleRocketRound(String roundId) async {
-    await _client.rpc(
-      'settle_rocket_crash_round',
-      params: {'p_round_id': roundId},
-    );
   }
 
   /// Last [limit] crashed round multipliers, newest first.
