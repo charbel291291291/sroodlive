@@ -1231,7 +1231,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _ProfileMomentsCard(isArabic: isArabic),
                     const SizedBox(height: 14),
 
-                    // 4. Wallet Cards (Coins + Diamonds)
+                    // 4. Information + Level Progress
+                    _ProfileInfoCard(
+                      publicUserId: publicUserId,
+                      country: country,
+                      gender: gender,
+                      createdAt: DateTime.tryParse(
+                        profile?['created_at']?.toString() ?? '',
+                      ),
+                      vipLevel: effectiveVipLevel,
+                      isGoldenId: isGoldenId,
+                      isArabic: isArabic,
+                    ),
+                    const SizedBox(height: 10),
+                    _ProfileLevelProgressCard(
+                      userLevel: _userLevel,
+                      charmLevel: _charmLevel,
+                      wealthLevel: _wealthLevel,
+                      isArabic: isArabic,
+                    ),
+                    const SizedBox(height: 14),
+
+                    // 5. Wallet Cards (Coins + Diamonds)
                     _WalletCards(
                       coins: coins,
                       diamonds: diamonds,
@@ -1242,7 +1263,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 14),
 
-                    // 5. VIP Banner
+                    // 6. VIP Banner
                     _VipUpgradeBanner(
                       vipLevel: displayVipLevel,
                       isArabic: isArabic,
@@ -1250,7 +1271,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 14),
 
-                    // 6. Quick Actions Grid (6 items)
+                    // 7. Quick Actions Grid (6 items)
                     _QuickActionsGrid(
                       isArabic: isArabic,
                       onVipCenter: _openVipCenter,
@@ -4105,6 +4126,490 @@ class _GiftStatItem extends StatelessWidget {
 }
 
 // Shared card shell
+// -----------------------------------------------------------------------------
+// Information Card (P5)
+// -----------------------------------------------------------------------------
+
+class _ProfileInfoCard extends StatelessWidget {
+  const _ProfileInfoCard({
+    required this.publicUserId,
+    required this.country,
+    required this.gender,
+    required this.vipLevel,
+    required this.isGoldenId,
+    required this.isArabic,
+    this.createdAt,
+  });
+
+  final String publicUserId;
+  final String country;
+  final String gender;
+  final DateTime? createdAt;
+  final int vipLevel;
+  final bool isGoldenId;
+  final bool isArabic;
+
+  static const _purple = Color(0xFF8B26D9);
+  static const _gold = Color(0xFFF0C15A);
+
+  String _localiseGender(String raw) {
+    final g = raw.trim().toLowerCase();
+    if (isArabic) {
+      if (g == 'male') return 'ذكر';
+      if (g == 'female') return 'أنثى';
+      if (g == 'other') return 'آخر';
+    } else {
+      if (g == 'male') return 'Male';
+      if (g == 'female') return 'Female';
+      if (g == 'other') return 'Other';
+    }
+    return raw;
+  }
+
+  String _formatJoined(DateTime dt) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    const monthsAr = [
+      'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+    ];
+    final m = isArabic ? monthsAr[dt.month - 1] : months[dt.month - 1];
+    return isArabic ? '${dt.year} $m' : '$m ${dt.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <_InfoRowData>[];
+
+    rows.add(_InfoRowData(
+      label: isArabic ? 'المعرّف' : 'User ID',
+      valueWidget: Text(
+        publicUserId,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          fontFamily: 'monospace',
+        ),
+      ),
+    ));
+
+    if (country.isNotEmpty) {
+      rows.add(_InfoRowData(
+        label: isArabic ? 'الدولة' : 'Country',
+        valueWidget: Text(
+          country,
+          style: const TextStyle(color: Colors.white, fontSize: 12),
+        ),
+      ));
+    }
+
+    if (gender.isNotEmpty) {
+      rows.add(_InfoRowData(
+        label: isArabic ? 'الجنس' : 'Gender',
+        valueWidget: Text(
+          _localiseGender(gender),
+          style: const TextStyle(color: Colors.white, fontSize: 12),
+        ),
+      ));
+    }
+
+    if (createdAt != null) {
+      rows.add(_InfoRowData(
+        label: isArabic ? 'الانضمام' : 'Joined',
+        valueWidget: Text(
+          _formatJoined(createdAt!),
+          style: const TextStyle(color: Colors.white, fontSize: 12),
+        ),
+      ));
+    }
+
+    if (vipLevel > 0) {
+      rows.add(_InfoRowData(
+        label: isArabic ? 'مستوى VIP' : 'VIP Level',
+        valueWidget: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            gradient: const LinearGradient(
+              colors: [Color(0xFFDAA520), Color(0xFFFAD166)],
+            ),
+          ),
+          child: Text(
+            'VIP $vipLevel',
+            style: const TextStyle(
+              color: Color(0xFF3D1C00),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ));
+    }
+
+    if (isGoldenId) {
+      rows.add(_InfoRowData(
+        label: isArabic ? 'المعرّف الذهبي' : 'Golden ID',
+        valueWidget: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            color: _gold.withValues(alpha: 0.14),
+            border: Border.all(color: _gold.withValues(alpha: 0.55)),
+          ),
+          child: Text(
+            isArabic ? 'نشط' : 'Active',
+            style: TextStyle(
+              color: _gold,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ));
+    }
+
+    return _GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _CardHeader(
+            icon: Icons.info_outline_rounded,
+            label: isArabic ? 'المعلومات' : 'Information',
+            iconColor: _purple,
+            isArabic: isArabic,
+          ),
+          const SizedBox(height: 14),
+          Directionality(
+            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: rows
+                  .map(
+                    (r) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 5),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 96,
+                            child: Text(
+                              r.label,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.48),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Expanded(child: r.valueWidget),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRowData {
+  const _InfoRowData({required this.label, required this.valueWidget});
+  final String label;
+  final Widget valueWidget;
+}
+
+// -----------------------------------------------------------------------------
+// Level Progress Card (P5)
+// -----------------------------------------------------------------------------
+
+class _ProfileLevelProgressCard extends StatelessWidget {
+  const _ProfileLevelProgressCard({
+    required this.isArabic,
+    this.userLevel,
+    this.charmLevel,
+    this.wealthLevel,
+  });
+
+  final bool isArabic;
+  final UserLevel? userLevel;
+  final int? charmLevel;
+  final int? wealthLevel;
+
+  static const _purple = Color(0xFF8B26D9);
+  static const _purple2 = Color(0xFF5A28A0);
+  static const _gold = Color(0xFFF0C15A);
+
+  @override
+  Widget build(BuildContext context) {
+    return _GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _CardHeader(
+            icon: Icons.trending_up_rounded,
+            label: isArabic ? 'مستوى التقدم' : 'Level Progress',
+            iconColor: _gold,
+            isArabic: isArabic,
+          ),
+          const SizedBox(height: 14),
+          if (userLevel == null) _emptyState() else _content(userLevel!),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: Colors.black.withValues(alpha: 0.18),
+        border: Border.all(color: _purple.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.show_chart_rounded,
+              color: _gold.withValues(alpha: 0.5), size: 18),
+          const SizedBox(width: 8),
+          Text(
+            isArabic ? 'التقدم قريباً' : 'Progress coming soon',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.42),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _content(UserLevel ul) {
+    final progress = ul.levelProgress?.clamp(0.0, 1.0) ?? 0.0;
+    final hasProgress = ul.levelProgress != null;
+    final pct = (progress * 100).round();
+    final title = ul.currentLevelTitle;
+
+    return Directionality(
+      textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Level badge + title + xp
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  gradient: const LinearGradient(
+                    colors: [_purple, _purple2],
+                  ),
+                ),
+                child: Text(
+                  '${isArabic ? 'المستوى ' : 'Lv '}${ul.level}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              if (title != null) ...[
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.62),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+              const Spacer(),
+              Text(
+                '${ul.xp} XP',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.45),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+
+          // Progress bar
+          if (hasProgress) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LayoutBuilder(
+                builder: (_, constraints) => Stack(
+                  children: [
+                    Container(
+                      height: 8,
+                      width: double.infinity,
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
+                    Container(
+                      height: 8,
+                      width: constraints.maxWidth * progress,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [_purple, _gold],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '$pct%',
+                  style: TextStyle(
+                    color: _gold.withValues(alpha: 0.8),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (ul.nextLevel != null)
+                  Text(
+                    '${isArabic ? 'التالي: مستوى ' : 'Next: Lv '}${ul.nextLevel}',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.38),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+
+          // Charm + Wealth summary
+          if (charmLevel != null || wealthLevel != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              height: 1,
+              color: const Color(0xFF7040B8).withValues(alpha: 0.26),
+              margin: const EdgeInsets.only(bottom: 10),
+            ),
+            Row(
+              children: [
+                if (charmLevel != null)
+                  Expanded(
+                    child: _MiniStatChip(
+                      icon: Icons.favorite_rounded,
+                      iconColor: const Color(0xFFFF7BAC),
+                      label: isArabic ? 'السحر' : 'Charm',
+                      value: 'Lv $charmLevel',
+                      isArabic: isArabic,
+                    ),
+                  ),
+                if (charmLevel != null && wealthLevel != null)
+                  const SizedBox(width: 8),
+                if (wealthLevel != null)
+                  Expanded(
+                    child: _MiniStatChip(
+                      icon: Icons.monetization_on_rounded,
+                      iconColor: _gold,
+                      label: isArabic ? 'الثروة' : 'Wealth',
+                      value: 'Lv $wealthLevel',
+                      isArabic: isArabic,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniStatChip extends StatelessWidget {
+  const _MiniStatChip({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.value,
+    required this.isArabic,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String value;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.white.withValues(alpha: 0.05),
+        border: Border.all(color: iconColor.withValues(alpha: 0.24)),
+      ),
+      child: Row(
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: iconColor, size: 14),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: isArabic
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.42),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+
 class _GlassCard extends StatelessWidget {
   const _GlassCard({required this.child});
   final Widget child;
