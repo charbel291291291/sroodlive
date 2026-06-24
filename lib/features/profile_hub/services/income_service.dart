@@ -28,17 +28,13 @@ class IncomeService {
     required String method,
     required String accountDetails,
   }) async {
-    final userId = SupabaseService.requiredClient.auth.currentUser?.id;
-    if (userId == null) {
-      throw StateError('No logged-in user found.');
-    }
-
-    await SupabaseService.requiredClient.from('payout_requests').insert({
-      'user_id': userId,
-      'amount_usd': amountUsd,
-      'method': method,
-      'account_details': accountDetails,
-      'status': 'pending',
-    });
+    await SupabaseService.requiredClient.rpc(
+      'request_payout',
+      params: {
+        'p_amount_usd': amountUsd,
+        'p_method': method,
+        'p_account_details': accountDetails,
+      },
+    );
   }
 }
