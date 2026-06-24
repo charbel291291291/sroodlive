@@ -126,7 +126,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int followingCount = 0;
   int friendsCount = 0;
   int giftsReceivedCount = 0;
-  int visitorsCount = 0;
   UserWallet? wallet;
   UserLevel? _userLevel;
   int? _charmLevel;
@@ -262,7 +261,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           'gifts_received_count',
           fallback: gifts,
         );
-        visitorsCount = _intFromProfile(data, 'visitors_count');
         wallet = loadedWallet;
         _userLevel = loadedLevel;
         _charmLevel = loadedCharmLevel;
@@ -315,15 +313,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _profileText(String key, {String fallback = ''}) {
     final value = profile?[key]?.toString().trim();
     return value == null || value.isEmpty ? fallback : value;
-  }
-
-  void _showSoon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(context.isArabic ? 'قريباً' : 'Coming soon'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   Future<void> _openWalletScreen() async {
@@ -1090,9 +1079,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           : (currentUserId.isEmpty ? '-' : currentUserId),
     );
     final effectiveVipLevel = _effectiveProfileVipLevel();
-    // TODO: remove previewVipLevel after VIP UI preview is confirmed.
-    const int? previewVipLevel = null;
-    final displayVipLevel = previewVipLevel ?? effectiveVipLevel;
     final isGoldenId = isGoldenIdActive(
       profile?['is_golden_id'] == true,
       DateTime.tryParse(profile?['golden_id_expires_at']?.toString() ?? ''),
@@ -1148,8 +1134,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       publicUserId: publicUserId,
                       avatarUrl: avatarUrl,
                       frameKey: selectedAvatarFrameKey,
-                      vipLevel: displayVipLevel,
-                      level: level,
+                      vipLevel: effectiveVipLevel,
                       charmLevel: _charmLevel,
                       wealthLevel: _wealthLevel,
                       isGoldenId: isGoldenId,
@@ -1209,29 +1194,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 14),
 
-                    // 2. Achievements + Gift Wall
-                    _ProfileAchievementsCard(
-                      vipLevel: displayVipLevel,
-                      level: level,
-                      isGoldenId: isGoldenId,
-                      followers: followersCount,
-                      isArabic: isArabic,
-                    ),
-                    const SizedBox(height: 10),
+                    // 3. Gifts Received
                     _ProfileGiftWallCard(
                       giftsReceived: giftsReceivedCount,
-                      visitors: visitorsCount,
-                      charmLevel: _charmLevel,
-                      wealthLevel: _wealthLevel,
                       isArabic: isArabic,
                     ),
                     const SizedBox(height: 10),
 
-                    // 3. Moments / Gallery
-                    _ProfileMomentsCard(isArabic: isArabic),
-                    const SizedBox(height: 14),
-
-                    // 4. Information + Level Progress
+                    // 4. Information
                     _ProfileInfoCard(
                       publicUserId: publicUserId,
                       country: country,
@@ -1244,15 +1214,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       isArabic: isArabic,
                     ),
                     const SizedBox(height: 10),
+
+                    // 5. Level Progress
                     _ProfileLevelProgressCard(
                       userLevel: _userLevel,
-                      charmLevel: _charmLevel,
-                      wealthLevel: _wealthLevel,
                       isArabic: isArabic,
                     ),
                     const SizedBox(height: 14),
 
-                    // 5. Wallet Cards (Coins + Diamonds)
+                    // 6. Wallet Cards (Coins + Diamonds)
                     _WalletCards(
                       coins: coins,
                       diamonds: diamonds,
@@ -1263,15 +1233,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 14),
 
-                    // 6. VIP Banner
+                    // 7. VIP Banner
                     _VipUpgradeBanner(
-                      vipLevel: displayVipLevel,
+                      vipLevel: effectiveVipLevel,
                       isArabic: isArabic,
                       onTap: _openVipCenter,
                     ),
                     const SizedBox(height: 14),
 
-                    // 7. Quick Actions Grid (6 items)
+                    // 8. Quick Actions Grid (6 items)
                     _QuickActionsGrid(
                       isArabic: isArabic,
                       onVipCenter: _openVipCenter,
@@ -1304,26 +1274,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                     const SizedBox(height: 14),
 
-                    // 6. Daily Check-in Card
+                    // 9. Daily Check-in Card
                     _DailyCheckinCard(isArabic: isArabic, onTap: _openCheckin),
                     const SizedBox(height: 14),
 
-                    // 7. Love / Relationship Card
-                    const _LoveRelationshipCard(),
-                    const SizedBox(height: 14),
-
-                    // 8. Account & Support
+                    // 10. Account & Support
                     _AccountSection(
                       isArabic: isArabic,
                       onWallet: _openWalletScreen,
                       onCustomerService: () => _openProfileHub(
                         CustomerServiceScreen(isArabic: isArabic),
                       ),
-                      onPrivacy: _showSoon,
                     ),
                     const SizedBox(height: 14),
 
-                    // 9. Logout
+                    // 11. Logout
                     _LogoutButton(isArabic: isArabic, onTap: _confirmLogout),
                   ],
                 ),
@@ -1347,7 +1312,6 @@ class _PremiumProfileHero extends StatelessWidget {
     required this.avatarUrl,
     required this.frameKey,
     required this.vipLevel,
-    required this.level,
     required this.isGoldenId,
     required this.country,
     required this.gender,
@@ -1369,7 +1333,6 @@ class _PremiumProfileHero extends StatelessWidget {
   final String? avatarUrl;
   final String? frameKey;
   final int vipLevel;
-  final int level;
   final int? charmLevel;
   final int? wealthLevel;
   final bool isGoldenId;
@@ -2776,13 +2739,11 @@ class _AccountSection extends StatelessWidget {
     required this.isArabic,
     required this.onWallet,
     required this.onCustomerService,
-    required this.onPrivacy,
   });
 
   final bool isArabic;
   final VoidCallback onWallet;
   final VoidCallback onCustomerService;
-  final VoidCallback onPrivacy;
 
   @override
   Widget build(BuildContext context) {
@@ -2808,14 +2769,6 @@ class _AccountSection extends StatelessWidget {
               : 'Help, recharge & reports',
           isArabic: isArabic,
           onTap: onCustomerService,
-        ),
-        ProfileListRow(
-          icon: Icons.privacy_tip_rounded,
-          iconColor: const Color(0xFF9BE8FF),
-          title: isArabic ? 'الخصوصية' : 'Privacy',
-          subtitle: isArabic ? 'قريباً' : 'Coming soon',
-          isArabic: isArabic,
-          onTap: onPrivacy,
           showDivider: false,
         ),
       ],
@@ -2930,115 +2883,6 @@ class _DailyCheckinCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// Love / Relationship Card (coming soon placeholder)
-// -----------------------------------------------------------------------------
-
-class _LoveRelationshipCard extends StatelessWidget {
-  const _LoveRelationshipCard();
-
-  @override
-  Widget build(BuildContext context) {
-    final isArabic = Directionality.of(context) == TextDirection.rtl;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1A0C2E), Color(0xFF2A0828)],
-        ),
-        border: Border.all(
-          color: const Color(0xFFFF88A0).withValues(alpha: 0.38),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFF3D6B).withValues(alpha: 0.10),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFF88A0), Color(0xFFFF3D6B)],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFFF3D6B).withValues(alpha: 0.35),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.favorite_rounded,
-              color: Colors.white,
-              size: 26,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: isArabic
-                  ? CrossAxisAlignment.end
-                  : CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isArabic ? 'العلاقات' : 'Relationships',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  isArabic
-                      ? 'ابحث عن روحك التوأم في سرود لايف'
-                      : 'Find your soulmate on ${AppConfig.instance.appDisplayName}',
-                  style: const TextStyle(
-                    color: Color(0xFFBCAED6),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-            decoration: BoxDecoration(
-              color: const Color(0xFF3A1428),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: const Color(0xFFFF88A0).withValues(alpha: 0.45),
-              ),
-            ),
-            child: Text(
-              isArabic ? 'قريباً' : 'Soon',
-              style: const TextStyle(
-                color: Color(0xFFFF88A0),
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -3753,276 +3597,39 @@ class _AvatarFramePickerTile extends StatelessWidget {
 // -----------------------------------------------------------------------------
 
 // -----------------------------------------------------------------------------
-// Achievements Card
-// -----------------------------------------------------------------------------
-
-class _ProfileAchievementsCard extends StatelessWidget {
-  const _ProfileAchievementsCard({
-    required this.vipLevel,
-    required this.level,
-    required this.isGoldenId,
-    required this.followers,
-    required this.isArabic,
-  });
-
-  final int vipLevel;
-  final int level;
-  final bool isGoldenId;
-  final int followers;
-  final bool isArabic;
-
-  static const _gold   = Color(0xFFF0C15A);
-  static const _purple = Color(0xFF8B26D9);
-
-  @override
-  Widget build(BuildContext context) {
-    final items = _buildItems();
-    return _GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _CardHeader(
-            icon: Icons.emoji_events_rounded,
-            label: isArabic ? 'الإنجازات' : 'Achievements',
-            iconColor: _gold,
-            isArabic: isArabic,
-          ),
-          const SizedBox(height: 12),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final itemW = (constraints.maxWidth - 12 * (items.length - 1)) /
-                  items.length;
-              return Row(
-                textDirection:
-                    isArabic ? TextDirection.rtl : TextDirection.ltr,
-                children: [
-                  for (var i = 0; i < items.length; i++) ...[
-                    if (i > 0) const SizedBox(width: 12),
-                    SizedBox(width: itemW, child: items[i]),
-                  ],
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _buildItems() {
-    return [
-      _AchievementBadge(
-        icon: Icons.star_rounded,
-        label: isArabic ? 'المستوى' : 'Level',
-        value: level.toString(),
-        gradientColors: const [Color(0xFF3D1A6E), Color(0xFF6A28C0)],
-        glowColor: _purple,
-        iconColor: const Color(0xFFD8AAFF),
-      ),
-      _AchievementBadge(
-        icon: Icons.workspace_premium_rounded,
-        label: isArabic ? 'VIP' : 'VIP',
-        value: vipLevel > 0 ? 'V$vipLevel' : '—',
-        gradientColors: const [Color(0xFF1A3A10), Color(0xFF2E6A20)],
-        glowColor: const Color(0xFF4CAF50),
-        iconColor: const Color(0xFF88EE88),
-      ),
-      _AchievementBadge(
-        icon: isGoldenId
-            ? Icons.verified_rounded
-            : Icons.tag_rounded,
-        label: isArabic ? 'المعرّف' : 'ID',
-        value: isGoldenId ? (isArabic ? 'ذهبي' : 'Gold') : (isArabic ? 'عادي' : 'Basic'),
-        gradientColors: isGoldenId
-            ? const [Color(0xFF4A3000), Color(0xFF7A5500)]
-            : const [Color(0xFF1E1040), Color(0xFF2E1C60)],
-        glowColor: isGoldenId ? _gold : _purple,
-        iconColor: isGoldenId ? _gold : const Color(0xFFBCAED6),
-      ),
-      _AchievementBadge(
-        icon: Icons.people_rounded,
-        label: isArabic ? 'المتابعون' : 'Followers',
-        value: _formatCount(followers),
-        gradientColors: const [Color(0xFF1A0830), Color(0xFF3A1260)],
-        glowColor: const Color(0xFFE040FB),
-        iconColor: const Color(0xFFE8B0FF),
-      ),
-    ];
-  }
-}
-
-class _AchievementBadge extends StatelessWidget {
-  const _AchievementBadge({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.gradientColors,
-    required this.glowColor,
-    required this.iconColor,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final List<Color> gradientColors;
-  final Color glowColor;
-  final Color iconColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: gradientColors,
-        ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: glowColor.withValues(alpha: 0.35),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: glowColor.withValues(alpha: 0.18),
-            blurRadius: 10,
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: glowColor.withValues(alpha: 0.15),
-              border: Border.all(
-                color: glowColor.withValues(alpha: 0.40),
-                width: 1.0,
-              ),
-            ),
-            child: Icon(icon, color: iconColor, size: 17),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: iconColor,
-              fontSize: 13,
-              fontWeight: FontWeight.w900,
-              height: 1.0,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.50),
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              height: 1.0,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
 // Gift Wall Summary Card
 // -----------------------------------------------------------------------------
 
 class _ProfileGiftWallCard extends StatelessWidget {
   const _ProfileGiftWallCard({
     required this.giftsReceived,
-    required this.visitors,
-    this.charmLevel,
-    this.wealthLevel,
     required this.isArabic,
   });
 
   final int giftsReceived;
-  final int visitors;
-  final int? charmLevel;
-  final int? wealthLevel;
   final bool isArabic;
 
-  static const _gold   = Color(0xFFF0C15A);
-  static const _rose   = Color(0xFFE0449A);
-  static const _teal   = Color(0xFF26D9B8);
+  static const _rose = Color(0xFFE0449A);
 
   @override
   Widget build(BuildContext context) {
-    final textDir = isArabic ? TextDirection.rtl : TextDirection.ltr;
     return _GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _CardHeader(
             icon: Icons.card_giftcard_rounded,
-            label: isArabic ? 'الهدايا والزيارات' : 'Gifts & Visits',
+            label: isArabic ? 'الهدايا المستلمة' : 'Gifts Received',
             iconColor: _rose,
             isArabic: isArabic,
           ),
           const SizedBox(height: 12),
-          IntrinsicHeight(
-            child: Row(
-              textDirection: textDir,
-              children: [
-                Expanded(
-                  child: _GiftStatItem(
-                    icon: Icons.card_giftcard_rounded,
-                    label: isArabic ? 'الهدايا المستلمة' : 'Gifts Received',
-                    value: _formatCount(giftsReceived),
-                    iconColor: _rose,
-                    glowColor: _rose,
-                  ),
-                ),
-                _VerticalDivider(),
-                Expanded(
-                  child: _GiftStatItem(
-                    icon: Icons.remove_red_eye_rounded,
-                    label: isArabic ? 'الزيارات' : 'Profile Visits',
-                    value: _formatCount(visitors),
-                    iconColor: _teal,
-                    glowColor: _teal,
-                  ),
-                ),
-                if (charmLevel != null) ...[
-                  _VerticalDivider(),
-                  Expanded(
-                    child: _GiftStatItem(
-                      icon: Icons.favorite_rounded,
-                      label: isArabic ? 'مستوى السحر' : 'Charm Lv.',
-                      value: charmLevel.toString(),
-                      iconColor: _rose,
-                      glowColor: _rose,
-                    ),
-                  ),
-                ],
-                if (wealthLevel != null) ...[
-                  _VerticalDivider(),
-                  Expanded(
-                    child: _GiftStatItem(
-                      icon: Icons.diamond_rounded,
-                      label: isArabic ? 'مستوى الثروة' : 'Wealth Lv.',
-                      value: wealthLevel.toString(),
-                      iconColor: _gold,
-                      glowColor: _gold,
-                    ),
-                  ),
-                ],
-              ],
-            ),
+          _GiftStatItem(
+            icon: Icons.card_giftcard_rounded,
+            label: isArabic ? 'إجمالي الهدايا' : 'Total gifts',
+            value: _formatCount(giftsReceived),
+            iconColor: _rose,
+            glowColor: _rose,
           ),
         ],
       ),
@@ -4310,14 +3917,10 @@ class _ProfileLevelProgressCard extends StatelessWidget {
   const _ProfileLevelProgressCard({
     required this.isArabic,
     this.userLevel,
-    this.charmLevel,
-    this.wealthLevel,
   });
 
   final bool isArabic;
   final UserLevel? userLevel;
-  final int? charmLevel;
-  final int? wealthLevel;
 
   static const _purple = Color(0xFF8B26D9);
   static const _purple2 = Color(0xFF5A28A0);
@@ -4481,111 +4084,12 @@ class _ProfileLevelProgressCard extends StatelessWidget {
               ],
             ),
           ],
-
-          // Charm + Wealth summary
-          if (charmLevel != null || wealthLevel != null) ...[
-            const SizedBox(height: 12),
-            Container(
-              height: 1,
-              color: const Color(0xFF7040B8).withValues(alpha: 0.26),
-              margin: const EdgeInsets.only(bottom: 10),
-            ),
-            Row(
-              children: [
-                if (charmLevel != null)
-                  Expanded(
-                    child: _MiniStatChip(
-                      icon: Icons.favorite_rounded,
-                      iconColor: const Color(0xFFFF7BAC),
-                      label: isArabic ? 'السحر' : 'Charm',
-                      value: 'Lv $charmLevel',
-                      isArabic: isArabic,
-                    ),
-                  ),
-                if (charmLevel != null && wealthLevel != null)
-                  const SizedBox(width: 8),
-                if (wealthLevel != null)
-                  Expanded(
-                    child: _MiniStatChip(
-                      icon: Icons.monetization_on_rounded,
-                      iconColor: _gold,
-                      label: isArabic ? 'الثروة' : 'Wealth',
-                      value: 'Lv $wealthLevel',
-                      isArabic: isArabic,
-                    ),
-                  ),
-              ],
-            ),
-          ],
         ],
       ),
     );
   }
 }
 
-class _MiniStatChip extends StatelessWidget {
-  const _MiniStatChip({
-    required this.icon,
-    required this.iconColor,
-    required this.label,
-    required this.value,
-    required this.isArabic,
-  });
-
-  final IconData icon;
-  final Color iconColor;
-  final String label;
-  final String value;
-  final bool isArabic;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: Colors.white.withValues(alpha: 0.05),
-        border: Border.all(color: iconColor.withValues(alpha: 0.24)),
-      ),
-      child: Row(
-        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: iconColor, size: 14),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Column(
-              crossAxisAlignment: isArabic
-                  ? CrossAxisAlignment.end
-                  : CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.42),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  value,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
 
 class _GlassCard extends StatelessWidget {
   const _GlassCard({required this.child});
@@ -4660,293 +4164,6 @@ class _CardHeader extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-// Thin vertical divider for the gift wall row
-class _VerticalDivider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      color: const Color(0xFF7040B8).withValues(alpha: 0.35),
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// Moments / Gallery Card
-// -----------------------------------------------------------------------------
-
-class _ProfileMomentsCard extends StatelessWidget {
-  const _ProfileMomentsCard({required this.isArabic});
-
-  final bool isArabic;
-
-  // No moments data exists in the app yet — this renders a premium empty state
-  // that communicates the feature and looks polished.  When a moments backend
-  // is added the tile grid below can be swapped in without touching the shell.
-
-  static const _purple  = Color(0xFF8B26D9);
-  static const _purple2 = Color(0xFF5A28A0);
-  static const _gold    = Color(0xFFF0C15A);
-
-  @override
-  Widget build(BuildContext context) {
-    return _GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Header
-          Row(
-            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-            children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _purple.withValues(alpha: 0.18),
-                ),
-                child: const Icon(
-                  Icons.auto_awesome_mosaic_rounded,
-                  color: _purple,
-                  size: 15,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  isArabic ? 'اللحظات' : 'Moments',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.88),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          // Empty-state body
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final tileSize = (constraints.maxWidth - 8 * 2) / 3;
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Ghost tile row — 3 placeholder tiles that hint at the grid
-                  // layout without showing fake content.
-                  Row(
-                    textDirection:
-                        isArabic ? TextDirection.rtl : TextDirection.ltr,
-                    children: List.generate(3, (i) {
-                      return Padding(
-                        padding: EdgeInsets.only(
-                          right: isArabic ? 0 : (i < 2 ? 8 : 0),
-                          left:  isArabic ? (i < 2 ? 8 : 0) : 0,
-                        ),
-                        child: _GhostTile(
-                          size: tileSize,
-                          opacity: 1.0 - i * 0.22,
-                        ),
-                      );
-                    }),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Empty state message
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 16,
-                      horizontal: 20,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      color: Colors.black.withValues(alpha: 0.22),
-                      border: Border.all(
-                        color: _purple.withValues(alpha: 0.22),
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Camera icon with soft glow ring
-                        Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: RadialGradient(
-                              colors: [
-                                _purple.withValues(alpha: 0.28),
-                                _purple.withValues(alpha: 0.08),
-                                Colors.transparent,
-                              ],
-                              stops: const [0.0, 0.55, 1.0],
-                            ),
-                            border: Border.all(
-                              color: _purple.withValues(alpha: 0.40),
-                              width: 1.0,
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.add_a_photo_rounded,
-                            color: _purple2.withValues(alpha: 0.80),
-                            size: 22,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          isArabic
-                              ? 'لا توجد لحظات بعد'
-                              : 'No moments yet',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.78),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          isArabic
-                              ? 'شارك لحظاتك مع مجتمع سرود لايف'
-                              : 'Share your moments with the Srood Live community',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.42),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            height: 1.4,
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        // "Coming soon" pill — passive, non-tappable
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 7,
-                          ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(999),
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                _purple.withValues(alpha: 0.35),
-                                _purple2.withValues(alpha: 0.25),
-                              ],
-                            ),
-                            border: Border.all(
-                              color: _purple.withValues(alpha: 0.50),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.schedule_rounded,
-                                color: _gold.withValues(alpha: 0.75),
-                                size: 13,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                isArabic ? 'قريباً' : 'Coming soon',
-                                style: TextStyle(
-                                  color: _gold.withValues(alpha: 0.82),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Ghost tile — decorative placeholder that shows the grid skeleton without
-// displaying any fake content.
-class _GhostTile extends StatelessWidget {
-  const _GhostTile({required this.size, required this.opacity});
-
-  final double size;
-  final double opacity;
-
-  @override
-  Widget build(BuildContext context) {
-    return Opacity(
-      opacity: opacity.clamp(0.15, 1.0),
-      child: Container(
-        width: size,
-        height: size * 0.88, // slight landscape ratio
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF2A1250), Color(0xFF1A0B38)],
-          ),
-          border: Border.all(
-            color: const Color(0xFF7040B8).withValues(alpha: 0.35),
-          ),
-        ),
-        child: Stack(
-          children: [
-            // Top-left shimmer accent
-            Positioned(
-              top: 6,
-              left: 6,
-              child: Container(
-                width: 24,
-                height: 6,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(3),
-                  color: Colors.white.withValues(alpha: 0.06),
-                ),
-              ),
-            ),
-            // Centre icon hint
-            Center(
-              child: Icon(
-                Icons.image_rounded,
-                color: Colors.white.withValues(alpha: 0.08),
-                size: size * 0.30,
-              ),
-            ),
-            // Bottom shimmer bar
-            Positioned(
-              bottom: 7,
-              left: 6,
-              right: 6,
-              child: Container(
-                height: 5,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(3),
-                  color: Colors.white.withValues(alpha: 0.05),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
