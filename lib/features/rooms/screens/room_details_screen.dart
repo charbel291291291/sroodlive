@@ -1619,7 +1619,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   }
 
   void _openMusicPanel() {
-    final canManage = _iAmRoomOwner || _iAmHost;
+    final canManage = _iAmRoomOwner || _iAmHost || _isCurrentUserModerator;
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -3575,8 +3575,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                       musicService: _musicService,
                       isArabic: context.isArabic,
                       onTap: _openMusicPanel,
-                      canManage: _iAmRoomOwner || _iAmHost,
-                      onStop: (_iAmRoomOwner || _iAmHost)
+                      canManage: _iAmRoomOwner || _iAmHost || _isCurrentUserModerator,
+                      onStop: (_iAmRoomOwner || _iAmHost || _isCurrentUserModerator)
                           ? () => unawaited(_stopMusicForRoom())
                           : null,
                     )
