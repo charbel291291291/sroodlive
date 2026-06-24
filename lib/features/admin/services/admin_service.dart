@@ -274,6 +274,36 @@ class AdminService {
     );
   }
 
+  // ── Payout requests (host income) ─────────────────────────────────────────
+
+  Future<List<AdminPayoutRequest>> fetchPayoutRequests({
+    String? status = 'pending',
+    int limit = 50,
+  }) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_list_payout_requests',
+      params: {'p_status': status, 'p_limit': limit},
+    );
+    return (data as List<dynamic>)
+        .map((item) =>
+            AdminPayoutRequest.fromJson(Map<String, dynamic>.from(item as Map)))
+        .toList();
+  }
+
+  Future<void> approvePayoutRequest(String requestId, {String? note}) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_approve_payout_request',
+      params: {'p_request_id': requestId, 'p_note': note},
+    );
+  }
+
+  Future<void> rejectPayoutRequest(String requestId, String reason) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_reject_payout_request',
+      params: {'p_request_id': requestId, 'p_reason': reason},
+    );
+  }
+
   Future<List<AdminRoomSummary>> fetchRooms({int limit = 50}) async {
     final data = await SupabaseService.requiredClient.rpc(
       'admin_list_rooms',

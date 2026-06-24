@@ -117,6 +117,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // Withdrawal history tab
   List<AdminWithdrawalRequest> _withdrawalHistory = const [];
 
+  // Payout requests (host income)
+  List<AdminPayoutRequest> _pendingPayouts = const [];
+  List<AdminPayoutRequest> _payoutHistory  = const [];
+
   // Audit log filters
   String? _auditFilterAction;
   String? _auditFilterTargetType;
@@ -172,10 +176,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // ── Pending counts for nav badges ──────────────────────────────────────────
   int get _pendingRechargesCount   => _pending.length;
   int get _pendingWithdrawalsCount => _pendingWithdrawals.length;
+  int get _pendingPayoutsCount     => _pendingPayouts.length;
   int get _pendingReportsCount     =>
       _reports.where((r) => r.status == 'pending').length;
   int get _financeBadgeCount       =>
-      _pendingRechargesCount + _pendingWithdrawalsCount;
+      _pendingRechargesCount + _pendingWithdrawalsCount + _pendingPayoutsCount;
   Map<_AdminModule, int> get _navBadges => {
     _AdminModule.finance:    _financeBadgeCount,
     _AdminModule.moderation: _pendingReportsCount,
@@ -270,6 +275,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       );
       final pendingWithdrawals = await _adminService.fetchWithdrawalRequests();
       final withdrawalHistory  = await _adminService.fetchWithdrawalHistory();
+      final pendingPayouts     = await _adminService.fetchPayoutRequests(status: 'pending');
+      final payoutHistory      = await _adminService.fetchPayoutRequests(status: null);
       final walletTransactions = await _adminService.fetchWalletTransactions();
       final giftTransactions = await _adminService.fetchGiftTransactions();
       final agencies = await _adminService.fetchAgencies();
@@ -304,6 +311,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _pending = pending;
         _pendingWithdrawals = pendingWithdrawals;
         _withdrawalHistory = withdrawalHistory;
+        _pendingPayouts    = pendingPayouts;
+        _payoutHistory     = payoutHistory.where((p) => !p.isPending).toList();
         _walletTransactions = walletTransactions;
         _giftTransactions = giftTransactions;
         _agencies = agencies;
@@ -425,6 +434,41 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       await _adminService.rejectWithdrawal(request.id, reason.trim());
       if (!mounted) return;
       _showSnack('Withdrawal rejected');
+      await _load();
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack('Rejection failed: $error');
+    } finally {
+      if (mounted) setState(() => _actionInProgress = false);
+    }
+  }
+
+  Future<void> _approvePayoutRequest(AdminPayoutRequest request) async {
+    if (_actionInProgress) return;
+    setState(() => _actionInProgress = true);
+    try {
+      await _adminService.approvePayoutRequest(request.id);
+      if (!mounted) return;
+      _showSnack('Payout approved — \$${request.amountUsd.toStringAsFixed(2)} deducted from balance');
+      await _load();
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack('Approval failed: $error');
+    } finally {
+      if (mounted) setState(() => _actionInProgress = false);
+    }
+  }
+
+  Future<void> _rejectPayoutRequest(AdminPayoutRequest request) async {
+    if (_actionInProgress) return;
+    final reason = await _askForText(title: 'Reject payout', label: 'Reason');
+    if (reason == null || reason.trim().isEmpty) return;
+
+    setState(() => _actionInProgress = true);
+    try {
+      await _adminService.rejectPayoutRequest(request.id, reason.trim());
+      if (!mounted) return;
+      _showSnack('Payout rejected');
       await _load();
     } catch (error) {
       if (!mounted) return;
@@ -1667,6 +1711,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           onApprove: (w) => _approveWithdrawal(w),
           onReject:  (w) => _rejectWithdrawal(w),
           onRefresh: _load,
+        ),
+        const SizedBox(height: 14),
+
+        // -- Payout requests (host income) ---------------------------------
+        _PayoutTabCard(
+          pendingList: _pendingPayouts,
+          historyList: _payoutHistory,
+          canFinance:  _canFinance,
+          onApprove:   (p) => _approvePayoutRequest(p),
+          onReject:    (p) => _rejectPayoutRequest(p),
+          onRefresh:   _load,
         ),
         const SizedBox(height: 14),
 
@@ -6516,6 +6571,247 @@ class _QuickRangeButton extends StatelessWidget {
 }
 
 // -- Withdrawal tab card (Pending + History) -------------------------------
+
+// ── Payout request widgets ────────────────────────────────────────────────────
+
+class _PayoutTabCard extends StatelessWidget {
+  const _PayoutTabCard({
+    required this.pendingList,
+    required this.historyList,
+    required this.canFinance,
+    required this.onApprove,
+    required this.onReject,
+    required this.onRefresh,
+  });
+
+  final List<AdminPayoutRequest> pendingList;
+  final List<AdminPayoutRequest> historyList;
+  final bool canFinance;
+  final void Function(AdminPayoutRequest) onApprove;
+  final void Function(AdminPayoutRequest) onReject;
+  final VoidCallback onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: _kSurface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _kBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Text(
+                      'Payout Requests (Host Income)',
+                      style: TextStyle(
+                        color: _kTxt,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.refresh_rounded,
+                          color: _kMuted, size: 18),
+                      onPressed: onRefresh,
+                      tooltip: 'Refresh',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TabBar(
+                  indicatorColor: _kGold,
+                  labelColor: _kGold,
+                  unselectedLabelColor: _kMuted,
+                  labelStyle: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w700),
+                  unselectedLabelStyle: const TextStyle(fontSize: 13),
+                  tabs: [
+                    Tab(text: 'Pending (${pendingList.length})'),
+                    Tab(text: 'History (${historyList.length})'),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 320,
+                  child: TabBarView(
+                    children: [
+                      pendingList.isEmpty
+                          ? const _AdminEmptyState(
+                              icon: Icons.verified_rounded,
+                              title: 'All clear',
+                              subtitle: 'No pending payout requests.',
+                            )
+                          : ListView(
+                              children: pendingList
+                                  .map((p) => _PayoutRequestTile(
+                                        request: p,
+                                        canFinance: canFinance,
+                                        onApprove: () => onApprove(p),
+                                        onReject: () => onReject(p),
+                                      ))
+                                  .toList(),
+                            ),
+                      historyList.isEmpty
+                          ? const _AdminEmptyState(
+                              icon: Icons.history_rounded,
+                              title: 'No history',
+                              subtitle:
+                                  'Approved and rejected payouts appear here.',
+                            )
+                          : ListView(
+                              children: historyList
+                                  .map((p) => _PayoutHistoryTile(request: p))
+                                  .toList(),
+                            ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PayoutRequestTile extends StatelessWidget {
+  const _PayoutRequestTile({
+    required this.request,
+    required this.canFinance,
+    required this.onApprove,
+    required this.onReject,
+  });
+
+  final AdminPayoutRequest request;
+  final bool canFinance;
+  final VoidCallback onApprove;
+  final VoidCallback onReject;
+
+  @override
+  Widget build(BuildContext context) {
+    final user =
+        request.displayName ?? request.publicUserId ?? request.userId;
+    final date = request.requestedAt != null
+        ? '${request.requestedAt!.month}/${request.requestedAt!.day}/${request.requestedAt!.year}'
+        : '';
+    return _AdminListTile(
+      icon: Icons.payments_rounded,
+      title: '$user — \$${request.amountUsd.toStringAsFixed(2)}',
+      subtitle:
+          '${request.method.toUpperCase()} · ${request.accountDetails}'
+          '${date.isNotEmpty ? ' · $date' : ''}',
+      trailing: canFinance
+          ? Wrap(
+              spacing: 8,
+              children: [
+                OutlinedButton(
+                  onPressed: onReject,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _kRed,
+                    side: const BorderSide(color: _kRed),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 8),
+                    textStyle: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w700),
+                  ),
+                  child: const Text('Reject'),
+                ),
+                FilledButton(
+                  onPressed: onApprove,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _kGreen,
+                    foregroundColor: Colors.black87,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 8),
+                    textStyle: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w700),
+                  ),
+                  child: const Text('Approve'),
+                ),
+              ],
+            )
+          : const _RoleChip(label: 'view only'),
+    );
+  }
+}
+
+class _PayoutHistoryTile extends StatelessWidget {
+  const _PayoutHistoryTile({required this.request});
+  final AdminPayoutRequest request;
+
+  @override
+  Widget build(BuildContext context) {
+    final isApproved = request.isApproved;
+    final statusColor = isApproved ? Colors.greenAccent : Colors.redAccent;
+    final user =
+        request.displayName ?? request.publicUserId ?? request.userId;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _kBg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _kBorder),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 6,
+            height: 40,
+            decoration: BoxDecoration(
+              color: statusColor,
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$user — \$${request.amountUsd.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                      color: _kTxt,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${request.method.toUpperCase()} · ${request.status.toUpperCase()}',
+                  style: TextStyle(color: statusColor, fontSize: 11),
+                ),
+                if (request.adminNote != null &&
+                    request.adminNote!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Note: ${request.adminNote}',
+                    style: const TextStyle(color: _kMuted, fontSize: 11),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (request.requestedAt != null)
+            Text(
+              '${request.requestedAt!.month}/${request.requestedAt!.day}/${request.requestedAt!.year}',
+              style: const TextStyle(color: _kMuted, fontSize: 11),
+            ),
+        ],
+      ),
+    );
+  }
+}
 
 class _WithdrawalTabCard extends StatelessWidget {
   const _WithdrawalTabCard({

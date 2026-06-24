@@ -802,6 +802,58 @@ class AdminWithdrawalRequest {
   }
 }
 
+// AdminPayoutRequest — host-income payout request from payout_requests table
+class AdminPayoutRequest {
+  const AdminPayoutRequest({
+    required this.id,
+    required this.userId,
+    required this.amountUsd,
+    required this.method,
+    required this.accountDetails,
+    required this.status,
+    this.publicUserId,
+    this.displayName,
+    this.adminNote,
+    this.requestedAt,
+    this.reviewedAt,
+    this.reviewedBy,
+  });
+
+  final String id;
+  final String userId;
+  final String? publicUserId;
+  final String? displayName;
+  final double amountUsd;
+  final String method;
+  final String accountDetails;
+  final String status;
+  final String? adminNote;
+  final DateTime? requestedAt;
+  final DateTime? reviewedAt;
+  final String? reviewedBy;
+
+  bool get isPending  => status == 'pending';
+  bool get isApproved => status == 'approved';
+  bool get isRejected => status == 'rejected';
+
+  factory AdminPayoutRequest.fromJson(Map<String, dynamic> json) {
+    return AdminPayoutRequest(
+      id:             json['id']?.toString() ?? '',
+      userId:         json['user_id']?.toString() ?? '',
+      publicUserId:   json['public_user_id']?.toString(),
+      displayName:    json['display_name']?.toString(),
+      amountUsd:      _doubleValue(json['amount_usd']) ?? 0,
+      method:         json['method']?.toString() ?? '-',
+      accountDetails: json['account_details']?.toString() ?? '-',
+      status:         json['status']?.toString() ?? 'pending',
+      adminNote:      json['admin_note']?.toString(),
+      requestedAt:    _dateValue(json['requested_at']),
+      reviewedAt:     _dateValue(json['reviewed_at']),
+      reviewedBy:     json['reviewed_by']?.toString(),
+    );
+  }
+}
+
 class AdminBdReportRow {
   const AdminBdReportRow({
     required this.approvedCount,
