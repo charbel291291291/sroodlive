@@ -40,6 +40,7 @@ import '../services/room_synced_music_service.dart';
 import '../../messages/screens/messages_screen.dart';
 import '../../messages/services/private_message_service.dart';
 import '../../moderation/services/moderation_service.dart';
+import '../../moderation/widgets/report_reason_sheet.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 import '../models/room_reaction.dart';
 import '../widgets/reaction_picker_sheet.dart';
@@ -1373,6 +1374,25 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
           behavior: SnackBarBehavior.floating,
         ));
       }
+    }
+  }
+
+  Future<void> _reportChatMessage(RoomMessage msg) async {
+    if (msg.senderId == _currentUserId) return;
+    final isArabic = context.isArabic;
+    final submitted = await ReportReasonSheet.show(
+      context,
+      reportedUserId: msg.senderId,
+      roomId: widget.room.id,
+      isArabic: isArabic,
+    );
+    if (submitted == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(isArabic
+            ? 'تم إرسال البلاغ إلى فريق الإشراف.'
+            : 'Report sent to moderation.'),
+        behavior: SnackBarBehavior.floating,
+      ));
     }
   }
 
@@ -3462,7 +3482,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                     isArabic: context.isArabic,
                     onProfileTap: _openUserProfileSheet,
                     bottomPad: 116 + bottomPad + kbHeight,
+                    currentUserId: _currentUserId ?? '',
                     onRemoveTap: _canRemoveMessages ? _removeMessage : null,
+                    onReportTap: _reportChatMessage,
                   ),
                 ),
               ],
@@ -5680,12 +5702,14 @@ class _ChatBubbleRow extends StatefulWidget {
     required this.isArabic,
     this.onProfileTap,
     this.onRemoveTap,
+    this.onReportTap,
   });
 
   final RoomMessage message;
   final bool isArabic;
   final VoidCallback? onProfileTap;
   final VoidCallback? onRemoveTap;
+  final VoidCallback? onReportTap;
 
   @override
   State<_ChatBubbleRow> createState() => _ChatBubbleRowState();
@@ -5805,10 +5829,65 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
         ],
       ),
     );
-    if (widget.onRemoveTap != null) {
-      return GestureDetector(onLongPress: widget.onRemoveTap, child: bubble);
-    }
-    return bubble;
+    final hasRemove = widget.onRemoveTap != null;
+    final hasReport = widget.onReportTap != null;
+
+    if (!hasRemove && !hasReport) return bubble;
+
+    return GestureDetector(
+      onLongPress: () {
+        if (hasRemove && hasReport) {
+          _showMessageActions(context);
+        } else if (hasRemove) {
+          widget.onRemoveTap!();
+        } else {
+          widget.onReportTap!();
+        }
+      },
+      child: bubble,
+    );
+  }
+
+  void _showMessageActions(BuildContext context) {
+    final isArabic = context.isArabic;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF1A0D2E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (widget.onRemoveTap != null)
+              ListTile(
+                leading: const Icon(Icons.delete_rounded, color: Colors.redAccent),
+                title: Text(
+                  isArabic ? 'حذف الرسالة' : 'Remove message',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  widget.onRemoveTap!();
+                },
+              ),
+            if (widget.onReportTap != null)
+              ListTile(
+                leading: const Icon(Icons.flag_rounded, color: Color(0xFFF59E0B)),
+                title: Text(
+                  isArabic ? 'إبلاغ عن المستخدم' : 'Report user',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  widget.onReportTap!();
+                },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildAvatar(VipSpec prestige, RoomMessage msg, int vipLevel) {
@@ -8599,14 +8678,18 @@ class _RoomChatFeed extends StatefulWidget {
     required this.isArabic,
     required this.onProfileTap,
     required this.bottomPad,
+    required this.currentUserId,
     this.onRemoveTap,
+    this.onReportTap,
   });
 
   final List<RoomMessage> chatMessages;
   final bool isArabic;
   final ValueChanged<String> onProfileTap;
   final double bottomPad;
+  final String currentUserId;
   final ValueChanged<RoomMessage>? onRemoveTap;
+  final ValueChanged<RoomMessage>? onReportTap;
 
   @override
   State<_RoomChatFeed> createState() => _RoomChatFeedState();
@@ -8672,6 +8755,11 @@ class _RoomChatFeedState extends State<_RoomChatFeed> {
                 msg.isSystem ? null : () => widget.onProfileTap(msg.senderId),
             onRemoveTap: (!msg.isSystem && !msg.isRemoved && widget.onRemoveTap != null)
                 ? () => widget.onRemoveTap!(msg)
+                : null,
+            onReportTap: (!msg.isSystem && !msg.isRemoved &&
+                    msg.senderId != widget.currentUserId &&
+                    widget.onReportTap != null)
+                ? () => widget.onReportTap!(msg)
                 : null,
           );
         },
