@@ -1387,6 +1387,21 @@ class _PremiumProfileHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Avatar is the dominant element on the right. It scales with the card
+        // width but is clamped so it never crushes the left content on small
+        // phones nor balloons on tablets.
+        final maxW = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : 360.0;
+        final avatarZone = (maxW * 0.37).clamp(126.0, 158.0);
+        return _buildCard(context, avatarZone);
+      },
+    );
+  }
+
+  Widget _buildCard(BuildContext context, double avatarZone) {
     final textAlign = isArabic ? TextAlign.right : TextAlign.left;
     final crossAxisAlignment = isArabic
         ? CrossAxisAlignment.end
@@ -1663,58 +1678,23 @@ class _PremiumProfileHero extends StatelessWidget {
                           if (vipLevel > 0) VipBadge(vipLevel: vipLevel),
                         ],
                       ),
-                    const SizedBox(height: 5),
-                    // Charm + Wealth — matched luxury pair on one row
-                    if (charmLevel != null || wealthLevel != null)
-                      Wrap(
-                        alignment: isArabic
-                            ? WrapAlignment.end
-                            : WrapAlignment.start,
-                        spacing: 6,
-                        runSpacing: 4,
-                        children: [
-                          if (charmLevel != null)
-                            _LuxuryLevelChip(
-                              icon: Icons.favorite_rounded,
-                              label: isArabic ? 'سحر' : 'Charm',
-                              level: charmLevel!,
-                              gradientColors: const [
-                                Color(0xFF7A1250),
-                                Color(0xFFB8236E),
-                                Color(0xFFE0449A),
-                              ],
-                              glowColor: const Color(0xFFE0449A),
-                              highlightColor: const Color(0xFFFFB3E6),
-                            ),
-                          if (wealthLevel != null)
-                            _LuxuryLevelChip(
-                              icon: Icons.diamond_rounded,
-                              label: isArabic ? 'ثروة' : 'Wealth',
-                              level: wealthLevel!,
-                              gradientColors: const [
-                                Color(0xFF6B4800),
-                                Color(0xFFA87000),
-                                Color(0xFFD4A017),
-                              ],
-                              glowColor: const Color(0xFFD4A017),
-                              highlightColor: const Color(0xFFFFF0B3),
-                            ),
-                        ],
-                      ),
-                    // Gender chip — separate row
-                    if (ProfileGenderChip.isKnown(gender)) ...[
-                      const SizedBox(height: 4),
-                      ProfileGenderChip(gender: gender, isArabic: isArabic),
-                    ],
-                    // Bio — subtle top rule, softer text
+                    const SizedBox(height: 8),
+                    // Charm + Wealth + Gender — equal compact square chips on
+                    // ONE row (replaces the old stacked full-width pills).
+                    _buildStatChipRow(),
+                    // Bottom status / bio pill — dark glass, full-width-ish.
                     Container(
+                      width: double.infinity,
                       margin: const EdgeInsets.only(top: 10),
-                      padding: const EdgeInsets.only(top: 9),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 11,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
-                        border: Border(
-                          top: BorderSide(
-                            color: Colors.white.withValues(alpha: 0.07),
-                          ),
+                        color: Colors.black.withValues(alpha: 0.26),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: const Color(0xFFF0C15A).withValues(alpha: 0.20),
                         ),
                       ),
                       child: Text(
@@ -1725,10 +1705,10 @@ class _PremiumProfileHero extends StatelessWidget {
                         style: TextStyle(
                           color: const Color(
                             0xFFBCAED6,
-                          ).withValues(alpha: 0.70),
+                          ).withValues(alpha: 0.78),
                           fontSize: 11.5,
                           fontWeight: FontWeight.w500,
-                          height: 1.45,
+                          height: 1.35,
                           letterSpacing: 0.1,
                         ),
                       ),
@@ -1738,7 +1718,7 @@ class _PremiumProfileHero extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               // Avatar zone with soft premium glow
-              _buildAvatarZone(),
+              _buildAvatarZone(avatarZone),
             ],
           ),
         ],
@@ -1746,12 +1726,68 @@ class _PremiumProfileHero extends StatelessWidget {
     );
   }
 
-  Widget _buildAvatarZone() {
-    const zoneWidth = 132.0;
-    const glowDiam = 100.0;
+  // Charm / Wealth / Gender as equal-width compact chips on a single row.
+  // Only the chips whose data exists are shown; an empty list renders nothing.
+  Widget _buildStatChipRow() {
+    final chips = <Widget>[];
+
+    if (charmLevel != null) {
+      chips.add(
+        _HeroStatChip(
+          icon: Icons.favorite_rounded,
+          label: isArabic ? 'سحر' : 'Charm',
+          value: '$charmLevel',
+          colorA: const Color(0xFFE0449A),
+          colorB: const Color(0xFF7A1250),
+        ),
+      );
+    }
+    if (wealthLevel != null) {
+      chips.add(
+        _HeroStatChip(
+          icon: Icons.diamond_rounded,
+          label: isArabic ? 'ثروة' : 'Wealth',
+          value: '$wealthLevel',
+          colorA: const Color(0xFFD4A017),
+          colorB: const Color(0xFF6B4800),
+        ),
+      );
+    }
+    if (ProfileGenderChip.isKnown(gender)) {
+      final male = gender.trim().toLowerCase() == 'male';
+      chips.add(
+        _HeroStatChip(
+          icon: male ? Icons.male_rounded : Icons.female_rounded,
+          label: isArabic ? 'الجنس' : 'Gender',
+          value: male
+              ? (isArabic ? 'ذكر' : 'Male')
+              : (isArabic ? 'أنثى' : 'Female'),
+          colorA: male ? const Color(0xFF3B9BFF) : const Color(0xFFFF5C8A),
+          colorB: male ? const Color(0xFF1B4E8A) : const Color(0xFF8A2350),
+        ),
+      );
+    }
+
+    if (chips.isEmpty) return const SizedBox.shrink();
+
+    final row = <Widget>[];
+    for (var i = 0; i < chips.length; i++) {
+      row.add(Expanded(child: chips[i]));
+      if (i < chips.length - 1) row.add(const SizedBox(width: 7));
+    }
+
+    return Row(
+      textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+      children: row,
+    );
+  }
+
+  Widget _buildAvatarZone(double zone) {
+    final zoneWidth = zone;
+    final glowDiam = zone * 0.76;
     const cameraSize = 31.0; // slightly smaller, cleaner
     const cameraIcon = 15.0;
-    const frameBox = 132.0;
+    final frameBox = zone;
 
     // The premium webp VIP frame is the single frame when the user has no
     // custom frame selected. Per-tier calibration sizes/centres the avatar so
@@ -1762,7 +1798,7 @@ class _PremiumProfileHero extends StatelessWidget {
     final frameLayout = VipFrameLayout.of(vipLevel);
     final avatarRadius = showWebpFrame
         ? (frameBox * frameLayout.avatarFillRatio) / 2
-        : 46.0;
+        : zone * 0.35;
     final avatarDy = showWebpFrame
         ? frameBox * frameLayout.avatarDyFraction
         : 0.0;
@@ -3266,145 +3302,86 @@ class _GoldMiniButton extends StatelessWidget {
   }
 }
 
-// Premium rectangular chip — 3-stop vertical gradient, gloss strip, glow shadow.
-// Used for Charm and Wealth level display in the profile hero card.
-class _LuxuryLevelChip extends StatelessWidget {
-  const _LuxuryLevelChip({
+
+// Compact square stat chip used on a single row in the profile hero for
+// Charm / Wealth / Gender. Vertical layout (icon → label → value) keeps each
+// chip narrow so three fit side by side without overflow on small phones.
+class _HeroStatChip extends StatelessWidget {
+  const _HeroStatChip({
     required this.icon,
     required this.label,
-    required this.level,
-    required this.gradientColors,
-    required this.glowColor,
-    required this.highlightColor,
+    required this.value,
+    required this.colorA,
+    required this.colorB,
   });
 
   final IconData icon;
   final String label;
-  final int level;
-  final List<Color> gradientColors; // 3 stops: dark → mid → light
-  final Color glowColor;
-  final Color highlightColor;
+  final String value;
+  final Color colorA; // lit / highlight tone
+  final Color colorB; // deep / shadow tone
 
   @override
   Widget build(BuildContext context) {
-    const h = 26.0;
-    const br = 8.0;
-
     return Container(
-      height: h,
-      constraints: const BoxConstraints(minWidth: 56, maxWidth: 100),
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(br),
+        borderRadius: BorderRadius.circular(12),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          // reversed: light top-left (lit surface) → dark bottom-right (shadow edge)
-          colors: gradientColors.reversed.toList(),
-          stops: const [0.0, 0.55, 1.0],
+          colors: [
+            Color.lerp(colorA, Colors.white, 0.18)!,
+            colorA,
+            colorB,
+          ],
+          stops: const [0.0, 0.5, 1.0],
         ),
         border: Border.all(
-          color: highlightColor.withValues(alpha: 0.50),
+          color: Colors.white.withValues(alpha: 0.30),
           width: 1.0,
         ),
         boxShadow: [
           BoxShadow(
-            color: glowColor.withValues(alpha: 0.55),
-            blurRadius: 10,
+            color: colorA.withValues(alpha: 0.42),
+            blurRadius: 9,
             offset: const Offset(0, 3),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.45),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Stack(
-        clipBehavior: Clip.hardEdge,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Top-left gloss shine
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: h * 0.42,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(br),
-                ),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.white.withValues(alpha: 0.38),
-                    Colors.white.withValues(alpha: 0.0),
-                  ],
-                ),
+          Icon(icon, size: 15, color: Colors.white),
+          const SizedBox(height: 1),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              maxLines: 1,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.88),
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                height: 1.0,
+                letterSpacing: 0.1,
               ),
             ),
           ),
-          // Bottom shadow edge (depth)
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: h * 0.28,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(br),
-                ),
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.28),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          // Content — centered vertically and horizontally
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 7),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Icon(icon, size: 10, color: highlightColor),
-                  const SizedBox(width: 3),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      color: highlightColor.withValues(alpha: 0.92),
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.2,
-                      height: 1.0,
-                    ),
-                  ),
-                  const SizedBox(width: 3),
-                  Text(
-                    '$level',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.0,
-                      height: 1.0,
-                      shadows: [
-                        Shadow(
-                          color: glowColor.withValues(alpha: 0.60),
-                          blurRadius: 4,
-                        ),
-                        const Shadow(color: Colors.black38, blurRadius: 2),
-                      ],
-                    ),
-                  ),
-                ],
+          const SizedBox(height: 1),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+                height: 1.0,
+                shadows: [Shadow(color: Colors.black38, blurRadius: 2)],
               ),
             ),
           ),
