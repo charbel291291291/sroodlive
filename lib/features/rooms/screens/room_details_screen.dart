@@ -37,7 +37,6 @@ import '../widgets/room_mini_player.dart';
 import '../services/room_music_service.dart';
 import '../services/room_music_upload_service.dart';
 import '../services/room_synced_music_service.dart';
-import '../../games/screens/srood_loto_screen.dart';
 import '../../messages/screens/messages_screen.dart';
 import '../../messages/services/private_message_service.dart';
 import '../../moderation/services/moderation_service.dart';
@@ -136,6 +135,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   bool _visualEnabled = true;
   Map<String, dynamic>? _activeRedEnvelope;
   bool _claimingEnvelope = false;
+  bool _isSeatMovePending = false;
   bool _showLuckyBagEntrance = false;
   int? _luckyBagWinCoins;
   final Set<String> _openedLuckyBagIds = {};
@@ -1947,6 +1947,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   }
 
   Future<void> _moveMyselfToSeat(int seatNumber) async {
+    if (_isSeatMovePending) return;
+    setState(() => _isSeatMovePending = true);
+
     try {
       final myMember = _myMember;
 
@@ -1984,9 +1987,31 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     } catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      final msg = error.toString();
+      final isArabic = context.isArabic;
+
+      final String displayMsg;
+      if (msg.contains('seat_taken') || msg.contains('already taken') || msg.contains('23505')) {
+        displayMsg = isArabic
+            ? '\u0647\u0630\u0627 \u0627\u0644\u0645\u0642\u0639\u062f \u0623\u0635\u0628\u062d \u0645\u062d\u062c\u0648\u0632\u0627\u064b. \u0627\u062e\u062a\u0631 \u0645\u0642\u0639\u062f\u0627\u064b \u0622\u062e\u0631.'
+            : 'This seat was just taken. Please choose another seat.';
+        // Refresh so the UI reflects who now holds the seat.
+        _loadMembers(showLoading: false);
+      } else if (msg.contains('force_muted')) {
+        displayMsg = isArabic
+            ? '\u0644\u0642\u062f \u062a\u0645 \u0643\u062a\u0645\u0643 \u0645\u0646 \u0642\u0628\u0644 \u0627\u0644\u0645\u0636\u064a\u0641.'
+            : 'You have been muted from speaking by the host.';
+      } else if (msg.contains('banned_from_room')) {
+        displayMsg = isArabic ? '\u0623\u0646\u062a \u0645\u062d\u0638\u0648\u0631 \u0645\u0646 \u0647\u0630\u0647 \u0627\u0644\u063a\u0631\u0641\u0629.' : 'You are banned from this room.';
+      } else if (msg.contains('not_in_room')) {
+        displayMsg = isArabic ? '\u0623\u0646\u062a \u0644\u0633\u062a \u0639\u0636\u0648\u0627\u064b \u0646\u0634\u0637\u0627\u064b \u0641\u064a \u0647\u0630\u0647 \u0627\u0644\u063a\u0631\u0641\u0629.' : 'You are not an active member of this room.';
+      } else {
+        displayMsg = isArabic ? '\u062d\u062f\u062b \u062e\u0637\u0623. \u062d\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.' : 'Something went wrong. Please try again.';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(displayMsg)));
+    } finally {
+      if (mounted) setState(() => _isSeatMovePending = false);
     }
   }
 
@@ -3559,22 +3584,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             ),
           ),
 
-          // -- 6. Srood Loto side shortcut (lower-right / lower-left for RTL) --
-          // Positioned above the chat overlay so it never blocks messages.
-          Positioned(
-            right: context.isArabic ? null : 0,
-            left: context.isArabic ? 0 : null,
-            bottom: 280 + bottomPad + kbHeight,
-            child: _LotoFloatingButton(
-              isArabic: context.isArabic,
-              onTap: () => Navigator.of(context, rootNavigator: true).push(
-                MaterialPageRoute<void>(
-                  builder: (_) =>
-                      SroodLotoScreen(isArabic: context.isArabic),
-                ),
-              ),
-            ),
-          ),
+          // -- 6. Srood Loto side shortcut removed from room UI --
         ],
       ),
           ), // Scaffold
@@ -4055,79 +4065,6 @@ class _MiniRoomStatusPill extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// -- Srood Loto floating button ------------------------------------------------
-
-class _LotoFloatingButton extends StatelessWidget {
-  const _LotoFloatingButton({
-    required this.isArabic,
-    required this.onTap,
-  });
-
-  final bool isArabic;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    // Side-tab pill: attached flush to the screen edge with a rounded inward corner.
-    final radius = isArabic
-        ? const BorderRadius.only(
-            topRight: Radius.circular(14),
-            bottomRight: Radius.circular(14),
-          )
-        : const BorderRadius.only(
-            topLeft: Radius.circular(14),
-            bottomLeft: Radius.circular(14),
-          );
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 38,
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF3A0D6E), Color(0xFF1E0842)],
-          ),
-          borderRadius: radius,
-          border: Border.all(
-            color: const Color(0xFFF0C15A).withValues(alpha: 0.50),
-            width: 1.0,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF8B26D9).withValues(alpha: 0.40),
-              blurRadius: 14,
-              spreadRadius: -2,
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.emoji_events_rounded,
-              color: Color(0xFFF0C15A),
-              size: 16,
-            ),
-            const SizedBox(height: 3),
-            Text(
-              isArabic ? 'Draw' : 'Draw',
-              style: const TextStyle(
-                color: Color(0xFFF0C15A),
-                fontSize: 8,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.2,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -5321,26 +5258,33 @@ class _LiveSeatBubble extends StatelessWidget {
                           ),
                         ),
 
-                      // 5. Moderator shield badge — top-left, hidden for host/owner.
+                      // 5. Moderator badge — top-left, hidden for host/owner.
                       if (isModerator && !occupiedByHost)
                         Positioned(
                           top: 0,
                           left: 0,
                           child: Container(
-                            width: 16,
-                            height: 16,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 1,
+                            ),
                             decoration: BoxDecoration(
-                              shape: BoxShape.circle,
                               color: const Color(0xFF8B26D9),
+                              borderRadius: BorderRadius.circular(4),
                               border: Border.all(
-                                color: Colors.black.withValues(alpha: 0.85),
-                                width: 1.4,
+                                color: Colors.black.withValues(alpha: 0.70),
+                                width: 1.0,
                               ),
                             ),
-                            child: const Icon(
-                              Icons.shield_rounded,
-                              color: Colors.white,
-                              size: 9,
+                            child: const Text(
+                              'Mod',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 7,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.2,
+                                height: 1.1,
+                              ),
                             ),
                           ),
                         ),

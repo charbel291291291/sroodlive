@@ -394,12 +394,21 @@ class RoomsService {
     await _restrictions.throwIfRestricted('account_ban');
     await _restrictions.throwIfRestricted('room_ban');
 
-    await client
-        .from('room_members')
-        .update({'seat_number': seatNumber})
-        .eq('room_id', roomId)
-        .eq('user_id', user.id)
-        .filter('left_at', 'is', null);
+    // Use the same claim_speaker_seat RPC used by non-hosts so the seat
+    // uniqueness constraint is enforced atomically server-side, preventing
+    // race conditions that surface as 23505 duplicate-key errors.
+    try {
+      await client.rpc(
+        'claim_speaker_seat',
+        params: {'p_room_id': roomId, 'p_seat_number': seatNumber},
+      );
+    } on PostgrestException catch (e) {
+      final code = e.message;
+      if (code.contains('seat_taken') || (e.code == '23505')) {
+        throw Exception('This seat is already taken.');
+      }
+      rethrow;
+    }
   }
 
   Future<void> moveMeToSpeakerSeat({
@@ -435,6 +444,8 @@ class RoomsService {
         throw Exception('You are not an active member of this room.');
       } else if (code.contains('room_closed')) {
         throw Exception('This room is closed.');
+      } else if (e.code == '23505') {
+        throw Exception('This seat is already taken.');
       } else {
         rethrow;
       }
