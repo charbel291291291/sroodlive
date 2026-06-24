@@ -6,8 +6,7 @@ import 'package:flutter/material.dart';
 // reusable legal footer shown under the login / register actions.
 //
 // Content is UI-only. It contains no auth, wallet, VIP, room, or Rocket Crash
-// logic. Placeholders marked TODO must be filled with the real company legal
-// name, support email, and governing law before public launch.
+// logic.
 //
 // NOTE: Copy is intentionally English-only for now (both languages) to avoid
 // any text-encoding issues. RTL layout is still honoured when isArabic is true.
@@ -18,8 +17,10 @@ const Color _kGold = Color(0xFFF0C15A);
 const Color _kMutedText = Color(0xFFB8AECF);
 const Color _kBodyText = Color(0xFFD8CFEA);
 
+const String _kSupportEmail = 'support@sroodlive.com';
+
 // Update this whenever the legal copy changes.
-const String _kLastUpdated = 'Last updated: TODO: Add last updated date';
+const String _kLastUpdated = 'Last updated: June 2025';
 
 /// One titled block of legal copy.
 class _LegalSection {
@@ -266,70 +267,103 @@ class TermsOfServiceScreen extends StatelessWidget {
   static const List<_LegalSection> _sections = [
     _LegalSection('1. Acceptance of Terms', [
       'By creating an account or using Srood Live, you agree to these Terms '
-          'of Service. If you do not agree, please do not use the app.',
+          'of Service and our Privacy Policy. If you do not agree, please do '
+          'not use the app.',
     ]),
-    _LegalSection('2. Eligibility and Account Responsibility', [
-      'You must be old enough to use the app under the laws that apply to '
-          'you. You are responsible for keeping your login details secure and '
-          'for all activity that happens under your account.',
-      'You agree to provide accurate information and to keep it up to date.',
+    _LegalSection('2. Eligibility', [
+      'Srood Live is intended for users who are 18 years of age or older. '
+          'By registering, you confirm that you are at least 18 years old. '
+          'If we learn that a user is under 18, we will suspend or close '
+          'that account.',
     ]),
-    _LegalSection('3. User Profile and Public Content', [
-      'Information you add to your profile, and content you share in the app, '
+    _LegalSection('3. Account Responsibility', [
+      'You are responsible for keeping your login credentials secure and for '
+          'all activity that takes place under your account. Do not share your '
+          'password with anyone.',
+      'You agree to provide accurate, current information when registering '
+          'and to keep it up to date.',
+    ]),
+    _LegalSection('4. User Profile and Public Content', [
+      'Information you add to your profile and content you share in the app '
           'may be visible to other users. Do not post content you do not have '
           'the right to share.',
+      'You are responsible for the content you publish. Content must not '
+          'violate anyone\'s rights or these Terms.',
     ]),
-    _LegalSection('4. Live Rooms and Voice Behavior', [
-      'Srood Live includes live voice rooms. When you speak in a room, your '
-          'voice is transmitted to other participants so the room can '
-          'function. Behave respectfully toward other people in the room.',
+    _LegalSection('5. Live Rooms and Voice Conduct', [
+      'Srood Live includes live voice rooms where your voice is transmitted '
+          'in real time to other participants. You must behave respectfully '
+          'toward all other people in the room at all times.',
+      'Live rooms are not end-to-end encrypted and are not guaranteed to be '
+          'private. Do not share sensitive personal information in public '
+          'voice rooms.',
+      'Room hosts and moderators may mute, remove, or restrict participants '
+          'at their discretion. Their decisions within a room are final.',
     ]),
-    _LegalSection('5. Prohibited Behavior', [
-      'You may not use Srood Live to harass, threaten, or harm others; to '
-          'share illegal, hateful, or sexually exploitative content; to '
-          'impersonate others; or to disrupt the service. We may remove '
-          'content and restrict accounts that break these rules.',
+    _LegalSection('6. Prohibited Behavior', [
+      'You may not use Srood Live to:',
+      '- Harass, threaten, bully, or harm other users.',
+      '- Share illegal, hateful, defamatory, or sexually explicit content.',
+      '- Impersonate any person or organization.',
+      '- Solicit or distribute spam, scams, or unauthorized advertising.',
+      '- Circumvent moderation, bans, or account restrictions.',
+      '- Engage in any activity that violates applicable law.',
+      'We may remove content and restrict, suspend, or permanently ban '
+          'accounts that violate these rules.',
     ]),
-    _LegalSection('6. Coins, Gifts, Wallet, and Virtual Items', [
-      'Coins, gifts, and other virtual items have no real-world monetary '
-          'value, are not redeemable for cash, and are licensed to you for '
-          'use inside the app only. Purchases of virtual items are generally '
-          'final except where a refund is required by law.',
+    _LegalSection('7. Coins, Gifts, Wallet, and Virtual Items', [
+      'Srood Coins, gifts, and other virtual items are digital goods licensed '
+          'to you for use inside the app only. They have no real-world '
+          'monetary value and are not redeemable for cash except where '
+          'expressly permitted by official host-income or withdrawal features '
+          'described in the app.',
+      'Purchases of virtual items are generally final and non-refundable '
+          'except where required by applicable law.',
+      'We reserve the right to modify, adjust, or discontinue virtual items '
+          'or coin balances where necessary to maintain the integrity of the '
+          'platform.',
     ]),
-    _LegalSection('7. VIP and Paid Features', [
-      'Some features may require payment or a VIP subscription. The benefits '
-          'and duration of paid features are described where they are offered. '
-          'Paid features may change over time.',
+    _LegalSection('8. VIP and Paid Features', [
+      'Some features require payment or a VIP subscription. Benefits and '
+          'duration are described at the point of purchase. Paid features and '
+          'their pricing may change over time with reasonable notice.',
     ]),
-    _LegalSection('8. Moderation, Reports, Bans, Mutes, and Restrictions', [
-      'To keep the community safe we may review reports and take action, '
-          'including muting, restricting, suspending, or banning accounts, and '
-          'removing content. Actions may be temporary or, for serious '
-          'violations, longer-lasting.',
+    _LegalSection('9. Moderation, Reports, Suspensions, and Bans', [
+      'To keep the community safe we review reports and may take action '
+          'including muting, restricting, suspending, or permanently banning '
+          'accounts, and removing or hiding content.',
+      'Actions may be temporary or permanent depending on the severity and '
+          'history of the violation. We are not required to provide advance '
+          'notice before taking action.',
+      'You can report users or content through the in-app reporting tools. '
+          'False or abusive reports may themselves result in account action.',
     ]),
-    _LegalSection('9. Safety and Community Standards', [
-      'You are expected to follow our community standards and to help keep '
-          'Srood Live safe by reporting behavior that breaks these Terms.',
+    _LegalSection('10. Safety and Community Standards', [
+      'You are expected to treat all users with respect and to help keep '
+          'Srood Live safe by using the report tools when you encounter '
+          'behavior that breaks these Terms.',
     ]),
-    _LegalSection('10. Service Availability', [
-      'We aim to keep the app available, but we cannot guarantee it will be '
-          'uninterrupted or error-free. The service may be unavailable at '
-          'times for maintenance or reasons outside our control.',
+    _LegalSection('11. Service Availability', [
+      'We aim to keep the app available at all times, but we cannot '
+          'guarantee it will be uninterrupted or error-free. The service may '
+          'be temporarily unavailable for maintenance or for reasons outside '
+          'our control.',
     ]),
-    _LegalSection('11. Changes to the Service', [
-      'We may add, change, or remove features, and we may update these Terms. '
-          'If we make significant changes we will take reasonable steps to let '
-          'you know. Continued use after changes means you accept them.',
+    _LegalSection('12. Changes to the Service and These Terms', [
+      'We may add, change, or remove features and may update these Terms at '
+          'any time. We will take reasonable steps to notify you of significant '
+          'changes. Continued use of the app after changes are posted means '
+          'you accept the updated Terms.',
     ]),
-    _LegalSection('12. Limitation of Liability', [
-      'To the extent permitted by law, Srood Live is provided "as is" and we '
-          'are not liable for indirect or incidental damages arising from your '
-          'use of the app.',
+    _LegalSection('13. Limitation of Liability', [
+      'To the extent permitted by applicable law, Srood Live is provided '
+          '"as is" without warranties of any kind. We are not liable for '
+          'indirect, incidental, or consequential damages arising from your '
+          'use of, or inability to use, the app.',
     ]),
-    _LegalSection('13. Contact', [
-      'Contact:\nTODO: Add support email for Srood Live\n'
-          'TODO: Add company legal name\n'
-          'TODO: Add governing law / jurisdiction',
+    _LegalSection('14. Contact Us', [
+      'If you have questions about these Terms, please contact us:\n'
+          'Email: $_kSupportEmail',
     ]),
   ];
 }
@@ -358,73 +392,108 @@ class PrivacyPolicyScreen extends StatelessWidget {
 
   static const List<_LegalSection> _sections = [
     _LegalSection('1. Information We Collect', [
-      'We collect the information described below to provide and improve the '
-          'app. The exact data depends on how you use Srood Live.',
+      'We collect the categories of information described below in order to '
+          'provide, operate, and improve Srood Live. What we collect depends '
+          'on how you use the app.',
     ]),
     _LegalSection('2. Account Data', [
-      'When you register we collect data such as your email, username, and '
+      'When you register we collect your email address, chosen username, and '
           'display name so we can create and secure your account.',
     ]),
     _LegalSection('3. Profile Data', [
-      'Information you add to your profile, such as your name, photo, and '
-          'other details you choose to share, is stored so it can be shown in '
-          'the app.',
+      'Information you add to your public profile — such as your display '
+          'name, profile photo, bio, and VIP or frame selections — is stored '
+          'so it can be shown to other users in the app.',
     ]),
     _LegalSection('4. Live Room Activity', [
-      'We process information about your activity in live rooms, such as the '
-          'rooms you join and your participation, so rooms can function.',
+      'We record information about rooms you join or host, your role (host, '
+          'moderator, speaker, or listener), seat positions, and participation '
+          'so rooms can function correctly and be moderated.',
     ]),
     _LegalSection('5. Voice and Audio Handling', [
-      'When you speak in a live room, your live voice is transmitted in real '
-          'time to other participants so the room can function. This is a core '
-          'part of how voice rooms work.',
+      'When you speak in a live room, your voice is transmitted in real time '
+          'to other participants using our voice infrastructure. Live audio is '
+          'not end-to-end encrypted. This is a core part of how voice rooms '
+          'work and is required for the service to function.',
     ]),
-    _LegalSection('6. Messages and Reports', [
-      'We process messages you send within the app and any reports you submit '
-          'or that are submitted about you, so we can deliver messages and '
-          'review safety issues.',
+    _LegalSection('6. Chat Messages', [
+      'Room chat messages you send are stored so they can be displayed to '
+          'room participants and, where required for safety, reviewed by '
+          'moderators. Private messages between users are stored to deliver '
+          'them to recipients.',
     ]),
-    _LegalSection('7. Wallet, Coins, Gifts, and Transaction Records', [
-      'We keep records of coin balances, gifts, and related transactions so '
-          'we can operate the wallet, prevent abuse, and maintain accurate '
+    _LegalSection('7. Reports and Moderation Evidence', [
+      'When you submit a report about another user, or a report is submitted '
+          'about you, we store the report details, reason, and a snapshot of '
+          'recent room chat as moderation evidence. This data is used only by '
+          'our moderation team to review safety issues.',
+    ]),
+    _LegalSection('8. Wallet, Coins, Gifts, and Recharge Records', [
+      'We keep records of coin balances, gifts sent and received, recharge '
+          'transactions, and payout requests so we can operate the wallet, '
+          'prevent abuse, resolve disputes, and maintain accurate financial '
           'records.',
     ]),
-    _LegalSection('8. Device and Technical Data', [
-      'We may collect technical information such as device type, app version, '
-          'and basic diagnostic data to keep the app working and to fix '
-          'problems.',
+    _LegalSection('9. Device and Diagnostic Data', [
+      'We may collect technical data such as device type, operating system '
+          'version, app version, and crash or error reports to keep the app '
+          'working, fix problems, and improve performance.',
     ]),
-    _LegalSection('9. How We Use Data', [
-      'We use data to operate and improve the app, personalize your '
-          'experience, communicate with you, keep the service secure, and '
-          'comply with legal obligations.',
+    _LegalSection('10. How We Use Your Data', [
+      'We use your data to:',
+      '- Operate and deliver the features of Srood Live.',
+      '- Personalize your experience (VIP benefits, room history, etc.).',
+      '- Process recharge and payout transactions.',
+      '- Communicate service updates and support responses.',
+      '- Enforce our Terms of Service and community rules.',
+      '- Detect and prevent fraud, abuse, and unauthorized access.',
+      '- Improve app performance and fix technical issues.',
+      '- Comply with applicable legal obligations.',
     ]),
-    _LegalSection('10. Safety, Moderation, and Fraud Prevention', [
-      'We use data to detect and respond to abuse, enforce our rules, review '
-          'reports, and help prevent fraud and other harm.',
+    _LegalSection('11. Safety, Moderation, and Fraud Prevention', [
+      'We use data — including chat snapshots, room activity, and report '
+          'history — to review reported behavior, enforce our rules, and '
+          'protect users from harm. This processing is necessary to maintain '
+          'a safe community.',
     ]),
-    _LegalSection('11. Data Sharing with Service Providers', [
-      'We may share data with trusted service providers who help us operate '
-          'the app, such as hosting and real-time voice infrastructure. They '
-          'may only use the data to provide their services to us.',
+    _LegalSection('12. Data Sharing', [
+      'We do not sell your personal data. We may share data with:',
+      '- Trusted infrastructure and hosting providers who help us run the '
+          'app (such as database and real-time voice services). They may only '
+          'use data to provide their services to us.',
+      '- Payment and recharge partners where required to process '
+          'transactions.',
+      '- Law enforcement or regulators where we are required to do so by '
+          'applicable law, or where necessary to protect users from serious '
+          'harm.',
     ]),
-    _LegalSection('12. Data Retention', [
-      'We keep data for as long as needed to provide the app, meet legal '
-          'requirements, resolve disputes, and enforce our agreements.',
+    _LegalSection('13. Data Retention', [
+      'We keep account and profile data for as long as your account is '
+          'active and for a reasonable period after account deletion.',
+      'Moderation evidence and reports are kept as long as necessary to '
+          'resolve the matter and protect against future harm.',
+      'Transaction and wallet records are kept as required for financial '
+          'record-keeping and legal compliance.',
+      'You may request deletion of your account and associated data. Certain '
+          'records required by law or for dispute resolution will be retained '
+          'for the period required.',
     ]),
-    _LegalSection('13. User Choices and Deletion Requests', [
-      'You can update certain profile information in the app. You may request '
-          'deletion of your account and associated data, subject to records '
-          'we must keep by law.',
+    _LegalSection('14. Your Rights', [
+      'You can update most profile information directly in the app. You may '
+          'contact us to request access to, correction of, or deletion of '
+          'personal data we hold about you, subject to legal retention '
+          'requirements.',
     ]),
-    _LegalSection('14. Children / Minors', [
-      'TODO: Add minimum age and children/minors policy for Srood Live. The '
-          'app is not intended for users under the required minimum age.',
+    _LegalSection('15. Age Restriction', [
+      'Srood Live is strictly for users aged 18 and over. We do not '
+          'knowingly collect personal data from anyone under 18. If you '
+          'believe a user under 18 is using the app, please report it '
+          'through the in-app report tools or contact us directly.',
     ]),
-    _LegalSection('15. Contact', [
-      'Contact:\nTODO: Add support email for Srood Live\n'
-          'TODO: Add company legal name\n'
-          'TODO: Add governing law / jurisdiction',
+    _LegalSection('16. Contact Us', [
+      'If you have questions about this Privacy Policy or wish to exercise '
+          'your data rights, please contact us:\n'
+          'Email: $_kSupportEmail',
     ]),
   ];
 }
