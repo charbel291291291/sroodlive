@@ -165,6 +165,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   RealtimeChannel? _reactionsChannel;
   RealtimeChannel? _redEnvelopesChannel;
 
+  // -- Closed/locked mic seats --
+  Set<int> _closedSeats = {};
+
 
   static const Duration _giftVisibleDuration = Duration(minutes: 1);
 
@@ -305,6 +308,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     unawaited(_syncedMusic.initialize());
     _musicService.addListener(_onLocalMusicChanged);
     _currentMaxSeats = widget.room.maxSeats <= 0 ? 12 : widget.room.maxSeats;
+    _closedSeats = widget.room.closedSeats.toSet();
     _roomBackgroundUrl = widget.room.backgroundUrl;
     _roomAvatarUrl = widget.room.avatarUrl;
     _roomCoverUrl = widget.room.coverUrl;
@@ -890,6 +894,13 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             if (newMaxSeats != null && newMaxSeats != _currentMaxSeats) {
               _roomLog('[RT-ROOM] applying maxSeats=$newMaxSeats locally');
               setState(() => _currentMaxSeats = newMaxSeats);
+            }
+            final rawClosed = rec['closed_seats'];
+            if (rawClosed is List) {
+              final updated = rawClosed.map((e) => (e as num).toInt()).toSet();
+              if (!setEquals(updated, _closedSeats)) {
+                setState(() => _closedSeats = updated);
+              }
             }
           },
         )
@@ -1771,6 +1782,54 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       return;
     }
 
+    final canManage = _iAmRoomOwner || _iAmHost || _isCurrentUserModerator;
+    final isSeatLocked = _closedSeats.contains(seatNumber);
+
+    // Non-managers cannot enter a locked seat.
+    if (isSeatLocked && !canManage) return;
+
+    // If it's locked and user is a manager, show close/open options only.
+    if (isSeatLocked && canManage) {
+      final confirmed = await showModalBottomSheet<bool>(
+        context: context,
+        backgroundColor: const Color(0xFF12091D),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        builder: (sheetContext) {
+          final isArabic = sheetContext.isArabic;
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isArabic ? 'ميك $seatNumber مغلق' : 'Mic $seatNumber is closed',
+                    textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(backgroundColor: const Color(0xFF1E6B3C)),
+                      onPressed: () => Navigator.of(sheetContext).pop(true),
+                      icon: const Icon(Icons.lock_open_rounded),
+                      label: Text(isArabic ? 'فتح الميكروفون' : 'Open mic'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+      if (confirmed == true) await _toggleSeatClosed(seatNumber);
+      return;
+    }
+
     final selectedMicMoveMember = _iAmHost ? _selectedMicMoveMember : null;
     if (_iAmHost && selectedMicMoveMember != null) {
       setState(() {
@@ -1840,6 +1899,24 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                   ),
                 ),
                 const SizedBox(height: 14),
+                if (canManage) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFFF6B6B),
+                        side: const BorderSide(color: Color(0xFFFF6B6B), width: 1.2),
+                      ),
+                      onPressed: () {
+                        Navigator.of(sheetContext).pop(null);
+                        _toggleSeatClosed(seatNumber);
+                      },
+                      icon: const Icon(Icons.lock_rounded, size: 18),
+                      label: Text(context.isArabic ? '\u0625\u063a\u0644\u0627\u0642 \u0627\u0644\u0645\u064a\u0643\u0631\u0648\u0641\u0648\u0646' : 'Close mic'),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
                 if (_iAmHost && availableMembers.isEmpty)
                   Text(
                     context.isArabic
@@ -1914,6 +1991,22 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       role: 'speaker',
       seatNumber: seatNumber,
     );
+  }
+
+  Future<void> _toggleSeatClosed(int seatNumber) async {
+    if (!(_iAmRoomOwner || _iAmHost || _isCurrentUserModerator)) return;
+    try {
+      final updated = await _roomsService.toggleSeatClosed(
+        widget.room.id,
+        seatNumber,
+      );
+      if (mounted) setState(() => _closedSeats = updated.toSet());
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.isArabic ? 'فشل تغيير حالة الميكروفون' : 'Failed to toggle mic seat')),
+      );
+    }
   }
 
   Future<void> _moveMemberToSeat({
@@ -3439,6 +3532,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                     selectedMoveUserId: _selectedMicMoveMember?.userId,
                     speakingUserIds: _speakingUserIds,
                     moderatorUserIds: _moderatorUserIds,
+                    closedSeats: _closedSeats,
+                    onSeatClosedToggle: _toggleSeatClosed,
                     activePk: _activePk?.isActive == true ? _activePk : null,
                     showPkResult: _showPkResult,
                     pkResult: _showPkResult && _activePk?.isFinished == true
@@ -4085,6 +4180,8 @@ class _LiveRoomStage extends StatelessWidget {
     required this.selectedMoveUserId,
     required this.speakingUserIds,
     required this.moderatorUserIds,
+    required this.closedSeats,
+    required this.onSeatClosedToggle,
     this.activePk,
     this.showPkResult = false,
     this.pkResult,
@@ -4109,6 +4206,8 @@ class _LiveRoomStage extends StatelessWidget {
   final String? selectedMoveUserId;
   final Set<String> speakingUserIds;
   final Set<String> moderatorUserIds;
+  final Set<int> closedSeats;
+  final ValueChanged<int> onSeatClosedToggle;
   final PkSession? activePk;
   final bool showPkResult;
   final PkSession? pkResult;
@@ -4279,6 +4378,7 @@ class _LiveRoomStage extends StatelessWidget {
                 selectedMoveUserId: selectedMoveUserId,
                 speakingUserIds: speakingUserIds,
                 moderatorUserIds: moderatorUserIds,
+                onSeatClosedToggle: onSeatClosedToggle,
                 activePk: activePk,
                 seatReactions: seatReactions,
               ),
@@ -4293,7 +4393,7 @@ class _LiveRoomStage extends StatelessWidget {
     final safeMaxSeats = maxSeats <= 0 ? 12 : maxSeats;
     final seats = List<_StageSeat>.generate(
       safeMaxSeats,
-      (index) => _StageSeat.empty(index + 1),
+      (index) => _StageSeat.empty(index + 1, isLocked: closedSeats.contains(index + 1)),
     );
 
     final stageMembers = members
@@ -4312,6 +4412,7 @@ class _LiveRoomStage extends StatelessWidget {
           member: member,
           isArabic: isArabic,
           supportAmount: supportByUserId[member.userId] ?? 0,
+          isLocked: closedSeats.contains(preferredSeat),
         );
         continue;
       }
@@ -4323,6 +4424,7 @@ class _LiveRoomStage extends StatelessWidget {
           member: member,
           isArabic: isArabic,
           supportAmount: supportByUserId[member.userId] ?? 0,
+          isLocked: closedSeats.contains(emptyIndex + 1),
         );
       }
     }
@@ -4353,6 +4455,7 @@ class _SeatGrid extends StatelessWidget {
     required this.selectedMoveUserId,
     required this.speakingUserIds,
     required this.moderatorUserIds,
+    required this.onSeatClosedToggle,
     this.activePk,
     this.seatReactions = const {},
   });
@@ -4368,6 +4471,7 @@ class _SeatGrid extends StatelessWidget {
   final String? selectedMoveUserId;
   final Set<String> speakingUserIds;
   final Set<String> moderatorUserIds;
+  final ValueChanged<int> onSeatClosedToggle;
   final PkSession? activePk;
   final Map<int, RoomReaction> seatReactions;
 
@@ -4436,6 +4540,7 @@ class _SeatGrid extends StatelessWidget {
                 onOccupiedSeatLongPress: onOccupiedSeatLongPress,
                 onProfileTap: onProfileTap,
                 selectedForMove: row[c].member?.userId == selectedMoveUserId,
+                onSeatClosedToggle: onSeatClosedToggle,
                 pkTeam: pkSeatTeam(
                     row[c].member?.userId ?? '', activePk),
                 activeReaction: seatReactions[row[c].number],
@@ -4895,10 +5000,11 @@ class _StageSeat {
     required this.isMuted,
     required this.isEmpty,
     required this.supportAmount,
+    this.isLocked = false,
     this.member,
   });
 
-  factory _StageSeat.empty(int number) {
+  factory _StageSeat.empty(int number, {bool isLocked = false}) {
     return _StageSeat(
       number: number,
       name: '',
@@ -4906,6 +5012,7 @@ class _StageSeat {
       isMuted: true,
       isEmpty: true,
       supportAmount: 0,
+      isLocked: isLocked,
     );
   }
 
@@ -4914,6 +5021,7 @@ class _StageSeat {
     required RoomMember member,
     required bool isArabic,
     required int supportAmount,
+    bool isLocked = false,
   }) {
     return _StageSeat(
       number: number,
@@ -4922,6 +5030,7 @@ class _StageSeat {
       isMuted: member.isMuted,
       isEmpty: false,
       supportAmount: supportAmount,
+      isLocked: isLocked,
       member: member,
     );
   }
@@ -4931,6 +5040,7 @@ class _StageSeat {
   final String role;
   final bool isMuted;
   final bool isEmpty;
+  final bool isLocked;
   final int supportAmount;
   final RoomMember? member;
 }
@@ -4971,6 +5081,7 @@ class _LiveSeatBubble extends StatelessWidget {
     required this.onOccupiedSeatLongPress,
     required this.onProfileTap,
     required this.selectedForMove,
+    required this.onSeatClosedToggle,
     this.pkTeam,
     this.activeReaction,
   });
@@ -4986,6 +5097,7 @@ class _LiveSeatBubble extends StatelessWidget {
   onOccupiedSeatLongPress;
   final ValueChanged<String> onProfileTap;
   final bool selectedForMove;
+  final ValueChanged<int> onSeatClosedToggle;
   // 'a', 'b', or null - non-null only when PK is active and seat is assigned.
   final String? pkTeam;
   final RoomReaction? activeReaction;
@@ -5102,11 +5214,13 @@ class _LiveSeatBubble extends StatelessWidget {
     // Stack keeps Clip.none so VIP frames render visually larger without
     // contributing to layout height.
     final Widget avatarZone = GestureDetector(
-      onTap: canAssignSeat
-          ? () => onEmptySeatTap(seat.number)
-          : canManageSeat
-              ? () => onOccupiedSeatTap(seat.member!, seat.number)
-              : null,
+      onTap: seat.isLocked
+          ? (isHost ? () => onEmptySeatTap(seat.number) : null)
+          : canAssignSeat
+              ? () => onEmptySeatTap(seat.number)
+              : canManageSeat
+                  ? () => onOccupiedSeatTap(seat.member!, seat.number)
+                  : null,
       onLongPress: canManageSeat
           ? () => onOccupiedSeatLongPress(seat.member!, seat.number)
           : null,
@@ -5121,9 +5235,13 @@ class _LiveSeatBubble extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     // Glass circle - background shows through the empty seat.
-                    color: Colors.white.withValues(alpha: 0.07),
+                    color: seat.isLocked
+                        ? Colors.white.withValues(alpha: 0.04)
+                        : Colors.white.withValues(alpha: 0.07),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.20),
+                      color: seat.isLocked
+                          ? Colors.white.withValues(alpha: 0.12)
+                          : Colors.white.withValues(alpha: 0.20),
                       width: 1.4,
                     ),
                     boxShadow: [
@@ -5137,8 +5255,10 @@ class _LiveSeatBubble extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        Icons.mic_none_rounded,
-                        color: Colors.white.withValues(alpha: 0.48),
+                        seat.isLocked ? Icons.lock_rounded : Icons.mic_none_rounded,
+                        color: seat.isLocked
+                            ? Colors.white.withValues(alpha: 0.30)
+                            : Colors.white.withValues(alpha: 0.48),
                         size: _micSeatIconSize,
                       ),
                       const SizedBox(height: 1),

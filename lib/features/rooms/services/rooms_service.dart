@@ -638,6 +638,16 @@ class RoomsService {
     return Room.fromJson(_singleRow(data));
   }
 
+  /// Toggles a mic seat closed/open. Returns the updated closed_seats list.
+  Future<List<int>> toggleSeatClosed(String roomId, int seatNumber) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'toggle_room_seat_closed',
+      params: {'p_room_id': roomId, 'p_seat_number': seatNumber},
+    );
+    if (data is List) return data.map((e) => (e as num).toInt()).toList();
+    return const [];
+  }
+
   /// Un-closes the user's personal room and returns it with [isClosed] = false.
   Future<Room> reopenMyRoom() async {
     final data = await SupabaseService.requiredClient.rpc('reopen_my_room');

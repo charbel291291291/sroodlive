@@ -17,6 +17,7 @@ class Room {
     this.roomPinEnabled = false,
     this.isPersonalRoom = false,
     this.ownerCountry,
+    this.closedSeats = const [],
   });
 
   final String id;
@@ -36,6 +37,7 @@ class Room {
   final String? coverUrl;
   final String? backgroundUrl;
   final String? avatarUrl;
+  final List<int> closedSeats;
 
   factory Room.fromJson(Map<String, dynamic> json) {
     final rawId = json['id'];
@@ -61,6 +63,10 @@ class Room {
       avatarUrl: json['room_avatar_url']?.toString(),
       ownerCountry: (json['profiles'] as Map<String, dynamic>?)?['country']
           ?.toString(),
+      closedSeats: (json['closed_seats'] as List<dynamic>?)
+              ?.map((e) => (e as num).toInt())
+              .toList() ??
+          const [],
     );
   }
 }
