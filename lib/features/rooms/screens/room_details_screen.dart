@@ -3898,46 +3898,49 @@ class _CompactRoomHeader extends StatelessWidget {
 
                       const SizedBox(width: 8),
 
-                      // Right side: level badge + status pills
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Room Level badge (top row)
-                          _RoomLevelBadge(level: room.roomLevel, levelColor: _levelColor, label: _levelLabel),
-                          const SizedBox(height: 5),
-                          // Status pills (bottom row)
-                          Wrap(
-                            direction: Axis.horizontal,
-                            alignment: WrapAlignment.end,
-                            spacing: 4,
-                            runSpacing: 4,
-                            children: [
-                              _MiniRoomStatusPill(
-                                icon: Icons.people_alt_rounded,
-                                label: memberCount.toString(),
-                                color: const Color(0xFF4ADE80),
-                              ),
-                              _MiniRoomStatusPill(
-                                icon: Icons.event_seat_rounded,
-                                label: '$activeSpeakerCount/${room.maxSeats}',
-                              ),
-                              _MiniRoomStatusPill(
-                                icon: Icons.monetization_on_rounded,
-                                label: walletCoins > 999
-                                    ? '${(walletCoins / 1000).toStringAsFixed(1)}k'
-                                    : walletCoins.toString(),
-                                color: const Color(0xFFF0C15A),
-                              ),
-                              if (isHost)
+                      // Right side: level badge + status pills — constrained so
+                      // Wrap has a finite width and pills wrap to a second row on
+                      // narrow screens instead of overflowing.
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 120),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _RoomLevelBadge(level: room.roomLevel, levelColor: _levelColor, label: _levelLabel),
+                            const SizedBox(height: 5),
+                            Wrap(
+                              direction: Axis.horizontal,
+                              alignment: WrapAlignment.end,
+                              spacing: 4,
+                              runSpacing: 4,
+                              children: [
                                 _MiniRoomStatusPill(
-                                  icon: Icons.admin_panel_settings_rounded,
-                                  label: isArabic ? 'Host' : 'Host',
+                                  icon: Icons.people_alt_rounded,
+                                  label: memberCount.toString(),
+                                  color: const Color(0xFF4ADE80),
+                                ),
+                                _MiniRoomStatusPill(
+                                  icon: Icons.event_seat_rounded,
+                                  label: '$activeSpeakerCount/${room.maxSeats}',
+                                ),
+                                _MiniRoomStatusPill(
+                                  icon: Icons.monetization_on_rounded,
+                                  label: walletCoins > 999
+                                      ? '${(walletCoins / 1000).toStringAsFixed(1)}k'
+                                      : walletCoins.toString(),
                                   color: const Color(0xFFF0C15A),
                                 ),
-                            ],
-                          ),
-                        ],
+                                if (isHost)
+                                  _MiniRoomStatusPill(
+                                    icon: Icons.admin_panel_settings_rounded,
+                                    label: 'Host',
+                                    color: const Color(0xFFF0C15A),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -4643,7 +4646,7 @@ class _SeatGrid extends StatelessWidget {
       // Minimum height = sum of all fixed zones in _LiveSeatBubble so the
       // tile never clips its content on high-density small screens.
       const minBubbleHeight =
-          _kAvatarAreaHeight + 2 + 11 + _micSeatSupportSlotHeight + 12 + 13; // 104 px
+          _kAvatarAreaHeight + 2 + 22 + _micSeatSupportSlotHeight + 12 + 2; // 104 px
       final tileWidth = (constraints.maxWidth - colGap * (cols - 1)) / cols;
       final tileHeight =
           math.max(tileWidth / aspectRatio, minBubbleHeight);
@@ -5617,36 +5620,81 @@ class _LiveSeatBubble extends StatelessWidget {
           ],
         ),
 
-        // -- Zone 2: name - always 14 px -----------------------------------
+        // -- Zone 2: name (11 px) + optional mod badge (11 px) = 22 px ------
+        // Mod badge lives here so it sits immediately under the username.
+        // Zone 5 is reduced to a 2 px spacer to keep total height at 104 px.
         const SizedBox(height: 2),
         SizedBox(
-          height: 11,
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: seat.isEmpty
-                    ? Colors.white.withValues(alpha: 0.38)
-                    : effectiveVipLevel > 0
-                        ? VipVisualStyle.nameColor(effectiveVipLevel, context)
-                        : Colors.white.withValues(alpha: 0.88),
-                shadows: [
-                  const Shadow(
-                      blurRadius: 5,
-                      color: Colors.black87,
-                      offset: Offset(0, 1)),
-                  Shadow(
-                      blurRadius: 10,
-                      color: Colors.black.withValues(alpha: 0.50)),
-                ],
+          height: 22,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                height: 11,
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: seat.isEmpty
+                          ? Colors.white.withValues(alpha: 0.38)
+                          : effectiveVipLevel > 0
+                              ? VipVisualStyle.nameColor(effectiveVipLevel, context)
+                              : Colors.white.withValues(alpha: 0.88),
+                      shadows: [
+                        const Shadow(
+                            blurRadius: 5,
+                            color: Colors.black87,
+                            offset: Offset(0, 1)),
+                        Shadow(
+                            blurRadius: 10,
+                            color: Colors.black.withValues(alpha: 0.50)),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            ),
+              // Mod icon — 11 px slot, always reserved, content only for mods.
+              SizedBox(
+                height: 11,
+                child: (isModerator && !occupiedByHost)
+                    ? Center(
+                        child: Container(
+                          width: 20,
+                          height: 11,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1E043A),
+                            borderRadius: BorderRadius.circular(3),
+                            border: Border.all(
+                              color: const Color(0xFFCB9B14),
+                              width: 0.7,
+                            ),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x44AA44FF),
+                                blurRadius: 4,
+                              ),
+                              BoxShadow(
+                                color: Color(0x33CBA014),
+                                blurRadius: 3,
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.shield_rounded,
+                            size: 8,
+                            color: Color(0xFFCB9B14),
+                          ),
+                        ),
+                      )
+                    : null,
+              ),
+            ],
           ),
         ),
 
@@ -5715,158 +5763,11 @@ class _LiveSeatBubble extends StatelessWidget {
                 ),
         ),
 
-        // -- Zone 5: moderator icon badge - 13 px, host seats exempt --
-        // Icon-only: crown-shield silhouette in deep purple + gold, no text.
-        // Space always reserved so all seat tiles stay the same height.
-        SizedBox(
-          height: 13,
-          child: (isModerator && !occupiedByHost)
-              ? Center(
-                  child: Container(
-                    width: 18,
-                    height: 13,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E043A),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                        color: const Color(0xFFCB9B14),
-                        width: 0.8,
-                      ),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x55AA44FF),
-                          blurRadius: 5,
-                        ),
-                        BoxShadow(
-                          color: Color(0x44CBA014),
-                          blurRadius: 3,
-                        ),
-                      ],
-                    ),
-                    child: const _ModeratorIcon(),
-                  ),
-                )
-              : null,
-        ),
+        // -- Zone 5: 2 px bottom spacer (mod badge moved to Zone 2) ----------
+        const SizedBox(height: 2),
       ],
     );
   }
-}
-
-// -----------------------------------------------------------------------------
-// Moderator icon — crown-shield painted with CustomPainter.
-// No text. Deep purple fill, thin gold border, spark highlight.
-// Size constrained by its parent Container (18 × 13 px).
-// -----------------------------------------------------------------------------
-class _ModeratorIcon extends StatelessWidget {
-  const _ModeratorIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _ModeratorIconPainter(),
-    );
-  }
-}
-
-class _ModeratorIconPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-
-    // ── Shield body ──────────────────────────────────────────────────────────
-    // Shield: a rounded-bottom pentagon shape scaled to the tile.
-    final sw = size.width * 0.68;
-    final sh = size.height * 0.86;
-    final sl = cx - sw / 2;
-    final st = cy - sh / 2 + size.height * 0.02;
-    final sr = sl + sw;
-    final cornerR = sw * 0.20;
-
-    final shieldPath = Path()
-      ..moveTo(cx, st + sh) // bottom tip
-      ..lineTo(sl + sw * 0.12, st + sh * 0.62)
-      ..arcToPoint(Offset(sl, st + sh * 0.36),
-          radius: Radius.circular(cornerR), clockwise: false)
-      ..arcToPoint(Offset(sl + cornerR, st),
-          radius: Radius.circular(cornerR))
-      ..lineTo(sr - cornerR, st)
-      ..arcToPoint(Offset(sr, st + sh * 0.36),
-          radius: Radius.circular(cornerR))
-      ..arcToPoint(Offset(sr - sw * 0.12, st + sh * 0.62),
-          radius: Radius.circular(cornerR), clockwise: false)
-      ..close();
-
-    // Fill
-    canvas.drawPath(
-      shieldPath,
-      Paint()
-        ..color = const Color(0xFF1E043A)
-        ..style = PaintingStyle.fill,
-    );
-
-    // Gold border
-    canvas.drawPath(
-      shieldPath,
-      Paint()
-        ..color = const Color(0xFFCB9B14)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.7,
-    );
-
-    // ── Tiny crown inside shield ─────────────────────────────────────────────
-    final crownColor = const Color(0xFFE8C050);
-    final crownPaint = Paint()
-      ..color = crownColor
-      ..style = PaintingStyle.fill;
-
-    // Crown base rect
-    final crownW = sw * 0.54;
-    final crownH = sh * 0.26;
-    final crownL = cx - crownW / 2;
-    final crownT = st + sh * 0.38;
-    final crownR = crownL + crownW;
-    final crownB = crownT + crownH;
-    canvas.drawRect(Rect.fromLTRB(crownL, crownT + crownH * 0.30, crownR, crownB), crownPaint);
-
-    // Three crown points
-    final pt = crownT;
-    final pointW = crownW / 3;
-    for (var i = 0; i < 3; i++) {
-      final px = crownL + pointW * i;
-      final pw = pointW;
-      final ph = crownH * 0.72;
-      final peakX = px + pw / 2;
-      canvas.drawPath(
-        Path()
-          ..moveTo(px, crownT + ph)
-          ..lineTo(peakX, pt)
-          ..lineTo(px + pw, crownT + ph)
-          ..close(),
-        crownPaint,
-      );
-    }
-
-    // ── Spark / star highlight at top-right of shield ────────────────────────
-    final sparkX = sl + sw * 0.80;
-    final sparkY = st + sh * 0.15;
-    final sparkPaint = Paint()
-      ..color = const Color(0xFFFFE580)
-      ..strokeWidth = 0.7
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-    const sr2 = 1.6;
-    canvas.drawLine(Offset(sparkX, sparkY - sr2), Offset(sparkX, sparkY + sr2), sparkPaint);
-    canvas.drawLine(Offset(sparkX - sr2, sparkY), Offset(sparkX + sr2, sparkY), sparkPaint);
-    canvas.drawLine(
-        Offset(sparkX - sr2 * 0.7, sparkY - sr2 * 0.7), Offset(sparkX + sr2 * 0.7, sparkY + sr2 * 0.7), sparkPaint);
-    canvas.drawLine(
-        Offset(sparkX + sr2 * 0.7, sparkY - sr2 * 0.7), Offset(sparkX - sr2 * 0.7, sparkY + sr2 * 0.7), sparkPaint);
-  }
-
-  @override
-  bool shouldRepaint(_ModeratorIconPainter old) => false;
 }
 
 // -----------------------------------------------------------------------------
