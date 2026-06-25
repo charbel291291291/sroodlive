@@ -250,6 +250,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   int _roomLevel = 1;
   bool _roomIsLocked = false;
   bool _roomIsClosed = false;
+  bool _roomAllowImages = true;
   // Used for image-cache busting when background changes server-side.
   DateTime? _roomUpdatedAt;
   // XP progression
@@ -336,6 +337,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     _roomLevel = widget.room.roomLevel;
     _roomIsLocked = widget.room.isLocked;
     _roomIsClosed = widget.room.isClosed;
+    _roomAllowImages = widget.room.allowImages;
     _roomXp = widget.room.roomXp;
     _xpToday = widget.room.xpToday;
     _xpWeek = widget.room.xpWeek;
@@ -985,6 +987,11 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                 _roomIsClosed = newIsClosed;
               }
 
+              final newAllowImages = rec['allow_images'] as bool?;
+              if (newAllowImages != null && newAllowImages != _roomAllowImages) {
+                _roomAllowImages = newAllowImages;
+              }
+
               // --- images (evict stale cache before assigning new URL) ---
               final updatedAt = rec['updated_at'] as String?;
               final ts = updatedAt != null
@@ -1626,6 +1633,18 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
   Future<void> _sendChatImageMessage() async {
     _roomLog('[RoomImage] _sendChatImageMessage tapped');
+    // Check room-level permission first
+    if (!_roomAllowImages) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(context.isArabic
+            ? 'إرسال الصور معطّل في هذه الغرفة'
+            : 'Sending images is disabled in this room'),
+        backgroundColor: const Color(0xFFE63946),
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
     // Fast path: local cached VIP level is already enough.
     final localVipLevel = _myMember?.effectiveVipLevel ?? 0;
     bool canSend = localVipLevel >= 7;
@@ -1893,6 +1912,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         backgroundUrl: _roomBackgroundUrl,
         avatarUrl: _roomAvatarUrl,
         roomLevel: _roomLevel,
+        allowImages: _roomAllowImages,
         closedSeats: _closedSeats.toList(),
       );
 

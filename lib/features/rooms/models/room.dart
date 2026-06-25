@@ -19,6 +19,7 @@ class Room {
     this.ownerCountry,
     this.closedSeats = const [],
     this.roomLevel = 1,
+    this.allowImages = true,
     this.roomXp = 0,
     this.xpToday = 0,
     this.xpWeek = 0,
@@ -45,6 +46,7 @@ class Room {
   final String? avatarUrl;
   final List<int> closedSeats;
   final int roomLevel;
+  final bool allowImages;
   final int roomXp;
   final int xpToday;
   final int xpWeek;
@@ -80,6 +82,7 @@ class Room {
               .toList() ??
           const [],
       roomLevel: (json['room_level'] as num?)?.toInt() ?? 1,
+      allowImages: json['allow_images'] as bool? ?? true,
       roomXp: (json['room_xp'] as num?)?.toInt() ?? 0,
       xpToday: ((json['xp_today_gift'] as num? ?? 0) +
                 (json['xp_today_passive'] as num? ?? 0)).toInt(),

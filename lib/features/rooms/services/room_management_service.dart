@@ -76,6 +76,7 @@ class RoomManagementService {
     int? maxSeats,
     String? backgroundUrl,
     bool clearBackground = false,
+    bool? allowImages,
   }) async {
     final updates = <String, dynamic>{};
     if (name != null) updates['name'] = name;
@@ -84,6 +85,7 @@ class RoomManagementService {
     if (maxSeats != null) updates['max_seats'] = maxSeats;
     if (backgroundUrl != null) updates['background_url'] = backgroundUrl;
     if (clearBackground) updates['background_url'] = null;
+    if (allowImages != null) updates['allow_images'] = allowImages;
     if (updates.isEmpty) return;
 
     final uid = SupabaseService.requiredClient.auth.currentUser?.id;
@@ -94,6 +96,22 @@ class RoomManagementService {
         .update(updates)
         .eq('id', roomId)
         .eq('owner_id', uid);
+  }
+
+  /// Uploads a cover image to Supabase storage and returns the public URL.
+  Future<String> uploadRoomCover(
+    String roomId,
+    Uint8List imageBytes,
+    String mimeType,
+  ) async {
+    final client = SupabaseService.requiredClient;
+    final path = 'covers/$roomId/${DateTime.now().millisecondsSinceEpoch}.jpg';
+    await client.storage.from('room-backgrounds').uploadBinary(
+          path,
+          imageBytes,
+          fileOptions: FileOptions(contentType: mimeType, upsert: true),
+        );
+    return client.storage.from('room-backgrounds').getPublicUrl(path);
   }
 
   /// Uploads a background image to Supabase storage and returns the public URL.

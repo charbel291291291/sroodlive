@@ -1,13 +1,12 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../models/room.dart';
 import '../services/room_management_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
-/// Premium settings bottom sheet (inspired by Image B).
-///
-/// Owners can edit name, description, and announcement.
-/// All users see the current settings read-only.
 class RoomSettingsSheet extends StatefulWidget {
   const RoomSettingsSheet({
     required this.room,
@@ -28,18 +27,27 @@ class RoomSettingsSheet extends StatefulWidget {
 
 class _RoomSettingsSheetState extends State<RoomSettingsSheet> {
   final _mgmt = const RoomManagementService();
+  final _picker = ImagePicker();
 
   late final TextEditingController _nameCtrl;
   late final TextEditingController _announcementCtrl;
+
   bool _savingName = false;
   bool _savingAnnouncement = false;
   bool _loadingAnnouncement = true;
+  bool _uploadingCover = false;
+  bool _togglingImages = false;
+
+  String? _coverUrl;
+  late bool _allowImages;
 
   @override
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController(text: widget.room.name);
     _announcementCtrl = TextEditingController();
+    _coverUrl = widget.room.coverUrl;
+    _allowImages = widget.room.allowImages;
     _loadAnnouncement();
   }
 
@@ -61,6 +69,32 @@ class _RoomSettingsSheetState extends State<RoomSettingsSheet> {
       }
     } catch (_) {
       if (mounted) setState(() => _loadingAnnouncement = false);
+    }
+  }
+
+  Future<void> _pickAndUploadCover() async {
+    final XFile? file = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1080,
+      maxHeight: 1080,
+      imageQuality: 88,
+    );
+    if (file == null || !mounted) return;
+
+    setState(() => _uploadingCover = true);
+    try {
+      final Uint8List bytes = await file.readAsBytes();
+      final mime = file.mimeType ?? 'image/jpeg';
+      final url = await _mgmt.uploadRoomCover(widget.room.id, bytes, mime);
+      await _mgmt.updateRoom(widget.room.id, coverUrl: url);
+      if (mounted) {
+        setState(() => _coverUrl = url);
+        _showSuccess(context.isArabic ? 'تم تحديث الغلاف' : 'Cover updated');
+      }
+    } catch (e) {
+      if (mounted) _showError(e.toString());
+    } finally {
+      if (mounted) setState(() => _uploadingCover = false);
     }
   }
 
@@ -97,6 +131,22 @@ class _RoomSettingsSheetState extends State<RoomSettingsSheet> {
     }
   }
 
+  Future<void> _toggleAllowImages(bool value) async {
+    setState(() {
+      _allowImages = value;
+      _togglingImages = true;
+    });
+    try {
+      await _mgmt.updateRoom(widget.room.id, allowImages: value);
+    } catch (e) {
+      // Roll back on failure
+      if (mounted) setState(() => _allowImages = !value);
+      if (mounted) _showError(e.toString());
+    } finally {
+      if (mounted) setState(() => _togglingImages = false);
+    }
+  }
+
   void _showSuccess(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -116,11 +166,10 @@ class _RoomSettingsSheetState extends State<RoomSettingsSheet> {
   @override
   Widget build(BuildContext context) {
     final isArabic = context.isArabic;
-    final textDir = isArabic ? TextDirection.rtl : TextDirection.ltr;
     final maxH = MediaQuery.sizeOf(context).height * 0.88;
 
     return Directionality(
-      textDirection: textDir,
+      textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
       child: SafeArea(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxHeight: maxH),
@@ -140,8 +189,7 @@ class _RoomSettingsSheetState extends State<RoomSettingsSheet> {
                 Center(
                   child: Container(
                     margin: const EdgeInsets.only(top: 12, bottom: 4),
-                    width: 40,
-                    height: 4,
+                    width: 40, height: 4,
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.22),
                       borderRadius: BorderRadius.circular(2),
@@ -153,44 +201,37 @@ class _RoomSettingsSheetState extends State<RoomSettingsSheet> {
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                   child: Text(
                     isArabic ? 'إعدادات الغرفة' : 'Settings',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                    ),
+                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900),
                   ),
                 ),
                 Flexible(
                   child: ListView(
-                    padding: EdgeInsets.fromLTRB(
-                      16, 0, 16,
-                      16 + MediaQuery.of(context).viewInsets.bottom,
-                    ),
+                    padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + MediaQuery.of(context).viewInsets.bottom),
                     shrinkWrap: true,
                     children: [
-                      // ── Room Cover (placeholder) ──────────────────────────
+
+                      // ── Room Cover ────────────────────────────────────────
                       _SettingsTile(
                         icon: Icons.image_rounded,
                         label: isArabic ? 'غلاف الغرفة' : 'Room Cover',
-                        trailing: widget.room.coverUrl != null
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.network(
-                                  widget.room.coverUrl!,
-                                  width: 44,
-                                  height: 44,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (ctx, err, stack) =>
-                                      const Icon(Icons.broken_image_rounded,
-                                          size: 24, color: Color(0xFF9E91B8)),
-                                ),
+                        trailing: _uploadingCover
+                            ? const SizedBox(
+                                width: 22, height: 22,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8B26D9)),
                               )
-                            : const Icon(Icons.chevron_right_rounded,
-                                color: Color(0xFF9E91B8)),
-                        onTap: widget.isOwner
-                            ? () => _showComingSoon(
-                                  isArabic ? 'رفع الغلاف' : 'Cover upload')
-                            : null,
+                            : _coverUrl != null
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.network(
+                                      _coverUrl!,
+                                      width: 44, height: 44,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, e, s) => const Icon(
+                                          Icons.broken_image_rounded, size: 24, color: Color(0xFF9E91B8)),
+                                    ),
+                                  )
+                                : const Icon(Icons.chevron_right_rounded, color: Color(0xFF9E91B8)),
+                        onTap: widget.isOwner ? _pickAndUploadCover : null,
                       ),
                       const _SettingsDivider(),
 
@@ -208,13 +249,8 @@ class _RoomSettingsSheetState extends State<RoomSettingsSheet> {
                         _SettingsTile(
                           icon: Icons.label_rounded,
                           label: isArabic ? 'اسم الغرفة' : 'Room Label',
-                          trailing: Text(
-                            widget.room.name,
-                            style: const TextStyle(
-                              color: Color(0xFF9E91B8),
-                              fontSize: 13,
-                            ),
-                          ),
+                          trailing: Text(widget.room.name,
+                              style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 13)),
                         ),
                       const _SettingsDivider(),
 
@@ -232,8 +268,7 @@ class _RoomSettingsSheetState extends State<RoomSettingsSheet> {
                         _SettingsTile(
                           icon: Icons.campaign_rounded,
                           label: isArabic ? 'الإعلان' : 'Announcement',
-                          trailing: const Icon(Icons.chevron_right_rounded,
-                              color: Color(0xFF9E91B8)),
+                          trailing: const Icon(Icons.chevron_right_rounded, color: Color(0xFF9E91B8)),
                         ),
                       const _SettingsDivider(),
 
@@ -246,34 +281,31 @@ class _RoomSettingsSheetState extends State<RoomSettingsSheet> {
                           children: [
                             Text(
                               '${widget.moderatorCount}/20',
-                              style: const TextStyle(
-                                color: Color(0xFFF0C15A),
-                                fontWeight: FontWeight.w900,
-                              ),
+                              style: const TextStyle(color: Color(0xFFF0C15A), fontWeight: FontWeight.w900),
                             ),
                             const SizedBox(width: 4),
-                            const Icon(Icons.chevron_right_rounded,
-                                color: Color(0xFF9E91B8)),
+                            const Icon(Icons.chevron_right_rounded, color: Color(0xFF9E91B8)),
                           ],
                         ),
                         onTap: () => Navigator.of(context).pop('open_admin'),
                       ),
                       const _SettingsDivider(),
 
-                      // ── Send pictures ─────────────────────────────────────
+                      // ── Send pictures toggle ──────────────────────────────
                       _SettingsTile(
                         icon: Icons.photo_rounded,
-                        label: isArabic
-                            ? 'إرسال صور في الغرفة'
-                            : 'Send pictures in the room',
-                        trailing: Switch(
-                          value: true,
-                          onChanged: widget.isOwner
-                              ? (_) => _showComingSoon(
-                                    isArabic ? 'ضبط الصور' : 'Picture settings')
-                              : null,
-                          activeThumbColor: const Color(0xFF8B26D9),
-                        ),
+                        label: isArabic ? 'إرسال صور في الغرفة' : 'Send pictures in the room',
+                        trailing: _togglingImages
+                            ? const SizedBox(
+                                width: 22, height: 22,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8B26D9)),
+                              )
+                            : Switch(
+                                value: _allowImages,
+                                onChanged: widget.isOwner ? _toggleAllowImages : null,
+                                activeThumbColor: const Color(0xFF8B26D9),
+                                activeTrackColor: const Color(0xFF8B26D9).withValues(alpha: 0.35),
+                              ),
                       ),
                       const SizedBox(height: 8),
                     ],
@@ -282,18 +314,6 @@ class _RoomSettingsSheetState extends State<RoomSettingsSheet> {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  void _showComingSoon(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          context.isArabic
-              ? '$feature - قريباً'
-              : '$feature — coming soon',
         ),
       ),
     );
@@ -325,8 +345,7 @@ class _SettingsTile extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 36,
-              height: 36,
+              width: 36, height: 36,
               decoration: BoxDecoration(
                 color: const Color(0xFF8B26D9).withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(10),
@@ -335,14 +354,8 @@ class _SettingsTile extends StatelessWidget {
             ),
             const SizedBox(width: 14),
             Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              child: Text(label,
+                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
             ),
             trailing,
           ],
@@ -357,11 +370,7 @@ class _SettingsDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Divider(
-      height: 1,
-      color: Colors.white.withValues(alpha: 0.07),
-      indent: 50,
-    );
+    return Divider(height: 1, color: Colors.white.withValues(alpha: 0.07), indent: 50);
   }
 }
 
@@ -401,40 +410,28 @@ class _EditableSettingsTileState extends State<_EditableSettingsTile> {
             child: Row(
               children: [
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 36, height: 36,
                   decoration: BoxDecoration(
                     color: const Color(0xFF8B26D9).withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child:
-                      Icon(widget.icon, color: const Color(0xFFD8CFEA), size: 18),
+                  child: Icon(widget.icon, color: const Color(0xFFD8CFEA), size: 18),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
-                  child: Text(
-                    widget.label,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  child: Text(widget.label,
+                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
                 ),
                 Text(
                   widget.controller.text.isNotEmpty
                       ? widget.controller.text
                       : (context.isArabic ? 'لا يوجد' : 'Not set'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      color: Color(0xFF9E91B8), fontSize: 12),
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 12),
                 ),
                 const SizedBox(width: 4),
                 Icon(
-                  _expanded
-                      ? Icons.expand_less_rounded
-                      : Icons.chevron_right_rounded,
+                  _expanded ? Icons.expand_less_rounded : Icons.chevron_right_rounded,
                   color: const Color(0xFF9E91B8),
                 ),
               ],
@@ -453,8 +450,7 @@ class _EditableSettingsTileState extends State<_EditableSettingsTile> {
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
               ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             ),
           ),
           const SizedBox(height: 8),
@@ -464,16 +460,11 @@ class _EditableSettingsTileState extends State<_EditableSettingsTile> {
               onPressed: widget.busy ? null : widget.onSave,
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFF8B26D9),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               child: widget.busy
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
-                    )
+                  ? const SizedBox(width: 18, height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : Text(context.isArabic ? 'حفظ' : 'Save'),
             ),
           ),
@@ -502,12 +493,10 @@ class _MultilineEditableSettingsTile extends StatefulWidget {
   final VoidCallback onSave;
 
   @override
-  State<_MultilineEditableSettingsTile> createState() =>
-      _MultilineEditableSettingsTileState();
+  State<_MultilineEditableSettingsTile> createState() => _MultilineEditableSettingsTileState();
 }
 
-class _MultilineEditableSettingsTileState
-    extends State<_MultilineEditableSettingsTile> {
+class _MultilineEditableSettingsTileState extends State<_MultilineEditableSettingsTile> {
   bool _expanded = false;
 
   @override
@@ -522,43 +511,29 @@ class _MultilineEditableSettingsTileState
             child: Row(
               children: [
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 36, height: 36,
                   decoration: BoxDecoration(
                     color: const Color(0xFF8B26D9).withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child:
-                      Icon(widget.icon, color: const Color(0xFFD8CFEA), size: 18),
+                  child: Icon(widget.icon, color: const Color(0xFFD8CFEA), size: 18),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        widget.label,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      Text(widget.label,
+                          style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
                       if (widget.controller.text.isNotEmpty)
-                        Text(
-                          widget.controller.text,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: Color(0xFF9E91B8), fontSize: 11),
-                        ),
+                        Text(widget.controller.text,
+                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Color(0xFF9E91B8), fontSize: 11)),
                     ],
                   ),
                 ),
                 Icon(
-                  _expanded
-                      ? Icons.expand_less_rounded
-                      : Icons.chevron_right_rounded,
+                  _expanded ? Icons.expand_less_rounded : Icons.chevron_right_rounded,
                   color: const Color(0xFF9E91B8),
                 ),
               ],
@@ -572,19 +547,15 @@ class _MultilineEditableSettingsTileState
             textDirection: context.isArabic ? TextDirection.rtl : TextDirection.ltr,
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
-              hintText: context.isArabic
-                  ? 'اكتب إعلاناً للغرفة…'
-                  : 'Write a room announcement…',
-              hintStyle:
-                  const TextStyle(color: Color(0xFF6B5A8A), fontSize: 13),
+              hintText: context.isArabic ? 'اكتب إعلاناً للغرفة…' : 'Write a room announcement…',
+              hintStyle: const TextStyle(color: Color(0xFF6B5A8A), fontSize: 13),
               filled: true,
               fillColor: Colors.white.withValues(alpha: 0.06),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
               ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             ),
           ),
           const SizedBox(height: 8),
@@ -594,16 +565,11 @@ class _MultilineEditableSettingsTileState
               onPressed: widget.busy ? null : widget.onSave,
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFF8B26D9),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               child: widget.busy
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
-                    )
+                  ? const SizedBox(width: 18, height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : Text(context.isArabic ? 'حفظ الإعلان' : 'Save Announcement'),
             ),
           ),
