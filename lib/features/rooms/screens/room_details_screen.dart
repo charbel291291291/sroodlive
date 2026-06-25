@@ -4646,7 +4646,7 @@ class _SeatGrid extends StatelessWidget {
       // Minimum height = sum of all fixed zones in _LiveSeatBubble so the
       // tile never clips its content on high-density small screens.
       const minBubbleHeight =
-          _kAvatarAreaHeight + 2 + 22 + _micSeatSupportSlotHeight + 12 + 2; // 104 px
+          _kAvatarAreaHeight + 2 + 14 + _micSeatSupportSlotHeight + 12 + 10; // 104 px
       final tileWidth = (constraints.maxWidth - colGap * (cols - 1)) / cols;
       final tileHeight =
           math.max(tileWidth / aspectRatio, minBubbleHeight);
@@ -5620,80 +5620,72 @@ class _LiveSeatBubble extends StatelessWidget {
           ],
         ),
 
-        // -- Zone 2: name (11 px) + optional mod badge (11 px) = 22 px ------
-        // Mod badge lives here so it sits immediately under the username.
-        // Zone 5 is reduced to a 2 px spacer to keep total height at 104 px.
+        // -- Zone 2: name + inline mod capsule = 14 px ----------------------
+        // Shield capsule sits right of the username in the same row.
+        // Zone 5 is 10 px so total stays 104 px (50+2+14+16+12+10).
         const SizedBox(height: 2),
         SizedBox(
-          height: 22,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          height: 14,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              SizedBox(
-                height: 11,
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: seat.isEmpty
-                          ? Colors.white.withValues(alpha: 0.38)
-                          : effectiveVipLevel > 0
-                              ? VipVisualStyle.nameColor(effectiveVipLevel, context)
-                              : Colors.white.withValues(alpha: 0.88),
-                      shadows: [
-                        const Shadow(
-                            blurRadius: 5,
-                            color: Colors.black87,
-                            offset: Offset(0, 1)),
-                        Shadow(
-                            blurRadius: 10,
-                            color: Colors.black.withValues(alpha: 0.50)),
-                      ],
-                    ),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: seat.isEmpty
+                        ? Colors.white.withValues(alpha: 0.38)
+                        : effectiveVipLevel > 0
+                            ? VipVisualStyle.nameColor(effectiveVipLevel, context)
+                            : Colors.white.withValues(alpha: 0.88),
+                    shadows: [
+                      const Shadow(
+                          blurRadius: 5,
+                          color: Colors.black87,
+                          offset: Offset(0, 1)),
+                      Shadow(
+                          blurRadius: 10,
+                          color: Colors.black.withValues(alpha: 0.50)),
+                    ],
                   ),
                 ),
               ),
-              // Mod icon — 11 px slot, always reserved, content only for mods.
-              SizedBox(
-                height: 11,
-                child: (isModerator && !occupiedByHost)
-                    ? Center(
-                        child: Container(
-                          width: 20,
-                          height: 11,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1E043A),
-                            borderRadius: BorderRadius.circular(3),
-                            border: Border.all(
-                              color: const Color(0xFFCB9B14),
-                              width: 0.7,
-                            ),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x44AA44FF),
-                                blurRadius: 4,
-                              ),
-                              BoxShadow(
-                                color: Color(0x33CBA014),
-                                blurRadius: 3,
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.shield_rounded,
-                            size: 8,
-                            color: Color(0xFFCB9B14),
-                          ),
-                        ),
-                      )
-                    : null,
-              ),
+              if (isModerator && !occupiedByHost) ...[
+                const SizedBox(width: 3),
+                Container(
+                  width: 18,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF25063F), Color(0xFF0F041C)],
+                    ),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: Color.fromRGBO(232, 192, 80, 0.65),
+                      width: 0.8,
+                    ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color.fromRGBO(232, 192, 80, 0.25),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.shield_rounded,
+                    size: 11,
+                    color: Color(0xFFFFD86B),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -5763,8 +5755,8 @@ class _LiveSeatBubble extends StatelessWidget {
                 ),
         ),
 
-        // -- Zone 5: 2 px bottom spacer (mod badge moved to Zone 2) ----------
-        const SizedBox(height: 2),
+        // -- Zone 5: 10 px bottom spacer (mod badge moved inline with name) --
+        const SizedBox(height: 10),
       ],
     );
   }
