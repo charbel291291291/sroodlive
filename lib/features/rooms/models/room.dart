@@ -19,6 +19,11 @@ class Room {
     this.ownerCountry,
     this.closedSeats = const [],
     this.roomLevel = 1,
+    this.roomXp = 0,
+    this.xpToday = 0,
+    this.xpWeek = 0,
+    this.dailyStreak = 0,
+    this.streakMultiplier = 1.0,
   });
 
   final String id;
@@ -40,6 +45,11 @@ class Room {
   final String? avatarUrl;
   final List<int> closedSeats;
   final int roomLevel;
+  final int roomXp;
+  final int xpToday;
+  final int xpWeek;
+  final int dailyStreak;
+  final double streakMultiplier;
 
   factory Room.fromJson(Map<String, dynamic> json) {
     final rawId = json['id'];
@@ -70,6 +80,12 @@ class Room {
               .toList() ??
           const [],
       roomLevel: (json['room_level'] as num?)?.toInt() ?? 1,
+      roomXp: (json['room_xp'] as num?)?.toInt() ?? 0,
+      xpToday: ((json['xp_today_gift'] as num? ?? 0) +
+                (json['xp_today_passive'] as num? ?? 0)).toInt(),
+      xpWeek: (json['xp_week'] as num?)?.toInt() ?? 0,
+      dailyStreak: (json['daily_streak'] as num?)?.toInt() ?? 0,
+      streakMultiplier: (json['streak_multiplier'] as num?)?.toDouble() ?? 1.0,
     );
   }
 }
