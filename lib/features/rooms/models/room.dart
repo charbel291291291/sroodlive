@@ -18,6 +18,7 @@ class Room {
     this.isPersonalRoom = false,
     this.ownerCountry,
     this.closedSeats = const [],
+    this.roomCode,
     this.roomLevel = 1,
     this.allowImages = true,
     this.roomXp = 0,
@@ -45,6 +46,7 @@ class Room {
   final String? backgroundUrl;
   final String? avatarUrl;
   final List<int> closedSeats;
+  final String? roomCode;   // 5-digit public display code (null for legacy rooms without the column)
   final int roomLevel;
   final bool allowImages;
   final int roomXp;
@@ -81,6 +83,7 @@ class Room {
               ?.map((e) => (e as num).toInt())
               .toList() ??
           const [],
+      roomCode: json['public_room_code']?.toString(),
       roomLevel: (json['room_level'] as num?)?.toInt() ?? 1,
       allowImages: json['allow_images'] as bool? ?? true,
       roomXp: (json['room_xp'] as num?)?.toInt() ?? 0,

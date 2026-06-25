@@ -1911,6 +1911,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         coverUrl: _roomCoverUrl,
         backgroundUrl: _roomBackgroundUrl,
         avatarUrl: _roomAvatarUrl,
+        roomCode: widget.room.roomCode,
         roomLevel: _roomLevel,
         allowImages: _roomAllowImages,
         closedSeats: _closedSeats.toList(),
@@ -3894,10 +3895,11 @@ class _CompactRoomHeader extends StatelessWidget {
   final String? announcement;
   final VoidCallback? onLevelBadgeTap;
 
-  // Short display form of UUID: last 8 characters, uppercase.
+  // 5-digit public code, or last 6 chars of UUID for legacy rooms.
   String get _shortRoomId {
+    if (room.roomCode != null && room.roomCode!.isNotEmpty) return room.roomCode!;
     final id = room.id.replaceAll('-', '');
-    return id.length > 8 ? id.substring(id.length - 8).toUpperCase() : id.toUpperCase();
+    return id.length > 6 ? id.substring(id.length - 6).toUpperCase() : id.toUpperCase();
   }
 
   Color get _levelColor {
@@ -4349,6 +4351,10 @@ class _RoomIdChip extends StatelessWidget {
   final String shortId;
   final bool isArabic;
 
+  static const _cyan = Color(0xFF22D3EE);
+  static const _cyanDim = Color(0x3322D3EE);
+  static const _cyanGlow = Color(0x1A22D3EE);
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -4357,8 +4363,9 @@ class _RoomIdChip extends StatelessWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(isArabic ? 'تم نسخ ID الغرفة' : 'Room ID copied'),
+              content: Text(isArabic ? 'تم نسخ كود الغرفة' : 'Room code copied'),
               duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
             ),
           );
         }
@@ -4366,30 +4373,29 @@ class _RoomIdChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.06),
+          color: _cyanGlow,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.15),
-            width: 0.8,
-          ),
+          border: Border.all(color: _cyanDim, width: 0.9),
+          boxShadow: const [
+            BoxShadow(color: Color(0x0A22D3EE), blurRadius: 6, spreadRadius: 0),
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.tag_rounded, size: 9, color: Colors.white.withValues(alpha: 0.45)),
+            const Icon(Icons.grid_3x3_rounded, size: 9, color: _cyan),
             const SizedBox(width: 3),
             Text(
               shortId,
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w700,
-                color: Colors.white.withValues(alpha: 0.50),
-                letterSpacing: 1.0,
-                fontFamily: 'monospace',
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: _cyan,
+                letterSpacing: 1.2,
               ),
             ),
             const SizedBox(width: 4),
-            Icon(Icons.copy_rounded, size: 8, color: Colors.white.withValues(alpha: 0.30)),
+            Icon(Icons.copy_rounded, size: 8, color: _cyan.withValues(alpha: 0.55)),
           ],
         ),
       ),
