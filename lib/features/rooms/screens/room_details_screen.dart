@@ -1939,18 +1939,6 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       _replaceMemberLocally(member, seatNumber: seatNumber);
 
       await _loadMembers(showLoading: false);
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.isArabic
-                ? '\u062a\u0645 \u0646\u0642\u0644\u0647 \u0625\u0644\u0649 \u0645\u0627\u064a\u0643 $seatNumber.'
-                : 'Moved to Mic $seatNumber.',
-          ),
-        ),
-      );
     } catch (error) {
       if (!mounted) return;
 
@@ -1992,18 +1980,6 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       );
 
       await _loadMembers(showLoading: false);
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.isArabic
-                ? '\u062a\u0645 \u0646\u0642\u0644\u0643 \u0625\u0644\u0649 \u0647\u0630\u0627 \u0627\u0644\u0645\u0627\u064a\u0643'
-                : 'Moved you to this mic.',
-          ),
-        ),
-      );
     } catch (error) {
       if (!mounted) return;
 
@@ -4406,7 +4382,7 @@ class _SeatGrid extends StatelessWidget {
       // Minimum height = sum of all fixed zones in _LiveSeatBubble so the
       // tile never clips its content on high-density small screens.
       const minBubbleHeight =
-          _kAvatarAreaHeight + 2 + 11 + _micSeatSupportSlotHeight + 12; // 91 px
+          _kAvatarAreaHeight + 2 + 11 + _micSeatSupportSlotHeight + 12 + 13; // 104 px
       final tileWidth = (constraints.maxWidth - colGap * (cols - 1)) / cols;
       final tileHeight =
           math.max(tileWidth / aspectRatio, minBubbleHeight);
@@ -5280,36 +5256,6 @@ class _LiveSeatBubble extends StatelessWidget {
                           ),
                         ),
 
-                      // 5. Moderator badge — top-left, hidden for host/owner.
-                      if (isModerator && !occupiedByHost)
-                        Positioned(
-                          top: 0,
-                          left: 0,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 1,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF8B26D9),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color: Colors.black.withValues(alpha: 0.70),
-                                width: 1.0,
-                              ),
-                            ),
-                            child: const Text(
-                              'Mod',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 7,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.2,
-                                height: 1.1,
-                              ),
-                            ),
-                          ),
-                        ),
 
                     ],
                   ),
@@ -5434,6 +5380,61 @@ class _LiveSeatBubble extends StatelessWidget {
                     ),
                   ),
                 ),
+        ),
+
+        // -- Zone 5: moderator crown-shield badge - 13 px, host seats exempt --
+        // Space always reserved so all seat tiles stay the same height.
+        SizedBox(
+          height: 13,
+          child: (isModerator && !occupiedByHost)
+              ? Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 5, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2D0654),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: const Color(0xFFD4A017),
+                        width: 0.9,
+                      ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x66AA44FF),
+                          blurRadius: 6,
+                          spreadRadius: 0,
+                        ),
+                        BoxShadow(
+                          color: Color(0x33D4A017),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.shield_rounded,
+                          color: Color(0xFFD4A017),
+                          size: 7,
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          isArabic ? 'مشرف' : 'M',
+                          style: const TextStyle(
+                            color: Color(0xFFE8C44A),
+                            fontSize: 7,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.3,
+                            height: 1.0,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : null,
         ),
       ],
     );
