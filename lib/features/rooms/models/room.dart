@@ -18,6 +18,7 @@ class Room {
     this.isPersonalRoom = false,
     this.ownerCountry,
     this.closedSeats = const [],
+    this.roomLevel = 1,
   });
 
   final String id;
@@ -38,6 +39,7 @@ class Room {
   final String? backgroundUrl;
   final String? avatarUrl;
   final List<int> closedSeats;
+  final int roomLevel;
 
   factory Room.fromJson(Map<String, dynamic> json) {
     final rawId = json['id'];
@@ -67,6 +69,7 @@ class Room {
               ?.map((e) => (e as num).toInt())
               .toList() ??
           const [],
+      roomLevel: (json['room_level'] as num?)?.toInt() ?? 1,
     );
   }
 }

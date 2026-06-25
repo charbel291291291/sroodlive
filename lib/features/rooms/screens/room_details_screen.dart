@@ -5,6 +5,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:video_player/video_player.dart';
@@ -1775,6 +1776,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         coverUrl: _roomCoverUrl,
         backgroundUrl: _roomBackgroundUrl,
         avatarUrl: _roomAvatarUrl,
+        roomLevel: widget.room.roomLevel,
+        closedSeats: widget.room.closedSeats,
       );
 
   Future<void> _pickListenerForSeat(int seatNumber) async {
@@ -3534,6 +3537,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                     moderatorUserIds: _moderatorUserIds,
                     closedSeats: _closedSeats,
                     onSeatClosedToggle: _toggleSeatClosed,
+                    roomLevel: widget.room.roomLevel,
                     activePk: _activePk?.isActive == true ? _activePk : null,
                     showPkResult: _showPkResult,
                     pkResult: _showPkResult && _activePk?.isFinished == true
@@ -3714,6 +3718,27 @@ class _CompactRoomHeader extends StatelessWidget {
   final bool isArabic;
   final String? announcement;
 
+  // Short display form of UUID: last 8 characters, uppercase.
+  String get _shortRoomId {
+    final id = room.id.replaceAll('-', '');
+    return id.length > 8 ? id.substring(id.length - 8).toUpperCase() : id.toUpperCase();
+  }
+
+  Color get _levelColor {
+    final lvl = room.roomLevel;
+    if (lvl >= 9) return const Color(0xFFFFD700);
+    if (lvl >= 7) return const Color(0xFFF0C15A);
+    if (lvl >= 5) return const Color(0xFFE8A83A);
+    if (lvl >= 3) return const Color(0xFFB48EE0);
+    return const Color(0xFF9B72CF);
+  }
+
+  String get _levelLabel {
+    final lvl = room.roomLevel;
+    if (isArabic) return 'LV $lvl';
+    return 'LV $lvl';
+  }
+
   @override
   Widget build(BuildContext context) {
     final textDir = isArabic ? TextDirection.rtl : TextDirection.ltr;
@@ -3865,45 +3890,53 @@ class _CompactRoomHeader extends StatelessWidget {
                                 ),
                               ),
                             ],
+                            const SizedBox(height: 5),
+                            _RoomIdChip(shortId: _shortRoomId, isArabic: isArabic),
                           ],
                         ),
                       ),
 
                       const SizedBox(width: 8),
 
-                      // Status pills column
-                      // Status pills ? wrap so 4 pills fit in 2 rows (saves ~45px vs stacked column)
-                      Wrap(
-                        direction: Axis.horizontal,
-                        alignment: WrapAlignment.end,
-                        spacing: 4,
-                        runSpacing: 4,
+                      // Right side: level badge + status pills
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Online members count
-                          _MiniRoomStatusPill(
-                            icon: Icons.people_alt_rounded,
-                            label: memberCount.toString(),
-                            color: const Color(0xFF4ADE80),
+                          // Room Level badge (top row)
+                          _RoomLevelBadge(level: room.roomLevel, levelColor: _levelColor, label: _levelLabel),
+                          const SizedBox(height: 5),
+                          // Status pills (bottom row)
+                          Wrap(
+                            direction: Axis.horizontal,
+                            alignment: WrapAlignment.end,
+                            spacing: 4,
+                            runSpacing: 4,
+                            children: [
+                              _MiniRoomStatusPill(
+                                icon: Icons.people_alt_rounded,
+                                label: memberCount.toString(),
+                                color: const Color(0xFF4ADE80),
+                              ),
+                              _MiniRoomStatusPill(
+                                icon: Icons.event_seat_rounded,
+                                label: '$activeSpeakerCount/${room.maxSeats}',
+                              ),
+                              _MiniRoomStatusPill(
+                                icon: Icons.monetization_on_rounded,
+                                label: walletCoins > 999
+                                    ? '${(walletCoins / 1000).toStringAsFixed(1)}k'
+                                    : walletCoins.toString(),
+                                color: const Color(0xFFF0C15A),
+                              ),
+                              if (isHost)
+                                _MiniRoomStatusPill(
+                                  icon: Icons.admin_panel_settings_rounded,
+                                  label: isArabic ? 'Host' : 'Host',
+                                  color: const Color(0xFFF0C15A),
+                                ),
+                            ],
                           ),
-                          // Seats
-                          _MiniRoomStatusPill(
-                            icon: Icons.event_seat_rounded,
-                            label: '$activeSpeakerCount/${room.maxSeats}',
-                          ),
-                          // Wallet coins
-                          _MiniRoomStatusPill(
-                            icon: Icons.monetization_on_rounded,
-                            label: walletCoins > 999
-                                ? '${(walletCoins / 1000).toStringAsFixed(1)}k'
-                                : walletCoins.toString(),
-                            color: const Color(0xFFF0C15A),
-                          ),
-                          if (isHost)
-                            _MiniRoomStatusPill(
-                              icon: Icons.admin_panel_settings_rounded,
-                              label: isArabic ? 'Host' : 'Host',
-                              color: const Color(0xFFF0C15A),
-                            ),
                         ],
                       ),
                     ],
@@ -4125,6 +4158,125 @@ class _RoomDefaultBg extends StatelessWidget {
   }
 }
 
+// -----------------------------------------------------------------------------
+// Room ID chip — compact display with tap-to-copy using the app-wide pattern.
+// -----------------------------------------------------------------------------
+class _RoomIdChip extends StatelessWidget {
+  const _RoomIdChip({required this.shortId, required this.isArabic});
+
+  final String shortId;
+  final bool isArabic;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () async {
+        await Clipboard.setData(ClipboardData(text: shortId));
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(isArabic ? 'تم نسخ ID الغرفة' : 'Room ID copied'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.15),
+            width: 0.8,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.tag_rounded, size: 9, color: Colors.white.withValues(alpha: 0.45)),
+            const SizedBox(width: 3),
+            Text(
+              shortId,
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                color: Colors.white.withValues(alpha: 0.50),
+                letterSpacing: 1.0,
+                fontFamily: 'monospace',
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.copy_rounded, size: 8, color: Colors.white.withValues(alpha: 0.30)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Room Level badge — premium pill shown in header top-right.
+// -----------------------------------------------------------------------------
+class _RoomLevelBadge extends StatelessWidget {
+  const _RoomLevelBadge({
+    required this.level,
+    required this.levelColor,
+    required this.label,
+  });
+
+  final int level;
+  final Color levelColor;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final isElite = level >= 9;
+    final isRoyal = level >= 7;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isElite
+              ? [const Color(0xFF3D2000), const Color(0xFF1A0840)]
+              : isRoyal
+                  ? [const Color(0xFF2D1254), const Color(0xFF160830)]
+                  : [const Color(0xFF1E0E38), const Color(0xFF0E0620)],
+        ),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: levelColor.withValues(alpha: 0.7), width: 1.0),
+        boxShadow: [
+          BoxShadow(
+            color: levelColor.withValues(alpha: isElite ? 0.40 : 0.22),
+            blurRadius: isElite ? 10 : 6,
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isElite ? Icons.star_rounded : isRoyal ? Icons.diamond_rounded : Icons.military_tech_rounded,
+            size: 11,
+            color: levelColor,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              color: levelColor,
+              letterSpacing: 0.4,
+              shadows: [Shadow(blurRadius: 6, color: levelColor.withValues(alpha: 0.6))],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _MiniRoomStatusPill extends StatelessWidget {
   const _MiniRoomStatusPill({
     required this.icon,
@@ -4182,6 +4334,7 @@ class _LiveRoomStage extends StatelessWidget {
     required this.moderatorUserIds,
     required this.closedSeats,
     required this.onSeatClosedToggle,
+    required this.roomLevel,
     this.activePk,
     this.showPkResult = false,
     this.pkResult,
@@ -4208,6 +4361,7 @@ class _LiveRoomStage extends StatelessWidget {
   final Set<String> moderatorUserIds;
   final Set<int> closedSeats;
   final ValueChanged<int> onSeatClosedToggle;
+  final int roomLevel;
   final PkSession? activePk;
   final bool showPkResult;
   final PkSession? pkResult;
@@ -4379,6 +4533,7 @@ class _LiveRoomStage extends StatelessWidget {
                 speakingUserIds: speakingUserIds,
                 moderatorUserIds: moderatorUserIds,
                 onSeatClosedToggle: onSeatClosedToggle,
+                roomLevel: roomLevel,
                 activePk: activePk,
                 seatReactions: seatReactions,
               ),
@@ -4456,6 +4611,7 @@ class _SeatGrid extends StatelessWidget {
     required this.speakingUserIds,
     required this.moderatorUserIds,
     required this.onSeatClosedToggle,
+    required this.roomLevel,
     this.activePk,
     this.seatReactions = const {},
   });
@@ -4472,6 +4628,7 @@ class _SeatGrid extends StatelessWidget {
   final Set<String> speakingUserIds;
   final Set<String> moderatorUserIds;
   final ValueChanged<int> onSeatClosedToggle;
+  final int roomLevel;
   final PkSession? activePk;
   final Map<int, RoomReaction> seatReactions;
 
@@ -4541,6 +4698,7 @@ class _SeatGrid extends StatelessWidget {
                 onProfileTap: onProfileTap,
                 selectedForMove: row[c].member?.userId == selectedMoveUserId,
                 onSeatClosedToggle: onSeatClosedToggle,
+                roomLevel: roomLevel,
                 pkTeam: pkSeatTeam(
                     row[c].member?.userId ?? '', activePk),
                 activeReaction: seatReactions[row[c].number],
@@ -5069,6 +5227,91 @@ class _OccupiedSeatAction {
   final bool selectForMove;
 }
 
+// -----------------------------------------------------------------------------
+// Luxury seat level styling — 5 tiers mapped to room_level.
+// Returns styling data used to paint the empty-seat circle.
+// -----------------------------------------------------------------------------
+class _SeatLevelStyle {
+  const _SeatLevelStyle({
+    required this.borderColor,
+    required this.glowColor,
+    required this.bgGradient,
+    required this.borderWidth,
+    required this.glowBlur,
+    required this.innerRingOpacity,
+    required this.iconColor,
+  });
+
+  final Color borderColor;
+  final Color glowColor;
+  final List<Color> bgGradient;
+  final double borderWidth;
+  final double glowBlur;
+  final double innerRingOpacity; // 0 = no inner ring
+  final Color iconColor;
+}
+
+_SeatLevelStyle _seatStyleForLevel(int level) {
+  if (level >= 9) {
+    // Elite Throne — brilliant gold, multi-layer glow
+    return const _SeatLevelStyle(
+      borderColor: Color(0xFFFFD700),
+      glowColor: Color(0xFFFFD700),
+      bgGradient: [Color(0xFF2A1500), Color(0xFF1A0840), Color(0xFF0D0022)],
+      borderWidth: 2.0,
+      glowBlur: 26,
+      innerRingOpacity: 0.45,
+      iconColor: Color(0xFFFFD700),
+    );
+  }
+  if (level >= 7) {
+    // Royal Lounge — warm gold, strong violet glow
+    return const _SeatLevelStyle(
+      borderColor: Color(0xFFF0C15A),
+      glowColor: Color(0xFFF0C15A),
+      bgGradient: [Color(0xFF1E0E38), Color(0xFF120630)],
+      borderWidth: 1.8,
+      glowBlur: 20,
+      innerRingOpacity: 0.30,
+      iconColor: Color(0xFFF0C15A),
+    );
+  }
+  if (level >= 5) {
+    // Premium Seat — warm amber, visible glow
+    return const _SeatLevelStyle(
+      borderColor: Color(0xFFD4A0FF),
+      glowColor: Color(0xFF8B26D9),
+      bgGradient: [Color(0xFF160830), Color(0xFF0A051A)],
+      borderWidth: 1.6,
+      glowBlur: 16,
+      innerRingOpacity: 0.18,
+      iconColor: Color(0xFFD4A0FF),
+    );
+  }
+  if (level >= 3) {
+    // Enhanced Lounge — soft purple, slight glow
+    return const _SeatLevelStyle(
+      borderColor: Color(0xFF9B72CF),
+      glowColor: Color(0xFF6B3FA0),
+      bgGradient: [Color(0xFF120828), Color(0xFF090418)],
+      borderWidth: 1.5,
+      glowBlur: 12,
+      innerRingOpacity: 0.10,
+      iconColor: Color(0xFF9B72CF),
+    );
+  }
+  // Level 1-2: Clean Basic
+  return _SeatLevelStyle(
+    borderColor: Colors.white.withValues(alpha: 0.22),
+    glowColor: const Color(0xFF8B26D9),
+    bgGradient: [Colors.white.withValues(alpha: 0.07), Colors.white.withValues(alpha: 0.03)],
+    borderWidth: 1.4,
+    glowBlur: 14,
+    innerRingOpacity: 0.0,
+    iconColor: Colors.white.withValues(alpha: 0.48),
+  );
+}
+
 class _LiveSeatBubble extends StatelessWidget {
   const _LiveSeatBubble({
     required this.seat,
@@ -5082,6 +5325,7 @@ class _LiveSeatBubble extends StatelessWidget {
     required this.onProfileTap,
     required this.selectedForMove,
     required this.onSeatClosedToggle,
+    required this.roomLevel,
     this.pkTeam,
     this.activeReaction,
   });
@@ -5098,6 +5342,7 @@ class _LiveSeatBubble extends StatelessWidget {
   final ValueChanged<String> onProfileTap;
   final bool selectedForMove;
   final ValueChanged<int> onSeatClosedToggle;
+  final int roomLevel;
   // 'a', 'b', or null - non-null only when PK is active and seat is assigned.
   final String? pkTeam;
   final RoomReaction? activeReaction;
@@ -5204,6 +5449,13 @@ class _LiveSeatBubble extends StatelessWidget {
             blurRadius: 26,
             spreadRadius: 3,
           ),
+          // Level 7+ adds a warm gold halo to occupied seats.
+          if (roomLevel >= 7)
+            BoxShadow(
+              color: const Color(0xFFF0C15A).withValues(alpha: roomLevel >= 9 ? 0.25 : 0.14),
+              blurRadius: roomLevel >= 9 ? 36 : 24,
+              spreadRadius: 2,
+            ),
         ],
       ],
     ];
@@ -5228,50 +5480,11 @@ class _LiveSeatBubble extends StatelessWidget {
         height: _kAvatarAreaHeight,
         child: Center(
           child: seat.isEmpty
-              ? Container(
-                  width: outerSize,
-                  height: outerSize,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    // Glass circle - background shows through the empty seat.
-                    color: seat.isLocked
-                        ? Colors.white.withValues(alpha: 0.04)
-                        : Colors.white.withValues(alpha: 0.07),
-                    border: Border.all(
-                      color: seat.isLocked
-                          ? Colors.white.withValues(alpha: 0.12)
-                          : Colors.white.withValues(alpha: 0.20),
-                      width: 1.4,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF8B26D9).withValues(alpha: 0.18),
-                        blurRadius: 18,
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        seat.isLocked ? Icons.lock_rounded : Icons.mic_none_rounded,
-                        color: seat.isLocked
-                            ? Colors.white.withValues(alpha: 0.30)
-                            : Colors.white.withValues(alpha: 0.48),
-                        size: _micSeatIconSize,
-                      ),
-                      const SizedBox(height: 1),
-                      Text(
-                        '${seat.number}',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.32),
-                          fontSize: 8,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
+              ? _LuxuryEmptySeat(
+                  seat: seat,
+                  outerSize: outerSize,
+                  roomLevel: roomLevel,
+                  micSeatIconSize: _micSeatIconSize,
                 )
               : SizedBox(
                   width: outerSize,
@@ -5502,61 +5715,252 @@ class _LiveSeatBubble extends StatelessWidget {
                 ),
         ),
 
-        // -- Zone 5: moderator crown-shield badge - 13 px, host seats exempt --
+        // -- Zone 5: moderator icon badge - 13 px, host seats exempt --
+        // Icon-only: crown-shield silhouette in deep purple + gold, no text.
         // Space always reserved so all seat tiles stay the same height.
         SizedBox(
           height: 13,
           child: (isModerator && !occupiedByHost)
               ? Center(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 5, vertical: 1.5),
+                    width: 18,
+                    height: 13,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2D0654),
+                      color: const Color(0xFF1E043A),
                       borderRadius: BorderRadius.circular(4),
                       border: Border.all(
-                        color: const Color(0xFFD4A017),
-                        width: 0.9,
+                        color: const Color(0xFFCB9B14),
+                        width: 0.8,
                       ),
                       boxShadow: const [
                         BoxShadow(
-                          color: Color(0x66AA44FF),
-                          blurRadius: 6,
-                          spreadRadius: 0,
+                          color: Color(0x55AA44FF),
+                          blurRadius: 5,
                         ),
                         BoxShadow(
-                          color: Color(0x33D4A017),
-                          blurRadius: 4,
+                          color: Color(0x44CBA014),
+                          blurRadius: 3,
                         ),
                       ],
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.shield_rounded,
-                          color: Color(0xFFD4A017),
-                          size: 7,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          isArabic ? 'مشرف' : 'M',
-                          style: const TextStyle(
-                            color: Color(0xFFE8C44A),
-                            fontSize: 7,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.3,
-                            height: 1.0,
-                          ),
-                        ),
-                      ],
-                    ),
+                    child: const _ModeratorIcon(),
                   ),
                 )
               : null,
         ),
       ],
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Moderator icon — crown-shield painted with CustomPainter.
+// No text. Deep purple fill, thin gold border, spark highlight.
+// Size constrained by its parent Container (18 × 13 px).
+// -----------------------------------------------------------------------------
+class _ModeratorIcon extends StatelessWidget {
+  const _ModeratorIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _ModeratorIconPainter(),
+    );
+  }
+}
+
+class _ModeratorIconPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+
+    // ── Shield body ──────────────────────────────────────────────────────────
+    // Shield: a rounded-bottom pentagon shape scaled to the tile.
+    final sw = size.width * 0.68;
+    final sh = size.height * 0.86;
+    final sl = cx - sw / 2;
+    final st = cy - sh / 2 + size.height * 0.02;
+    final sr = sl + sw;
+    final cornerR = sw * 0.20;
+
+    final shieldPath = Path()
+      ..moveTo(cx, st + sh) // bottom tip
+      ..lineTo(sl + sw * 0.12, st + sh * 0.62)
+      ..arcToPoint(Offset(sl, st + sh * 0.36),
+          radius: Radius.circular(cornerR), clockwise: false)
+      ..arcToPoint(Offset(sl + cornerR, st),
+          radius: Radius.circular(cornerR))
+      ..lineTo(sr - cornerR, st)
+      ..arcToPoint(Offset(sr, st + sh * 0.36),
+          radius: Radius.circular(cornerR))
+      ..arcToPoint(Offset(sr - sw * 0.12, st + sh * 0.62),
+          radius: Radius.circular(cornerR), clockwise: false)
+      ..close();
+
+    // Fill
+    canvas.drawPath(
+      shieldPath,
+      Paint()
+        ..color = const Color(0xFF1E043A)
+        ..style = PaintingStyle.fill,
+    );
+
+    // Gold border
+    canvas.drawPath(
+      shieldPath,
+      Paint()
+        ..color = const Color(0xFFCB9B14)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.7,
+    );
+
+    // ── Tiny crown inside shield ─────────────────────────────────────────────
+    final crownColor = const Color(0xFFE8C050);
+    final crownPaint = Paint()
+      ..color = crownColor
+      ..style = PaintingStyle.fill;
+
+    // Crown base rect
+    final crownW = sw * 0.54;
+    final crownH = sh * 0.26;
+    final crownL = cx - crownW / 2;
+    final crownT = st + sh * 0.38;
+    final crownR = crownL + crownW;
+    final crownB = crownT + crownH;
+    canvas.drawRect(Rect.fromLTRB(crownL, crownT + crownH * 0.30, crownR, crownB), crownPaint);
+
+    // Three crown points
+    final pt = crownT;
+    final pointW = crownW / 3;
+    for (var i = 0; i < 3; i++) {
+      final px = crownL + pointW * i;
+      final pw = pointW;
+      final ph = crownH * 0.72;
+      final peakX = px + pw / 2;
+      canvas.drawPath(
+        Path()
+          ..moveTo(px, crownT + ph)
+          ..lineTo(peakX, pt)
+          ..lineTo(px + pw, crownT + ph)
+          ..close(),
+        crownPaint,
+      );
+    }
+
+    // ── Spark / star highlight at top-right of shield ────────────────────────
+    final sparkX = sl + sw * 0.80;
+    final sparkY = st + sh * 0.15;
+    final sparkPaint = Paint()
+      ..color = const Color(0xFFFFE580)
+      ..strokeWidth = 0.7
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    const sr2 = 1.6;
+    canvas.drawLine(Offset(sparkX, sparkY - sr2), Offset(sparkX, sparkY + sr2), sparkPaint);
+    canvas.drawLine(Offset(sparkX - sr2, sparkY), Offset(sparkX + sr2, sparkY), sparkPaint);
+    canvas.drawLine(
+        Offset(sparkX - sr2 * 0.7, sparkY - sr2 * 0.7), Offset(sparkX + sr2 * 0.7, sparkY + sr2 * 0.7), sparkPaint);
+    canvas.drawLine(
+        Offset(sparkX + sr2 * 0.7, sparkY - sr2 * 0.7), Offset(sparkX - sr2 * 0.7, sparkY + sr2 * 0.7), sparkPaint);
+  }
+
+  @override
+  bool shouldRepaint(_ModeratorIconPainter old) => false;
+}
+
+// -----------------------------------------------------------------------------
+// Luxury empty seat — visual changes based on room level.
+// Level 1-2: clean glass circle  Level 3-4: soft purple glow
+// Level 5-6: premium violet trim Level 7-8: royal gold glow
+// Level 9+:  elite throne style
+// -----------------------------------------------------------------------------
+class _LuxuryEmptySeat extends StatelessWidget {
+  const _LuxuryEmptySeat({
+    required this.seat,
+    required this.outerSize,
+    required this.roomLevel,
+    required this.micSeatIconSize,
+  });
+
+  final _StageSeat seat;
+  final double outerSize;
+  final int roomLevel;
+  final double micSeatIconSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = _seatStyleForLevel(seat.isLocked ? 0 : roomLevel);
+    final borderColor = seat.isLocked
+        ? Colors.white.withValues(alpha: 0.12)
+        : style.borderColor;
+    final glowColor = seat.isLocked
+        ? const Color(0xFF8B26D9).withValues(alpha: 0.10)
+        : style.glowColor.withValues(alpha: 0.22);
+    final iconColor = seat.isLocked
+        ? Colors.white.withValues(alpha: 0.28)
+        : style.iconColor;
+
+    // Gradient stops for bg: always at least 2 colours.
+    final bgColors = seat.isLocked
+        ? [Colors.white.withValues(alpha: 0.03), Colors.white.withValues(alpha: 0.01)]
+        : style.bgGradient;
+
+    return Container(
+      width: outerSize,
+      height: outerSize,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          center: const Alignment(0, -0.3),
+          radius: 1.0,
+          colors: bgColors,
+        ),
+        border: Border.all(color: borderColor, width: style.borderWidth),
+        boxShadow: [
+          BoxShadow(color: glowColor, blurRadius: style.glowBlur),
+        ],
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Inner cushion ring — visible at level 3+ and not locked
+          if (style.innerRingOpacity > 0 && !seat.isLocked)
+            Container(
+              width: outerSize * 0.72,
+              height: outerSize * 0.72,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: borderColor.withValues(alpha: style.innerRingOpacity),
+                  width: 0.8,
+                ),
+              ),
+            ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                seat.isLocked ? Icons.lock_rounded : Icons.mic_none_rounded,
+                color: iconColor,
+                size: micSeatIconSize,
+              ),
+              const SizedBox(height: 1),
+              Text(
+                '${seat.number}',
+                style: TextStyle(
+                  color: seat.isLocked
+                      ? Colors.white.withValues(alpha: 0.25)
+                      : iconColor.withValues(alpha: 0.65),
+                  fontSize: 8,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
