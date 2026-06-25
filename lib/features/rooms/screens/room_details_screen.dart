@@ -243,6 +243,15 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   String? _roomBackgroundUrl;
   String? _roomAvatarUrl;
   String? _roomCoverUrl;
+  // Mutable room metadata — kept in sync via _subscribeToRoom() realtime.
+  String _roomName = '';
+  String? _roomDescription;
+  String? _roomLanguage;
+  int _roomLevel = 1;
+  bool _roomIsLocked = false;
+  bool _roomIsClosed = false;
+  // Used for image-cache busting when background changes server-side.
+  DateTime? _roomUpdatedAt;
 
   int _walletCoins = 0;
 
@@ -286,11 +295,13 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   // ── Member debounce ────────────────────────────────────────────────────────
 
   /// Buffers rapid member change events and fires a single reload after 500 ms.
+  /// Also refreshes moderator state so badge changes appear immediately.
   void _debouncedLoadMembers() {
     _membersDebounceTimer?.cancel();
-    _membersDebounceTimer = Timer(const Duration(milliseconds: 500), () {
+    _membersDebounceTimer = Timer(const Duration(milliseconds: 500), () async {
       if (!mounted) return;
-      unawaited(_loadMembers(showLoading: false, detectVipEntry: true));
+      await _loadMembers(showLoading: false, detectVipEntry: true);
+      if (mounted) unawaited(_loadModeratorCount());
     });
   }
 
@@ -313,6 +324,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     _roomBackgroundUrl = widget.room.backgroundUrl;
     _roomAvatarUrl = widget.room.avatarUrl;
     _roomCoverUrl = widget.room.coverUrl;
+    _roomName = widget.room.name;
+    _roomDescription = widget.room.description;
+    _roomLanguage = widget.room.language;
+    _roomLevel = widget.room.roomLevel;
+    _roomIsLocked = widget.room.isLocked;
+    _roomIsClosed = widget.room.isClosed;
 
     // Keep the process alive while the user is in the voice room so audio
     // continues when the screen turns off.
@@ -888,21 +905,91 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
           callback: (payload) {
             if (!mounted) return;
             final rec = payload.newRecord;
-            final newMaxSeats = rec['max_seats'] as int?;
-            _roomLog(
-              '[RT-ROOM] event=UPDATE roomId=${widget.room.id} maxSeats=$newMaxSeats',
-            );
-            if (newMaxSeats != null && newMaxSeats != _currentMaxSeats) {
-              _roomLog('[RT-ROOM] applying maxSeats=$newMaxSeats locally');
-              setState(() => _currentMaxSeats = newMaxSeats);
-            }
-            final rawClosed = rec['closed_seats'];
-            if (rawClosed is List) {
-              final updated = rawClosed.map((e) => (e as num).toInt()).toSet();
-              if (!setEquals(updated, _closedSeats)) {
-                setState(() => _closedSeats = updated);
+            _roomLog('[RT-ROOM] UPDATE received roomId=${widget.room.id}');
+
+            setState(() {
+              // --- seat counts / closed seats ---
+              final newMaxSeats = rec['max_seats'] as int?;
+              if (newMaxSeats != null && newMaxSeats != _currentMaxSeats) {
+                _roomLog('[RT-ROOM] maxSeats $newMaxSeats');
+                _currentMaxSeats = newMaxSeats;
               }
-            }
+
+              final rawClosed = rec['closed_seats'];
+              if (rawClosed is List) {
+                final updated = rawClosed.map((e) => (e as num).toInt()).toSet();
+                if (!setEquals(updated, _closedSeats)) {
+                  _closedSeats = updated;
+                }
+              }
+
+              // --- room metadata ---
+              final newName = rec['name'] as String?;
+              if (newName != null && newName.isNotEmpty && newName != _roomName) {
+                _roomLog('[RT-ROOM] name → $newName');
+                _roomName = newName;
+              }
+
+              final newDesc = rec['description'] as String?;
+              if (rec.containsKey('description') && newDesc != _roomDescription) {
+                _roomDescription = newDesc;
+              }
+
+              final newLang = rec['language'] as String?;
+              if (newLang != null && newLang != _roomLanguage) {
+                _roomLanguage = newLang;
+              }
+
+              final newLevel = (rec['room_level'] as num?)?.toInt();
+              if (newLevel != null && newLevel != _roomLevel) {
+                _roomLog('[RT-ROOM] room_level $newLevel');
+                _roomLevel = newLevel;
+              }
+
+              final newIsLocked = rec['is_locked'] as bool?;
+              if (newIsLocked != null && newIsLocked != _roomIsLocked) {
+                _roomIsLocked = newIsLocked;
+              }
+
+              final newIsClosed = rec['is_closed'] as bool?;
+              if (newIsClosed != null && newIsClosed != _roomIsClosed) {
+                _roomIsClosed = newIsClosed;
+              }
+
+              // --- images (evict stale cache before assigning new URL) ---
+              final updatedAt = rec['updated_at'] as String?;
+              final ts = updatedAt != null
+                  ? DateTime.tryParse(updatedAt)
+                  : null;
+              if (ts != null) _roomUpdatedAt = ts;
+
+              final newBg = rec['background_url'] as String?;
+              if (rec.containsKey('background_url') && newBg != _roomBackgroundUrl) {
+                _roomLog('[RT-ROOM] background_url $_roomBackgroundUrl → $newBg');
+                if (_roomBackgroundUrl != null) {
+                  imageCache.evict(NetworkImage(_roomBackgroundUrl!));
+                }
+                _roomBackgroundUrl = newBg;
+              }
+
+              final newCover = rec['cover_url'] as String?;
+              if (rec.containsKey('cover_url') && newCover != _roomCoverUrl) {
+                _roomLog('[RT-ROOM] cover_url → $newCover');
+                if (_roomCoverUrl != null) {
+                  imageCache.evict(NetworkImage(_roomCoverUrl!));
+                }
+                _roomCoverUrl = newCover;
+              }
+
+              final newAvatar = rec['room_avatar_url'] as String?;
+              if (rec.containsKey('room_avatar_url') && newAvatar != _roomAvatarUrl) {
+                _roomLog('[RT-ROOM] room_avatar_url → $newAvatar');
+                if (_roomAvatarUrl != null) {
+                  imageCache.evict(NetworkImage(_roomAvatarUrl!));
+                }
+                _roomAvatarUrl = newAvatar;
+              }
+            });
           },
         )
         .subscribe((status, [error]) {
@@ -1764,20 +1851,20 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   Room get _currentRoom => Room(
         id: widget.room.id,
         ownerId: widget.room.ownerId,
-        name: widget.room.name,
-        description: widget.room.description,
-        language: widget.room.language,
+        name: _roomName,
+        description: _roomDescription,
+        language: _roomLanguage ?? widget.room.language,
         livekitRoomName: widget.room.livekitRoomName,
         maxSeats: _currentMaxSeats,
         isPrivate: widget.room.isPrivate,
-        isLocked: widget.room.isLocked,
-        isClosed: widget.room.isClosed,
+        isLocked: _roomIsLocked,
+        isClosed: _roomIsClosed,
         createdAt: widget.room.createdAt,
         coverUrl: _roomCoverUrl,
         backgroundUrl: _roomBackgroundUrl,
         avatarUrl: _roomAvatarUrl,
-        roomLevel: widget.room.roomLevel,
-        closedSeats: widget.room.closedSeats,
+        roomLevel: _roomLevel,
+        closedSeats: _closedSeats.toList(),
       );
 
   Future<void> _pickListenerForSeat(int seatNumber) async {
@@ -3447,7 +3534,11 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       body: Stack(
         children: [
           // \u2500\u2500 1. Full-screen immersive background \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-          _FullRoomBackground(room: widget.room, backgroundUrl: _roomBackgroundUrl),
+          _FullRoomBackground(
+            key: ValueKey('${_roomBackgroundUrl ?? ''}_${_roomCoverUrl ?? ''}_${_roomUpdatedAt?.millisecondsSinceEpoch ?? 0}'),
+            room: _currentRoom,
+            backgroundUrl: _roomBackgroundUrl,
+          ),
 
           // \u2500\u2500 2. Scrollable content + pinned bottom bar \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
           // -- 2. Fixed column: header + mic stage + scrollable chat --
@@ -3999,7 +4090,7 @@ class _CompactRoomHeader extends StatelessWidget {
 /// Shows cover image (if set) with a dark readability overlay,
 /// or a premium decorative gradient when no cover exists.
 class _FullRoomBackground extends StatelessWidget {
-  const _FullRoomBackground({required this.room, this.backgroundUrl});
+  const _FullRoomBackground({super.key, required this.room, this.backgroundUrl});
   final Room room;
   final String? backgroundUrl;
 
@@ -5234,85 +5325,218 @@ class _OccupiedSeatAction {
 // Luxury seat level styling — 5 tiers mapped to room_level.
 // Returns styling data used to paint the empty-seat circle.
 // -----------------------------------------------------------------------------
-class _SeatLevelStyle {
-  const _SeatLevelStyle({
+// =============================================================================
+// RoomSeatTheme — 10-level luxury seat identity system.
+// Pass roomLevel (1–10+); values outside range are clamped.
+// Level 0 (locked) has its own dedicated muted style.
+// =============================================================================
+class RoomSeatTheme {
+  const RoomSeatTheme({
+    required this.bgColors,
     required this.borderColor,
     required this.glowColor,
-    required this.bgGradient,
+    required this.iconColor,
+    required this.accentColor,
     required this.borderWidth,
     required this.glowBlur,
     required this.innerRingOpacity,
-    required this.iconColor,
+    required this.occupiedGlowColor,
+    required this.occupiedGlowBlur,
+    this.highlightOpacity = 0.0,
+    this.outerHaloColor = const Color(0x00000000),
+    this.outerHaloBlur = 0.0,
+    this.pulseGlow = false,
   });
 
+  // Empty seat circle
+  final List<Color> bgColors;
   final Color borderColor;
   final Color glowColor;
-  final List<Color> bgGradient;
+  final Color iconColor;
+  final Color accentColor;       // inner ring + ornament tint
   final double borderWidth;
   final double glowBlur;
   final double innerRingOpacity; // 0 = no inner ring
-  final Color iconColor;
-}
+  final double highlightOpacity; // shimmer bright spot at top (0 = none)
+  final Color outerHaloColor;    // extra outer ring (transparent = none)
+  final double outerHaloBlur;
+  final bool pulseGlow;          // animated aura for L7+
 
-_SeatLevelStyle _seatStyleForLevel(int level) {
-  if (level >= 9) {
-    // Elite Throne — brilliant gold, multi-layer glow
-    return const _SeatLevelStyle(
-      borderColor: Color(0xFFFFD700),
-      glowColor: Color(0xFFFFD700),
-      bgGradient: [Color(0xFF2A1500), Color(0xFF1A0840), Color(0xFF0D0022)],
-      borderWidth: 2.0,
-      glowBlur: 26,
-      innerRingOpacity: 0.45,
-      iconColor: Color(0xFFFFD700),
-    );
+  // Occupied seat
+  final Color occupiedGlowColor;
+  final double occupiedGlowBlur;
+
+  // Compat alias
+  List<Color> get bgGradient => bgColors;
+
+  static RoomSeatTheme forLevel(int level) {
+    if (level <= 0) return _kLocked;
+    return _kThemes[level.clamp(1, 10) - 1];
   }
-  if (level >= 7) {
-    // Royal Lounge — warm gold, strong violet glow
-    return const _SeatLevelStyle(
-      borderColor: Color(0xFFF0C15A),
-      glowColor: Color(0xFFF0C15A),
-      bgGradient: [Color(0xFF1E0E38), Color(0xFF120630)],
+
+  // Locked seat: always the same dark-muted style.
+  static const RoomSeatTheme _kLocked = RoomSeatTheme(
+    bgColors: [Color(0x14050510), Color(0x0A030308)],
+    borderColor: Color(0x1EFFFFFF),
+    glowColor: Color(0x0F8B26D9),
+    iconColor: Color(0x47FFFFFF),
+    accentColor: Color(0x14FFFFFF),
+    borderWidth: 1.2,
+    glowBlur: 6,
+    innerRingOpacity: 0,
+    occupiedGlowColor: Color(0x338B26D9),
+    occupiedGlowBlur: 10,
+  );
+
+  static const List<RoomSeatTheme> _kThemes = [
+    // ── Level 1: Glass Dark — minimal, elegant dark glass ──────────────────
+    RoomSeatTheme(
+      bgColors: [Color(0x33050515), Color(0x1A030308)],
+      borderColor: Color(0x2EFFFFFF),
+      glowColor: Color(0x1A8B26D9),
+      iconColor: Color(0x6BFFFFFF),
+      accentColor: Color(0x1AFFFFFF),
+      borderWidth: 1.2,
+      glowBlur: 7,
+      innerRingOpacity: 0,
+      occupiedGlowColor: Color(0x598B26D9),
+      occupiedGlowBlur: 12,
+    ),
+    // ── Level 2: Silver Glass — cool silver tones ──────────────────────────
+    RoomSeatTheme(
+      bgColors: [Color(0x440D1828), Color(0x2A080E18)],
+      borderColor: Color(0x8C9BAABB),
+      glowColor: Color(0x268EB4D0),
+      iconColor: Color(0xB4B4C8D4),
+      accentColor: Color(0x339BAABB),
+      borderWidth: 1.3,
+      glowBlur: 9,
+      innerRingOpacity: 0,
+      occupiedGlowColor: Color(0x4D7BA8C8),
+      occupiedGlowBlur: 13,
+    ),
+    // ── Level 3: Blue Prestige — polished cool-blue ────────────────────────
+    RoomSeatTheme(
+      bgColors: [Color(0xFF0A1428), Color(0xFF060A18)],
+      borderColor: Color(0xFF5BA3D9),
+      glowColor: Color(0x384A90C0),
+      iconColor: Color(0xFF7EC8F0),
+      accentColor: Color(0xFF5BA3D9),
+      borderWidth: 1.4,
+      glowBlur: 11,
+      innerRingOpacity: 0.08,
+      occupiedGlowColor: Color(0x5260B0E0),
+      occupiedGlowBlur: 14,
+    ),
+    // ── Level 4: Gold Warmth — warm amber, starts to feel elite ───────────
+    RoomSeatTheme(
+      bgColors: [Color(0xFF1A1004), Color(0xFF0E0904)],
+      borderColor: Color(0xFFD4A844),
+      glowColor: Color(0x47B8900A),
+      iconColor: Color(0xFFE8C060),
+      accentColor: Color(0xFFD4A844),
+      borderWidth: 1.5,
+      glowBlur: 13,
+      innerRingOpacity: 0.12,
+      occupiedGlowColor: Color(0x59D4A844),
+      occupiedGlowBlur: 16,
+    ),
+    // ── Level 5: Purple Luxury — rich prestige purple ─────────────────────
+    RoomSeatTheme(
+      bgColors: [Color(0xFF160830), Color(0xFF0A051A)],
+      borderColor: Color(0xFFD4A0FF),
+      glowColor: Color(0x4D8B26D9),
+      iconColor: Color(0xFFD4A0FF),
+      accentColor: Color(0xFFBB80EE),
+      borderWidth: 1.6,
+      glowBlur: 15,
+      innerRingOpacity: 0.18,
+      occupiedGlowColor: Color(0x668B26D9),
+      occupiedGlowBlur: 18,
+    ),
+    // ── Level 6: Ruby Royal — red-ruby + gold jewel ────────────────────────
+    RoomSeatTheme(
+      bgColors: [Color(0xFF240814), Color(0xFF140410)],
+      borderColor: Color(0xFFE84060),
+      glowColor: Color(0x4DCC2040),
+      iconColor: Color(0xFFFF8090),
+      accentColor: Color(0xFFFFD700),
+      borderWidth: 1.7,
+      glowBlur: 16,
+      innerRingOpacity: 0.22,
+      occupiedGlowColor: Color(0x59E84060),
+      occupiedGlowBlur: 18,
+      highlightOpacity: 0.12,
+    ),
+    // ── Level 7: Emerald Jewel — green jewel with gold edge + pulse ────────
+    RoomSeatTheme(
+      bgColors: [Color(0xFF041C10), Color(0xFF020E08)],
+      borderColor: Color(0xFF40D090),
+      glowColor: Color(0x5230C080),
+      iconColor: Color(0xFF80F0C0),
+      accentColor: Color(0xFFE8C844),
       borderWidth: 1.8,
+      glowBlur: 18,
+      innerRingOpacity: 0.25,
+      occupiedGlowColor: Color(0x6640D090),
+      occupiedGlowBlur: 20,
+      highlightOpacity: 0.15,
+      outerHaloColor: Color(0x2640D090),
+      outerHaloBlur: 28,
+      pulseGlow: true,
+    ),
+    // ── Level 8: Diamond Crystal — bright crystal, diamond highlights ──────
+    RoomSeatTheme(
+      bgColors: [Color(0xFF0A1830), Color(0xFF060C1C)],
+      borderColor: Color(0xFF90D0FF),
+      glowColor: Color(0x5960B8F0),
+      iconColor: Color(0xFFD0ECFF),
+      accentColor: Color(0xFFFFFFFF),
+      borderWidth: 1.9,
       glowBlur: 20,
       innerRingOpacity: 0.30,
-      iconColor: Color(0xFFF0C15A),
-    );
-  }
-  if (level >= 5) {
-    // Premium Seat — warm amber, visible glow
-    return const _SeatLevelStyle(
-      borderColor: Color(0xFFD4A0FF),
-      glowColor: Color(0xFF8B26D9),
-      bgGradient: [Color(0xFF160830), Color(0xFF0A051A)],
-      borderWidth: 1.6,
-      glowBlur: 16,
-      innerRingOpacity: 0.18,
-      iconColor: Color(0xFFD4A0FF),
-    );
-  }
-  if (level >= 3) {
-    // Enhanced Lounge — soft purple, slight glow
-    return const _SeatLevelStyle(
-      borderColor: Color(0xFF9B72CF),
-      glowColor: Color(0xFF6B3FA0),
-      bgGradient: [Color(0xFF120828), Color(0xFF090418)],
-      borderWidth: 1.5,
-      glowBlur: 12,
-      innerRingOpacity: 0.10,
-      iconColor: Color(0xFF9B72CF),
-    );
-  }
-  // Level 1-2: Clean Basic
-  return _SeatLevelStyle(
-    borderColor: Colors.white.withValues(alpha: 0.22),
-    glowColor: const Color(0xFF8B26D9),
-    bgGradient: [Colors.white.withValues(alpha: 0.07), Colors.white.withValues(alpha: 0.03)],
-    borderWidth: 1.4,
-    glowBlur: 14,
-    innerRingOpacity: 0.0,
-    iconColor: Colors.white.withValues(alpha: 0.48),
-  );
+      occupiedGlowColor: Color(0x6690D0FF),
+      occupiedGlowBlur: 22,
+      highlightOpacity: 0.22,
+      outerHaloColor: Color(0x1A90D0FF),
+      outerHaloBlur: 32,
+      pulseGlow: true,
+    ),
+    // ── Level 9: Black Gold Crown — dramatic gold prestige ─────────────────
+    RoomSeatTheme(
+      bgColors: [Color(0xFF1A0C00), Color(0xFF0E0618)],
+      borderColor: Color(0xFFFFD700),
+      glowColor: Color(0x66FFD700),
+      iconColor: Color(0xFFFFD700),
+      accentColor: Color(0xFFFFD700),
+      borderWidth: 2.0,
+      glowBlur: 22,
+      innerRingOpacity: 0.38,
+      occupiedGlowColor: Color(0x73FFD700),
+      occupiedGlowBlur: 26,
+      highlightOpacity: 0.25,
+      outerHaloColor: Color(0x2DFFD700),
+      outerHaloBlur: 36,
+      pulseGlow: true,
+    ),
+    // ── Level 10: Mythic Elite — black/gold/purple, most luxurious ─────────
+    RoomSeatTheme(
+      bgColors: [Color(0xFF1A0030), Color(0xFF0C0020), Color(0xFF060010)],
+      borderColor: Color(0xFFFFD700),
+      glowColor: Color(0x80FFD700),
+      iconColor: Color(0xFFFFD86B),
+      accentColor: Color(0xFFE040FB),
+      borderWidth: 2.2,
+      glowBlur: 28,
+      innerRingOpacity: 0.45,
+      occupiedGlowColor: Color(0x80FFD700),
+      occupiedGlowBlur: 30,
+      highlightOpacity: 0.30,
+      outerHaloColor: Color(0x40E040FB),
+      outerHaloBlur: 48,
+      pulseGlow: true,
+    ),
+  ];
 }
 
 class _LiveSeatBubble extends StatelessWidget {
@@ -5356,6 +5580,7 @@ class _LiveSeatBubble extends StatelessWidget {
     final canManageSeat = !seat.isEmpty && isHost && seat.member != null;
     final occupiedByHost = seat.role == 'host';
     final effectiveVipLevel = seat.member?.effectiveVipLevel ?? 0;
+    final theme = RoomSeatTheme.forLevel(roomLevel);
 
     // Size hierarchy: host > occupied > empty
     final outerSize = occupiedByHost
@@ -5443,20 +5668,21 @@ class _LiveSeatBubble extends StatelessWidget {
           ),
         ] else ...[
           BoxShadow(
-            color: const Color(0xFF8B26D9).withValues(alpha: 0.45),
-            blurRadius: 14,
+            color: theme.occupiedGlowColor,
+            blurRadius: theme.occupiedGlowBlur,
             spreadRadius: 0,
           ),
           BoxShadow(
-            color: const Color(0xFF8B26D9).withValues(alpha: 0.20),
-            blurRadius: 26,
+            color: theme.occupiedGlowColor.withValues(
+              alpha: theme.occupiedGlowColor.a * 0.50,
+            ),
+            blurRadius: theme.occupiedGlowBlur * 2.0,
             spreadRadius: 3,
           ),
-          // Level 7+ adds a warm gold halo to occupied seats.
-          if (roomLevel >= 7)
+          if (theme.outerHaloBlur > 0)
             BoxShadow(
-              color: const Color(0xFFF0C15A).withValues(alpha: roomLevel >= 9 ? 0.25 : 0.14),
-              blurRadius: roomLevel >= 9 ? 36 : 24,
+              color: theme.outerHaloColor,
+              blurRadius: theme.outerHaloBlur,
               spreadRadius: 2,
             ),
         ],
@@ -5763,12 +5989,12 @@ class _LiveSeatBubble extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// Luxury empty seat — visual changes based on room level.
-// Level 1-2: clean glass circle  Level 3-4: soft purple glow
-// Level 5-6: premium violet trim Level 7-8: royal gold glow
-// Level 9+:  elite throne style
+// Luxury empty seat — visual driven by RoomSeatTheme (10 levels).
+// L1-2: glass dark / silver glass     L3-4: blue prestige / gold warmth
+// L5-6: purple luxury / ruby royal    L7-8: emerald jewel + pulse / diamond
+// L9: black-gold crown  L10: mythic elite
 // -----------------------------------------------------------------------------
-class _LuxuryEmptySeat extends StatelessWidget {
+class _LuxuryEmptySeat extends StatefulWidget {
   const _LuxuryEmptySeat({
     required this.seat,
     required this.outerSize,
@@ -5782,24 +6008,57 @@ class _LuxuryEmptySeat extends StatelessWidget {
   final double micSeatIconSize;
 
   @override
+  State<_LuxuryEmptySeat> createState() => _LuxuryEmptySeatState();
+}
+
+class _LuxuryEmptySeatState extends State<_LuxuryEmptySeat>
+    with SingleTickerProviderStateMixin {
+  AnimationController? _pulseCtrl;
+  Animation<double>? _pulseAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _initPulse();
+  }
+
+  @override
+  void didUpdateWidget(_LuxuryEmptySeat old) {
+    super.didUpdateWidget(old);
+    if (old.roomLevel != widget.roomLevel ||
+        old.seat.isLocked != widget.seat.isLocked) {
+      _pulseCtrl?.dispose();
+      _pulseCtrl = null;
+      _pulseAnim = null;
+      _initPulse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulseCtrl?.dispose();
+    super.dispose();
+  }
+
+  void _initPulse() {
+    final theme = RoomSeatTheme.forLevel(widget.seat.isLocked ? 0 : widget.roomLevel);
+    if (!theme.pulseGlow) return;
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    )..repeat(reverse: true);
+    _pulseAnim = Tween<double>(begin: 0.60, end: 1.0)
+        .animate(CurvedAnimation(parent: _pulseCtrl!, curve: Curves.easeInOut));
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final style = _seatStyleForLevel(seat.isLocked ? 0 : roomLevel);
-    final borderColor = seat.isLocked
-        ? Colors.white.withValues(alpha: 0.12)
-        : style.borderColor;
-    final glowColor = seat.isLocked
-        ? const Color(0xFF8B26D9).withValues(alpha: 0.10)
-        : style.glowColor.withValues(alpha: 0.22);
-    final iconColor = seat.isLocked
-        ? Colors.white.withValues(alpha: 0.28)
-        : style.iconColor;
+    final theme = RoomSeatTheme.forLevel(widget.seat.isLocked ? 0 : widget.roomLevel);
+    final outerSize = widget.outerSize;
+    final isLocked = widget.seat.isLocked;
 
-    // Gradient stops for bg: always at least 2 colours.
-    final bgColors = seat.isLocked
-        ? [Colors.white.withValues(alpha: 0.03), Colors.white.withValues(alpha: 0.01)]
-        : style.bgGradient;
-
-    return Container(
+    // Core seat circle
+    final Widget seatCircle = Container(
       width: outerSize,
       height: outerSize,
       alignment: Alignment.center,
@@ -5808,44 +6067,70 @@ class _LuxuryEmptySeat extends StatelessWidget {
         gradient: RadialGradient(
           center: const Alignment(0, -0.3),
           radius: 1.0,
-          colors: bgColors,
+          colors: theme.bgColors,
         ),
-        border: Border.all(color: borderColor, width: style.borderWidth),
+        border: Border.all(color: theme.borderColor, width: theme.borderWidth),
         boxShadow: [
-          BoxShadow(color: glowColor, blurRadius: style.glowBlur),
+          BoxShadow(color: theme.glowColor, blurRadius: theme.glowBlur),
+          if (theme.outerHaloBlur > 0 && _pulseAnim == null)
+            BoxShadow(
+              color: theme.outerHaloColor,
+              blurRadius: theme.outerHaloBlur,
+              spreadRadius: 2,
+            ),
         ],
       ),
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Inner cushion ring — visible at level 3+ and not locked
-          if (style.innerRingOpacity > 0 && !seat.isLocked)
+          // Inner accent ring (L3+, not locked)
+          if (theme.innerRingOpacity > 0 && !isLocked)
             Container(
               width: outerSize * 0.72,
               height: outerSize * 0.72,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: borderColor.withValues(alpha: style.innerRingOpacity),
+                  color: theme.accentColor.withValues(
+                    alpha: theme.innerRingOpacity,
+                  ),
                   width: 0.8,
                 ),
               ),
             ),
+          // Shimmer highlight spot — bright cap at top of circle (L6+)
+          if (theme.highlightOpacity > 0)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      center: const Alignment(0, -0.65),
+                      radius: 0.55,
+                      colors: [
+                        Color.fromRGBO(255, 255, 255, theme.highlightOpacity),
+                        const Color(0x00FFFFFF),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          // Icon + seat number
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                seat.isLocked ? Icons.lock_rounded : Icons.mic_none_rounded,
-                color: iconColor,
-                size: micSeatIconSize,
+                isLocked ? Icons.lock_rounded : Icons.mic_rounded,
+                color: theme.iconColor,
+                size: widget.micSeatIconSize,
               ),
               const SizedBox(height: 1),
               Text(
-                '${seat.number}',
+                '${widget.seat.number}',
                 style: TextStyle(
-                  color: seat.isLocked
-                      ? Colors.white.withValues(alpha: 0.25)
-                      : iconColor.withValues(alpha: 0.65),
+                  color: theme.iconColor.withValues(alpha: isLocked ? 0.50 : 0.65),
                   fontSize: 8,
                   fontWeight: FontWeight.w800,
                 ),
@@ -5854,6 +6139,38 @@ class _LuxuryEmptySeat extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    // For L7+ animated pulse: animated outer ring drives the halo blur.
+    final Animation<double>? pulse = _pulseAnim;
+    if (pulse == null) return seatCircle;
+
+    return AnimatedBuilder(
+      animation: pulse,
+      builder: (_, child) => Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          IgnorePointer(
+            child: Container(
+              width: outerSize + 8,
+              height: outerSize + 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: theme.outerHaloColor,
+                    blurRadius: theme.outerHaloBlur * pulse.value,
+                    spreadRadius: 2.0 * pulse.value,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          child!,
+        ],
+      ),
+      child: seatCircle,
     );
   }
 }
