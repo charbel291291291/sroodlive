@@ -46,12 +46,23 @@ class RoomsService {
   DateTime get _activeSince =>
       DateTime.now().toUtc().subtract(const Duration(seconds: 45));
 
-  Future<List<Room>> getRooms() async {
-    final data = await SupabaseService.requiredClient
+  Future<List<Room>> getRooms({String? countryCode}) async {
+    // Normalize: null or blank = "all countries" (no filter).
+    final code = (countryCode?.trim().toUpperCase().isEmpty ?? true)
+        ? null
+        : countryCode!.trim().toUpperCase();
+
+    var query = SupabaseService.requiredClient
         .from('rooms')
         .select('*, profiles!owner_id(country)')
-        .eq('is_closed', false)
-        .order('created_at', ascending: false);
+        .eq('is_closed', false);
+
+    // Apply server-side country filter only when a specific country is selected.
+    if (code != null) {
+      query = query.eq('country_code', code);
+    }
+
+    final data = await query.order('created_at', ascending: false);
 
     return (data as List<dynamic>)
         .map((item) => Room.fromJson(item as Map<String, dynamic>))
@@ -163,6 +174,7 @@ class RoomsService {
     String? description,
     String language = 'ar',
     int maxSeats = 12,
+    String? countryCode,
   }) async {
     final client = SupabaseService.requiredClient;
     final user = client.auth.currentUser;
@@ -183,6 +195,26 @@ class RoomsService {
     final lkName =
         'srood_${DateTime.now().millisecondsSinceEpoch}_${user.id.substring(0, 8)}';
 
+    // Normalize country_code to uppercase; fall back to owner profile value.
+    final normalizedCode = countryCode?.trim().toUpperCase().isEmpty == true
+        ? null
+        : countryCode?.trim().toUpperCase();
+
+    // If not supplied by caller, read from the owner's profile so the room
+    // is discoverable under the correct country filter immediately.
+    String? resolvedCode = normalizedCode;
+    if (resolvedCode == null) {
+      try {
+        final profile = await client
+            .from('profiles')
+            .select('country_code')
+            .eq('id', user.id)
+            .maybeSingle();
+        final raw = profile?['country_code']?.toString().trim().toUpperCase();
+        if (raw != null && raw.isNotEmpty) resolvedCode = raw;
+      } catch (_) {}
+    }
+
     final inserted = await client.from('rooms').insert({
       'owner_id': user.id,
       'name': name,
@@ -190,6 +222,7 @@ class RoomsService {
       'language': language,
       'max_seats': maxSeats,
       'livekit_room_name': lkName,
+      'country_code': resolvedCode,
     }).select().single();
 
     return (room: Room.fromJson(inserted), alreadyExisted: false);
@@ -201,12 +234,14 @@ class RoomsService {
     String? description,
     String language = 'ar',
     int maxSeats = 12,
+    String? countryCode,
   }) async {
     final result = await getOrCreateRoom(
       name: name,
       description: description,
       language: language,
       maxSeats: maxSeats,
+      countryCode: countryCode,
     );
     return result.room;
   }

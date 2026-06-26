@@ -3561,7 +3561,7 @@ class _UserEditDialogState extends State<_UserEditDialog> {
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String?>(
-                value: _genderOptions.contains(_gender) ? _gender : null,
+                initialValue: _genderOptions.contains(_gender) ? _gender : null,
                 dropdownColor: _kSurface,
                 decoration: const InputDecoration(labelText: 'Gender'),
                 items: [

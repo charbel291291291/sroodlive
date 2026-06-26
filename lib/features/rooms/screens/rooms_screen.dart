@@ -52,7 +52,11 @@ class _RoomsScreenState extends State<RoomsScreen> {
       // Close stale empty rooms before fetching the list.
       unawaited(_roomsService.closeEmptyRooms());
 
-      final rooms = await _roomsService.getRooms();
+      // Pass the selected country code so Supabase filters server-side.
+      // null = all countries.
+      final rooms = await _roomsService.getRooms(
+        countryCode: _selectedCountryCode,
+      );
 
       // Active counts are optional — a failure here must not hide the room list.
       Map<String, int> activeCounts = {};
@@ -119,10 +123,17 @@ class _RoomsScreenState extends State<RoomsScreen> {
     }
   }
 
+  // Server already filtered by country_code. This guard is a safety net for
+  // any rooms that slipped through (e.g. legacy rows with no country_code that
+  // Supabase returned before the migration ran).
   List<Room> get _filteredRooms {
     final code = _selectedCountryCode;
     if (code == null) return _rooms;
-    return _rooms.where((r) => r.ownerCountry == code).toList();
+    return _rooms.where((r) {
+      final rc = r.countryCode;
+      if (rc == null || rc.isEmpty) return false; // hide unknown when filtered
+      return rc == code;
+    }).toList();
   }
 
   Future<void> _pickCountry() async {
@@ -135,6 +146,8 @@ class _RoomsScreenState extends State<RoomsScreen> {
     if (!mounted) return;
     if (picked != null) {
       setState(() => _selectedCountryCode = picked.code);
+      // Reload with the new server-side filter immediately.
+      unawaited(_loadRooms());
     }
   }
 
@@ -498,7 +511,10 @@ class _RoomsScreenState extends State<RoomsScreen> {
                 isArabic: context.isArabic,
                 isCompact: isCompact,
                 onPick: _pickCountry,
-                onClear: () => setState(() => _selectedCountryCode = null),
+                onClear: () {
+                  setState(() => _selectedCountryCode = null);
+                  unawaited(_loadRooms());
+                },
               ),
               const SizedBox(height: 16),
               if (_loading)

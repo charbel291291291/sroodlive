@@ -19,6 +19,7 @@ class Room {
     this.ownerCountry,
     this.closedSeats = const [],
     this.roomCode,
+    this.countryCode,
     this.roomLevel = 1,
     this.isRoomMuted = false,
     this.allowImages = true,
@@ -47,7 +48,8 @@ class Room {
   final String? backgroundUrl;
   final String? avatarUrl;
   final List<int> closedSeats;
-  final String? roomCode;   // 5-digit public display code (null for legacy rooms without the column)
+  final String? roomCode;      // 5-digit public display code
+  final String? countryCode;   // ISO 3166-1 alpha-2 (e.g. "LB", "AE")
   final int roomLevel;
   final bool isRoomMuted;
   final bool allowImages;
@@ -86,6 +88,9 @@ class Room {
               .toList() ??
           const [],
       roomCode: json['public_room_code']?.toString(),
+      countryCode: json['country_code']?.toString().toUpperCase().trim().isEmpty == true
+          ? null
+          : json['country_code']?.toString().toUpperCase().trim(),
       roomLevel: (json['room_level'] as num?)?.toInt() ?? 1,
       isRoomMuted: json['is_room_muted'] as bool? ?? false,
       allowImages: json['allow_images'] as bool? ?? true,
