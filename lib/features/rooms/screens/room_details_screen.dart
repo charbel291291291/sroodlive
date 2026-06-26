@@ -250,6 +250,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   int _roomLevel = 1;
   bool _roomIsLocked = false;
   bool _roomIsClosed = false;
+  bool _roomIsMuted = false;
   bool _roomAllowImages = true;
   // Used for image-cache busting when background changes server-side.
   DateTime? _roomUpdatedAt;
@@ -337,6 +338,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     _roomLevel = widget.room.roomLevel;
     _roomIsLocked = widget.room.isLocked;
     _roomIsClosed = widget.room.isClosed;
+    _roomIsMuted  = widget.room.isRoomMuted;
     _roomAllowImages = widget.room.allowImages;
     _roomXp = widget.room.roomXp;
     _xpToday = widget.room.xpToday;
@@ -990,6 +992,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
               final newAllowImages = rec['allow_images'] as bool?;
               if (newAllowImages != null && newAllowImages != _roomAllowImages) {
                 _roomAllowImages = newAllowImages;
+              }
+
+              final newRoomMuted = rec['is_room_muted'] as bool?;
+              if (newRoomMuted != null && newRoomMuted != _roomIsMuted) {
+                _roomLog('[RT-ROOM] is_room_muted=$newRoomMuted');
+                _roomIsMuted = newRoomMuted;
               }
 
               // --- images (evict stale cache before assigning new URL) ---
@@ -1913,6 +1921,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         avatarUrl: _roomAvatarUrl,
         roomCode: widget.room.roomCode,
         roomLevel: _roomLevel,
+        isRoomMuted: _roomIsMuted,
         allowImages: _roomAllowImages,
         closedSeats: _closedSeats.toList(),
       );
@@ -2807,6 +2816,23 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         }
       }
 
+      // Room-level mute: block non-staff from publishing when room is muted.
+      if (shouldPublishMic && _roomIsMuted && !_iAmRoomOwner && !_iAmHost && !_isCurrentUserModerator) {
+        _roomLog('[MUTE] seat mic denied reason=room_muted');
+        await _liveKitRoomService.setMicrophoneEnabled(false);
+        if (mounted) {
+          setState(() { _micEnabled = false; _wasCurrentUserOnMic = false; });
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+              context.isArabic ? 'الغرفة مكتومة حالياً' : 'Room is muted right now',
+            ),
+            backgroundColor: const Color(0xFFEF4444),
+            duration: const Duration(seconds: 3),
+          ));
+        }
+        return;
+      }
+
       if (shouldPublishMic) {
         attemptingPublish = true;
         final hasMicrophonePermission = await _ensureMicrophonePermission();
@@ -2909,6 +2935,23 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     }
 
     final nextValue = !_micEnabled;
+
+    // Block mic-on when the room owner has muted the whole room.
+    if (nextValue && _roomIsMuted && !_iAmRoomOwner && !_iAmHost && !_isCurrentUserModerator) {
+      _roomLog('[MUTE] self unmute denied reason=room_muted');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+            context.isArabic
+                ? 'الغرفة مكتومة حالياً'
+                : 'Room is muted right now',
+          ),
+          backgroundColor: const Color(0xFFEF4444),
+          duration: const Duration(seconds: 3),
+        ));
+      }
+      return;
+    }
 
     // Block self-unmute when owner has force-muted this user.
     if (nextValue && (_myMember?.forceMuted == true)) {
@@ -3702,7 +3745,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                     moderatorUserIds: _moderatorUserIds,
                     closedSeats: _closedSeats,
                     onSeatClosedToggle: _toggleSeatClosed,
-                    roomLevel: widget.room.roomLevel,
+                    roomLevel: _roomLevel,
                     activePk: _activePk?.isActive == true ? _activePk : null,
                     showPkResult: _showPkResult,
                     pkResult: _showPkResult && _activePk?.isFinished == true
