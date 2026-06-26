@@ -8426,7 +8426,7 @@ class _GiftReceiverRail extends StatelessWidget {
     }
 
     return SizedBox(
-      height: 96,
+      height: 112,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         reverse: isArabic,
@@ -8541,13 +8541,13 @@ class _GiftReceiverBubble extends StatelessWidget {
               avatarUrl: avatarUrl,
               frameKey: receiver.selectedAvatarFrameKey,
               vipLevel: receiver.effectiveVipLevel,
-              size: 54,
+              size: 52,
               selected: selected,
               fallbackIcon: receiver.role == 'listener'
                   ? Icons.person_rounded
                   : Icons.mic_rounded,
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 3),
             Text(
               name,
               maxLines: 1,
@@ -8565,7 +8565,7 @@ class _GiftReceiverBubble extends StatelessWidget {
             ),
             if (vipLevel > 0)
               Padding(
-                padding: const EdgeInsets.only(top: 2),
+                padding: const EdgeInsets.only(top: 1),
                 child: VipBadge(vipLevel: vipLevel, compact: true),
               ),
             Text(
