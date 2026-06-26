@@ -432,8 +432,15 @@ function _startRaf() {
   G.rafId = requestAnimationFrame(drawFrame);
 }
 
+let _frameSkip = 0;
 function drawFrame(ts) {
   G.rafId = requestAnimationFrame(drawFrame);
+  // Throttle to ~15fps during non-flying phases (betting/crashed/waiting/init).
+  // Flying phase keeps full 60fps for smooth rocket animation.
+  if (G.phase !== 'flying') {
+    _frameSkip = (_frameSkip + 1) % 4;
+    if (_frameSkip !== 0) return;
+  }
   const W=cvs.width, H=cvs.height;
   if (!W || !H) return;
   cx.clearRect(0,0,W,H);
@@ -1046,6 +1053,7 @@ window.onSroodMessage = function(msg) {
   switch(type) {
     case 'INIT_GAME':
       if (DEBUG) console.log('[RocketCrash] startup sync begin');
+      _initDone = true;
       _startRaf(); // start the single RAF loop now that server data is arriving
       G.balance = payload.balance || 0;
       G.locale  = payload.locale  || 'en';
@@ -1054,6 +1062,8 @@ window.onSroodMessage = function(msg) {
       if (G.serverSynced) {
         clearInterval(G.fakeFeedTmr);
         G.fakeFeedTmr = null;
+      } else {
+        _startFakeFeedTimer();
       }
       updateSoundBtn();
       updateBal();
@@ -1187,8 +1197,10 @@ window.onSroodMessage = function(msg) {
 // ═══════════════════════════════════════════════════════════════════════════
 // UI HELPERS
 // ═══════════════════════════════════════════════════════════════════════════
+let _lastMultText = '';
 function setMult(v, cls) {
-  _DOM.multVal.textContent = v.toFixed(2) + 'x';
+  const t = v.toFixed(2) + 'x';
+  if (_DOM.multVal.textContent !== t) { _DOM.multVal.textContent = t; _lastMultText = t; }
   _DOM.multVal.className = cls;
 }
 
@@ -1216,7 +1228,11 @@ function updateRoundChip() {
     G.phase === 'crashed' ? 'crashed' : '';
 }
 
+let _histFingerprint = '';
 function renderHistory() {
+  const fp = G.history.slice(0, 20).join(',');
+  if (fp === _histFingerprint) return;
+  _histFingerprint = fp;
   _DOM.histRow.innerHTML = '';
   G.history.slice(0, 20).forEach(v => {
     const c = document.createElement('span');
@@ -1436,8 +1452,6 @@ function _startFakeFeedTimer() {
     }
   }, 1600);
 }
-_startFakeFeedTimer();
-
 // ═══════════════════════════════════════════════════════════════════════════
 // FLUTTER BRIDGE
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1450,6 +1464,7 @@ function postToFlutter(type, payload) {
 // ═══════════════════════════════════════════════════════════════════════════
 // BOOT
 // ═══════════════════════════════════════════════════════════════════════════
+let _initDone = false; // set to true on first INIT_GAME; stops GAME_READY retries
 (function boot() {
   try { const s=localStorage.getItem('rc_snd'); if(s!==null) G.soundOn=s==='1'; } catch(e){}
   updateSoundBtn();
@@ -1463,7 +1478,8 @@ function postToFlutter(type, payload) {
   // Retry GAME_READY up to 3×  (never fall back to a fake balance)
   let _initAttempt = 0;
   function _retryInit() {
-    if (G.phase !== 'init') return; // INIT_GAME already received
+    if (_initDone) return;         // INIT_GAME already received and processed
+    if (G.phase !== 'init') return;
     _initAttempt++;
     if (_initAttempt <= 3) {
       setPhase('CONNECTING…', 'Attempt ' + (_initAttempt + 1) + '/4');

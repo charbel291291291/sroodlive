@@ -69,6 +69,11 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
   // True while _initGame() is awaiting RPCs; prevents concurrent re-entry.
   bool _isInitializing = false;
 
+  // True after the first successful _initGame() completes. Subsequent
+  // GAME_READY fires (JS retries) use a lightweight round refresh instead of
+  // a full re-init so the advisory-lock RPC is not hit redundantly.
+  bool _initialized = false;
+
   // True once _roundId and _currentRoundNumber have been assigned from the
   // server. Financial actions (bet/refund/cashout) are rejected until true.
   bool _serverRoundReady = false;
@@ -246,7 +251,15 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
 
     switch (type) {
       case 'GAME_READY':
-        await _initGame();
+        // JS retries GAME_READY up to 3× while it waits for INIT_GAME.
+        // If we already initialised successfully and have a round, answer with
+        // a lightweight round refresh instead of a full re-init (which would
+        // take the advisory lock and re-fetch the wallet unnecessarily).
+        if (_initialized && _roundId != null) {
+          _refreshRoundFromServer('game_ready_refire', lockFreeRead: true);
+        } else {
+          await _initGame();
+        }
       case 'REQUEST_PLACE_BET':
         await _handlePlaceBet(payload);
       case 'REQUEST_BET_DEBIT':
@@ -379,6 +392,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
         'serverSynced': true,
         'round': roundPayload,
       });
+      _initialized = true;
 
       if (_roundId != null) _sendBetFeed(_roundId!);
     } catch (e, st) {
@@ -410,7 +424,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
   double get _serverNowMs =>
       DateTime.now().millisecondsSinceEpoch + _serverTimeOffsetMs;
 
-  void _refreshRoundFromServer(String reason) {
+  void _refreshRoundFromServer(String reason, {bool lockFreeRead = false}) {
     if (!mounted) return;
     if (SupabaseService.requiredClient.auth.currentUser == null) return;
 
@@ -418,14 +432,17 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     _roundRefreshDebounce?.cancel();
     _roundRefreshDebounce = Timer(
       const Duration(milliseconds: 800),
-      () => _runRoundRefresh(reason),
+      () => _runRoundRefresh(reason, lockFreeRead: lockFreeRead),
     );
   }
 
   // Fetches the live round and forwards it to the WebView. If a refresh is
   // already running, the request is remembered (not dropped) and re-run once
   // the current one finishes, so the latest server state is never missed.
-  Future<void> _runRoundRefresh(String reason) async {
+  //
+  // lockFreeRead: use the read-only RPC (no advisory lock, no creation).
+  // Used by the reconciliation poll so it cannot contend with pg_cron.
+  Future<void> _runRoundRefresh(String reason, {bool lockFreeRead = false}) async {
     if (!mounted) return;
     if (_roundRefreshInFlight) {
       _refreshPending = true;
@@ -434,7 +451,15 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     }
     _roundRefreshInFlight = true;
     try {
-      final round = await _service.getOrCreateRocketRound();
+      final round = lockFreeRead
+          ? await _service.getRocketCurrentRound()
+          : await _service.getOrCreateRocketRound();
+
+      // Lock-free read returns null between rounds — nothing to post.
+      if (round == null) {
+        debugPrint('[RocketCrash] lockFreeRead: no active round, skipping post');
+        return;
+      }
       if (!mounted) return;
 
       final roundId = round['round_id']?.toString();
@@ -514,7 +539,7 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
         _reconcilePoll?.cancel();
         return;
       }
-      _refreshRoundFromServer('poll');
+      _refreshRoundFromServer('poll', lockFreeRead: true);
     });
   }
 

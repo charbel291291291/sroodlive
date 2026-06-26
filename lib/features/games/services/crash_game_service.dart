@@ -79,6 +79,15 @@ class CrashGameService {
     return data;
   }
 
+  /// Read-only: returns the current active betting or flying round without
+  /// taking an advisory lock or creating a new round. Returns null when no
+  /// active round exists (between rounds is valid — caller should skip posting).
+  Future<Map<String, dynamic>?> getRocketCurrentRound() async {
+    final data = await _client.rpc('get_rocket_crash_current_round');
+    if (data == null) return null;
+    return data as Map<String, dynamic>;
+  }
+
   /// Places a bet during the betting phase. Returns {bet_id, new_balance}.
   Future<Map<String, dynamic>> placeRocketBet(
     String roundId,
