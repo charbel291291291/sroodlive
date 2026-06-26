@@ -61,6 +61,7 @@ class LiveKitRoomService {
           autoGainControl: true,
           highPassFilter: true,
           typingNoiseDetection: true,
+          voiceIsolation: true,
         ),
         // speakerOn is NOT set here -- we handle routing after connect
         // so we can check whether headphones are plugged in first.

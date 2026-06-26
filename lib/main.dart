@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:livekit_client/livekit_client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
@@ -20,6 +21,16 @@ final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Explicitly initialise the WebRTC engine with voice processing enabled
+  // (bypassVoiceProcessing: false is the default, but being explicit here
+  // ensures Android sets AudioMode.COMMUNICATION before the first room join,
+  // which activates hardware AEC / noise suppression on the device).
+  if (!kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS)) {
+    await LiveKitClient.initialize(bypassVoiceProcessing: false);
+  }
 
   // TODO(white-label): Replace SroodLiveConfig() with the client-specific
   // config before calling runApp(), e.g.:
