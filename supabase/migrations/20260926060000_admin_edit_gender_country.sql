@@ -9,7 +9,10 @@
 -- ============================================================
 
 -- 1. Extend admin_user_detail to include gender and country
-create or replace function public.admin_user_detail(p_user_id uuid)
+-- Must drop first because return type (table columns) is changing.
+drop function if exists public.admin_user_detail(uuid);
+
+create function public.admin_user_detail(p_user_id uuid)
 returns table (
   user_id                   uuid,
   email                     text,
