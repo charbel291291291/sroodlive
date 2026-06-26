@@ -445,6 +445,8 @@ class AdminService {
     String? avatarUrl,
     String? bio,
     int? vipLevel,
+    String? gender,
+    String? country,
   }) async {
     await SupabaseService.requiredClient.rpc(
       'admin_update_user_profile',
@@ -455,6 +457,8 @@ class AdminService {
         'p_avatar_url': avatarUrl,
         'p_bio': bio,
         'p_vip_level': vipLevel,
+        'p_gender': gender,
+        'p_country': country,
       },
     );
   }

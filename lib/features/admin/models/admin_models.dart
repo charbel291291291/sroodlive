@@ -514,6 +514,8 @@ class AdminUserDetail {
     this.vipStartedAt,
     this.vipExpiresAt,
     this.selectedAvatarFrameKey,
+    this.gender,
+    this.country,
     this.createdAt,
   });
 
@@ -530,6 +532,8 @@ class AdminUserDetail {
   final DateTime? vipStartedAt;
   final DateTime? vipExpiresAt;
   final String? selectedAvatarFrameKey;
+  final String? gender;
+  final String? country;
   final int coinsBalance;
   final int diamondsBalance;
   final int lifetimeCoinsCharged;
@@ -564,6 +568,8 @@ class AdminUserDetail {
       vipStartedAt: _dateValue(json['vip_started_at']),
       vipExpiresAt: _dateValue(json['vip_expires_at']),
       selectedAvatarFrameKey: json['selected_avatar_frame_key']?.toString(),
+      gender: json['gender']?.toString(),
+      country: json['country']?.toString(),
       coinsBalance: _intValue(json['coins_balance']),
       diamondsBalance: _intValue(json['diamonds_balance']),
       lifetimeCoinsCharged: _intValue(json['lifetime_coins_charged']),

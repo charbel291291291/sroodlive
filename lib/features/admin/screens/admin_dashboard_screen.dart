@@ -788,6 +788,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         avatarUrl: result.avatarUrl,
         bio: result.bio,
         vipLevel: result.vipLevel,
+        gender: result.gender,
+        country: result.country,
       );
       await _searchUsers();
       await _load();
@@ -3469,6 +3471,8 @@ class _UserEditResult {
     required this.avatarUrl,
     required this.bio,
     required this.vipLevel,
+    required this.gender,
+    required this.country,
   });
 
   final String? displayName;
@@ -3476,6 +3480,8 @@ class _UserEditResult {
   final String? avatarUrl;
   final String? bio;
   final int? vipLevel;
+  final String? gender;
+  final String? country;
 }
 
 class _UserEditDialog extends StatefulWidget {
@@ -3493,15 +3499,21 @@ class _UserEditDialogState extends State<_UserEditDialog> {
   late final TextEditingController _avatarUrl;
   late final TextEditingController _bio;
   late final TextEditingController _vipLevel;
+  late final TextEditingController _country;
+  String? _gender;
+
+  static const _genderOptions = ['male', 'female', 'other'];
 
   @override
   void initState() {
     super.initState();
     _displayName = TextEditingController(text: widget.detail.displayName);
-    _username = TextEditingController(text: widget.detail.username);
-    _avatarUrl = TextEditingController(text: widget.detail.avatarUrl);
-    _bio = TextEditingController(text: widget.detail.bio);
-    _vipLevel = TextEditingController(text: widget.detail.vipLevel.toString());
+    _username    = TextEditingController(text: widget.detail.username);
+    _avatarUrl   = TextEditingController(text: widget.detail.avatarUrl);
+    _bio         = TextEditingController(text: widget.detail.bio);
+    _vipLevel    = TextEditingController(text: widget.detail.vipLevel.toString());
+    _country     = TextEditingController(text: widget.detail.country ?? '');
+    _gender      = widget.detail.gender;
   }
 
   @override
@@ -3511,6 +3523,7 @@ class _UserEditDialogState extends State<_UserEditDialog> {
     _avatarUrl.dispose();
     _bio.dispose();
     _vipLevel.dispose();
+    _country.dispose();
     super.dispose();
   }
 
@@ -3546,6 +3559,24 @@ class _UserEditDialogState extends State<_UserEditDialog> {
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(labelText: 'VIP level'),
               ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String?>(
+                value: _genderOptions.contains(_gender) ? _gender : null,
+                dropdownColor: _kSurface,
+                decoration: const InputDecoration(labelText: 'Gender'),
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('— no change —')),
+                  ..._genderOptions.map((g) => DropdownMenuItem(value: g, child: Text(g))),
+                ],
+                onChanged: (v) => setState(() => _gender = v),
+              ),
+              TextField(
+                controller: _country,
+                decoration: const InputDecoration(
+                  labelText: 'Country',
+                  hintText: 'e.g. Saudi Arabia',
+                ),
+              ),
             ],
           ),
         ),
@@ -3560,10 +3591,12 @@ class _UserEditDialogState extends State<_UserEditDialog> {
             Navigator.of(context).pop(
               _UserEditResult(
                 displayName: _nullIfEmpty(_displayName.text),
-                username: _nullIfEmpty(_username.text),
-                avatarUrl: _nullIfEmpty(_avatarUrl.text),
-                bio: _nullIfEmpty(_bio.text),
-                vipLevel: int.tryParse(_vipLevel.text.trim()),
+                username:    _nullIfEmpty(_username.text),
+                avatarUrl:   _nullIfEmpty(_avatarUrl.text),
+                bio:         _nullIfEmpty(_bio.text),
+                vipLevel:    int.tryParse(_vipLevel.text.trim()),
+                gender:      _gender,
+                country:     _nullIfEmpty(_country.text),
               ),
             );
           },
