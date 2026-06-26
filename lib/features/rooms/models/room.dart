@@ -20,6 +20,7 @@ class Room {
     this.closedSeats = const [],
     this.roomCode,
     this.roomLevel = 1,
+    this.isRoomMuted = false,
     this.allowImages = true,
     this.roomXp = 0,
     this.xpToday = 0,
@@ -48,6 +49,7 @@ class Room {
   final List<int> closedSeats;
   final String? roomCode;   // 5-digit public display code (null for legacy rooms without the column)
   final int roomLevel;
+  final bool isRoomMuted;
   final bool allowImages;
   final int roomXp;
   final int xpToday;
@@ -85,6 +87,7 @@ class Room {
           const [],
       roomCode: json['public_room_code']?.toString(),
       roomLevel: (json['room_level'] as num?)?.toInt() ?? 1,
+      isRoomMuted: json['is_room_muted'] as bool? ?? false,
       allowImages: json['allow_images'] as bool? ?? true,
       roomXp: (json['room_xp'] as num?)?.toInt() ?? 0,
       xpToday: ((json['xp_today_gift'] as num? ?? 0) +

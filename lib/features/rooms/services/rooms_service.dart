@@ -490,6 +490,16 @@ class RoomsService {
     );
   }
 
+  Future<void> setRoomMuted({
+    required String roomId,
+    required bool isMuted,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'set_room_muted',
+      params: {'p_room_id': roomId, 'p_is_muted': isMuted},
+    );
+  }
+
   Future<void> leaveRoom(String roomId) async {
     final client = SupabaseService.requiredClient;
     if (client.auth.currentUser == null) throw StateError('No logged-in user.');

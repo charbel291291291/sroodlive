@@ -103,14 +103,18 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
   }
 
   Future<void> _muteAll() async {
-    setState(() => _allMuted = !_allMuted);
+    final next = !_allMuted;
+    setState(() => _allMuted = next);
     try {
-      await SupabaseService.requiredClient
-          .from('room_members')
-          .update({'is_muted': _allMuted})
-          .eq('room_id', widget.roomId)
-          .eq('status', 'active');
-    } catch (_) {}
+      // Set the room-level mute flag via RPC so all clients see it instantly
+      // and new mic requests are also blocked server-enforced.
+      await SupabaseService.requiredClient.rpc(
+        'set_room_muted',
+        params: {'p_room_id': widget.roomId, 'p_is_muted': next},
+      );
+    } catch (_) {
+      if (mounted) setState(() => _allMuted = !next); // rollback on error
+    }
   }
 
   Future<void> _toggleSeatMute(_Seat seat) async {
