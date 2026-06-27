@@ -508,42 +508,34 @@ class _RoomsScreenState extends State<RoomsScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              // Country filter
+              // Country filter — all 22 Arab countries as quick chips
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    // Quick-select Lebanon
-                    _QuickCountryChip(
-                      code: 'LB',
-                      flag: '\u{1F1F1}\u{1F1E7}',
-                      label: context.isArabic ? 'لبنان' : 'Lebanon',
-                      isSelected: _selectedCountryCode == 'LB',
-                      isCompact: isCompact,
-                      onTap: () {
-                        final next = _selectedCountryCode == 'LB' ? null : 'LB';
-                        setState(() => _selectedCountryCode = next);
-                        unawaited(_loadRooms());
-                      },
-                    ),
+                    for (int i = 0; i < _kArabCountries.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 8),
+                      _QuickCountryChip(
+                        code: _kArabCountries[i].code,
+                        flag: _kArabCountries[i].flag,
+                        label: context.isArabic
+                            ? _kArabCountries[i].ar
+                            : _kArabCountries[i].en,
+                        isSelected: _selectedCountryCode == _kArabCountries[i].code,
+                        isCompact: isCompact,
+                        onTap: () {
+                          final c = _kArabCountries[i].code;
+                          final next = _selectedCountryCode == c ? null : c;
+                          setState(() => _selectedCountryCode = next);
+                          unawaited(_loadRooms());
+                        },
+                      ),
+                    ],
                     const SizedBox(width: 8),
-                    // Quick-select Syria
-                    _QuickCountryChip(
-                      code: 'SY',
-                      flag: '\u{1F1F8}\u{1F1FE}',
-                      label: context.isArabic ? 'سوريا' : 'Syria',
-                      isSelected: _selectedCountryCode == 'SY',
-                      isCompact: isCompact,
-                      onTap: () {
-                        final next = _selectedCountryCode == 'SY' ? null : 'SY';
-                        setState(() => _selectedCountryCode = next);
-                        unawaited(_loadRooms());
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    // Full country picker
+                    // Full picker for countries outside the Arab list
                     _CountryFilterChip(
-                      selectedCode: (_selectedCountryCode == 'LB' || _selectedCountryCode == 'SY')
+                      selectedCode: _kArabCountries.any(
+                              (c) => c.code == _selectedCountryCode)
                           ? null
                           : _selectedCountryCode,
                       isArabic: context.isArabic,
@@ -620,8 +612,33 @@ class _RoomsScreenState extends State<RoomsScreen> {
 
 // Promotional carousel banner
 
+// All 22 Arab League member states shown as quick-select chips.
+typedef _ArabCountry = ({String code, String flag, String ar, String en});
 
-//  Quick country chip (LB / SY)
+const List<_ArabCountry> _kArabCountries = [
+  (code: 'SA', flag: '\u{1F1F8}\u{1F1E6}', ar: 'السعودية',   en: 'Saudi Arabia'),
+  (code: 'EG', flag: '\u{1F1EA}\u{1F1EC}', ar: 'مصر',         en: 'Egypt'),
+  (code: 'IQ', flag: '\u{1F1EE}\u{1F1F6}', ar: 'العراق',      en: 'Iraq'),
+  (code: 'SY', flag: '\u{1F1F8}\u{1F1FE}', ar: 'سوريا',       en: 'Syria'),
+  (code: 'JO', flag: '\u{1F1EF}\u{1F1F4}', ar: 'الأردن',      en: 'Jordan'),
+  (code: 'LB', flag: '\u{1F1F1}\u{1F1E7}', ar: 'لبنان',       en: 'Lebanon'),
+  (code: 'KW', flag: '\u{1F1F0}\u{1F1FC}', ar: 'الكويت',      en: 'Kuwait'),
+  (code: 'AE', flag: '\u{1F1E6}\u{1F1EA}', ar: 'الإمارات',    en: 'UAE'),
+  (code: 'QA', flag: '\u{1F1F6}\u{1F1E6}', ar: 'قطر',         en: 'Qatar'),
+  (code: 'BH', flag: '\u{1F1E7}\u{1F1ED}', ar: 'البحرين',     en: 'Bahrain'),
+  (code: 'OM', flag: '\u{1F1F4}\u{1F1F2}', ar: 'عُمان',        en: 'Oman'),
+  (code: 'YE', flag: '\u{1F1FE}\u{1F1EA}', ar: 'اليمن',       en: 'Yemen'),
+  (code: 'LY', flag: '\u{1F1F1}\u{1F1FE}', ar: 'ليبيا',       en: 'Libya'),
+  (code: 'TN', flag: '\u{1F1F9}\u{1F1F3}', ar: 'تونس',        en: 'Tunisia'),
+  (code: 'DZ', flag: '\u{1F1E9}\u{1F1FF}', ar: 'الجزائر',     en: 'Algeria'),
+  (code: 'MA', flag: '\u{1F1F2}\u{1F1E6}', ar: 'المغرب',      en: 'Morocco'),
+  (code: 'SD', flag: '\u{1F1F8}\u{1F1E9}', ar: 'السودان',     en: 'Sudan'),
+  (code: 'SO', flag: '\u{1F1F8}\u{1F1F4}', ar: 'الصومال',     en: 'Somalia'),
+  (code: 'MR', flag: '\u{1F1F2}\u{1F1F7}', ar: 'موريتانيا',   en: 'Mauritania'),
+  (code: 'DJ', flag: '\u{1F1E9}\u{1F1EF}', ar: 'جيبوتي',      en: 'Djibouti'),
+  (code: 'KM', flag: '\u{1F1F0}\u{1F1F2}', ar: 'جزر القمر',   en: 'Comoros'),
+  (code: 'PS', flag: '\u{1F1F5}\u{1F1F8}', ar: 'فلسطين',      en: 'Palestine'),
+];
 
 class _QuickCountryChip extends StatelessWidget {
   const _QuickCountryChip({
