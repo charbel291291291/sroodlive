@@ -1,0 +1,1 @@
+-- Applied directly to prod on 2026-06-27; stub for CLI history sync.
