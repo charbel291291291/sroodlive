@@ -408,6 +408,7 @@ class AdminRoomSummary {
     this.language,
     this.closedAt,
     this.closedReason,
+    this.publicRoomCode,
     this.createdAt,
   });
 
@@ -424,6 +425,7 @@ class AdminRoomSummary {
   final bool isClosed;
   final DateTime? closedAt;
   final String? closedReason;
+  final String? publicRoomCode;
   final int activeMembers;
   final DateTime? createdAt;
 
@@ -442,6 +444,7 @@ class AdminRoomSummary {
       isClosed: json['is_closed'] == true,
       closedAt: _dateValue(json['closed_at']),
       closedReason: json['closed_reason']?.toString(),
+      publicRoomCode: json['public_room_code']?.toString(),
       activeMembers: _intValue(json['active_members']),
       createdAt: _dateValue(json['created_at']),
     );

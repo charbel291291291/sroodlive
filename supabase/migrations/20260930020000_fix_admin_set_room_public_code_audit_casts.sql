@@ -1,5 +1,5 @@
--- Local copy for remote-applied migration version 20260930010000.
--- Keeps Supabase migration history aligned.
+-- Fix admin_set_room_public_code audit ambiguity.
+-- public.admin_record_audit has overloads, so literals/nulls need explicit types.
 
 create or replace function public.admin_set_room_public_code(
   p_room_id uuid,

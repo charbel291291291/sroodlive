@@ -539,6 +539,16 @@ class AdminService {
     );
   }
 
+  Future<void> setRoomPublicCode({
+    required String roomId,
+    required String code,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_set_room_public_code',
+      params: {'p_room_id': roomId, 'p_code': code},
+    );
+  }
+
   Future<void> kickRoomMember({
     required String roomId,
     required String userId,

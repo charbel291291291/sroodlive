@@ -1275,6 +1275,61 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
+  Future<void> _setRoomCode(AdminRoomSummary room) async {
+    final controller = TextEditingController(text: room.publicRoomCode ?? '');
+    final code = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: _kSurface,
+        title: const Text('Set Room Code'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              room.name,
+              style: const TextStyle(color: _kGold, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
+            _AdminTextField(
+              controller: controller,
+              label: '5-digit code (10000–99999)',
+              icon: Icons.tag_rounded,
+              keyboardType: TextInputType.number,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('Set'),
+          ),
+        ],
+      ),
+    ).whenComplete(controller.dispose);
+
+    if (code == null || code.isEmpty) return;
+
+    if (!RegExp(r'^[1-9][0-9]{4}$').hasMatch(code)) {
+      _showSnack('Invalid code — must be 5 digits, first digit non-zero (10000–99999)');
+      return;
+    }
+
+    try {
+      await _adminService.setRoomPublicCode(roomId: room.id, code: code);
+      await _load();
+      if (!mounted) return;
+      _showSnack('Room code set to $code');
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack('Set room code failed: $error');
+    }
+  }
+
   Future<void> _editGiftCategory(AdminGiftCategory category) async {
     final result = await showDialog<_GiftCategoryEditResult>(
       context: context,
@@ -1848,6 +1903,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           canManage: _canRooms,
                           onClose: () => _closeRoom(room),
                           onReopen: () => _reopenRoom(room),
+                          onSetCode: () => _setRoomCode(room),
                         ),
                       )
                       .toList(),
@@ -6038,18 +6094,21 @@ class _RoomTile extends StatelessWidget {
     required this.canManage,
     required this.onClose,
     required this.onReopen,
+    required this.onSetCode,
   });
 
   final AdminRoomSummary room;
   final bool canManage;
   final VoidCallback onClose;
   final VoidCallback onReopen;
+  final VoidCallback onSetCode;
 
   @override
   Widget build(BuildContext context) {
+    final codeLabel = room.publicRoomCode != null ? ' · #${room.publicRoomCode}' : '';
     return _AdminListTile(
       icon: Icons.meeting_room_rounded,
-      title: room.name,
+      title: '${room.name}$codeLabel',
       subtitle:
           'Owner ${room.ownerName ?? room.ownerPublicUserId ?? room.ownerId} - ${room.activeMembers}/${room.maxSeats} active${room.closedReason == null ? '' : ' - ${room.closedReason}'}',
       trailing: Wrap(
@@ -6058,11 +6117,16 @@ class _RoomTile extends StatelessWidget {
           _RoleChip(label: room.isClosed ? 'closed' : 'live'),
           _RoleChip(label: room.isLocked ? 'locked' : 'open'),
           if (room.isPrivate) const _RoleChip(label: 'private'),
-          if (canManage)
+          if (canManage) ...[
+            TextButton(
+              onPressed: onSetCode,
+              child: const Text('Set Code'),
+            ),
             TextButton(
               onPressed: room.isClosed ? onReopen : onClose,
               child: Text(room.isClosed ? 'Reopen' : 'Close'),
             ),
+          ],
         ],
       ),
     );
