@@ -2417,24 +2417,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   }
 
   void _handleOccupiedSeatTap(RoomMember member, int seatNumber) {
-    if (!_iAmHost) {
-      return;
-    }
-
-    if (member.role == 'host') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.isArabic
-                ? '\u0644\u0627 \u064a\u0645\u0643\u0646 \u0646\u0642\u0644 \u0645\u0642\u0639\u062f \u0627\u0644\u0645\u0636\u064a\u0641.'
-                : 'Host seat cannot be moved.',
-          ),
-        ),
-      );
-      return;
-    }
-
-    _selectMicMoveMember(member);
+    if (!_iAmHost) return;
+    // Route single-tap to the full action sheet (same as long-press) so move
+    // mode never activates accidentally from a casual tap.
+    _showMemberSeatActions(member, seatNumber);
   }
 
   void _selectMicMoveMember(RoomMember member) {
@@ -3713,9 +3699,20 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                     ),
                   ),
                 ),
-                // Mic stage — floats directly over background (no opaque panel)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 0),
+                // Mic stage — subtle gradient scrim for readability (no opaque panel)
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.0),
+                        Colors.black.withValues(alpha: 0.22),
+                      ],
+                    ),
+                  ),
+                  child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 8),
                   child: _LiveRoomStage(
                     members: _members,
                     maxSeats: _currentMaxSeats,
@@ -3746,16 +3743,20 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                     seatReactions: _seatReactions,
                   ),
                 ),
-                // Scrollable chat feed (only this area scrolls)
-                Expanded(
-                  child: _RoomChatFeed(
-                    chatMessages: _chatMessages,
-                    isArabic: context.isArabic,
-                    onProfileTap: _openUserProfileSheet,
-                    bottomPad: 116 + bottomPad + kbHeight,
-                    currentUserId: _currentUserId ?? '',
-                    onRemoveTap: _canRemoveMessages ? _removeMessage : null,
-                    onReportTap: _reportChatMessage,
+                ),
+                // Scrollable chat feed — max height prevents covering mic seats
+                Flexible(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 240),
+                    child: _RoomChatFeed(
+                      chatMessages: _chatMessages,
+                      isArabic: context.isArabic,
+                      onProfileTap: _openUserProfileSheet,
+                      bottomPad: 116 + bottomPad + kbHeight,
+                      currentUserId: _currentUserId ?? '',
+                      onRemoveTap: _canRemoveMessages ? _removeMessage : null,
+                      onReportTap: _reportChatMessage,
+                    ),
                   ),
                 ),
               ],
@@ -4000,7 +4001,7 @@ class _CompactRoomHeader extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
 
-                // Name + ID chip
+                // Name + ID chip + secondary info
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -4019,15 +4020,39 @@ class _CompactRoomHeader extends StatelessWidget {
                       ),
                       const SizedBox(height: 3),
                       _RoomIdChip(shortId: _shortRoomId, isArabic: isArabic),
+                      const SizedBox(height: 4),
+                      // Secondary row: coins + host badge (dimmed to reduce clutter)
+                      Opacity(
+                        opacity: 0.72,
+                        child: Wrap(
+                          spacing: 4,
+                          runSpacing: 3,
+                          children: [
+                            _MiniRoomStatusPill(
+                              icon: Icons.monetization_on_rounded,
+                              label: walletCoins > 999
+                                  ? '${(walletCoins / 1000).toStringAsFixed(1)}k'
+                                  : walletCoins.toString(),
+                              color: const Color(0xFFF0C15A),
+                            ),
+                            if (isHost)
+                              _MiniRoomStatusPill(
+                                icon: Icons.admin_panel_settings_rounded,
+                                label: isArabic ? 'مضيف' : 'Host',
+                                color: const Color(0xFFF0C15A),
+                              ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
 
                 const SizedBox(width: 8),
 
-                // Right: level badge + compact status pills
+                // Right: level badge + room member/seat stats only
                 ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 120),
+                  constraints: const BoxConstraints(maxWidth: 100),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     mainAxisSize: MainAxisSize.min,
@@ -4055,19 +4080,6 @@ class _CompactRoomHeader extends StatelessWidget {
                             icon: Icons.event_seat_rounded,
                             label: '$activeSpeakerCount/${room.maxSeats}',
                           ),
-                          _MiniRoomStatusPill(
-                            icon: Icons.monetization_on_rounded,
-                            label: walletCoins > 999
-                                ? '${(walletCoins / 1000).toStringAsFixed(1)}k'
-                                : walletCoins.toString(),
-                            color: const Color(0xFFF0C15A),
-                          ),
-                          if (isHost)
-                            _MiniRoomStatusPill(
-                              icon: Icons.admin_panel_settings_rounded,
-                              label: 'Host',
-                              color: const Color(0xFFF0C15A),
-                            ),
                         ],
                       ),
                     ],
