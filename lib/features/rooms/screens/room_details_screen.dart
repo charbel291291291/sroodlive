@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:just_audio/just_audio.dart';
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -3714,20 +3713,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                     ),
                   ),
                 ),
-                // Mic stage glass panel (FIXED -- never inside a scroll container)
-                Container(
-                  margin: const EdgeInsets.fromLTRB(10, 6, 10, 0),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.38),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.07),
-                      width: 1,
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(4, 6, 4, 6),
-                    child: _LiveRoomStage(
+                // Mic stage — floats directly over background (no opaque panel)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 0),
+                  child: _LiveRoomStage(
                     members: _members,
                     maxSeats: _currentMaxSeats,
                     isArabic: context.isArabic,
@@ -3756,7 +3745,6 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                         setState(() => _showPkResult = false),
                     seatReactions: _seatReactions,
                   ),
-                ),
                 ),
                 // Scrollable chat feed (only this area scrolls)
                 Expanded(
@@ -3963,7 +3951,6 @@ class _CompactRoomHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textDir = isArabic ? TextDirection.rtl : TextDirection.ltr;
-    final hasCover = room.coverUrl != null;
 
     return Directionality(
       textDirection: textDir,
@@ -3971,200 +3958,117 @@ class _CompactRoomHeader extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           // \u2500\u2500 Main identity card \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-          Container(
-            width: double.infinity,
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: const Color(0xFF4A3470).withValues(alpha: 0.7),
-              ),
-            ),
-            child: Stack(
+          // Transparent floating header row — background shows through
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            child: Row(
               children: [
-                // Background (cover or gradient)
-                if (hasCover)
-                  Positioned.fill(
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // Layer 1: blurred fill so no gaps on tall/wide images
-                        ImageFiltered(
-                          imageFilter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-                          child: Image.network(
-                            room.coverUrl!,
-                            fit: BoxFit.cover,
-                            alignment: Alignment.center,
-                            errorBuilder: (_, e, s) => const _RoomDefaultBg(),
-                          ),
-                        ),
-                        // Layer 2: actual image showing full width without harsh crop
-                        Image.network(
-                          room.coverUrl!,
-                          fit: BoxFit.fitWidth,
-                          alignment: Alignment.center,
-                          errorBuilder: (_, e, s) => const SizedBox.shrink(),
-                        ),
-                      ],
+                // Room avatar
+                Container(
+                  width: 44,
+                  height: 44,
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0C15A).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFFF0C15A).withValues(alpha: 0.55),
+                      width: 1.5,
                     ),
-                  )
-                else
-                  const Positioned.fill(child: _RoomDefaultBg()),
-
-                // Dark overlay for readability
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withValues(alpha: hasCover ? 0.30 : 0.0),
-                          Colors.black.withValues(alpha: hasCover ? 0.65 : 0.0),
-                        ],
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFF0C15A).withValues(alpha: 0.20),
+                        blurRadius: 10,
                       ),
-                    ),
+                    ],
+                  ),
+                  child: room.avatarUrl?.isNotEmpty == true
+                      ? Image.network(
+                          room.avatarUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, e, s) => const Icon(
+                            Icons.mic_rounded,
+                            color: Color(0xFFF0C15A),
+                            size: 20,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.mic_rounded,
+                          color: Color(0xFFF0C15A),
+                          size: 20,
+                        ),
+                ),
+                const SizedBox(width: 10),
+
+                // Name + ID chip
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        room.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          shadows: [Shadow(blurRadius: 6, color: Colors.black54)],
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      _RoomIdChip(shortId: _shortRoomId, isArabic: isArabic),
+                    ],
                   ),
                 ),
 
-                // Content row
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 12),
-                  child: Row(
+                const SizedBox(width: 8),
+
+                // Right: level badge + compact status pills
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 120),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Room icon / avatar
-                      Container(
-                        width: 48,
-                        height: 48,
-                        clipBehavior: Clip.antiAlias,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF0C15A).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: const Color(0xFFF0C15A)
-                                .withValues(alpha: 0.50),
-                            width: 1.5,
+                      GestureDetector(
+                        onTap: onLevelBadgeTap,
+                        child: _RoomLevelBadge(
+                            level: room.roomLevel,
+                            levelColor: _levelColor,
+                            label: _levelLabel),
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        direction: Axis.horizontal,
+                        alignment: WrapAlignment.end,
+                        spacing: 4,
+                        runSpacing: 4,
+                        children: [
+                          _MiniRoomStatusPill(
+                            icon: Icons.people_alt_rounded,
+                            label: memberCount.toString(),
+                            color: const Color(0xFF4ADE80),
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFF0C15A).withValues(alpha: 0.18),
-                              blurRadius: 8,
-                              spreadRadius: 0,
+                          _MiniRoomStatusPill(
+                            icon: Icons.event_seat_rounded,
+                            label: '$activeSpeakerCount/${room.maxSeats}',
+                          ),
+                          _MiniRoomStatusPill(
+                            icon: Icons.monetization_on_rounded,
+                            label: walletCoins > 999
+                                ? '${(walletCoins / 1000).toStringAsFixed(1)}k'
+                                : walletCoins.toString(),
+                            color: const Color(0xFFF0C15A),
+                          ),
+                          if (isHost)
+                            _MiniRoomStatusPill(
+                              icon: Icons.admin_panel_settings_rounded,
+                              label: 'Host',
+                              color: const Color(0xFFF0C15A),
                             ),
-                          ],
-                        ),
-                        child: room.avatarUrl?.isNotEmpty == true
-                            ? Image.network(
-                                room.avatarUrl!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, e, s) => const Icon(
-                                  Icons.mic_rounded,
-                                  color: Color(0xFFF0C15A),
-                                  size: 22,
-                                ),
-                              )
-                            : const Icon(
-                                Icons.mic_rounded,
-                                color: Color(0xFFF0C15A),
-                                size: 22,
-                              ),
-                      ),
-                      const SizedBox(width: 12),
-
-                      // Name + description
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              room.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                                shadows: hasCover
-                                    ? [
-                                        const Shadow(
-                                          blurRadius: 6,
-                                          color: Colors.black54,
-                                        ),
-                                      ]
-                                    : null,
-                              ),
-                            ),
-                            if (room.description?.isNotEmpty == true) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                room.description!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: hasCover
-                                      ? Colors.white.withValues(alpha: 0.8)
-                                      : const Color(0xFFCFC6DE),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                            const SizedBox(height: 5),
-                            _RoomIdChip(shortId: _shortRoomId, isArabic: isArabic),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(width: 8),
-
-                      // Right side: level badge + status pills — constrained so
-                      // Wrap has a finite width and pills wrap to a second row on
-                      // narrow screens instead of overflowing.
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 120),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            GestureDetector(
-                              onTap: onLevelBadgeTap,
-                              child: _RoomLevelBadge(level: room.roomLevel, levelColor: _levelColor, label: _levelLabel),
-                            ),
-                            const SizedBox(height: 5),
-                            Wrap(
-                              direction: Axis.horizontal,
-                              alignment: WrapAlignment.end,
-                              spacing: 4,
-                              runSpacing: 4,
-                              children: [
-                                _MiniRoomStatusPill(
-                                  icon: Icons.people_alt_rounded,
-                                  label: memberCount.toString(),
-                                  color: const Color(0xFF4ADE80),
-                                ),
-                                _MiniRoomStatusPill(
-                                  icon: Icons.event_seat_rounded,
-                                  label: '$activeSpeakerCount/${room.maxSeats}',
-                                ),
-                                _MiniRoomStatusPill(
-                                  icon: Icons.monetization_on_rounded,
-                                  label: walletCoins > 999
-                                      ? '${(walletCoins / 1000).toStringAsFixed(1)}k'
-                                      : walletCoins.toString(),
-                                  color: const Color(0xFFF0C15A),
-                                ),
-                                if (isHost)
-                                  _MiniRoomStatusPill(
-                                    icon: Icons.admin_panel_settings_rounded,
-                                    label: 'Host',
-                                    color: const Color(0xFFF0C15A),
-                                  ),
-                              ],
-                            ),
-                          ],
-                        ),
+                        ],
                       ),
                     ],
                   ),
@@ -4363,24 +4267,6 @@ class _RoomGradientBg extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// Compact gradient fallback inside header cover preview.
-class _RoomDefaultBg extends StatelessWidget {
-  const _RoomDefaultBg();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF2A0E50), Color(0xFF12091D)],
-        ),
-      ),
     );
   }
 }
@@ -4630,19 +4516,6 @@ class _LiveRoomStage extends StatelessWidget {
                 child: Row(
                   textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
                   children: [
-                    Text(
-                      isArabic ? 'Voice Stage' : 'Voice Stage',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: -0.2,
-                        shadows: [
-                          Shadow(blurRadius: 4, color: Colors.black45),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
                     Container(
                       width: 6,
                       height: 6,
