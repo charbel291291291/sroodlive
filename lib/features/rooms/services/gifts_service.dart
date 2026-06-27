@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../../../core/supabase/supabase_service.dart';
 import '../../../shared/services/restrictions_service.dart';
 import '../models/room_gift.dart';
@@ -163,6 +165,7 @@ class GiftsService {
     required String roomId,
     required String receiverId,
     required RoomGift gift,
+    int quantity = 1,
   }) async {
     final client = SupabaseService.requiredClient;
 
@@ -177,13 +180,16 @@ class GiftsService {
       throw StateError('gift_not_found');
     }
 
+    final qty = quantity.clamp(1, 999);
+    debugPrint('[GiftQuantity] giftId=${gift.id} unitPrice=${gift.priceCoins} qty=$qty totalCost=${gift.priceCoins * qty}');
+
     await client.rpc(
       'send_gift_with_wallet',
       params: {
         'p_room_id': roomId,
         'p_receiver_id': receiverId,
         'p_gift_id': gift.id,
-        'p_quantity': 1,
+        'p_quantity': qty,
       },
     );
   }

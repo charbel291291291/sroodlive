@@ -288,7 +288,10 @@ class _RoomsScreenState extends State<RoomsScreen> {
                   IconButton(
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => SearchScreen(isArabic: context.isArabic),
+                        builder: (_) => SearchScreen(
+                          isArabic: context.isArabic,
+                          countryCode: _selectedCountryCode,
+                        ),
                       ),
                     ),
                     padding: EdgeInsets.zero,
@@ -505,16 +508,54 @@ class _RoomsScreenState extends State<RoomsScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              // \u2500\u2500 Country filter \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-              _CountryFilterChip(
-                selectedCode: _selectedCountryCode,
-                isArabic: context.isArabic,
-                isCompact: isCompact,
-                onPick: _pickCountry,
-                onClear: () {
-                  setState(() => _selectedCountryCode = null);
-                  unawaited(_loadRooms());
-                },
+              // Country filter
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    // Quick-select Lebanon
+                    _QuickCountryChip(
+                      code: 'LB',
+                      flag: '\u{1F1F1}\u{1F1E7}',
+                      label: context.isArabic ? 'لبنان' : 'Lebanon',
+                      isSelected: _selectedCountryCode == 'LB',
+                      isCompact: isCompact,
+                      onTap: () {
+                        final next = _selectedCountryCode == 'LB' ? null : 'LB';
+                        setState(() => _selectedCountryCode = next);
+                        unawaited(_loadRooms());
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    // Quick-select Syria
+                    _QuickCountryChip(
+                      code: 'SY',
+                      flag: '\u{1F1F8}\u{1F1FE}',
+                      label: context.isArabic ? 'سوريا' : 'Syria',
+                      isSelected: _selectedCountryCode == 'SY',
+                      isCompact: isCompact,
+                      onTap: () {
+                        final next = _selectedCountryCode == 'SY' ? null : 'SY';
+                        setState(() => _selectedCountryCode = next);
+                        unawaited(_loadRooms());
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    // Full country picker
+                    _CountryFilterChip(
+                      selectedCode: (_selectedCountryCode == 'LB' || _selectedCountryCode == 'SY')
+                          ? null
+                          : _selectedCountryCode,
+                      isArabic: context.isArabic,
+                      isCompact: isCompact,
+                      onPick: _pickCountry,
+                      onClear: () {
+                        setState(() => _selectedCountryCode = null);
+                        unawaited(_loadRooms());
+                      },
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
               if (_loading)
@@ -576,11 +617,86 @@ class _RoomsScreenState extends State<RoomsScreen> {
   }
 }
 
-// \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-// Promotional carousel banner
-// \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
-// ── Country filter chip ───────────────────────────────────────────────────────
+// Promotional carousel banner
+
+
+//  Quick country chip (LB / SY)
+
+class _QuickCountryChip extends StatelessWidget {
+  const _QuickCountryChip({
+    required this.code,
+    required this.flag,
+    required this.label,
+    required this.isSelected,
+    required this.isCompact,
+    required this.onTap,
+  });
+
+  final String code;
+  final String flag;
+  final String label;
+  final bool isSelected;
+  final bool isCompact;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        height: isCompact ? 36.0 : 40.0,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: isSelected
+              ? const LinearGradient(
+                  colors: [Color(0xFF3A1070), Color(0xFF5B1A9A)],
+                )
+              : null,
+          color: isSelected ? null : Colors.white.withValues(alpha: 0.06),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFFF0C15A).withValues(alpha: 0.60)
+                : Colors.white.withValues(alpha: 0.16),
+            width: 1.0,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF8B26D9).withValues(alpha: 0.30),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(flag, style: const TextStyle(fontSize: 16)),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: 0.55),
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+//  Country filter chip
 
 class _CountryFilterChip extends StatelessWidget {
   const _CountryFilterChip({
@@ -685,9 +801,9 @@ class _CountryFilterChip extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+//
 // Promotional carousel banner
-// ─────────────────────────────────────────────────────────────────────────────
+//
 
 class _SlideData {
   const _SlideData({
@@ -975,7 +1091,7 @@ class _BannerSlide extends StatelessWidget {
 
     final imageUrl = slide.cachedImageUrl;
 
-    // ── Determine inner content based on whether an image URL is set ──────────
+    //  Determine inner content based on whether an image URL is set
     Widget innerContent;
     if (imageUrl != null) {
       // Image banner: full-cover photo. The container behind it provides a
@@ -1184,7 +1300,7 @@ class _RoomCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(27),
         child: Stack(
           children: [
-            // \u2500\u2500 Background layer \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+            //  Background layer
             if (hasCover)
               Positioned.fill(
                 child: Image.network(
@@ -1196,7 +1312,7 @@ class _RoomCard extends StatelessWidget {
             else
               const Positioned.fill(child: _RoomCardDefaultBg()),
 
-            // \u2500\u2500 Dark gradient overlay \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+            //  Dark gradient overlay
             Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -1214,7 +1330,7 @@ class _RoomCard extends StatelessWidget {
               ),
             ),
 
-            // \u2500\u2500 Content \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+            //  Content
             Padding(
               padding: const EdgeInsets.all(18),
               child: Column(

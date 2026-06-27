@@ -216,10 +216,39 @@ class LiveKitRoomService {
     }
   }
 
+  /// Whether a local audio track is already published (even if muted).
+  /// When true, future enable/disable calls are fast mute/unmute ops.
+  bool get hasPublishedAudioTrack =>
+      _room?.localParticipant?.audioTrackPublications.isNotEmpty == true;
+
   Future<void> setMicrophoneEnabled(bool enabled) async {
     _lastMicEnabled = enabled;
-    _log('[LiveKit] ${_ts()} setMicrophoneEnabled($enabled)');
+    final path = hasPublishedAudioTrack ? 'mute/unmute' : 'publish';
+    _log('[MicUX] setMicrophoneEnabled($enabled) path=$path');
+    final t0 = DateTime.now().millisecondsSinceEpoch;
     await _room?.localParticipant?.setMicrophoneEnabled(enabled);
+    _log('[MicUX] setMicrophoneEnabled done in ${DateTime.now().millisecondsSinceEpoch - t0}ms');
+  }
+
+  /// Publish the local audio track in muted state immediately after room join.
+  /// Subsequent enable calls become fast unmute ops (~50 ms) instead of full
+  /// WebRTC track publishes (~500 ms).
+  /// Safe: track is muted — no audio is transmitted.
+  Future<void> prewarmAudioTrack() async {
+    if (_room == null) return;
+    if (hasPublishedAudioTrack) {
+      _log('[MicUX] pre-warm skipped — track already published');
+      return;
+    }
+    _log('[MicUX] pre-warm start — publishing muted track');
+    final t0 = DateTime.now().millisecondsSinceEpoch;
+    try {
+      await _room!.localParticipant?.setMicrophoneEnabled(true);
+      await _room!.localParticipant?.setMicrophoneEnabled(false);
+      _log('[MicUX] pre-warm done in ${DateTime.now().millisecondsSinceEpoch - t0}ms — track ready');
+    } catch (e) {
+      _log('[MicUX] pre-warm failed: $e');
+    }
   }
 
   Future<void> disconnect({bool invalidateToken = true}) async {

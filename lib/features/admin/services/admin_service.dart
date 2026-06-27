@@ -798,6 +798,21 @@ class AdminService {
     );
   }
 
+  /// Returns true if [publicUserId] is already assigned to a profile other
+  /// than [excludeUserId]. Used for a pre-save uniqueness check on Golden IDs.
+  Future<bool> isPublicUserIdTaken({
+    required String publicUserId,
+    required String excludeUserId,
+  }) async {
+    final data = await SupabaseService.requiredClient
+        .from('profiles')
+        .select('id')
+        .eq('public_user_id', publicUserId)
+        .neq('id', excludeUserId)
+        .limit(1);
+    return (data as List).isNotEmpty;
+  }
+
   // ── Promotional Banners ────────────────────────────────────────────────────
 
   Future<List<AdminPromoBanner>> fetchPromoBanners() async {

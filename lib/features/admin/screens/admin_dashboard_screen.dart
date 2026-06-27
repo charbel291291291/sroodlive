@@ -873,24 +873,122 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
+  // Returns true if the target user holds any admin role.
+  bool _targetIsAdmin(AdminUserDetail detail) {
+    const adminRoles = {
+      kRoleOSuperAdmin,
+      kRolePSuperAdmin,
+      kRoleSuperAdmin,
+      kRoleAdmin,
+    };
+    return detail.roles.any(adminRoles.contains);
+  }
+
   Future<void> _setGoldenId(AdminUserDetail detail) async {
+    final isArabic = context.isArabic;
+    final targetAdmin = _targetIsAdmin(detail);
+
     final publicId = await _askForText(
       title: 'Golden ID',
-      label: 'Public user ID',
+      label: targetAdmin
+          ? 'Admin ID: SR followed by numbers (e.g. SR77)'
+          : 'ID: lowercase letters, numbers, underscore (e.g. ezel77)',
     );
-    if (publicId == null || publicId.trim().isEmpty) return;
+    if (publicId == null) return;
+
+    // ── Normalize ──────────────────────────────────────────────────────────
+    final raw = publicId;
+    final trimmed = raw.trim().replaceAll(' ', '');
+    debugPrint('[UserID] raw="${raw.replaceAll('\n', ' ')}"');
+    debugPrint('[UserID] trimmed="$trimmed" targetAdmin=$targetAdmin');
+
+    if (trimmed.isEmpty) return;
+
+    // ── Validate ───────────────────────────────────────────────────────────
+    if (targetAdmin) {
+      // Admin path: must be exactly SR + digits, uppercase SR required.
+      final validAdmin = RegExp(r'^SR[0-9]{1,28}$').hasMatch(trimmed);
+      debugPrint('[UserID] role=admin valid=$validAdmin');
+      if (!validAdmin) {
+        _showSnack(
+          isArabic
+              ? 'آي دي الإدارة لازم يبدأ بـ SR وبعده أرقام فقط. مثال: SR77'
+              : 'Admin ID must start with SR followed by numbers only. Example: SR77',
+        );
+        return;
+      }
+    } else {
+      // Normal / Golden path: lowercase a-z, 0-9, underscore only.
+      // SR prefix (any case) is reserved for admins — reject it.
+      final srPrefix = RegExp(r'^[Ss][Rr][0-9]').hasMatch(trimmed);
+      debugPrint('[UserID] role=normal srPrefix=$srPrefix trimmed="$trimmed"');
+      if (srPrefix) {
+        _showSnack(
+          isArabic
+              ? 'الآي دي لازم يكون أحرف إنكليزية صغيرة، أرقام، أو underscore فقط. SR مخصص للإدارة فقط.'
+              : 'User ID must use lowercase letters, numbers, or underscore only. SR IDs are reserved for administrators.',
+        );
+        return;
+      }
+      final validNormal = RegExp(r'^[a-z0-9_]{2,30}$').hasMatch(trimmed);
+      debugPrint('[UserID] role=normal valid=$validNormal');
+      if (!validNormal) {
+        _showSnack(
+          isArabic
+              ? 'الآي دي لازم يكون أحرف إنكليزية صغيرة، أرقام، أو underscore فقط. طول 2–30 حرف.'
+              : 'User ID must use lowercase letters, numbers, or underscore only. Length 2–30.',
+        );
+        return;
+      }
+    }
+
+    // ── Uniqueness pre-check ───────────────────────────────────────────────
+    try {
+      final taken = await _adminService.isPublicUserIdTaken(
+        publicUserId: trimmed,
+        excludeUserId: detail.userId,
+      );
+      if (!mounted) return;
+      if (taken) {
+        _showSnack(
+          isArabic
+              ? 'هذا الآي دي مأخوذ من مستخدم آخر'
+              : 'This ID is already used by another user',
+        );
+        return;
+      }
+    } catch (_) {
+      // Non-fatal — let the server enforce uniqueness if the check fails.
+    }
+
+    // ── Save ───────────────────────────────────────────────────────────────
     try {
       await _adminService.setGoldenId(
         userId: detail.userId,
-        publicUserId: publicId.trim(),
+        publicUserId: trimmed,
         isGolden: true,
       );
       await _load();
       if (!mounted) return;
-      _showSnack('Golden ID updated');
+      _showSnack(isArabic ? 'تم تحديث الآي دي' : 'ID updated');
     } catch (error) {
       if (!mounted) return;
-      _showSnack('Golden ID failed: $error');
+      final msg = error.toString();
+      if (msg.contains('golden_id_taken') || msg.contains('profiles_public_user_id_key')) {
+        _showSnack(
+          isArabic
+              ? 'هذا الآي دي مأخوذ من مستخدم آخر'
+              : 'This ID is already used by another user',
+        );
+      } else if (msg.contains('profiles_public_user_id_format')) {
+        _showSnack(
+          isArabic
+              ? 'صيغة الآي دي غير صحيحة. تحقق من الحروف المسموح بها.'
+              : 'Invalid ID format. Check the allowed characters.',
+        );
+      } else {
+        _showSnack(isArabic ? 'فشل تحديث الآي دي' : 'ID update failed');
+      }
     }
   }
 

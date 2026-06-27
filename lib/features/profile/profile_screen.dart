@@ -1007,6 +1007,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             'p_date_of_birth': dateOfBirth,
             'p_bio': bio,
             'p_country': country,
+            'p_country_code': _selectedCountry?.code,
             'p_gender': gender,
           },
         );

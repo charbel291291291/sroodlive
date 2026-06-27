@@ -36,6 +36,11 @@ class RoomMusicService extends ChangeNotifier {
   String? _error;
   double _volume = 1.0;
 
+  /// Called when the current song reaches completion.
+  /// If set, the callback is responsible for deciding what happens next
+  /// (replay, advance, etc.). When null, the default advance-to-next runs.
+  void Function()? onSongCompleted;
+
   // ── Getters ───────────────────────────────────────────────────────────────
 
   List<RoomSong> get playlist => List.unmodifiable(_playlist);
@@ -64,7 +69,13 @@ class RoomMusicService extends ChangeNotifier {
     _isPlaying = s.playing;
     _isLoading = s.processingState == ProcessingState.loading ||
         s.processingState == ProcessingState.buffering;
-    if (s.processingState == ProcessingState.completed) _advanceToNext();
+    if (s.processingState == ProcessingState.completed) {
+      if (onSongCompleted != null) {
+        onSongCompleted!();
+      } else {
+        _advanceToNext();
+      }
+    }
     notifyListeners();
   }
 

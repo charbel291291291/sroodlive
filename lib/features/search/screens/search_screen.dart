@@ -7,9 +7,14 @@ import '../../rooms/screens/room_details_screen.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({required this.isArabic, super.key});
+  const SearchScreen({
+    required this.isArabic,
+    this.countryCode,
+    super.key,
+  });
 
   final bool isArabic;
+  final String? countryCode;
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -85,13 +90,20 @@ class _SearchScreenState extends State<SearchScreen>
             .select('id, display_name, username, avatar_url, bio, public_user_id')
             .or('display_name.ilike.%$q%,username.ilike.%$q%,public_user_id.ilike.%$q%')
             .limit(20),
-        SupabaseService.requiredClient
-            .from('rooms')
-            .select(
-              'id, owner_id, name, description, language, livekit_room_name, max_seats, is_private, is_locked, is_closed, is_live, cover_url, created_at',
-            )
-            .ilike('name', '%$q%')
-            .limit(20),
+        () {
+          var rq = SupabaseService.requiredClient
+              .from('rooms')
+              .select(
+                'id, owner_id, name, description, language, livekit_room_name, max_seats, is_private, is_locked, is_closed, is_live, cover_url, created_at, country_code',
+              )
+              .ilike('name', '%$q%')
+              .eq('is_closed', false);
+          final cc = widget.countryCode?.trim().toUpperCase();
+          if (cc != null && cc.isNotEmpty) {
+            rq = rq.eq('country_code', cc);
+          }
+          return rq.limit(20);
+        }(),
       ]);
 
       final users = (usersRaw as List).map(

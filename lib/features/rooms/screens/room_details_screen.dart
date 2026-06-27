@@ -83,7 +83,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     with WidgetsBindingObserver {
   final RoomsService _roomsService = const RoomsService();
   final GiftsService _giftsService = const GiftsService();
-  final LiveKitRoomService _liveKitRoomService = LiveKitRoomService();
+  late final LiveKitRoomService _liveKitRoomService;
+  bool _minimizing = false;
+  bool _isRestoring = false;
 
   late final RoomMusicService _musicService;
   late final RoomSyncedMusicService _syncedMusic;
@@ -190,12 +192,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     return null;
   }
 
-  bool _memberCanUseMic(RoomMember? member) {
-    return member?.role == 'host' || member?.role == 'speaker';
-  }
-
   bool _memberIsOnMic(RoomMember? member) {
-    return _memberCanUseMic(member) && member?.seatNumber != null;
+    if (member == null) return false;
+    // Host is always on mic regardless of seat_number — the DB may not have
+    // assigned a seat yet when the member record first loads.
+    if (member.role == 'host') return true;
+    return member.role == 'speaker' && member.seatNumber != null;
   }
 
   bool get _isCurrentUserOnMic => _memberIsOnMic(_myMember);
@@ -317,15 +319,58 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     super.initState();
     _audioStateNotifier = ValueNotifier((connecting: false, connected: false));
     WidgetsBinding.instance.addObserver(this);
+
+    // ── Reuse existing LiveKit session when returning from minimize ──────────
+    final session = ActiveRoomSession.instance;
+    final existingService = session.liveKitService;
+    final sameRoom = session.room?.id == widget.room.id;
+    if (existingService != null && sameRoom && existingService.isConnected) {
+      _liveKitRoomService = existingService;
+      _isRestoring = true;
+      _roomLog('[RoomMinimize] restore — reusing existing LiveKit session roomId=${widget.room.id}');
+      _roomLog('[RoomMinimize] savedMic=${session.savedMicEnabled}');
+    } else {
+      _liveKitRoomService = LiveKitRoomService();
+      _isRestoring = false;
+      if (existingService != null) {
+        _roomLog('[RoomMinimize] restore — existing service found but not reusable (sameRoom=$sameRoom connected=${existingService.isConnected})');
+      }
+    }
+    // Screen takes ownership; clear session reference (prevents double-use).
+    session.clear();
+    // ────────────────────────────────────────────────────────────────────────
+
     _roomLog('[PerfRoom] open id=${widget.room.id} ts=${DateTime.now().millisecondsSinceEpoch}');
-    _roomLog('[Room] ${_roomTs()} room screen opened id=${widget.room.id}');
-    _musicService = RoomMusicService();
-    _syncedMusic = RoomSyncedMusicService(
-      roomId: widget.room.id,
-      musicService: _musicService,
-    );
-    unawaited(_syncedMusic.initialize());
+    _roomLog('[Room] ${_roomTs()} room screen opened id=${widget.room.id} restoring=$_isRestoring');
+
+    // ── Reuse music services when returning from minimize (same room) ─────────
+    final savedMusic = session.musicService;
+    final savedSynced = session.syncedMusicService;
+    final reusingMusic = _isRestoring && savedMusic != null && savedSynced != null;
+    if (reusingMusic) {
+      _musicService = savedMusic;
+      _syncedMusic = savedSynced;
+      _roomLog('[RoomMusic] restore — reused music service roomId=${widget.room.id}');
+    } else {
+      _musicService = RoomMusicService();
+      _syncedMusic = RoomSyncedMusicService(
+        roomId: widget.room.id,
+        musicService: _musicService,
+        currentUserId: _currentUserId ?? '',
+      );
+      unawaited(_syncedMusic.initialize());
+      _roomLog('[RoomMusic] music service created roomId=${widget.room.id}');
+    }
     _musicService.addListener(_onLocalMusicChanged);
+    // When a song ends, let the sync service decide replay vs. advance.
+    // Only the controller's device triggers the replay push.
+    _musicService.onSongCompleted = () {
+      unawaited(_syncedMusic.handleSongCompleted());
+      // If not replaying, advance to next locally (non-synced behavior).
+      if (!(_syncedMusic.lastState?.autoReplay ?? false)) {
+        _musicService.next();
+      }
+    };
     _currentMaxSeats = widget.room.maxSeats <= 0 ? 12 : widget.room.maxSeats;
     _closedSeats = widget.room.closedSeats.toSet();
     _roomBackgroundUrl = widget.room.backgroundUrl;
@@ -345,13 +390,26 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     _dailyStreak = widget.room.dailyStreak;
     _streakMultiplier = widget.room.streakMultiplier;
 
-    // Keep the process alive while the user is in the voice room so audio
-    // continues when the screen turns off.
-    unawaited(VoiceRoomForegroundService.start());
+    if (_isRestoring) {
+      // Already in a live session — foreground service already running,
+      // LiveKit already connected. Just re-wire the speakers callback and
+      // mark audio as connected so the UI reflects the correct state.
+      _liveKitRoomService.onSpeakersChanged = (ids) {
+        if (mounted) setState(() => _speakingUserIds = ids);
+      };
+      _connectedAudio = true;
+      _setAudioState(connecting: false, connected: true);
+      _roomLog('[RoomMinimize] restore — audio state marked connected, skipping early connect');
+    } else {
+      // Fresh entry — start foreground service and connect LiveKit.
+      unawaited(VoiceRoomForegroundService.start());
+      unawaited(_connectAudioEarly());
+    }
 
-    // Start LiveKit in listen-only mode immediately, in parallel with
-    // member loading, so audio is ready before the member list arrives.
-    unawaited(_connectAudioEarly());
+    // Keep the process alive (idempotent if already started).
+    if (!_isRestoring) {
+      // Already handled above for non-restore path.
+    }
 
     unawaited(_loadInboxUnread());
 
@@ -384,18 +442,75 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     });
   }
 
-  // When the host changes music locally (via MusicPanel), push the new state
-  // to Supabase so all room members sync.
+  // When a user changes music locally (via MusicPanel / mini-player), push the
+  // new state to Supabase so all room members sync.
   // Skipped during server-driven updates to avoid feedback loops.
   // Skipped for position-only changes (tick updates) via pushCurrentStateIfChanged().
+  // Only the current music controller (the user who started the track) may push
+  // control changes. Starting a new track is always allowed for managers.
   void _onLocalMusicChanged() {
-    if (!(_iAmRoomOwner || _iAmHost)) {
-      _roomLog('[MUSIC-CONTROL] denied user=$_currentUserId reason=not_manager');
+    if (_syncedMusic.applyingServerState) return;
+
+    final uid = _currentUserId;
+    if (uid == null) {
+      _roomLog('[RoomMusic] denied — no user id');
       return;
     }
-    if (_syncedMusic.applyingServerState) return;
-    _roomLog('[MUSIC-CONTROL] allowed user=$_currentUserId song=${_musicService.currentSong?.id}');
+
+    // Managers can always start a new track (no existing controller) or take
+    // over after a stop. For pause/resume the caller must be the controller.
+    final isManager = _iAmRoomOwner || _iAmHost || _isCurrentUserModerator;
+    final controllerId = _syncedMusic.lastState?.controllerUserId;
+    final hasController = controllerId != null && controllerId.isNotEmpty;
+    final isController = controllerId == uid;
+
+    if (hasController && !isController) {
+      _roomLog('[RoomMusic] denied — not controller uid=$uid controller=$controllerId');
+      return;
+    }
+
+    if (!isManager && !isController) {
+      _roomLog('[RoomMusic] denied — not manager uid=$uid');
+      return;
+    }
+
+    _roomLog('[RoomMusic] push allowed uid=$uid song=${_musicService.currentSong?.id}');
     unawaited(_syncedMusic.pushCurrentStateIfChanged());
+  }
+
+  bool _musicActionBusy = false;
+
+  /// Guard wrapper for music control actions. Blocks non-controllers with a
+  /// snackbar and prevents rapid double-taps with a busy flag.
+  Future<void> _musicAction(Future<void> Function() action) async {
+    if (_musicActionBusy) return;
+
+    final uid = _currentUserId;
+    final controllerId = _syncedMusic.lastState?.controllerUserId;
+    final hasController = controllerId != null && controllerId.isNotEmpty;
+
+    if (hasController && controllerId != uid) {
+      _roomLog('[RoomMusic] action blocked — not controller uid=$uid controller=$controllerId');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(context.isArabic
+            ? 'الشخص الذي شغّل الموسيقى فقط يمكنه التحكم بها.'
+            : 'Only the person who started the music can control it.'),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: const Color(0xFF2A0F4A),
+      ));
+      return;
+    }
+
+    setState(() => _musicActionBusy = true);
+    try {
+      await action();
+    } finally {
+      if (mounted) setState(() => _musicActionBusy = false);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -448,6 +563,16 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   /// [_syncMicConnectionWithSeat] skips the connect step when it runs later
   /// because [_connectedAudio] will already be true.
   Future<void> _connectAudioEarly() async {
+    // Skip if already connected (e.g. returning from minimize with reused session).
+    if (_liveKitRoomService.isConnected) {
+      _roomLog('[RoomMinimize] _connectAudioEarly skipped — already connected');
+      _connectedAudio = true;
+      _setAudioState(connecting: false, connected: true);
+      _liveKitRoomService.onSpeakersChanged = (ids) {
+        if (mounted) setState(() => _speakingUserIds = ids);
+      };
+      return;
+    }
     if (_connectedAudio || _connectingAudio || _syncingMicConnection) return;
     if (mounted) _setAudioState(connecting: true);
 
@@ -464,6 +589,13 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       _roomLog('[Room] ${_roomTs()} LiveKit connected');
       _roomLog('[PerfRoom] livekit connected ts=${DateTime.now().millisecondsSinceEpoch}');
       if (mounted) _setAudioState(connecting: false, connected: true);
+
+      // Pre-warm: if mic permission is already cached, publish track in muted
+      // state now so the first real unmute is a fast local operation (~50ms)
+      // instead of a full WebRTC track publish (~500ms).
+      if (_micPermissionGranted == true) {
+        unawaited(_liveKitRoomService.prewarmAudioTrack());
+      }
     } catch (e) {
       _roomLog('[Room] ${_roomTs()} early audio connect failed: $e');
       if (mounted) _setAudioState(connecting: false);
@@ -481,8 +613,15 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   @override
   void dispose() {
     _musicService.removeListener(_onLocalMusicChanged);
-    unawaited(_syncedMusic.dispose());
-    _musicService.dispose();
+    // On minimize: music services are handed to ActiveRoomSession — do NOT dispose.
+    // On true leave: dispose everything.
+    if (!_minimizing) {
+      unawaited(_syncedMusic.dispose());
+      _musicService.dispose();
+      _roomLog('[RoomMusic] music service disposed on leave');
+    } else {
+      _roomLog('[RoomMusic] music service preserved on minimize');
+    }
     _heartbeatTimer?.cancel();
     _membersRefreshTimer?.cancel();
     _membersDebounceTimer?.cancel();
@@ -523,7 +662,15 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     }
 
     _pkSub?.cancel();
-    _liveKitRoomService.disconnect();
+    // If the user minimized, ownership of the LiveKit service was transferred
+    // to ActiveRoomSession — do NOT disconnect or stop the foreground service.
+    if (_minimizing) {
+      _roomLog('[RoomMinimize] dispose skipping disconnect — session is minimized');
+    } else {
+      _roomLog('[RoomMinimize] dispose disconnecting — true leave/close');
+      _liveKitRoomService.disconnect();
+      unawaited(VoiceRoomForegroundService.stop());
+    }
     for (final t in _reactionTimers.values) { t.cancel(); }
     _reactionTimers.clear();
     final rc = _reactionsChannel;
@@ -531,7 +678,6 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     final rec = _redEnvelopesChannel;
     if (rec != null) unawaited(SupabaseService.requiredClient.removeChannel(rec));
     WidgetsBinding.instance.removeObserver(this);
-    unawaited(VoiceRoomForegroundService.stop());
     super.dispose();
   }
 
@@ -1770,30 +1916,36 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     });
   }
 
-  /// Stops music locally right away and propagates the stop to all room
-  /// participants via the Supabase RPC.  Shows a snackbar on failure.
+  /// Stops music locally and propagates the stop to all room participants.
+  /// Guarded by [_musicAction] — only the controller (or a manager after stop)
+  /// can call this successfully.
   Future<void> _stopMusicForRoom() async {
-    // 1. Stop local player immediately so this device feels instant.
-    await _musicService.stop();
-    // 2. Push stop to Supabase ? Realtime will propagate to all participants.
-    try {
-      await _syncedMusic.stopForRoom();
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.isArabic ? 'تعذّر إيقاف الموسيقى. حاول مجدداً.' : 'Could not stop music. Please try again.',
-          ),
+    await _musicAction(() async {
+      await _musicService.stop();
+      try {
+        await _syncedMusic.stopForRoom();
+      } catch (_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(context.isArabic
+              ? 'تعذّر إيقاف الموسيقى. حاول مجدداً.'
+              : 'Could not stop music. Please try again.'),
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 3),
-        ),
-      );
-    }
+        ));
+      }
+    });
   }
 
   void _openMusicPanel() {
-    final canManage = _iAmRoomOwner || _iAmHost || _isCurrentUserModerator;
+    final isManager = _iAmRoomOwner || _iAmHost || _isCurrentUserModerator;
+    final controllerId = _syncedMusic.lastState?.controllerUserId;
+    final isController = controllerId == _currentUserId;
+    // Can manage = user is the controller of the current track,
+    // OR no music is playing (any manager may start a new track).
+    final canManage = isManager &&
+        (isController || controllerId == null || controllerId.isEmpty);
+
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -1802,13 +1954,14 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         musicService: _musicService,
         isArabic: context.isArabic,
         canManage: canManage,
+        controllerUserId: controllerId,
+        currentUserId: _currentUserId,
+        syncedMusic: _syncedMusic,
         roomId: widget.room.id,
         uploadService: canManage ? _uploadService : null,
-        // When the host selects a track, add it to the playlist and play ?
-        // _onLocalMusicChanged will push the state to Supabase automatically.
         onTrackSelected: canManage
             ? (song) {
-                _roomLog('[RoomMusicSync] host selected id=${song.id} source=${song.sourceType} url=${song.url} localPath=${song.localPath}');
+                _roomLog('[RoomMusic] controller selected id=${song.id} url=${song.url}');
                 _musicService.addToPlaylist(song);
                 final idx = _musicService.playlist.indexWhere((s) => s.id == song.id);
                 if (idx >= 0) unawaited(_musicService.playSong(idx));
@@ -2219,6 +2372,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         role: myMember?.role == 'host' ? null : 'speaker',
         seatNumber: seatNumber,
       );
+
+      // Start mic publishing immediately from local state — don't wait for
+      // the member reload round-trip, which saves ~500 ms of perceived latency.
+      unawaited(_syncMicConnectionWithSeat());
 
       await _loadMembers(showLoading: false);
     } catch (error) {
@@ -2912,25 +3069,30 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
   Future<void> _toggleMic() async {
     if (!_isCurrentUserOnMic) return;
-    if (_micToggleBusy) return;
+    // De-bounce: ignore tap while a toggle is already in flight.
+    if (_micToggleBusy) {
+      _roomLog('[MicUX] tap ignored — toggle already in flight');
+      return;
+    }
 
     if (!_connectedAudio) {
+      _roomLog('[MicUX] tap — audio not connected, syncing seat');
       await _syncMicConnectionWithSeat();
       return;
     }
 
     final nextValue = !_micEnabled;
+    final tapMs = DateTime.now().millisecondsSinceEpoch;
+    _roomLog('[MicUX] tap received nextValue=$nextValue');
 
-    // Block mic-on when the room owner has muted the whole room.
+    // ── Blocked states (check before any UI change) ───────────────────────────
     if (nextValue && _roomIsMuted && !_iAmRoomOwner && !_iAmHost && !_isCurrentUserModerator) {
-      _roomLog('[MUTE] self unmute denied reason=room_muted');
+      _roomLog('[MicUX] blocked — room_muted');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-            context.isArabic
-                ? 'الغرفة مكتومة حالياً'
-                : 'Room is muted right now',
-          ),
+          content: Text(context.isArabic
+              ? 'الغرفة مكتومة حالياً'
+              : 'Room is muted right now'),
           backgroundColor: const Color(0xFFEF4444),
           duration: const Duration(seconds: 3),
         ));
@@ -2938,36 +3100,41 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       return;
     }
 
-    // Block self-unmute when owner has force-muted this user.
-    if (nextValue && (_myMember?.forceMuted == true)) {
-      _roomLog('[MUTE] self unmute denied reason=forced_mute');
+    if (nextValue && _myMember?.forceMuted == true) {
+      _roomLog('[MicUX] blocked — forced_mute');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('You have been muted by the room owner.'),
-          backgroundColor: Color(0xFFEF4444),
-          duration: Duration(seconds: 3),
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(context.isArabic
+              ? 'لقد تم كتمك من قبل المضيف.'
+              : 'You have been muted by the room owner.'),
+          backgroundColor: const Color(0xFFEF4444),
+          duration: const Duration(seconds: 3),
         ));
       }
       return;
     }
 
-    final tapMs = DateTime.now().millisecondsSinceEpoch;
-    _roomLog('[PerfMic] tap nextValue=$nextValue');
-
-    if (nextValue) {
-      final hasMicrophonePermission = await _ensureMicrophonePermission();
-      if (!hasMicrophonePermission) return;
-      _roomLog('[PerfMic] permission ok +${DateTime.now().millisecondsSinceEpoch - tapMs}ms');
-    }
-
-    // Optimistic UI — update immediately before awaiting network.
+    // ── Optimistic UI — react in the same frame as the tap ────────────────────
+    // Button shows busy spinner immediately; icon flips to target state.
     setState(() {
       _micEnabled = nextValue;
       _micToggleBusy = true;
     });
+    _roomLog('[MicUX] UI updated optimistically +${DateTime.now().millisecondsSinceEpoch - tapMs}ms');
 
+    // ── Permission check (only for unmute; cached after first grant) ──────────
+    if (nextValue) {
+      final hasPerm = await _ensureMicrophonePermission();
+      if (!hasPerm) {
+        _roomLog('[MicUX] permission denied — reverting');
+        if (mounted) setState(() { _micEnabled = !nextValue; _micToggleBusy = false; });
+        return;
+      }
+      _roomLog('[MicUX] permission ok +${DateTime.now().millisecondsSinceEpoch - tapMs}ms');
+    }
+
+    // ── LiveKit + RPC in parallel ─────────────────────────────────────────────
     try {
-      // Parallelize LiveKit + RPC instead of sequencing them.
       final t1 = DateTime.now().millisecondsSinceEpoch;
       await Future.wait([
         _liveKitRoomService.setMicrophoneEnabled(nextValue),
@@ -2977,14 +3144,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         ),
       ]);
       final elapsed = DateTime.now().millisecondsSinceEpoch - t1;
-      _roomLog('[PerfMic] livekit+rpc done in ${elapsed}ms');
-      _roomLog('[PerfMic] total ${DateTime.now().millisecondsSinceEpoch - tapMs}ms');
+      _roomLog('[MicUX] LiveKit+RPC done in ${elapsed}ms');
+      _roomLog('[MicUX] total end-to-end ${DateTime.now().millisecondsSinceEpoch - tapMs}ms');
+      if (elapsed > 1500) _roomLog('[MicUX] ⚠ slow toggle detected: ${elapsed}ms');
     } catch (e) {
-      // Roll back optimistic state on failure.
-      if (mounted) {
-        setState(() => _micEnabled = !nextValue);
-      }
-      _roomLog('[PerfMic] error: $e');
+      _roomLog('[MicUX] error — reverting: $e');
+      if (mounted) setState(() => _micEnabled = !nextValue);
     } finally {
       if (mounted) setState(() => _micToggleBusy = false);
     }
@@ -3264,13 +3429,15 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
           'receiver=${result.receiverUserId} gift=${result.gift.code}',
         );
       }
+      _roomLog('[GiftQuantity] selected qty=${result.quantity} gift=${result.gift.code} unitPrice=${result.gift.priceCoins} total=${result.gift.priceCoins * result.quantity}');
       await _giftsService.sendGift(
         roomId: widget.room.id,
         receiverId: result.receiverUserId,
         gift: result.gift,
+        quantity: result.quantity,
       );
       if (kDebugMode) {
-        _roomLog('[Gift] send + wallet debit succeeded (RPC)');
+        _roomLog('[GiftQuantity] send success qty=${result.quantity}');
       }
     } catch (error) {
       if (!mounted) return;
@@ -3542,7 +3709,18 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   }
 
   void _minimizeRoom() {
-    ActiveRoomSession.instance.minimize(widget.room);
+    _roomLog('[RoomMinimize] minimize tapped roomId=${widget.room.id}');
+    _roomLog('[RoomMinimize] lkConnected=${_liveKitRoomService.isConnected} mic=$_micEnabled members=${_members.length}');
+    _roomLog('[RoomMusic] music service preserved on minimize '
+        'isActive=${_musicService.isActive} song=${_musicService.currentSong?.id}');
+    _minimizing = true;
+    ActiveRoomSession.instance.minimize(
+      widget.room,
+      _liveKitRoomService,
+      micEnabled: _micEnabled,
+      musicService: _musicService,
+      syncedMusicService: _syncedMusic,
+    );
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -3772,7 +3950,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
               valueListenable: _audioStateNotifier,
               builder: (context2, audioState, child2) => _LiveBottomActionBar(
                 isArabic: context.isArabic,
-                connectingAudio: audioState.connecting,
+                connectingAudio: audioState.connecting || _micToggleBusy,
                 micEnabled: _micEnabled,
                 isOnMic: _isCurrentUserOnMic,
                 leaving: _leaving,
@@ -3864,17 +4042,26 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             right: 0,
             child: ListenableBuilder(
               listenable: _musicService,
-              builder: (_, _) => _musicService.isActive
-                  ? RoomMiniPlayer(
-                      musicService: _musicService,
-                      isArabic: context.isArabic,
-                      onTap: _openMusicPanel,
-                      canManage: _iAmRoomOwner || _iAmHost || _isCurrentUserModerator,
-                      onStop: (_iAmRoomOwner || _iAmHost || _isCurrentUserModerator)
-                          ? () => unawaited(_stopMusicForRoom())
-                          : null,
-                    )
-                  : const SizedBox.shrink(),
+              builder: (_, _) {
+                if (!_musicService.isActive) return const SizedBox.shrink();
+                final controllerId =
+                    _syncedMusic.lastState?.controllerUserId;
+                final isController = controllerId == _currentUserId;
+                final isManager =
+                    _iAmRoomOwner || _iAmHost || _isCurrentUserModerator;
+                return RoomMiniPlayer(
+                  musicService: _musicService,
+                  isArabic: context.isArabic,
+                  onTap: _openMusicPanel,
+                  controllerUserId: controllerId,
+                  currentUserId: _currentUserId,
+                  canManage: isManager && isController,
+                  onStop: (isManager && isController)
+                      ? () => unawaited(_stopMusicForRoom())
+                      : null,
+                  onNonControllerAction: () => _musicAction(() async {}),
+                );
+              },
             ),
           ),
 
@@ -4812,7 +4999,8 @@ class _SeatGrid extends StatelessWidget {
                 onOccupiedSeatTap: onOccupiedSeatTap,
                 onOccupiedSeatLongPress: onOccupiedSeatLongPress,
                 onProfileTap: onProfileTap,
-                selectedForMove: row[c].member?.userId == selectedMoveUserId,
+                selectedForMove: selectedMoveUserId != null &&
+                    row[c].member?.userId == selectedMoveUserId,
                 onSeatClosedToggle: onSeatClosedToggle,
                 roomLevel: roomLevel,
                 pkTeam: pkSeatTeam(
@@ -8227,10 +8415,9 @@ class _GiftSheetState extends State<_GiftSheet> {
                 quantity: _quantity,
                 selectedGift: _selectedGift,
                 userCoinsBalance: _userCoinsBalance,
-                onQuantityTap: () {
-                  setState(() {
-                    _quantity = _quantity == 1 ? 10 : 1;
-                  });
+                onQuantityChanged: (q) {
+                  debugPrint('[GiftQuantity] quantity changed → $q');
+                  setState(() => _quantity = q);
                 },
                 onSend: _sendGift,
               ),
@@ -8709,15 +8896,17 @@ class _GiftSendBar extends StatelessWidget {
     required this.quantity,
     required this.selectedGift,
     required this.userCoinsBalance,
-    required this.onQuantityTap,
+    required this.onQuantityChanged,
     required this.onSend,
   });
+
+  static const _quantities = [1, 7, 17, 77];
 
   final bool isArabic;
   final int quantity;
   final RoomGift? selectedGift;
   final int userCoinsBalance;
-  final VoidCallback onQuantityTap;
+  final ValueChanged<int> onQuantityChanged;
   final VoidCallback onSend;
 
   String _formatCoins(int c) {
@@ -8775,38 +8964,16 @@ class _GiftSendBar extends StatelessWidget {
               size: 18,
             ),
             const Spacer(),
-            // \u2500\u2500 quantity toggle \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-            GestureDetector(
-              onTap: onQuantityTap,
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 64, maxWidth: 84),
-                height: 44,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1D1A20),
-                  borderRadius: BorderRadius.circular(999),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: _quantities.map((q) => Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: _QuantityChip(
+                  value: q,
+                  selected: quantity == q,
+                  onTap: () => onQuantityChanged(q),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      quantity.toString(),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: Color(0xFF8C819E),
-                      size: 18,
-                    ),
-                  ],
-                ),
-              ),
+              )).toList(),
             ),
             const SizedBox(width: 8),
             // \u2500\u2500 send button \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
@@ -8836,6 +9003,58 @@ class _GiftSendBar extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuantityChip extends StatelessWidget {
+  const _QuantityChip({
+    required this.value,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final int value;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        height: 36,
+        constraints: const BoxConstraints(minWidth: 40),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          gradient: selected
+              ? const LinearGradient(
+                  colors: [Color(0xFF8B26D9), Color(0xFFB56DFF)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: selected ? null : const Color(0xFF1D1A20),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected
+                ? const Color(0xFFB56DFF)
+                : const Color(0xFF3A2F4A),
+            width: 1.2,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            value.toString(),
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: selected ? Colors.white : const Color(0xFF8C819E),
+            ),
+          ),
         ),
       ),
     );

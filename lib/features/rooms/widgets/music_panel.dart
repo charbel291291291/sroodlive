@@ -7,6 +7,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../models/room_music.dart';
 import '../services/room_music_service.dart';
 import '../services/room_music_upload_service.dart';
+import '../services/room_synced_music_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
 // -----------------------------------------------------------------------------
@@ -21,6 +22,9 @@ class MusicPanel extends StatefulWidget {
     required this.musicService,
     required this.isArabic,
     required this.canManage,
+    this.controllerUserId,
+    this.currentUserId,
+    this.syncedMusic,
     this.roomId,
     this.uploadService,
     this.onTrackSelected,
@@ -29,7 +33,18 @@ class MusicPanel extends StatefulWidget {
 
   final RoomMusicService musicService;
   final bool isArabic;
+
+  /// True only when the current user is the music controller.
   final bool canManage;
+
+  /// User ID of whoever started the current track.
+  final String? controllerUserId;
+
+  /// User ID of the local user.
+  final String? currentUserId;
+
+  /// Needed to toggle auto replay.
+  final RoomSyncedMusicService? syncedMusic;
 
   /// Required when [canManage] is true so tracks can be fetched/uploaded.
   final String? roomId;
@@ -37,8 +52,7 @@ class MusicPanel extends StatefulWidget {
   /// Handles storage uploads and track persistence.
   final RoomMusicUploadService? uploadService;
 
-  /// Called when the host selects a track to play.
-  /// If null, falls back to musicService.addToPlaylist + playSong.
+  /// Called when the controller selects a track to play.
   final void Function(RoomSong song)? onTrackSelected;
 
   @override
@@ -352,6 +366,14 @@ class _MusicPanelState extends State<MusicPanel> {
                         svc: _svc,
                         canManage: widget.canManage,
                         isArabic: _isArabic,
+                        autoReplay: widget.syncedMusic?.lastState?.autoReplay ?? false,
+                        controllerUserId: widget.controllerUserId,
+                        onToggleAutoReplay: widget.canManage && widget.syncedMusic != null
+                            ? () => unawaited(
+                                widget.syncedMusic!.setAutoReplay(
+                                  value: !(widget.syncedMusic!.lastState?.autoReplay ?? false),
+                                ))
+                            : null,
                       ),
                       const SizedBox(height: 4),
                     ] else ...[
@@ -377,7 +399,10 @@ class _MusicPanelState extends State<MusicPanel> {
                         _userLibraryList(),
                       ],
                     ] else ...[
-                      // MEMBER: volume/mute only
+                      // Non-controller: volume/mute + info banner
+                      if (widget.controllerUserId != null &&
+                          widget.controllerUserId!.isNotEmpty)
+                        _controllerBanner(),
                       _memberControls(),
                     ],
 
@@ -602,6 +627,33 @@ class _MusicPanelState extends State<MusicPanel> {
     );
   }
 
+  Widget _controllerBanner() => Container(
+    margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(14),
+      color: _purple.withValues(alpha: 0.10),
+      border: Border.all(color: _purple.withValues(alpha: 0.28)),
+    ),
+    child: Row(children: [
+      Icon(Icons.lock_rounded, size: 14, color: _purpleLight.withValues(alpha: 0.7)),
+      const SizedBox(width: 8),
+      Expanded(
+        child: Text(
+          _t(
+            'الشخص الذي شغّل الموسيقى فقط يمكنه التحكم بها.',
+            'Only the person who started the music can control it.',
+          ),
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.60),
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    ]),
+  );
+
   Widget _memberControls() => Container(
     margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
     padding: const EdgeInsets.all(16),
@@ -711,11 +763,17 @@ class _NowPlayingCard extends StatelessWidget {
     required this.svc,
     required this.canManage,
     required this.isArabic,
+    this.autoReplay = false,
+    this.controllerUserId,
+    this.onToggleAutoReplay,
   });
 
   final RoomMusicService svc;
   final bool canManage;
   final bool isArabic;
+  final bool autoReplay;
+  final String? controllerUserId;
+  final VoidCallback? onToggleAutoReplay;
 
   static const _purple = Color(0xFF8B26D9);
   static const _purpleLight = Color(0xFFC875FF);
@@ -831,7 +889,7 @@ class _NowPlayingCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
-          // Playback controls (host) or static label (member)
+          // Playback controls (controller only)
           if (canManage) ...[
             Row(mainAxisAlignment: MainAxisAlignment.center, children: [
               _CtrlBtn(icon: Icons.skip_previous_rounded, size: 28, onTap: svc.previous),
@@ -860,7 +918,86 @@ class _NowPlayingCard extends StatelessWidget {
                 onTap: () { HapticFeedback.mediumImpact(); svc.stop(); },
               ),
             ]),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
+
+            // Auto replay toggle (controller only)
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                onToggleAutoReplay?.call();
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  color: autoReplay
+                      ? _purple.withValues(alpha: 0.28)
+                      : Colors.white.withValues(alpha: 0.06),
+                  border: Border.all(
+                    color: autoReplay
+                        ? _purple.withValues(alpha: 0.65)
+                        : Colors.white.withValues(alpha: 0.12),
+                  ),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(
+                    Icons.replay_rounded,
+                    size: 14,
+                    color: autoReplay ? _purpleLight : Colors.white.withValues(alpha: 0.45),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    isArabic ? 'إعادة تلقائية' : 'Auto Replay',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: autoReplay ? _purpleLight : Colors.white.withValues(alpha: 0.45),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    width: 28, height: 16,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: autoReplay ? _purple : Colors.white.withValues(alpha: 0.14),
+                    ),
+                    child: AnimatedAlign(
+                      duration: const Duration(milliseconds: 180),
+                      alignment: autoReplay ? Alignment.centerRight : Alignment.centerLeft,
+                      child: Container(
+                        width: 12, height: 12,
+                        margin: const EdgeInsets.symmetric(horizontal: 2),
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ] else ...[
+            // Non-controller: show auto replay status read-only
+            if (autoReplay)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.replay_rounded, size: 12,
+                      color: _purpleLight.withValues(alpha: 0.6)),
+                  const SizedBox(width: 5),
+                  Text(
+                    isArabic ? 'إعادة تلقائية مفعّلة' : 'Auto Replay ON',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: _purpleLight.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ]),
+              ),
           ],
 
           // Volume row (all users)

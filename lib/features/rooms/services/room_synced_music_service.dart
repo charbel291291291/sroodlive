@@ -14,20 +14,25 @@ import 'room_music_service.dart';
 // Bridge between Supabase Realtime and the local RoomMusicService.
 //
 // Data flow:
-//   HOST:    MusicPanel → _musicService (local, immediate UI)
-//            → _onLocalMusicChanged fires (only on song/play-state change)
-//            → pushCurrentState() → set_room_music_state RPC
-//            → Realtime event fires on all clients, including host
-//            → _applyState() is a no-op on host (applyingServerState guard or
-//              state already matches)
+//   CONTROLLER: MusicPanel → _musicService (local, immediate UI)
+//               → _onLocalMusicChanged fires (only on song/play-state change)
+//               → pushCurrentState() → set_room_music_state RPC
+//               → Realtime event fires on all clients, including controller
+//               → _applyState() is a no-op on controller (applyingServerState
+//                 guard or state already matches)
 //
-//   MEMBER:  Realtime fires → _applyState() → _musicService.playSong() / seek /
-//            pause / stop
+//   LISTENER:   Realtime fires → _applyState() → _musicService.playSong() /
+//               seek / pause / stop
 //
-//   LATE JOIN: initialize() → get_room_music_state RPC → _applyState()
-//              If playing  → load + seek + play
-//              If paused   → loadSongPaused() so mini-player shows track info
-//              If stopped  → nothing
+//   LATE JOIN:  initialize() → get_room_music_state RPC → _applyState()
+//               If playing  → load + seek + play
+//               If paused   → loadSongPaused() so mini-player shows track info
+//               If stopped  → nothing
+//
+//   AUTO REPLAY: when song ends, only the controller's device calls
+//               _handleSongCompleted() → seeks to 0 + plays → push.
+//               Listeners receive the replay push via Realtime.
+//               This prevents every client from restarting simultaneously.
 //
 // Not affected: LiveKit audio, mic seats, PK, games, gifts, wallet.
 // Volume and mute are local-only; never pushed to Supabase.
@@ -37,10 +42,14 @@ class RoomSyncedMusicService {
   RoomSyncedMusicService({
     required this.roomId,
     required this.musicService,
+    required this.currentUserId,
   });
 
   final String roomId;
   final RoomMusicService musicService;
+
+  /// The Supabase user ID of the person running this instance.
+  final String currentUserId;
 
   RealtimeChannel? _rtChannel;
   RoomMusicState? _lastState;
@@ -53,8 +62,14 @@ class RoomSyncedMusicService {
   String? _pushedSongId;
   bool? _pushedIsPlaying;
   bool _pushedIsActive = false;
+  bool _pushedAutoReplay = false;
 
   RoomMusicState? get lastState => _lastState;
+
+  /// Whether the current device owns the music controls.
+  bool get isController =>
+      _lastState?.controllerUserId != null &&
+      _lastState!.controllerUserId == currentUserId;
 
   SupabaseClient get _client => SupabaseService.requiredClient;
 
@@ -74,7 +89,7 @@ class RoomSyncedMusicService {
 
   Future<void> syncNow() async {
     try {
-      debugPrint('[RoomMusicSync] syncNow get_room_music_state');
+      debugPrint('[RoomMusic] syncNow get_room_music_state roomId=$roomId');
       final result = await _client.rpc(
         'get_room_music_state',
         params: {'p_room_id': roomId},
@@ -83,7 +98,7 @@ class RoomSyncedMusicService {
       final state = RoomMusicState.fromJson(result as Map<String, dynamic>);
       await _applyState(state, fromRealtime: false);
     } catch (e) {
-      if (kDebugMode) debugPrint('[RoomSyncedMusic] syncNow error: $e');
+      if (kDebugMode) debugPrint('[RoomMusic] syncNow error: $e');
     }
   }
 
@@ -107,16 +122,18 @@ class RoomSyncedMusicService {
           final row = payload.newRecord;
           if (row.isEmpty) return;
           final state = RoomMusicState.fromJson(row);
-          debugPrint('[RT-MUSIC] received state=playing:${state.isPlaying} stopped:${state.isStopped} track=${state.trackId} title=${state.trackTitle} room=$roomId');
+          debugPrint('[RoomMusic] RT received playing=${state.isPlaying} stopped=${state.isStopped} '
+              'track=${state.trackId} controller=${state.controllerUserId} '
+              'autoReplay=${state.autoReplay}');
           await _applyState(state, fromRealtime: true);
         } catch (e) {
-          debugPrint('[RT-MUSIC] realtime error: $e');
+          debugPrint('[RoomMusic] RT error: $e');
         }
       },
     );
 
     _rtChannel!.subscribe((status, [error]) {
-      debugPrint('[RT-MUSIC] status=$status error=$error room=$roomId');
+      debugPrint('[RoomMusic] RT status=$status error=$error');
     });
   }
 
@@ -132,7 +149,6 @@ class RoomSyncedMusicService {
         prev.trackId == newState.trackId &&
         prev.isPlaying == newState.isPlaying &&
         !newState.isPlaying) {
-      // Paused, same track — nothing to do.
       return;
     }
 
@@ -144,18 +160,17 @@ class RoomSyncedMusicService {
         return;
       }
 
-      debugPrint('[RoomMusicSync] apply state trackId=${newState.trackId} playing=${newState.isPlaying} url=${newState.trackUrl}');
+      debugPrint('[RoomMusic] apply trackId=${newState.trackId} playing=${newState.isPlaying} '
+          'controller=${newState.controllerUserId} autoReplay=${newState.autoReplay}');
       final trackUrl = newState.trackUrl;
       if (trackUrl == null) return;
 
-      // Find or inject the song into the local playlist.
       final idx = _ensureSongInPlaylist(newState);
       if (idx == null) return;
 
       // ── PAUSED (with a track) ─────────────────────────────────────────────
-      // Load the song so mini-player shows track info, but do NOT start playback.
       if (!newState.isPlaying) {
-        debugPrint('[MUSIC-LISTENER] autoPause track=${newState.trackId} title=${newState.trackTitle}');
+        debugPrint('[RoomMusic] autoPause track=${newState.trackId}');
         final trackChanged = prev?.trackId != newState.trackId;
         if (trackChanged || !musicService.isActive) {
           await musicService.loadSongPaused(
@@ -163,9 +178,8 @@ class RoomSyncedMusicService {
             seekTo: Duration(seconds: newState.positionSeconds),
           );
         } else if (musicService.isPlaying) {
-          // Same track but server says pause — pause locally and seek.
           await musicService.seek(Duration(seconds: newState.positionSeconds));
-          await musicService.playPause(); // playing → paused
+          await musicService.playPause();
         }
         return;
       }
@@ -175,28 +189,39 @@ class RoomSyncedMusicService {
       final wasPlaying = prev?.isPlaying ?? false;
 
       if (trackChanged || !musicService.isActive) {
-        // New track: load and play, then seek to live position.
-        debugPrint('[MUSIC-LISTENER] autoPlay track=${newState.trackId} title=${newState.trackTitle} url=${newState.trackUrl}');
+        debugPrint('[RoomMusic] autoPlay new track=${newState.trackId}');
         await musicService.playSong(idx);
         final seekTo = Duration(seconds: newState.livePositionSeconds);
         if (seekTo.inSeconds > 1) await musicService.seek(seekTo);
       } else if (!wasPlaying && newState.isPlaying) {
-        // Resume same track: seek to live position then play.
-        debugPrint('[MUSIC-LISTENER] autoPlay resume track=${newState.trackId}');
+        debugPrint('[RoomMusic] autoPlay resume track=${newState.trackId}');
         final seekTo = Duration(seconds: newState.livePositionSeconds);
         if (seekTo.inSeconds > 1) await musicService.seek(seekTo);
         if (!musicService.isPlaying) await musicService.playPause();
       }
-      // If same track, was already playing — nothing to do (position drifts
-      // naturally; a full seek would cause an audible stutter).
-
     } finally {
-      // Delay clearing the flag so the listener has time to observe it
-      // before the next notifyListeners() fires.
       Future<void>.delayed(const Duration(milliseconds: 80), () {
         applyingServerState = false;
       });
     }
+  }
+
+  /// Called by the room screen when the local player reaches
+  /// [ProcessingState.completed] — only the controller handles replay.
+  Future<void> handleSongCompleted() async {
+    final state = _lastState;
+    if (state == null) return;
+    if (!state.autoReplay) return;
+    if (state.controllerUserId != currentUserId) {
+      debugPrint('[RoomMusic] song ended — not controller, skipping replay');
+      return;
+    }
+    debugPrint('[RoomMusic] song ended — controller triggers autoReplay');
+    // Seek to start and play locally; pushCurrentStateIfChanged will broadcast.
+    await musicService.seek(Duration.zero);
+    if (!musicService.isPlaying) await musicService.playPause();
+    // Force push since position reset isn't a "meaningful change" by itself.
+    await _forcePushCurrentState();
   }
 
   /// Returns the playlist index for the song described by [state].
@@ -204,7 +229,6 @@ class RoomSyncedMusicService {
   int? _ensureSongInPlaylist(RoomMusicState state) {
     final songs = musicService.playlist;
 
-    // Try matching by ID first, then URL.
     int idx = state.trackId != null
         ? songs.indexWhere((s) => s.id == state.trackId)
         : -1;
@@ -214,7 +238,6 @@ class RoomSyncedMusicService {
 
     if (idx != -1) return idx;
 
-    // Song not in local catalog — inject it so playSong(idx) works.
     final tempSong = RoomSong(
       id: state.trackId ?? 'sync_${state.trackUrl.hashCode}',
       title: state.trackTitle ?? 'Unknown',
@@ -223,35 +246,36 @@ class RoomSyncedMusicService {
     );
     musicService.addToPlaylist(tempSong);
 
-    // Re-search after insertion.
     final updated = musicService.playlist;
     final newIdx = updated.indexWhere((s) => s.id == tempSong.id);
     return newIdx >= 0 ? newIdx : null;
   }
 
-  // ── Host: push current local state to Supabase ────────────────────────────
+  // ── Push local state → Supabase ───────────────────────────────────────────
 
-  /// Called by the room screen when the host changes song or play state.
-  /// Filters out position-only changes (e.g. seek bar drags, tick updates)
-  /// so we only write to Supabase when something meaningful changes.
-  Future<void> pushCurrentStateIfChanged() async {
+  /// Called by the room screen when the controller changes song or play state.
+  /// Filters out position-only changes so we only write on meaningful changes.
+  Future<void> pushCurrentStateIfChanged({bool? autoReplay}) async {
     final song = musicService.currentSong;
     final isActive = musicService.isActive;
     final isPlaying = musicService.isPlaying;
+    final ar = autoReplay ?? _lastState?.autoReplay ?? false;
 
-    // Skip if nothing meaningful changed since the last push.
     if (_pushedSongId == song?.id &&
         _pushedIsPlaying == isPlaying &&
-        _pushedIsActive == isActive) {
+        _pushedIsActive == isActive &&
+        _pushedAutoReplay == ar) {
       return;
     }
 
     _pushedSongId = song?.id;
     _pushedIsPlaying = isPlaying;
     _pushedIsActive = isActive;
+    _pushedAutoReplay = ar;
 
     try {
       if (song == null || !isActive) {
+        debugPrint('[RoomMusic] push stop roomId=$roomId');
         await _client.rpc(
           'stop_room_music',
           params: {'p_room_id': roomId},
@@ -259,6 +283,7 @@ class RoomSyncedMusicService {
         return;
       }
 
+      debugPrint('[RoomMusic] push playing=$isPlaying track=${song.id} autoReplay=$ar');
       await _client.rpc(
         'set_room_music_state',
         params: {
@@ -269,22 +294,41 @@ class RoomSyncedMusicService {
           'p_track_url': song.url,
           'p_is_playing': isPlaying,
           'p_position_seconds': musicService.position.inSeconds,
+          'p_auto_replay': ar,
         },
       );
     } catch (e) {
-      if (kDebugMode) debugPrint('[RoomSyncedMusic] push error: $e');
+      if (kDebugMode) debugPrint('[RoomMusic] push error: $e');
     }
   }
 
-  /// Explicitly stop music for all room members (host-only).
+  /// Force push — bypasses the "nothing changed" guard. Used for auto replay.
+  Future<void> _forcePushCurrentState() async {
+    _pushedSongId = null; // invalidate cache
+    await pushCurrentStateIfChanged();
+  }
+
+  /// Toggle auto replay and push. Only the controller should call this.
+  Future<void> setAutoReplay({required bool value}) async {
+    debugPrint('[RoomMusic] setAutoReplay=$value controller=$currentUserId');
+    // Update local state so UI reflects immediately.
+    if (_lastState != null) {
+      _lastState = _lastState!.copyWith(autoReplay: value);
+    }
+    _pushedAutoReplay = !value; // force push
+    await pushCurrentStateIfChanged(autoReplay: value);
+  }
+
+  /// Explicitly stop music for all room members. Any room manager may call.
   Future<void> stopForRoom() async {
+    debugPrint('[RoomMusic] stopForRoom roomId=$roomId');
     try {
       await _client.rpc(
         'stop_room_music',
         params: {'p_room_id': roomId},
       );
     } catch (e) {
-      if (kDebugMode) debugPrint('[RoomSyncedMusic] stopForRoom error: $e');
+      if (kDebugMode) debugPrint('[RoomMusic] stopForRoom error: $e');
     }
   }
 }

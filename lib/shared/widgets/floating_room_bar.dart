@@ -8,10 +8,10 @@ import '../../main.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
 /// Compact floating room widget shown when the user has minimized a room.
-/// - Appears on the side above bottom navigation
+/// - Appears bottom-right above the navigation bar
 /// - Draggable
 /// - Tap to return to room
-/// - Small X closes the widget only
+/// - X exits the session (disconnects LiveKit)
 class FloatingRoomBar extends StatefulWidget {
   const FloatingRoomBar({super.key});
 
@@ -26,6 +26,7 @@ class _FloatingRoomBarState extends State<FloatingRoomBar>
   late final Animation<double> _fade;
 
   bool _returning = false;
+  bool _leaving = false;
   Offset _dragOffset = Offset.zero;
 
   static const double _cardWidth = 78;
@@ -36,14 +37,12 @@ class _FloatingRoomBarState extends State<FloatingRoomBar>
     super.initState();
     _anim = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 320),
+      duration: const Duration(milliseconds: 300),
     );
     _slide = Tween<Offset>(
       begin: const Offset(0.35, 0.5),
       end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _anim, curve: Curves.easeOutCubic),
-    );
+    ).animate(CurvedAnimation(parent: _anim, curve: Curves.easeOutCubic));
     _fade = CurvedAnimation(parent: _anim, curve: Curves.easeInOut);
     _anim.forward();
   }
@@ -56,57 +55,49 @@ class _FloatingRoomBarState extends State<FloatingRoomBar>
 
   Offset _clampOffset(BuildContext context, Offset next) {
     final size = MediaQuery.of(context).size;
-
-    final minDx = -(size.width - _cardWidth - 18);
-    const maxDx = 0.0;
-
-    final minDy = -(size.height * 0.58);
-    const maxDy = 0.0;
-
     return Offset(
-      next.dx.clamp(minDx, maxDx),
-      next.dy.clamp(minDy, maxDy),
+      next.dx.clamp(-(size.width - _cardWidth - 18), 0.0),
+      next.dy.clamp(-(size.height * 0.58), 0.0),
     );
   }
 
   Future<void> _returnToRoom(Room room) async {
-    if (_returning) return;
-
+    if (_returning || _leaving) return;
     setState(() => _returning = true);
-
+    debugPrint('[RoomMinimize] floating bar — restore tapped roomId=${room.id}');
     try {
       HapticFeedback.lightImpact();
-
       await Future<void>.delayed(Duration.zero);
       if (!mounted) return;
 
       final navigator = rootNavigatorKey.currentState;
       if (navigator == null) {
-        debugPrint('[FloatingRoomBar] root navigator is null');
+        debugPrint('[RoomMinimize] floating bar — root navigator is null');
         return;
       }
 
       await navigator.push<void>(
         MaterialPageRoute(
-          builder: (_) => RoomDetailsScreen(
-            room: room,
-            isArabic: context.isArabic,
-          ),
+          builder: (_) => RoomDetailsScreen(room: room, isArabic: context.isArabic),
         ),
       );
-    } catch (e, st) {
-      debugPrint('[FloatingRoomBar] return failed: $e');
-      debugPrint('[FloatingRoomBar] stack: $st');
+    } catch (e) {
+      debugPrint('[RoomMinimize] floating bar — return failed: $e');
     } finally {
-      if (mounted) {
-        setState(() => _returning = false);
-      }
+      if (mounted) setState(() => _returning = false);
     }
   }
 
   Future<void> _exitRoom(Room room) async {
+    if (_leaving || _returning) return;
+    setState(() => _leaving = true);
+    debugPrint('[RoomMinimize] floating bar — leave tapped roomId=${room.id}');
     HapticFeedback.lightImpact();
-    ActiveRoomSession.instance.clear();
+    try {
+      await ActiveRoomSession.instance.leave(); // disconnects LiveKit
+    } finally {
+      if (mounted) setState(() => _leaving = false);
+    }
   }
 
   @override
@@ -116,6 +107,9 @@ class _FloatingRoomBarState extends State<FloatingRoomBar>
       builder: (context, _) {
         final room = ActiveRoomSession.instance.room;
         if (room == null) return const SizedBox.shrink();
+
+        final micOn = ActiveRoomSession.instance.savedMicEnabled;
+        final isArabic = context.isArabic;
 
         return SafeArea(
           top: false,
@@ -142,7 +136,7 @@ class _FloatingRoomBarState extends State<FloatingRoomBar>
                           );
                         });
                       },
-                      onTap: _returning ? null : () => _returnToRoom(room),
+                      onTap: (_returning || _leaving) ? null : () => _returnToRoom(room),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 180),
                         width: _cardWidth,
@@ -178,11 +172,13 @@ class _FloatingRoomBarState extends State<FloatingRoomBar>
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
+                                // ── Live dot + mic indicator ─────────────
                                 Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Container(
-                                      width: 8,
-                                      height: 8,
+                                      width: 7,
+                                      height: 7,
                                       decoration: BoxDecoration(
                                         color: const Color(0xFFFF5AA5),
                                         shape: BoxShape.circle,
@@ -195,25 +191,32 @@ class _FloatingRoomBarState extends State<FloatingRoomBar>
                                         ],
                                       ),
                                     ),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        context.isArabic ? '????' : 'LIVE',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          color: Colors.white.withValues(alpha: 0.72),
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: 0.4,
-                                          decoration: TextDecoration.none,
-                                        ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'LIVE',
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(alpha: 0.72),
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 0.5,
+                                        decoration: TextDecoration.none,
                                       ),
                                     ),
-                                    const SizedBox(width: 16),
+                                    const Spacer(),
+                                    // Mic state icon
+                                    Icon(
+                                      micOn
+                                          ? Icons.mic_rounded
+                                          : Icons.headphones_rounded,
+                                      size: 11,
+                                      color: micOn
+                                          ? const Color(0xFFF0C15A)
+                                          : Colors.white.withValues(alpha: 0.45),
+                                    ),
                                   ],
                                 ),
-                                const SizedBox(height: 3),
+                                const SizedBox(height: 4),
+                                // ── Room icon ───────────────────────────
                                 Container(
                                   width: 34,
                                   height: 34,
@@ -246,27 +249,32 @@ class _FloatingRoomBarState extends State<FloatingRoomBar>
                                           size: 19,
                                         ),
                                 ),
-                                const SizedBox(height: 5),
+                                const SizedBox(height: 4),
+                                // ── Room name ───────────────────────────
                                 Expanded(
                                   child: Center(
                                     child: Text(
                                       room.name,
-                                      maxLines: 1,
+                                      maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
                                       textAlign: TextAlign.center,
                                       style: const TextStyle(
                                         color: Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w800,
-                                        height: 1.05,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        height: 1.1,
                                         decoration: TextDecoration.none,
                                       ),
                                     ),
                                   ),
                                 ),
                                 const SizedBox(height: 3),
+                                // ── Return label ────────────────────────
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.white.withValues(alpha: 0.09),
                                     borderRadius: BorderRadius.circular(12),
@@ -275,7 +283,7 @@ class _FloatingRoomBarState extends State<FloatingRoomBar>
                                     ),
                                   ),
                                   child: Text(
-                                    context.isArabic ? '????' : 'Return',
+                                    isArabic ? 'العودة' : 'Return',
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 10,
@@ -286,12 +294,13 @@ class _FloatingRoomBarState extends State<FloatingRoomBar>
                                 ),
                               ],
                             ),
+                            // ── Close / leave button ─────────────────────
                             Positioned(
                               top: 0,
-                              right: 10,
+                              right: 0,
                               child: GestureDetector(
                                 behavior: HitTestBehavior.opaque,
-                                onTap: () => _exitRoom(room),
+                                onTap: _leaving ? null : () => _exitRoom(room),
                                 child: Container(
                                   width: 20,
                                   height: 20,
@@ -302,11 +311,19 @@ class _FloatingRoomBarState extends State<FloatingRoomBar>
                                       color: Colors.white.withValues(alpha: 0.18),
                                     ),
                                   ),
-                                  child: const Icon(
-                                    Icons.close_rounded,
-                                    color: Colors.white70,
-                                    size: 12,
-                                  ),
+                                  child: _leaving
+                                      ? const Padding(
+                                          padding: EdgeInsets.all(5),
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 1.5,
+                                            color: Colors.white54,
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.close_rounded,
+                                          color: Colors.white70,
+                                          size: 12,
+                                        ),
                                 ),
                               ),
                             ),

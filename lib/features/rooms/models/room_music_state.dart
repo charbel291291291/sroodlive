@@ -15,6 +15,8 @@ class RoomMusicState {
     this.pausedAt,
     required this.positionSeconds,
     required this.updatedAt,
+    this.controllerUserId,
+    this.autoReplay = false,
   });
 
   final String roomId;
@@ -33,6 +35,13 @@ class RoomMusicState {
   /// Playback position (seconds) recorded when [startedAt] / [pausedAt] was set.
   final int positionSeconds;
   final DateTime updatedAt;
+
+  /// The user who started the current track.
+  /// Only this user may pause, resume, stop, replay, or change tracks.
+  final String? controllerUserId;
+
+  /// When true, the controller's device restarts the same track when it ends.
+  final bool autoReplay;
 
   bool get hasTrack => trackUrl != null && trackUrl!.isNotEmpty;
 
@@ -57,6 +66,8 @@ class RoomMusicState {
         pausedAt: _dt(j['paused_at']),
         positionSeconds: (j['position_seconds'] as num?)?.toInt() ?? 0,
         updatedAt: _dt(j['updated_at']) ?? DateTime.now(),
+        controllerUserId: j['controller_user_id'] as String?,
+        autoReplay: (j['auto_replay'] as bool?) ?? false,
       );
 
   RoomMusicState copyWith({
@@ -69,6 +80,8 @@ class RoomMusicState {
     DateTime? pausedAt,
     int? positionSeconds,
     DateTime? updatedAt,
+    String? controllerUserId,
+    bool? autoReplay,
   }) =>
       RoomMusicState(
         roomId: roomId,
@@ -81,6 +94,8 @@ class RoomMusicState {
         pausedAt: pausedAt ?? this.pausedAt,
         positionSeconds: positionSeconds ?? this.positionSeconds,
         updatedAt: updatedAt ?? this.updatedAt,
+        controllerUserId: controllerUserId ?? this.controllerUserId,
+        autoReplay: autoReplay ?? this.autoReplay,
       );
 
   static DateTime? _dt(dynamic v) {
