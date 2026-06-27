@@ -409,6 +409,8 @@ class AdminRoomSummary {
     this.closedAt,
     this.closedReason,
     this.publicRoomCode,
+    this.archivedAt,
+    this.deletedAt,
     this.createdAt,
   });
 
@@ -426,8 +428,13 @@ class AdminRoomSummary {
   final DateTime? closedAt;
   final String? closedReason;
   final String? publicRoomCode;
+  final DateTime? archivedAt;
+  final DateTime? deletedAt;
   final int activeMembers;
   final DateTime? createdAt;
+
+  bool get isArchived => archivedAt != null;
+  bool get isDeleted  => deletedAt != null;
 
   factory AdminRoomSummary.fromJson(Map<String, dynamic> json) {
     return AdminRoomSummary(
@@ -445,6 +452,8 @@ class AdminRoomSummary {
       closedAt: _dateValue(json['closed_at']),
       closedReason: json['closed_reason']?.toString(),
       publicRoomCode: json['public_room_code']?.toString(),
+      archivedAt: _dateValue(json['archived_at']),
+      deletedAt: _dateValue(json['deleted_at']),
       activeMembers: _intValue(json['active_members']),
       createdAt: _dateValue(json['created_at']),
     );

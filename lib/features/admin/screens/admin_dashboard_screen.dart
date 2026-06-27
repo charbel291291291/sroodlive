@@ -1330,6 +1330,119 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
+  Future<void> _archiveRoom(AdminRoomSummary room) async {
+    final confirmed = await _confirm(
+      title: 'Archive room',
+      body:
+          'Archive "${room.name}"? The room will be closed and hidden from discovery. This can be reviewed but not undone from the panel.',
+      action: 'Archive',
+    );
+    if (!confirmed) return;
+    final reason = await _askForText(title: 'Archive reason (optional)', label: 'Reason');
+
+    try {
+      await _adminService.archiveRoom(roomId: room.id, reason: reason?.isEmpty == true ? null : reason);
+      await _load();
+      if (!mounted) return;
+      _showSnack('Room archived');
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack('Archive failed: $error');
+    }
+  }
+
+  Future<void> _softDeleteRoom(AdminRoomSummary room) async {
+    // Require typing the confirmation phrase to prevent accidental deletes.
+    final confirmPhrase =
+        room.publicRoomCode != null ? 'DELETE ROOM ${room.publicRoomCode}' : 'DELETE ROOM ${room.name}';
+
+    final phraseController = TextEditingController();
+    final reasonController = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _kSurface,
+        title: Row(
+          children: [
+            const Icon(Icons.warning_rounded, color: _kRed, size: 20),
+            const SizedBox(width: 8),
+            const Text('Delete Room', style: TextStyle(color: _kRed)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              room.name,
+              style: const TextStyle(color: _kGold, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'This soft-deletes the room. No data is removed. '
+              'The room will be permanently closed and hidden from all users.',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            _AdminTextField(
+              controller: reasonController,
+              label: 'Reason (optional)',
+              icon: Icons.notes_rounded,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Type  "$confirmPhrase"  to confirm:',
+              style: const TextStyle(fontSize: 12, color: Colors.white70),
+            ),
+            const SizedBox(height: 6),
+            _AdminTextField(
+              controller: phraseController,
+              label: confirmPhrase,
+              icon: Icons.keyboard_rounded,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: _kRed),
+            onPressed: () {
+              if (phraseController.text.trim() == confirmPhrase) {
+                Navigator.of(ctx).pop(true);
+              } else {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(content: Text('Confirmation phrase does not match.')),
+                );
+              }
+            },
+            child: const Text('Delete Room'),
+          ),
+        ],
+      ),
+    );
+
+    // Capture text before disposing controllers.
+    final reason = reasonController.text.trim().isEmpty ? null : reasonController.text.trim();
+    phraseController.dispose();
+    reasonController.dispose();
+
+    if (confirmed != true) return;
+    try {
+      await _adminService.softDeleteRoom(roomId: room.id, reason: reason);
+      await _load();
+      if (!mounted) return;
+      _showSnack('Room soft-deleted');
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack('Delete failed: $error');
+    }
+  }
+
   Future<void> _editGiftCategory(AdminGiftCategory category) async {
     final result = await showDialog<_GiftCategoryEditResult>(
       context: context,
@@ -1901,9 +2014,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         (room) => _RoomTile(
                           room,
                           canManage: _canRooms,
+                          canDelete: _adminRole.hasPermission(kPermRoomsDelete),
                           onClose: () => _closeRoom(room),
                           onReopen: () => _reopenRoom(room),
                           onSetCode: () => _setRoomCode(room),
+                          onArchive: () => _archiveRoom(room),
+                          onDelete: () => _softDeleteRoom(room),
                         ),
                       )
                       .toList(),
@@ -6092,41 +6208,68 @@ class _RoomTile extends StatelessWidget {
   const _RoomTile(
     this.room, {
     required this.canManage,
+    required this.canDelete,
     required this.onClose,
     required this.onReopen,
     required this.onSetCode,
+    required this.onArchive,
+    required this.onDelete,
   });
 
   final AdminRoomSummary room;
   final bool canManage;
+  final bool canDelete;
   final VoidCallback onClose;
   final VoidCallback onReopen;
   final VoidCallback onSetCode;
+  final VoidCallback onArchive;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
     final codeLabel = room.publicRoomCode != null ? ' · #${room.publicRoomCode}' : '';
     return _AdminListTile(
-      icon: Icons.meeting_room_rounded,
+      icon: room.isDeleted
+          ? Icons.delete_rounded
+          : room.isArchived
+              ? Icons.archive_rounded
+              : Icons.meeting_room_rounded,
       title: '${room.name}$codeLabel',
       subtitle:
           'Owner ${room.ownerName ?? room.ownerPublicUserId ?? room.ownerId} - ${room.activeMembers}/${room.maxSeats} active${room.closedReason == null ? '' : ' - ${room.closedReason}'}',
       trailing: Wrap(
         spacing: 6,
+        runSpacing: 4,
         children: [
-          _RoleChip(label: room.isClosed ? 'closed' : 'live'),
+          if (room.isDeleted)
+            const _RoleChip(label: 'deleted')
+          else if (room.isArchived)
+            const _RoleChip(label: 'archived')
+          else
+            _RoleChip(label: room.isClosed ? 'closed' : 'live'),
           _RoleChip(label: room.isLocked ? 'locked' : 'open'),
           if (room.isPrivate) const _RoleChip(label: 'private'),
-          if (canManage) ...[
+          if (canManage && !room.isDeleted) ...[
             TextButton(
               onPressed: onSetCode,
               child: const Text('Set Code'),
             ),
+            if (!room.isArchived)
+              TextButton(
+                onPressed: onArchive,
+                child: const Text('Archive'),
+              ),
             TextButton(
               onPressed: room.isClosed ? onReopen : onClose,
               child: Text(room.isClosed ? 'Reopen' : 'Close'),
             ),
           ],
+          if (canDelete && !room.isDeleted)
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: _kRed),
+              onPressed: onDelete,
+              child: const Text('Delete'),
+            ),
         ],
       ),
     );
@@ -6497,9 +6640,11 @@ class _StatusBadge extends StatelessWidget {
         s.contains('off') ||
         s.contains('cancel') ||
         s.contains('danger') ||
+        s.contains('delet') ||
         s.contains('mute')) {
       return _kRed;
     }
+    if (s.contains('archiv')) return _kAmber;
     if (s.contains('coin') || s.contains('charge') || s.contains('info')) {
       return _kBlue;
     }

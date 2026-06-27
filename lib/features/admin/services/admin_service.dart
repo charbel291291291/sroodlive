@@ -549,6 +549,20 @@ class AdminService {
     );
   }
 
+  Future<void> archiveRoom({required String roomId, String? reason}) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_archive_room',
+      params: {'p_room_id': roomId, 'p_reason': reason},
+    );
+  }
+
+  Future<void> softDeleteRoom({required String roomId, String? reason}) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_soft_delete_room',
+      params: {'p_room_id': roomId, 'p_reason': reason},
+    );
+  }
+
   Future<void> kickRoomMember({
     required String roomId,
     required String userId,
