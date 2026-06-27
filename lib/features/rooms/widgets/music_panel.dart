@@ -457,22 +457,74 @@ class _MusicPanelState extends State<MusicPanel> {
 
   Widget _emptyNowPlaying() => Container(
     margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-    padding: const EdgeInsets.all(20),
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(20),
-      color: Colors.white.withValues(alpha: 0.04),
-      border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+      color: Colors.white.withValues(alpha: 0.03),
+      border: Border.all(
+        color: widget.canManage
+            ? _purple.withValues(alpha: 0.18)
+            : Colors.white.withValues(alpha: 0.07),
+        style: BorderStyle.solid,
+      ),
     ),
-    child: Row(
-      children: [
-        Icon(Icons.music_off_rounded, color: Colors.white.withValues(alpha: 0.25), size: 28),
-        const SizedBox(width: 12),
-        Text(
-          _t('لا توجد موسيقى قيد التشغيل', 'No music playing'),
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 13),
-        ),
-      ],
-    ),
+    child: widget.canManage
+        // Controller: clear call-to-action
+        ? Column(
+            children: [
+              Container(
+                width: 52, height: 52,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      _purple.withValues(alpha: 0.35),
+                      _purple.withValues(alpha: 0.12),
+                    ],
+                  ),
+                  border: Border.all(color: _purple.withValues(alpha: 0.45)),
+                ),
+                child: const Icon(Icons.library_music_rounded, color: _purpleLight, size: 24),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _t('لا توجد موسيقى', 'No music playing'),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _t(
+                  'أضف أغنية من هاتفك أو برابط للبدء',
+                  'Add a song from your phone or a link to get started',
+                ),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.45),
+                  fontSize: 12,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ],
+          )
+        // Listener: simple no-music indicator
+        : Row(
+            children: [
+              Icon(Icons.music_off_rounded,
+                  color: Colors.white.withValues(alpha: 0.25), size: 28),
+              const SizedBox(width: 12),
+              Text(
+                _t('لا توجد موسيقى قيد التشغيل', 'No music playing'),
+                style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.40), fontSize: 13,
+                    decoration: TextDecoration.none),
+              ),
+            ],
+          ),
   );
 
   Widget _uploadProgressBar() => Padding(
@@ -665,12 +717,24 @@ class _MusicPanelState extends State<MusicPanel> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          _t('التحكم بالصوت', 'Volume Control'),
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.6),
-            fontSize: 12, fontWeight: FontWeight.w700,
-          ),
+        Row(
+          children: [
+            Text(
+              _t('التحكم بالصوت', 'Volume Control'),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.6),
+                fontSize: 12, fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              _t('(جهازك فقط)', '(your device only)'),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.30),
+                fontSize: 10, fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         Row(children: [
@@ -1000,7 +1064,7 @@ class _NowPlayingCard extends StatelessWidget {
               ),
           ],
 
-          // Volume row (all users)
+          // Volume row (all users — local device only)
           Row(children: [
             GestureDetector(
               onTap: () => svc.setVolume(svc.volume == 0 ? 1.0 : 0.0),
@@ -1026,6 +1090,20 @@ class _NowPlayingCard extends StatelessWidget {
             ),
             Icon(Icons.volume_up_rounded, color: Colors.white.withValues(alpha: 0.4), size: 18),
           ]),
+          Align(
+            alignment: isArabic ? Alignment.centerRight : Alignment.centerLeft,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 2, left: 4, right: 4),
+              child: Text(
+                isArabic ? 'صوت جهازك فقط' : 'Your device volume only',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.25),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

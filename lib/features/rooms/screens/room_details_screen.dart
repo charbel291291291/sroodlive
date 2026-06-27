@@ -362,12 +362,14 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       _roomLog('[RoomMusic] music service created roomId=${widget.room.id}');
     }
     _musicService.addListener(_onLocalMusicChanged);
-    // When a song ends, let the sync service decide replay vs. advance.
-    // Only the controller's device triggers the replay push.
+    // When a song ends, snapshot autoReplay first (before any async work) to
+    // avoid a race where the value is read after handleSongCompleted mutates it.
+    // Only the controller's device triggers the replay push; listeners do nothing.
     _musicService.onSongCompleted = () {
-      unawaited(_syncedMusic.handleSongCompleted());
-      // If not replaying, advance to next locally (non-synced behavior).
-      if (!(_syncedMusic.lastState?.autoReplay ?? false)) {
+      final replay = _syncedMusic.lastState?.autoReplay ?? false;
+      if (replay) {
+        unawaited(_syncedMusic.handleSongCompleted());
+      } else {
         _musicService.next();
       }
     };
@@ -4043,12 +4045,61 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             child: ListenableBuilder(
               listenable: _musicService,
               builder: (_, _) {
-                if (!_musicService.isActive) return const SizedBox.shrink();
                 final controllerId =
                     _syncedMusic.lastState?.controllerUserId;
                 final isController = controllerId == _currentUserId;
                 final isManager =
                     _iAmRoomOwner || _iAmHost || _isCurrentUserModerator;
+
+                if (!_musicService.isActive) {
+                  // Show an idle "Add music" pill for managers only.
+                  if (!isManager) return const SizedBox.shrink();
+                  return Align(
+                    alignment: context.isArabic
+                        ? Alignment.centerRight
+                        : Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: GestureDetector(
+                        onTap: _openMusicPanel,
+                        child: Container(
+                          height: 34,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.35),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.10),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.music_note_rounded,
+                                size: 13,
+                                color: Colors.white.withValues(alpha: 0.30),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                context.isArabic
+                                    ? 'إضافة موسيقى'
+                                    : 'Add music',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.35),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  decoration: TextDecoration.none,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
                 return RoomMiniPlayer(
                   musicService: _musicService,
                   isArabic: context.isArabic,

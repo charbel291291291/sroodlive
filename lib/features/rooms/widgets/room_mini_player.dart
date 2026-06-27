@@ -288,7 +288,6 @@ class _ListenerNowPlayingChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('[RoomMusic] listener chip song=${song.title} isController=$isController');
     return Transform.translate(
       offset: dragOffset,
       child: GestureDetector(
@@ -298,21 +297,23 @@ class _ListenerNowPlayingChip extends StatelessWidget {
         child: AnimatedBuilder(
           animation: pulse,
           builder: (context, _) {
+            // Listeners see a dimmer border; controller gets the gold pulse.
+            final borderColor = isController
+                ? const Color(0xFFFFD76B).withValues(alpha: 0.55)
+                : const Color(0xFF8B26D9)
+                    .withValues(alpha: 0.22 + pulse.value * 0.10);
             return Container(
               height: 34,
-              constraints: const BoxConstraints(maxWidth: 190),
+              constraints: const BoxConstraints(maxWidth: 200),
               padding: const EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
                 color: const Color(0xFF1D0B35).withValues(alpha: 0.90),
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: const Color(0xFF8B26D9).withValues(alpha: 0.32 + pulse.value * 0.18),
-                  width: 1.0,
-                ),
+                border: Border.all(color: borderColor, width: 1.0),
                 boxShadow: [
                   BoxShadow(
                     color: const Color(0xFF8B26D9)
-                        .withValues(alpha: isPlaying ? 0.22 + pulse.value * 0.08 : 0.08),
+                        .withValues(alpha: isPlaying ? 0.20 + pulse.value * 0.08 : 0.06),
                     blurRadius: 12,
                   ),
                 ],
@@ -323,7 +324,8 @@ class _ListenerNowPlayingChip extends StatelessWidget {
                   Icon(
                     Icons.music_note_rounded,
                     size: 13,
-                    color: const Color(0xFFFFD76B).withValues(alpha: isPlaying ? 0.9 : 0.45),
+                    color: const Color(0xFFFFD76B)
+                        .withValues(alpha: isPlaying ? 0.9 : 0.45),
                   ),
                   const SizedBox(width: 5),
                   Flexible(
@@ -332,7 +334,8 @@ class _ListenerNowPlayingChip extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.85),
+                        color: Colors.white
+                            .withValues(alpha: isController ? 0.90 : 0.65),
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         decoration: TextDecoration.none,
@@ -341,13 +344,13 @@ class _ListenerNowPlayingChip extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                   _EqualizerDots(isPlaying: isPlaying, pulse: pulse),
-                  // Lock icon — tells listener they cannot control this
+                  // Lock icon visible for non-controllers
                   if (!isController) ...[
                     const SizedBox(width: 5),
                     Icon(
                       Icons.lock_rounded,
-                      size: 10,
-                      color: Colors.white.withValues(alpha: 0.30),
+                      size: 11,
+                      color: Colors.white.withValues(alpha: 0.40),
                     ),
                   ],
                 ],
