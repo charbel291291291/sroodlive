@@ -95,6 +95,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   List<AdminAgent> _agents = const [];
   List<AdminUserSummary> _users = const [];
   List<AdminRoomSummary> _rooms = const [];
+  bool _showDeletedRooms = false;
   List<AdminGiftSummary> _gifts = const [];
   List<AdminAuditLog> _auditLogs = const [];
   AdminFinanceReport? _financeReport;
@@ -282,7 +283,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final agencies = await _adminService.fetchAgencies();
       final agents = await _adminService.fetchAgents();
       final users = await _adminService.searchUsers();
-      final rooms = await _adminService.fetchRooms();
+      final rooms = await _adminService.fetchRooms(includeDeleted: _showDeletedRooms);
       final gifts = await _adminService.fetchGifts();
       final auditLogs = await _adminService.fetchAuditLogs();
       final financeReport = await _adminService.fetchFinanceReport(
@@ -1989,6 +1990,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
 
+  Future<void> _loadRooms() async {
+    try {
+      final rooms = await _adminService.fetchRooms(includeDeleted: _showDeletedRooms);
+      if (!mounted) return;
+      setState(() => _rooms = rooms);
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack('Could not load rooms: $error');
+    }
+  }
+
   Widget _buildRooms() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2002,11 +2014,36 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         const SizedBox(height: 14),
         _AdminSectionCard(
           title: 'Recent Rooms',
+          action: _adminRole.hasPermission(kPermRoomsDelete)
+              ? FilterChip(
+                  label: const Text('Show deleted'),
+                  selected: _showDeletedRooms,
+                  onSelected: (val) {
+                    setState(() => _showDeletedRooms = val);
+                    _loadRooms();
+                  },
+                  selectedColor: _kRed.withValues(alpha: 0.18),
+                  checkmarkColor: _kRed,
+                  side: BorderSide(
+                    color: _showDeletedRooms
+                        ? _kRed.withValues(alpha: 0.6)
+                        : _kBorder,
+                  ),
+                  labelStyle: TextStyle(
+                    color: _showDeletedRooms ? _kRed : _kMuted,
+                    fontSize: 12,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  visualDensity: VisualDensity.compact,
+                )
+              : null,
           child: _rooms.isEmpty
-              ? const _AdminEmptyState(
+              ? _AdminEmptyState(
                   icon: Icons.meeting_room_rounded,
-                  title: 'No rooms',
-                  subtitle: 'Created rooms will appear here.',
+                  title: _showDeletedRooms ? 'No rooms found' : 'No rooms',
+                  subtitle: _showDeletedRooms
+                      ? 'No deleted rooms on record.'
+                      : 'Created rooms will appear here.',
                 )
               : Column(
                   children: _rooms

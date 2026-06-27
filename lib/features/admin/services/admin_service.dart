@@ -304,10 +304,13 @@ class AdminService {
     );
   }
 
-  Future<List<AdminRoomSummary>> fetchRooms({int limit = 50}) async {
+  Future<List<AdminRoomSummary>> fetchRooms({
+    int limit = 50,
+    bool includeDeleted = false,
+  }) async {
     final data = await SupabaseService.requiredClient.rpc(
       'admin_list_rooms',
-      params: {'p_limit': limit},
+      params: {'p_limit': limit, 'p_include_deleted': includeDeleted},
     );
     return (data as List<dynamic>)
         .map((item) => AdminRoomSummary.fromJson(item as Map<String, dynamic>))
