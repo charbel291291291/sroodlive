@@ -3760,7 +3760,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                       chatMessages: _chatMessages,
                       isArabic: context.isArabic,
                       onProfileTap: _openUserProfileSheet,
-                      bottomPad: 116 + bottomPad + kbHeight,
+                      bottomPad: 172 + bottomPad + kbHeight,
                       currentUserId: _currentUserId ?? '',
                       onRemoveTap: _canRemoveMessages ? _removeMessage : null,
                       onReportTap: _reportChatMessage,
@@ -3771,32 +3771,65 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             ),
           ),
 
-          // -- Pinned bottom action bar ------------------------------
+          // -- Pinned bottom area: music dock + action bar -----------
+          // Single Positioned so the dock and bar share one layout boundary.
+          // The dock stacks directly above the bar with no gap.
           Positioned(
             bottom: kbHeight,
             left: 0,
             right: 0,
-            child: ValueListenableBuilder<({bool connecting, bool connected})>(
-              valueListenable: _audioStateNotifier,
-              builder: (context2, audioState, child2) => _LiveBottomActionBar(
-                isArabic: context.isArabic,
-                connectingAudio: audioState.connecting || _micToggleBusy,
-                micEnabled: _micEnabled,
-                isOnMic: _isCurrentUserOnMic,
-                leaving: _leaving,
-                isSendingMessage: _isSendingMessage,
-                myVipLevel: _myMember?.effectiveVipLevel ?? 0,
-                isUploadingImage: _uploadingChatImage,
-                onToggleMic: _toggleMic,
-                onLeaveRoom: _leaveRoom,
-                onGiftTap: _openGiftSheet,
-                onMoreTap: _openToolsSheet,
-                onReactionTap: _openReactionPicker,
-                onSendMessage: _sendChatMessage,
-                onSendImage: _sendChatImageMessage,
-                members: _members,
-                bottomPad: bottomPad,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Music dock — full-width, 56 px when active, 36 px idle, 0 hidden.
+                ListenableBuilder(
+                  listenable: _musicService,
+                  builder: (_, _) {
+                    final controllerId =
+                        _syncedMusic.lastState?.controllerUserId;
+                    final isController = controllerId == _currentUserId;
+                    final isManager =
+                        _iAmRoomOwner || _iAmHost || _isCurrentUserModerator;
+                    return RoomMiniPlayer(
+                      musicService: _musicService,
+                      isArabic: context.isArabic,
+                      isManager: isManager,
+                      canManage: isManager && isController,
+                      onTap: _openMusicPanel,
+                      controllerUserId: controllerId,
+                      currentUserId: _currentUserId,
+                      onStop: (isManager && isController)
+                          ? () => unawaited(_stopMusicForRoom())
+                          : null,
+                      onNonControllerAction: () => _musicAction(() async {}),
+                      keyboardOpen: kbHeight > 0,
+                    );
+                  },
+                ),
+                // Action bar
+                ValueListenableBuilder<({bool connecting, bool connected})>(
+                  valueListenable: _audioStateNotifier,
+                  builder: (context2, audioState, child2) => _LiveBottomActionBar(
+                    isArabic: context.isArabic,
+                    connectingAudio: audioState.connecting || _micToggleBusy,
+                    micEnabled: _micEnabled,
+                    isOnMic: _isCurrentUserOnMic,
+                    leaving: _leaving,
+                    isSendingMessage: _isSendingMessage,
+                    myVipLevel: _myMember?.effectiveVipLevel ?? 0,
+                    isUploadingImage: _uploadingChatImage,
+                    onToggleMic: _toggleMic,
+                    onLeaveRoom: _leaveRoom,
+                    onGiftTap: _openGiftSheet,
+                    onMoreTap: _openToolsSheet,
+                    onReactionTap: _openReactionPicker,
+                    onSendMessage: _sendChatMessage,
+                    onSendImage: _sendChatImageMessage,
+                    members: _members,
+                    bottomPad: bottomPad,
+                  ),
+                ),
+              ],
             ),
           ),
 
@@ -3862,87 +3895,6 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                 },
               ),
             ),
-
-          // -- 5. Music mini-player -------------------------------------------
-          // Music mini-player sits just above the bottom toolbar + chat bar.
-          // bottom = action bar height (~116) + 4px breathing gap + bottomPad
-          Positioned(
-            bottom: 120 + bottomPad + kbHeight,
-            left: 0,
-            right: 0,
-            child: ListenableBuilder(
-              listenable: _musicService,
-              builder: (_, _) {
-                final controllerId =
-                    _syncedMusic.lastState?.controllerUserId;
-                final isController = controllerId == _currentUserId;
-                final isManager =
-                    _iAmRoomOwner || _iAmHost || _isCurrentUserModerator;
-
-                if (!_musicService.isActive) {
-                  // Show an idle "Add music" pill for managers only.
-                  if (!isManager) return const SizedBox.shrink();
-                  return Align(
-                    alignment: context.isArabic
-                        ? Alignment.centerRight
-                        : Alignment.centerLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: GestureDetector(
-                        onTap: _openMusicPanel,
-                        child: Container(
-                          height: 34,
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.35),
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.10),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.music_note_rounded,
-                                size: 13,
-                                color: Colors.white.withValues(alpha: 0.30),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                context.isArabic
-                                    ? 'إضافة موسيقى'
-                                    : 'Add music',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.35),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  decoration: TextDecoration.none,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }
-
-                return RoomMiniPlayer(
-                  musicService: _musicService,
-                  isArabic: context.isArabic,
-                  onTap: _openMusicPanel,
-                  controllerUserId: controllerId,
-                  currentUserId: _currentUserId,
-                  canManage: isManager && isController,
-                  onStop: (isManager && isController)
-                      ? () => unawaited(_stopMusicForRoom())
-                      : null,
-                  onNonControllerAction: () => _musicAction(() async {}),
-                );
-              },
-            ),
-          ),
 
           // -- 6. Srood Loto side shortcut removed from room UI --
         ],
