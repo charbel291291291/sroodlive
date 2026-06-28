@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 import '../services/hungry_cat_admin_service.dart';
 
@@ -91,11 +92,7 @@ class _HungryCatAdminPanelState extends State<HungryCatAdminPanel> {
   }
 
   void _snack(String msg, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg, style: const TextStyle(color: Colors.white)),
-      backgroundColor: isError ? _kRed : _kGreen,
-      behavior: SnackBarBehavior.floating,
-    ));
+    SroodToast.show(context, msg, type: isError ? SroodToastType.error : SroodToastType.success);
   }
 
   @override

@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 import '../models/room.dart';
 import '../services/room_management_service.dart';
@@ -148,19 +149,11 @@ class _RoomSettingsSheetState extends State<RoomSettingsSheet> {
   }
 
   void _showSuccess(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: const Color(0xFF1A6FFF),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    SroodToast.show(context, msg, type: SroodToastType.success);
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: const Color(0xFFE63946)),
-    );
+    SroodToast.show(context, msg, type: SroodToastType.error);
   }
 
   @override

@@ -8,6 +8,7 @@ import '../models/backpack_item.dart';
 import '../services/gamification_service.dart';
 import 'store_screen.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 class BackpackScreen extends StatefulWidget {
   const BackpackScreen({required this.isArabic, super.key});
@@ -98,23 +99,11 @@ class _BackpackScreenState extends State<BackpackScreen> {
     try {
       await _service.equipBackpackItem(bp.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.isArabic ? 'تم التفعيل!' : 'Equipped!',
-          ),
-          backgroundColor: const Color(0xFF2ECC71),
-        ),
-      );
+      SroodToast.show(context, context.isArabic ? 'تم التفعيل!' : 'Equipped!', type: SroodToastType.success);
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: const Color(0xFFFF4D6D),
-        ),
-      );
+      SroodToast.show(context, e.toString(), type: SroodToastType.error);
     } finally {
       if (mounted) setState(() => _equippingId = null);
     }

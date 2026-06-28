@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 import '../models/srood_blocks_models.dart';
 import '../services/srood_blocks_service.dart';
@@ -158,7 +159,7 @@ class _SroodBlocksScreenState extends State<SroodBlocksScreen> {
           : e.toString().contains('no_free_plays_left')
               ? (_ar ? 'لا تبقى لديك جولات مجانية' : 'No free plays left')
               : (_ar ? 'خطأ، حاول مجدداً' : 'Error, please try again');
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      SroodToast.show(context, msg, type: SroodToastType.error);
       return;
     }
     if (!mounted) return;
@@ -169,12 +170,11 @@ class _SroodBlocksScreenState extends State<SroodBlocksScreen> {
     );
     await _loadStatus();
     if (result != null && mounted && result.xpEarned > 0) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(_ar
-            ? '+${result.xpEarned} XP 🎮'
-            : '+${result.xpEarned} XP earned 🎮'),
-        backgroundColor: const Color(0xFF6D28D9),
-      ));
+      SroodToast.show(
+        context,
+        _ar ? '+${result.xpEarned} XP 🎮' : '+${result.xpEarned} XP earned 🎮',
+        type: SroodToastType.success,
+      );
     }
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 import '../../../core/supabase/supabase_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
@@ -97,9 +98,7 @@ class _BlockUserScreenState extends State<BlockUserScreen> {
       setState(() => _blocked.removeWhere((b) => b.id == user.id));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      SroodToast.show(context, 'Error: $e', type: SroodToastType.error);
     } finally {
       if (mounted) setState(() => _unblockPending.remove(user.id));
     }
@@ -490,16 +489,9 @@ Future<void> blockUser({
       'blocked_user_id': targetUserId,
     });
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(isArabic ? 'تم حظر $targetName' : '$targetName blocked'),
-        backgroundColor: const Color(0xFF3A1422),
-      ),
-    );
+    SroodToast.show(context, isArabic ? 'تم حظر $targetName' : '$targetName blocked', type: SroodToastType.success);
   } catch (e) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    SroodToast.show(context, 'Error: $e', type: SroodToastType.error);
   }
 }

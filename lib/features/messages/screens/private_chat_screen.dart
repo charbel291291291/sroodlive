@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
@@ -231,8 +232,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.toString())));
+      SroodToast.show(context, e.toString(), type: SroodToastType.error);
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -308,11 +308,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-          context.isArabic ? 'فشل الحذف' : 'Delete failed',
-        ),
-      ));
+      SroodToast.show(context, context.isArabic ? 'فشل الحذف' : 'Delete failed', type: SroodToastType.error);
     }
   }
 

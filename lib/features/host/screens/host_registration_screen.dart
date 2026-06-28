@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 import '../../../core/supabase/supabase_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
@@ -78,9 +79,7 @@ class _HostRegistrationScreenState extends State<HostRegistrationScreen> {
       setState(() => _submitted = true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      SroodToast.show(context, 'Error: $e', type: SroodToastType.error);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

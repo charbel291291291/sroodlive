@@ -37,6 +37,7 @@ import 'services/follow_service.dart';
 import 'widgets/avatar_crop_screen.dart';
 import 'widgets/country_picker_sheet.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 import 'utils/vip_assets.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -346,14 +347,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.isArabic ? 'فشل فتح الغرفة: $e' : 'Failed to open room: $e',
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      SroodToast.show(context, context.isArabic ? 'فشل فتح الغرفة: $e' : 'Failed to open room: $e', type: SroodToastType.error);
     } finally {
       if (mounted) setState(() => _roomLoading = false);
     }
@@ -491,12 +485,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _copyPublicId(String publicUserId) async {
     await Clipboard.setData(ClipboardData(text: publicUserId));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(context.isArabic ? 'تم نسخ المعرّف' : 'ID copied'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    SroodToast.show(context, context.isArabic ? 'تم نسخ المعرّف' : 'ID copied', type: SroodToastType.success);
   }
 
   Future<void> _showEditProfileSheet() async {
@@ -3502,15 +3491,7 @@ class _AvatarFramePickerTile extends StatelessWidget {
           Navigator.of(context).pop<String?>(frame?.frameKey);
           return;
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isArabic
-                  ? 'هذا الإطار متاح لمستوى VIP أعلى'
-                  : 'This frame requires a higher VIP level',
-            ),
-          ),
-        );
+        SroodToast.show(context, isArabic ? 'هذا الإطار متاح لمستوى VIP أعلى' : 'This frame requires a higher VIP level', type: SroodToastType.info);
       },
       child: Container(
         padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),

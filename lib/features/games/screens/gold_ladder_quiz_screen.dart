@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
@@ -265,14 +266,12 @@ class _GoldLadderQuizScreenState extends State<GoldLadderQuizScreen> {
       canPop: !_actionInFlight,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop && _actionInFlight) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                context.isArabic
-                    ? 'انتظر انتهاء العملية الحالية...'
-                    : 'Wait for the current action to finish...',
-              ),
-            ),
+          SroodToast.show(
+            context,
+            context.isArabic
+                ? 'انتظر انتهاء العملية الحالية...'
+                : 'Wait for the current action to finish...',
+            type: SroodToastType.info,
           );
         }
       },

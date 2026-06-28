@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../../profile/screens/user_profile_screen.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
@@ -185,12 +186,7 @@ class _AgencyManagementScreenState extends State<AgencyManagementScreen>
       _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: const Color(0xFF3A1020),
-        ),
-      );
+      SroodToast.show(context, e.toString(), type: SroodToastType.error);
     }
   }
 
@@ -203,12 +199,7 @@ class _AgencyManagementScreenState extends State<AgencyManagementScreen>
       _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: const Color(0xFF3A1020),
-        ),
-      );
+      SroodToast.show(context, e.toString(), type: SroodToastType.error);
     }
   }
 

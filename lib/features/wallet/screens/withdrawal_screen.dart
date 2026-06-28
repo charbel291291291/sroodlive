@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 import '../../../core/constants/coin_constants.dart';
 import '../../../core/supabase/supabase_service.dart';
@@ -128,9 +129,7 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
       setState(() => _isSubmitted = true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      SroodToast.show(context, 'Error: $e', type: SroodToastType.error);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 import '../utils/vip_assets.dart';
 
 /// Pure-Flutter avatar crop/adjust screen (no native crop package, so it can't
@@ -60,14 +61,7 @@ class _AvatarCropScreenState extends State<AvatarCropScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(widget.isArabic
-              ? 'تعذّر قص الصورة. حاول مرة أخرى.'
-              : 'Could not crop the image. Please try again.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      SroodToast.show(context, widget.isArabic ? 'تعذّر قص الصورة. حاول مرة أخرى.' : 'Could not crop the image. Please try again.', type: SroodToastType.error);
     }
   }
 

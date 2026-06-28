@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 import '../../../core/vip/vip_frame_layout.dart';
 import '../../../core/vip/vip_privileges.dart';
@@ -359,16 +360,7 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
   // Phase V1 CTA
   // through a recharge agent / admin, so this points the user there.
   void _onVip2UpgradeTap() {
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(
-        // Fixed (docked) behaviour so the snackbar never floats on top of the
-        // sticky recharge card the way the old floating snackbar did.
-        const SnackBar(
-          content: Text('Upgrade your VIP through a recharge agent or admin.'),
-          behavior: SnackBarBehavior.fixed,
-        ),
-      );
+    SroodToast.show(context, 'Upgrade your VIP through a recharge agent or admin.', type: SroodToastType.info);
   }
 
   // Real per-tier unlock price (coins) from the vip_plans rules. 0 if unknown.

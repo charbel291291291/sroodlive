@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 import '../services/rocket_crash_admin_service.dart';
 
@@ -76,10 +77,7 @@ class _RocketCrashAdminPanelState extends State<RocketCrashAdminPanel> {
 
   void _snack(String msg, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: isError ? _kRed : _kGreen,
-    ));
+    SroodToast.show(context, msg, type: isError ? SroodToastType.error : SroodToastType.success);
   }
 
   @override

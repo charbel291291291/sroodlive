@@ -27,6 +27,7 @@ import 'my_level_screen.dart';
 import 'policy_screen.dart';
 import 'preferences_screen.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({required this.isArabic, super.key});
@@ -78,15 +79,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       debugPrint('[Settings._update] failed: $e');
       if (!mounted) return false;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.isArabic
-                ? 'تعذر حفظ الإعداد. حاول مرة أخرى.'
-                : 'Could not save setting. Please try again.',
-          ),
-        ),
-      );
+      SroodToast.show(context, context.isArabic ? 'تعذر حفظ الإعداد. حاول مرة أخرى.' : 'Could not save setting. Please try again.', type: SroodToastType.error);
       return false;
     } finally {
       if (mounted) {
@@ -101,13 +94,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final info = await const AppUpdateService().checkForUpdate();
     if (!mounted) return;
     if (info == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            widget.isArabic ? 'التطبيق محدّث بالفعل' : 'App is up to date',
-          ),
-        ),
-      );
+      SroodToast.show(context, widget.isArabic ? 'التطبيق محدّث بالفعل' : 'App is up to date', type: SroodToastType.info);
       return;
     }
     await showAppUpdateDialog(context, info: info, isArabic: widget.isArabic);
@@ -141,15 +128,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       debugPrint('[SettingsLogout] SafeLogout threw: $e');
       if (mounted) {
         setState(() => _isLoggingOut = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              widget.isArabic
-                  ? 'فشل تسجيل الخروج. حاول مجددًا.'
-                  : 'Sign out failed. Please try again.',
-            ),
-          ),
-        );
+        SroodToast.show(context, widget.isArabic ? 'فشل تسجيل الخروج. حاول مجددًا.' : 'Sign out failed. Please try again.', type: SroodToastType.error);
       }
     }
   }

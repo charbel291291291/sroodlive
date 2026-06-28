@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 import '../../daily_reward/daily_reward_service.dart';
 
@@ -117,11 +118,7 @@ class _DailyRewardAdminScreenState extends State<DailyRewardAdminScreen> {
 
   void _snack(String m, {bool error = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(m),
-      behavior: SnackBarBehavior.floating,
-      backgroundColor: error ? const Color(0xFF7A1B2E) : const Color(0xFF1B3A2A),
-    ));
+    SroodToast.show(context, m, type: error ? SroodToastType.error : SroodToastType.success);
   }
 
   @override

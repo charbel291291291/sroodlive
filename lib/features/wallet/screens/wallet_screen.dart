@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 import '../models/recharge_package.dart';
 import '../models/wallet.dart';
@@ -142,22 +143,12 @@ class _WalletScreenState extends State<WalletScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.isArabic
-                ? 'تم إرسال طلب الشحن'
-                : 'Recharge request submitted',
-          ),
-        ),
-      );
+      SroodToast.show(context, context.isArabic ? 'تم إرسال طلب الشحن' : 'Recharge request submitted', type: SroodToastType.success);
 
       await _refresh();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Recharge failed: $error')),
-      );
+      SroodToast.show(context, 'Recharge failed: $error', type: SroodToastType.error);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }

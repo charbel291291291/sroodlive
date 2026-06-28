@@ -20,6 +20,7 @@ import 'daily_reward_admin_screen.dart';
 import 'owner_game_control_screen.dart';
 import 'vip_visual_preview_screen.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 enum _AdminModule {
   dashboard,   // Command Center – overview, quick alerts
@@ -1514,9 +1515,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               if (phraseController.text.trim() == confirmPhrase) {
                 Navigator.of(ctx).pop(true);
               } else {
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  const SnackBar(content: Text('Confirmation phrase does not match.')),
-                );
+                SroodToast.show(ctx, 'Confirmation phrase does not match.', type: SroodToastType.error);
               }
             },
             child: const Text('Delete Room'),
@@ -1706,18 +1705,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: const TextStyle(color: _kTxt)),
-        backgroundColor: _kSurface,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(color: _kBorder),
-        ),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
+    SroodToast.show(context, message, type: SroodToastType.info);
   }
 
   @override
@@ -4675,9 +4663,7 @@ class _ImageUploadFieldState extends State<_ImageUploadField> {
       widget.onChanged(url);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+      SroodToast.show(context, 'Upload failed: $e', type: SroodToastType.error);
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
@@ -7415,8 +7401,7 @@ class _AgencyEditDialogState extends State<_AgencyEditDialog> {
     if (widget.canEditCommission && _commission.text.trim().isNotEmpty) {
       final pct = double.tryParse(_commission.text.trim());
       if (pct == null || pct < 0 || pct > 100) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Commission must be 0–100')));
+        SroodToast.show(context, 'Commission must be 0–100', type: SroodToastType.error);
         return;
       }
       rate = pct / 100;
@@ -8740,15 +8725,11 @@ class _WealthXpDialogState extends State<_WealthXpDialog> {
     final amount = int.tryParse(_amountCtrl.text.trim());
     final reason = _reasonCtrl.text.trim();
     if (amount == null || amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid positive amount')),
-      );
+      SroodToast.show(context, 'Enter a valid positive amount', type: SroodToastType.error);
       return;
     }
     if (reason.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reason is required')),
-      );
+      SroodToast.show(context, 'Reason is required', type: SroodToastType.error);
       return;
     }
     Navigator.of(context).pop(_WealthXpResult(

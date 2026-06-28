@@ -4,6 +4,7 @@ import '../models/profile_hub_models.dart';
 import '../services/income_service.dart';
 import '../widgets/profile_hub_widgets.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 class MyIncomeScreen extends StatefulWidget {
   const MyIncomeScreen({required this.isArabic, super.key});
@@ -134,15 +135,7 @@ class _MyIncomeScreenState extends State<MyIncomeScreen> {
         _retry();
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                context.isArabic
-                    ? 'فشل طلب السحب: $e'
-                    : 'Payout request failed: $e',
-              ),
-            ),
-          );
+          SroodToast.show(context, context.isArabic ? 'فشل طلب السحب: $e' : 'Payout request failed: $e', type: SroodToastType.error);
         }
       }
     }

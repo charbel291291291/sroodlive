@@ -20,6 +20,7 @@ import '../models/room.dart';
 import '../models/room_gift.dart';
 import '../models/room_member.dart';
 import '../services/gifts_service.dart';
+import '../../wallet/screens/wallet_screen.dart';
 import '../../wallet/services/wallet_service.dart';
 import '../services/livekit_room_service.dart';
 import '../services/rooms_service.dart';
@@ -42,6 +43,7 @@ import '../../messages/services/private_message_service.dart';
 import '../../moderation/services/moderation_service.dart';
 import '../../moderation/widgets/report_reason_sheet.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 import '../models/room_reaction.dart';
 import '../widgets/reaction_picker_sheet.dart';
 import '../widgets/seat_reaction_overlay.dart';
@@ -149,6 +151,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   static final Set<String> _sessionClaimedEnvelopeIds   = {};
   // _loadingGifts removed - gift loading state is not displayed in the overlay
   bool _isSendingGift = false;
+  bool _rechargeRedirecting = false;
   RoomMember? _selectedMicMoveMember;
   int _giftEventSeed = 0;
 
@@ -249,6 +252,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   String? _roomDescription;
   String? _roomLanguage;
   int _roomLevel = 1;
+  int _lastShownLevel = 1;
   bool _roomIsLocked = false;
   bool _roomIsClosed = false;
   bool _roomIsMuted = false;
@@ -382,6 +386,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     _roomDescription = widget.room.description;
     _roomLanguage = widget.room.language;
     _roomLevel = widget.room.roomLevel;
+    _lastShownLevel = widget.room.roomLevel;
     _roomIsLocked = widget.room.isLocked;
     _roomIsClosed = widget.room.isClosed;
     _roomIsMuted  = widget.room.isRoomMuted;
@@ -494,16 +499,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     if (hasController && controllerId != uid) {
       _roomLog('[RoomMusic] action blocked — not controller uid=$uid controller=$controllerId');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(context.isArabic
-            ? 'الشخص الذي شغّل الموسيقى فقط يمكنه التحكم بها.'
-            : 'Only the person who started the music can control it.'),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        backgroundColor: const Color(0xFF2A0F4A),
-      ));
+      SroodToast.show(context, context.isArabic ? 'الشخص الذي شغّل الموسيقى فقط يمكنه التحكم بها.' : 'Only the person who started the music can control it.', type: SroodToastType.info);
       return;
     }
 
@@ -878,17 +874,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         _activeRedEnvelope = null;
       });
       unawaited(_loadWalletBalance());
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-          context.isArabic ? 'حصلت على $coins عملة!' : 'You got $coins coins!',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-        ),
-        backgroundColor: const Color(0xFFD4380D),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-        duration: const Duration(seconds: 3),
-      ));
+      SroodToast.show(context, context.isArabic ? 'حصلت على $coins عملة!' : 'You got $coins coins!', type: SroodToastType.success);
     } catch (e, st) {
       _roomLog('[RoomImage] failed: $e');
       debugPrintStack(stackTrace: st);
@@ -912,13 +898,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       } else {
         friendly = context.isArabic ? 'حدث خطأ' : 'An error occurred';
       }
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(friendly, style: const TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF2A0F1A),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-      ));
+      SroodToast.show(context, friendly, type: SroodToastType.error);
     } finally {
       if (mounted) setState(() => _claimingEnvelope = false);
     }
@@ -1106,6 +1086,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
               if (newLevel != null && newLevel != _roomLevel) {
                 _roomLog('[RT-ROOM] room_level $newLevel');
                 _roomLevel = newLevel;
+                if (newLevel > _lastShownLevel && mounted) {
+                  _lastShownLevel = newLevel;
+                  _showRoomLevelUpOverlay(newLevel);
+                }
               }
 
               final newXp = (rec['room_xp'] as num?)?.toInt();
@@ -1281,13 +1265,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
           if (!mounted) return;
           if (status == RealtimeSubscribeStatus.channelError ||
               status == RealtimeSubscribeStatus.timedOut) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  context.isArabic ? 'فشل اتصال الهدايا المباشرة. قد لا تظهر الهدايا فوراً.' : 'Live gift connection failed. Gifts may not appear instantly.',
-                ),
-              ),
-            );
+            SroodToast.show(context, context.isArabic ? 'فشل اتصال الهدايا المباشرة. قد لا تظهر الهدايا فوراً.' : 'Live gift connection failed. Gifts may not appear instantly.', type: SroodToastType.warning);
           }
         });
   }
@@ -1319,9 +1297,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     } catch (error) {
       if (!mounted || !showLoading) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      SroodToast.show(context, error.toString(), type: SroodToastType.error);
     }
   }
 
@@ -1365,16 +1341,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         _roomLog('[MODERATION] kicked detection: user=$currentUserId not in active members (miss #$_missedHeartbeatCount)');
         if (_missedHeartbeatCount >= 2) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  context.isArabic
-                      ? 'تمت إزالتك من الغرفة'
-                      : 'You were removed from the room',
-                ),
-                duration: const Duration(seconds: 3),
-              ),
-            );
+            SroodToast.show(context, context.isArabic ? 'تمت إزالتك من الغرفة' : 'You were removed from the room', type: SroodToastType.info);
             await _leaveRoom();
           }
           return;
@@ -1398,9 +1365,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       if (!mounted) return;
 
       if (showLoading) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+        SroodToast.show(context, error.toString(), type: SroodToastType.error);
       }
     }
   }
@@ -1460,6 +1425,29 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       final wallet = await const WalletService().fetchWallet();
       if (mounted) setState(() => _walletCoins = wallet.coinsBalance);
     } catch (_) {}
+  }
+
+  void _redirectToWallet() {
+    if (_rechargeRedirecting || !mounted) return;
+    _rechargeRedirecting = true;
+    _roomLog('[GiftRecharge] redirect start → WalletScreen');
+
+    final isArabic = context.isArabic;
+
+    Future.delayed(const Duration(milliseconds: 300), () async {
+      if (!mounted) {
+        _rechargeRedirecting = false;
+        return;
+      }
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => WalletScreen(isArabic: isArabic),
+        ),
+      );
+      if (mounted) unawaited(_loadWalletBalance());
+      _rechargeRedirecting = false;
+      _roomLog('[GiftRecharge] redirect done — balance refreshed');
+    });
   }
 
   // -- Room messages ----------------------------------------------------------
@@ -1656,13 +1644,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       await _msgService.removeMessage(msg.id);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(context.isArabic
-              ? 'تعذّر حذف الرسالة'
-              : 'Could not remove message'),
-          backgroundColor: const Color(0xFFEF4444),
-          behavior: SnackBarBehavior.floating,
-        ));
+        SroodToast.show(context, context.isArabic ? 'تعذّر حذف الرسالة' : 'Could not remove message', type: SroodToastType.error);
       }
     }
   }
@@ -1677,12 +1659,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       isArabic: isArabic,
     );
     if (submitted == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(isArabic
-            ? 'تم إرسال البلاغ إلى فريق الإشراف.'
-            : 'Report sent to moderation.'),
-        behavior: SnackBarBehavior.floating,
-      ));
+      SroodToast.show(context, isArabic ? 'تم إرسال البلاغ إلى فريق الإشراف.' : 'Report sent to moderation.', type: SroodToastType.success);
     }
   }
 
@@ -1696,13 +1673,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     if (!modResult.passed) {
       if (modResult.action == ModerationAction.warn) {
         // Severity 1: show warning but still allow send — log in background.
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(context.isArabic
-              ? 'تحذير: يرجى التحدث باحترام.'
-              : 'Warning: please be respectful.'),
-          backgroundColor: const Color(0xFFF59E0B),
-          behavior: SnackBarBehavior.floating,
-        ));
+        SroodToast.show(context, context.isArabic ? 'تحذير: يرجى التحدث باحترام.' : 'Warning: please be respectful.', type: SroodToastType.warning);
         unawaited(const ModerationService().logEvent(
           roomId: widget.room.id,
           source: 'chat',
@@ -1717,13 +1688,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       } else {
         // Severity 2+: block message.
         setState(() => _isSendingMessage = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(context.isArabic
-              ? 'تم حظر رسالتك بسبب انتهاك قواعد السلامة.'
-              : 'Message blocked by safety rules.'),
-          backgroundColor: const Color(0xFFEF4444),
-          behavior: SnackBarBehavior.floating,
-        ));
+        SroodToast.show(context, context.isArabic ? 'تم حظر رسالتك بسبب انتهاك قواعد السلامة.' : 'Message blocked by safety rules.', type: SroodToastType.error);
         unawaited(const ModerationService().logEvent(
           roomId: widget.room.id,
           source: 'chat',
@@ -1768,11 +1733,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         setState(() => _chatMessages.removeWhere(
           (m) => m.id.startsWith('optimistic_'),
         ));
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(e.displayMessage),
-          backgroundColor: const Color(0xFFEF4444),
-          behavior: SnackBarBehavior.floating,
-        ));
+        SroodToast.show(context, e.displayMessage, type: SroodToastType.error);
       }
     } catch (_) {
       // Remove optimistic on any other failure.
@@ -1791,13 +1752,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     // Check room-level permission first
     if (!_roomAllowImages) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(context.isArabic
-            ? 'إرسال الصور معطّل في هذه الغرفة'
-            : 'Sending images is disabled in this room'),
-        backgroundColor: const Color(0xFFE63946),
-        behavior: SnackBarBehavior.floating,
-      ));
+      SroodToast.show(context, context.isArabic ? 'إرسال الصور معطّل في هذه الغرفة' : 'Sending images is disabled in this room', type: SroodToastType.info);
       return;
     }
     // Fast path: local cached VIP level is already enough.
@@ -1823,16 +1778,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
     if (!canSend) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.isArabic
-                ? 'رسائل الصور تُفتح من VIP 7'
-                : 'Image messages unlock at VIP 7',
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      SroodToast.show(context, context.isArabic ? 'رسائل الصور تُفتح من VIP 7' : 'Image messages unlock at VIP 7', type: SroodToastType.info);
       return;
     }
 
@@ -1878,12 +1824,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             ? 'تعذّر إرسال الصورة. حاول مرة أخرى.'
             : 'Failed to send image. Please try again.';
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(msg),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      SroodToast.show(context, msg, type: SroodToastType.error);
     } finally {
       if (mounted) setState(() => _uploadingChatImage = false);
     }
@@ -1928,13 +1869,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         await _syncedMusic.stopForRoom();
       } catch (_) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(context.isArabic
-              ? 'تعذّر إيقاف الموسيقى. حاول مجدداً.'
-              : 'Could not stop music. Please try again.'),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 3),
-        ));
+        SroodToast.show(context, context.isArabic ? 'تعذّر إيقاف الموسيقى. حاول مجدداً.' : 'Could not stop music. Please try again.', type: SroodToastType.error);
       }
     });
   }
@@ -2306,9 +2241,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       if (mounted) setState(() => _closedSeats = updated.toSet());
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.isArabic ? 'فشل تغيير حالة الميكروفون' : 'Failed to toggle mic seat')),
-      );
+      SroodToast.show(context, context.isArabic ? 'فشل تغيير حالة الميكروفون' : 'Failed to toggle mic seat', type: SroodToastType.error);
     }
   }
 
@@ -2338,9 +2271,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     } catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      SroodToast.show(context, error.toString(), type: SroodToastType.error);
     } finally {
       if (mounted) {
         setState(() {
@@ -2405,7 +2336,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         displayMsg = isArabic ? '\u062d\u062f\u062b \u062e\u0637\u0623. \u062d\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.' : 'Something went wrong. Please try again.';
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(displayMsg)));
+      SroodToast.show(context, displayMsg, type: SroodToastType.error);
     } finally {
       if (mounted) setState(() => _isSeatMovePending = false);
     }
@@ -2417,15 +2348,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     }
 
     if (member.role == 'host') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.isArabic
-                ? '\u0644\u0627 \u064a\u0645\u0643\u0646 \u0646\u0642\u0644 \u0645\u0642\u0639\u062f \u0627\u0644\u0645\u0636\u064a\u0641.'
-                : 'Host seat cannot be moved.',
-          ),
-        ),
-      );
+      SroodToast.show(context, context.isArabic ? '\u0644\u0627 \u064a\u0645\u0643\u0646 \u0646\u0642\u0644 \u0645\u0642\u0639\u062f \u0627\u0644\u0645\u0636\u064a\u0641.' : 'Host seat cannot be moved.', type: SroodToastType.info);
       return;
     }
 
@@ -2587,15 +2510,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       _selectedMicMoveMember = member;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          context.isArabic
-              ? '\u0627\u0636\u063a\u0637 \u0639\u0644\u0649 \u0645\u0627\u064a\u0643 \u0641\u0627\u0631\u063a \u0644\u0646\u0642\u0644 ${member.fallbackName(context.isArabic)}.'
-              : 'Tap an empty mic to move ${member.fallbackName(context.isArabic)}.',
-        ),
-      ),
-    );
+    SroodToast.show(context, context.isArabic ? '\u0627\u0636\u063a\u0637 \u0639\u0644\u0649 \u0645\u0627\u064a\u0643 \u0641\u0627\u0631\u063a \u0644\u0646\u0642\u0644 ${member.fallbackName(context.isArabic)}.' : 'Tap an empty mic to move ${member.fallbackName(context.isArabic)}.', type: SroodToastType.info);
   }
 
   List<int> _emptySeatNumbers({String? exceptUserId}) {
@@ -2632,15 +2547,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
     try {
       if (role == 'speaker' && member.role != 'speaker' && _speakerSeatsFull) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              context.isArabic
-                  ? '\u0645\u0642\u0627\u0639\u062f \u0627\u0644\u0645\u062a\u062d\u062f\u062b\u064a\u0646 \u0645\u0645\u062a\u0644\u0626\u0629.'
-                  : 'Speaker seats are full.',
-            ),
-          ),
-        );
+        SroodToast.show(context, context.isArabic ? '\u0645\u0642\u0627\u0639\u062f \u0627\u0644\u0645\u062a\u062d\u062f\u062b\u064a\u0646 \u0645\u0645\u062a\u0644\u0626\u0629.' : 'Speaker seats are full.', type: SroodToastType.info);
         return;
       }
 
@@ -2661,21 +2568,11 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.isArabic
-                ? '\u062a\u0645 \u062a\u062d\u062f\u064a\u062b \u0627\u0644\u062f\u0648\u0631'
-                : 'Role updated',
-          ),
-        ),
-      );
+      SroodToast.show(context, context.isArabic ? '\u062a\u0645 \u062a\u062d\u062f\u064a\u062b \u0627\u0644\u062f\u0648\u0631' : 'Role updated', type: SroodToastType.success);
     } catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      SroodToast.show(context, error.toString(), type: SroodToastType.error);
     } finally {
       if (mounted) {
         setState(() {
@@ -2727,15 +2624,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     if (VipFeatures.hasKickProtection(targetVipLevel) &&
         !_iAmRoomOwner &&
         actorVipLevel < targetVipLevel) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.isArabic
-                ? '\u0644\u0627 \u064a\u0645\u0643\u0646\u0643 \u0637\u0631\u062f \u0645\u0633\u062a\u062e\u062f\u0645 VIP \u0628\u0647\u0630\u0627 \u0627\u0644\u0645\u0633\u062a\u0648\u0649'
-                : 'You cannot remove a VIP user at this level',
-          ),
-        ),
-      );
+      SroodToast.show(context, context.isArabic ? '\u0644\u0627 \u064a\u0645\u0643\u0646\u0643 \u0637\u0631\u062f \u0645\u0633\u062a\u062e\u062f\u0645 VIP \u0628\u0647\u0630\u0627 \u0627\u0644\u0645\u0633\u062a\u0648\u0649' : 'You cannot remove a VIP user at this level', type: SroodToastType.error);
       return;
     }
 
@@ -2744,15 +2633,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
           isRoomOwner: _iAmRoomOwner,
           isSuperAdmin: _iAmSuperAdmin,
         )) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.isArabic
-                ? '\u0644\u0627 \u064a\u0645\u0643\u0646\u0643 \u0637\u0631\u062f \u0645\u0633\u062a\u062e\u062f\u0645 VIP \u0628\u0647\u0630\u0627 \u0627\u0644\u0645\u0633\u062a\u0648\u0649'
-                : 'This VIP 5+ user is protected from removal.',
-          ),
-        ),
-      );
+      SroodToast.show(context, context.isArabic ? '\u0644\u0627 \u064a\u0645\u0643\u0646\u0643 \u0637\u0631\u062f \u0645\u0633\u062a\u062e\u062f\u0645 VIP \u0628\u0647\u0630\u0627 \u0627\u0644\u0645\u0633\u062a\u0648\u0649' : 'This VIP 5+ user is protected from removal.', type: SroodToastType.error);
       return;
     }
 
@@ -2765,11 +2646,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       );
       if (!mounted) return;
       if (kickBlocked) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-            context.isArabic ? 'This VIP user is protected from kick.' : 'This VIP user is protected from kick.',
-          ),
-        ));
+        SroodToast.show(context, context.isArabic ? 'This VIP user is protected from kick.' : 'This VIP user is protected from kick.', type: SroodToastType.error);
         return;
       }
     }
@@ -2801,23 +2678,13 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             .toList();
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.isArabic
-                ? '\u062a\u0645 \u0625\u0632\u0627\u0644\u0629 \u0627\u0644\u0639\u0636\u0648 \u0645\u0646 \u0627\u0644\u063a\u0631\u0641\u0629.'
-                : 'User removed from the room.',
-          ),
-        ),
-      );
+      SroodToast.show(context, context.isArabic ? '\u062a\u0645 \u0625\u0632\u0627\u0644\u0629 \u0627\u0644\u0639\u0636\u0648 \u0645\u0646 \u0627\u0644\u063a\u0631\u0641\u0629.' : 'User removed from the room.', type: SroodToastType.success);
 
       await _loadMembers(showLoading: false);
     } catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      SroodToast.show(context, error.toString(), type: SroodToastType.error);
     } finally {
       if (mounted) {
         setState(() {
@@ -2893,26 +2760,16 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
     final permanentlyDenied = result.isPermanentlyDenied;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          context.isArabic
-              ? (permanentlyDenied
-                    ? '\u062a\u0645 \u062d\u0638\u0631 \u0625\u0630\u0646 \u0627\u0644\u0645\u064a\u0643\u0631\u0648\u0641\u0648\u0646. \u0627\u0641\u062a\u062d \u0627\u0644\u0625\u0639\u062f\u0627\u062f\u0627\u062a \u0648\u0627\u0633\u0645\u062d \u0628\u0627\u0644\u0645\u064a\u0643\u0631\u0648\u0641\u0648\u0646.'
-                    : '\u064a\u062d\u062a\u0627\u062c SrOOd Live \u0625\u0644\u0649 \u0625\u0630\u0646 \u0627\u0644\u0645\u064a\u0643\u0631\u0648\u0641\u0648\u0646 \u0644\u0644\u062a\u062d\u062f\u062b \u0641\u064a \u0627\u0644\u063a\u0631\u0641.')
-              : (permanentlyDenied
-                    ? 'Microphone permission is blocked. Open app settings and allow microphone.'
-                    : 'Srood Live needs microphone permission so you can speak in rooms.'),
-        ),
-        action: permanentlyDenied
-            ? SnackBarAction(
-                label: context.isArabic
-                    ? '\u0627\u0644\u0625\u0639\u062f\u0627\u062f\u0627\u062a'
-                    : 'Settings',
-                onPressed: openAppSettings,
-              )
-            : null,
-      ),
+    SroodToast.show(
+      context,
+      context.isArabic
+          ? (permanentlyDenied
+                ? '\u062a\u0645 \u062d\u0638\u0631 \u0625\u0630\u0646 \u0627\u0644\u0645\u064a\u0643\u0631\u0648\u0641\u0648\u0646. \u0627\u0641\u062a\u062d \u0627\u0644\u0625\u0639\u062f\u0627\u062f\u0627\u062a \u0648\u0627\u0633\u0645\u062d \u0628\u0627\u0644\u0645\u064a\u0643\u0631\u0648\u0641\u0648\u0646.'
+                : '\u064a\u062d\u062a\u0627\u062c SrOOd Live \u0625\u0644\u0649 \u0625\u0630\u0646 \u0627\u0644\u0645\u064a\u0643\u0631\u0648\u0641\u0648\u0646 \u0644\u0644\u062a\u062d\u062f\u062b \u0641\u064a \u0627\u0644\u063a\u0631\u0641.')
+          : (permanentlyDenied
+                ? 'Microphone permission is blocked. Open app settings and allow microphone.'
+                : 'Srood Live needs microphone permission so you can speak in rooms.'),
+      type: SroodToastType.warning,
     );
 
     return false;
@@ -2966,13 +2823,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         await _liveKitRoomService.setMicrophoneEnabled(false);
         if (mounted) {
           setState(() { _micEnabled = false; _wasCurrentUserOnMic = false; });
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(
-              context.isArabic ? 'الغرفة مكتومة حالياً' : 'Room is muted right now',
-            ),
-            backgroundColor: const Color(0xFFEF4444),
-            duration: const Duration(seconds: 3),
-          ));
+          SroodToast.show(context, context.isArabic ? 'الغرفة مكتومة حالياً' : 'Room is muted right now', type: SroodToastType.warning);
         }
         return;
       }
@@ -3052,15 +2903,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       // Only surface the microphone error when we were actually trying to
       // publish \u2014 a listen-only connection issue shouldn't blame the mic.
       if (attemptingPublish) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              context.isArabic
-                  ? '\u062a\u0639\u0630\u0631 \u062a\u0634\u063a\u064a\u0644 \u0627\u0644\u0645\u0627\u064a\u0643. \u062a\u0623\u0643\u062f \u0645\u0646 \u0625\u0630\u0646 \u0627\u0644\u0645\u064a\u0643\u0631\u0648\u0641\u0648\u0646.'
-                  : 'Could not start the microphone. Please check microphone permission.',
-            ),
-          ),
-        );
+        SroodToast.show(context, context.isArabic ? '\u062a\u0639\u0630\u0631 \u062a\u0634\u063a\u064a\u0644 \u0627\u0644\u0645\u0627\u064a\u0643. \u062a\u0623\u0643\u062f \u0645\u0646 \u0625\u0630\u0646 \u0627\u0644\u0645\u064a\u0643\u0631\u0648\u0641\u0648\u0646.' : 'Could not start the microphone. Please check microphone permission.', type: SroodToastType.error);
       }
     } finally {
       _syncingMicConnection = false;
@@ -3091,13 +2934,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     if (nextValue && _roomIsMuted && !_iAmRoomOwner && !_iAmHost && !_isCurrentUserModerator) {
       _roomLog('[MicUX] blocked — room_muted');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(context.isArabic
-              ? 'الغرفة مكتومة حالياً'
-              : 'Room is muted right now'),
-          backgroundColor: const Color(0xFFEF4444),
-          duration: const Duration(seconds: 3),
-        ));
+        SroodToast.show(context, context.isArabic ? 'الغرفة مكتومة حالياً' : 'Room is muted right now', type: SroodToastType.warning);
       }
       return;
     }
@@ -3105,13 +2942,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     if (nextValue && _myMember?.forceMuted == true) {
       _roomLog('[MicUX] blocked — forced_mute');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(context.isArabic
-              ? 'لقد تم كتمك من قبل المضيف.'
-              : 'You have been muted by the room owner.'),
-          backgroundColor: const Color(0xFFEF4444),
-          duration: const Duration(seconds: 3),
-        ));
+        SroodToast.show(context, context.isArabic ? 'لقد تم كتمك من قبل المضيف.' : 'You have been muted by the room owner.', type: SroodToastType.warning);
       }
       return;
     }
@@ -3196,16 +3027,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     } catch (_) {
       if (!mounted) return;
       setState(() => _leaving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.isArabic
-                ? '\u062a\u0639\u0630\u0631 \u0645\u063a\u0627\u062f\u0631\u0629 \u0627\u0644\u063a\u0631\u0641\u0629. \u062d\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.'
-                : 'Could not leave the room. Please try again.',
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      SroodToast.show(context, context.isArabic ? '\u062a\u0639\u0630\u0631 \u0645\u063a\u0627\u062f\u0631\u0629 \u0627\u0644\u063a\u0631\u0641\u0629. \u062d\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.' : 'Could not leave the room. Please try again.', type: SroodToastType.error);
     }
   }
 
@@ -3233,16 +3055,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         _isClosingRoom = false;
         _leaving = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.isArabic
-                ? '\u062a\u0639\u0630\u0631 \u0625\u063a\u0644\u0627\u0642 \u0627\u0644\u063a\u0631\u0641\u0629. \u062d\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.'
-                : 'Could not close the room. Please try again.',
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      SroodToast.show(context, context.isArabic ? '\u062a\u0639\u0630\u0631 \u0625\u063a\u0644\u0627\u0642 \u0627\u0644\u063a\u0631\u0641\u0629. \u062d\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.' : 'Could not close the room. Please try again.', type: SroodToastType.error);
     }
   }
 
@@ -3365,6 +3178,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   }
 
   Future<void> _openGiftSheetImpl({String? targetUserId}) async {
+    // Refresh balance in the background so it is fresh by the time the user taps Send.
+    unawaited(_loadWalletBalance());
+
     final currentUserId = _currentUserId;
     final receivers =
         _members.where((member) => member.userId != currentUserId).toList()
@@ -3389,15 +3205,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     } catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.isArabic
-                ? '\u062a\u0639\u0630\u0631 \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0647\u062f\u0627\u064a\u0627. \u0633\u064a\u062a\u0645 \u0627\u0633\u062a\u062e\u062f\u0627\u0645 \u0627\u0644\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0645\u062d\u0644\u064a\u0629.'
-                : 'Could not load gifts. Using local gifts.',
-          ),
-        ),
-      );
+      SroodToast.show(context, context.isArabic ? '\u062a\u0639\u0630\u0631 \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0647\u062f\u0627\u064a\u0627. \u0633\u064a\u062a\u0645 \u0627\u0633\u062a\u062e\u062f\u0627\u0645 \u0627\u0644\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0645\u062d\u0644\u064a\u0629.' : 'Could not load gifts. Using local gifts.', type: SroodToastType.error);
     }
 
     if (!mounted) return;
@@ -3424,6 +3232,19 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       return;
     }
 
+    // \u2500\u2500 Local balance pre-check (fast fail before hitting the backend) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+    final totalCost = result.gift.priceCoins * result.quantity;
+    _roomLog(
+      '[GiftRecharge] gift=${result.gift.code} qty=${result.quantity} '
+      'unitPrice=${result.gift.priceCoins} totalCost=$totalCost '
+      'balance=$_walletCoins',
+    );
+    if (_walletCoins < totalCost) {
+      _roomLog('[GiftRecharge] insufficient local balance \u2014 redirecting');
+      _redirectToWallet();
+      return;
+    }
+
     try {
       if (kDebugMode) {
         _roomLog(
@@ -3431,7 +3252,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
           'receiver=${result.receiverUserId} gift=${result.gift.code}',
         );
       }
-      _roomLog('[GiftQuantity] selected qty=${result.quantity} gift=${result.gift.code} unitPrice=${result.gift.priceCoins} total=${result.gift.priceCoins * result.quantity}');
+      _roomLog('[GiftQuantity] selected qty=${result.quantity} gift=${result.gift.code} unitPrice=${result.gift.priceCoins} total=$totalCost');
       await _giftsService.sendGift(
         roomId: widget.room.id,
         receiverId: result.receiverUserId,
@@ -3445,17 +3266,14 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       if (!mounted) return;
 
       final errorText = error.toString();
-      final message = errorText.contains('insufficient_coins')
-          ? (context.isArabic
-                ? '\u0631\u0635\u064a\u062f\u0643 \u063a\u064a\u0631 \u0643\u0627\u0641\u064d'
-                : 'Not enough coins')
-          : (context.isArabic
-                ? '\u062a\u0639\u0630\u0631 \u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0647\u062f\u064a\u0629. \u062d\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.'
-                : 'Could not send gift. Please try again.');
+      if (errorText.contains('insufficient_coins')) {
+        _roomLog('[GiftRecharge] backend insufficient_coins \u2014 refreshing balance and redirecting');
+        unawaited(_loadWalletBalance());
+        _redirectToWallet();
+        return;
+      }
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      SroodToast.show(context, context.isArabic ? '\u062a\u0639\u0630\u0631 \u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0647\u062f\u064a\u0629. \u062d\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.' : 'Could not send gift. Please try again.', type: SroodToastType.error);
       return;
     }
 
@@ -3467,14 +3285,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
     _showGiftEvent(result);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          context.isArabic
-              ? '\u062a\u0645 \u0625\u0631\u0633\u0627\u0644 ${result.gift.name} \u0625\u0644\u0649 ${result.receiverName}'
-              : '${result.gift.name} sent to ${result.receiverName}',
-        ),
-      ),
+    SroodToast.show(
+      context,
+      context.isArabic
+          ? '\u062a\u0645 \u0625\u0631\u0633\u0627\u0644 ${result.gift.name} \u0625\u0644\u0649 ${result.receiverName}'
+          : '${result.gift.name} sent to ${result.receiverName}',
+      type: SroodToastType.success,
     );
   }
 
@@ -3573,6 +3389,18 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       default:
         return 2;
     }
+  }
+
+  void _showRoomLevelUpOverlay(int newLevel) {
+    final overlay = Overlay.of(context, rootOverlay: true);
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => _RoomLevelUpOverlay(
+        newLevel: newLevel,
+        onDone: () => entry.remove(),
+      ),
+    );
+    overlay.insert(entry);
   }
 
   void _showRoomLevelSheet(BuildContext ctx) {
@@ -4540,13 +4368,7 @@ class _RoomIdChip extends StatelessWidget {
       onTap: () async {
         await Clipboard.setData(ClipboardData(text: shortId));
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(isArabic ? 'تم نسخ كود الغرفة' : 'Room code copied'),
-              duration: const Duration(seconds: 2),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          SroodToast.show(context, isArabic ? 'تم نسخ كود الغرفة' : 'Room code copied', type: SroodToastType.success);
         }
       },
       child: Container(
@@ -8347,15 +8169,7 @@ class _GiftSheetState extends State<_GiftSheet> {
     }
 
     if (gift == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.isArabic
-                ? '\u0627\u062e\u062a\u0631 \u0647\u062f\u064a\u0629 \u0623\u0648\u0644\u0627\u064b.'
-                : 'Choose a gift first.',
-          ),
-        ),
-      );
+      SroodToast.show(context, context.isArabic ? '\u0627\u062e\u062a\u0631 \u0647\u062f\u064a\u0629 \u0623\u0648\u0644\u0627\u064b.' : 'Choose a gift first.', type: SroodToastType.info);
       return;
     }
 
@@ -8370,15 +8184,7 @@ class _GiftSheetState extends State<_GiftSheet> {
   }
 
   void _showReceiverRequiredMessage() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          context.isArabic
-              ? '\u0627\u062e\u062a\u0631 \u0634\u062e\u0635\u0627\u064b \u0644\u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0647\u062f\u064a\u0629.'
-              : 'Choose someone to receive the gift.',
-        ),
-      ),
-    );
+    SroodToast.show(context, context.isArabic ? '\u0627\u062e\u062a\u0631 \u0634\u062e\u0635\u0627\u064b \u0644\u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0647\u062f\u064a\u0629.' : 'Choose someone to receive the gift.', type: SroodToastType.info);
   }
 
   @override
@@ -11413,4 +11219,359 @@ class _XpStatCard extends StatelessWidget {
       ]),
     );
   }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Room Level-Up Overlay  —  Royal Srood Live achievement card
+// ══════════════════════════════════════════════════════════════════════════════
+
+class _RoomLevelUpOverlay extends StatefulWidget {
+  const _RoomLevelUpOverlay({required this.newLevel, required this.onDone});
+  final int newLevel;
+  final VoidCallback onDone;
+
+  @override
+  State<_RoomLevelUpOverlay> createState() => _RoomLevelUpOverlayState();
+}
+
+class _RoomLevelUpOverlayState extends State<_RoomLevelUpOverlay>
+    with TickerProviderStateMixin {
+  // Main lifecycle: fade+scale in → hold → fade out
+  late final AnimationController _main;
+  // Gold border pulse (loops while card is visible)
+  late final AnimationController _glow;
+  // Sparkle particles (fires once on entry)
+  late final AnimationController _spark;
+
+  late final Animation<double> _cardScale;
+  late final Animation<double> _fadeIn;
+  late final Animation<double> _fadeOut;
+
+  static const _kGold   = Color(0xFFFFD76B);
+  static const _kPurple = Color(0xFF8B26D9);
+
+  @override
+  void initState() {
+    super.initState();
+
+    _main = AnimationController(vsync: this, duration: const Duration(milliseconds: 3200));
+    _glow = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))
+      ..repeat(reverse: true);
+    _spark = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
+
+    // Card: pop in with elastic overshoot, hold, scale down on exit
+    _cardScale = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: 0.0, end: 1.08)
+            .chain(CurveTween(curve: Curves.easeOutBack)),
+        weight: 22,
+      ),
+      TweenSequenceItem(tween: Tween(begin: 1.08, end: 1.00), weight: 8),
+      TweenSequenceItem(tween: ConstantTween(1.00),            weight: 48),
+      TweenSequenceItem(tween: Tween(begin: 1.00, end: 0.88), weight: 22),
+    ]).animate(_main);
+
+    _fadeIn  = CurvedAnimation(
+      parent: _main,
+      curve: const Interval(0.00, 0.18, curve: Curves.easeIn),
+    );
+    _fadeOut = CurvedAnimation(
+      parent: _main,
+      curve: const Interval(0.80, 1.00, curve: Curves.easeOut),
+    );
+
+    // Delay sparkles slightly so they burst right after the card pops
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (mounted) _spark.forward();
+    });
+
+    _main.forward().whenComplete(widget.onDone);
+  }
+
+  @override
+  void dispose() {
+    _main.dispose();
+    _glow.dispose();
+    _spark.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_main, _glow, _spark]),
+      builder: (context, _) {
+        final bgOpacity   = (_fadeIn.value - _fadeOut.value).clamp(0.0, 1.0);
+        final cardOpacity = (_fadeIn.value - _fadeOut.value * 0.85).clamp(0.0, 1.0);
+        final glowAlpha   = 0.55 + _glow.value * 0.30;
+
+        return Material(
+          color: Colors.black.withValues(alpha: bgOpacity * 0.60),
+          child: Center(
+            child: Opacity(
+              opacity: cardOpacity,
+              child: Transform.scale(
+                scale: _cardScale.value,
+                child: SizedBox(
+                  width: 280,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    clipBehavior: Clip.none,
+                    children: [
+                      // ── Sparkle particles behind the card ──────────────
+                      CustomPaint(
+                        size: const Size(280, 280),
+                        painter: _SparklePainter(
+                          progress: _spark.value,
+                          goldColor: _kGold,
+                        ),
+                      ),
+
+                      // ── Card ────────────────────────────────────────────
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(28),
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFF1A0540),
+                              Color(0xFF2E0E6E),
+                              Color(0xFF5A18B0),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          border: Border.all(
+                            color: _kGold.withValues(alpha: glowAlpha),
+                            width: 1.8,
+                          ),
+                          boxShadow: [
+                            // Purple aura
+                            BoxShadow(
+                              color: _kPurple.withValues(alpha: 0.55 + _glow.value * 0.20),
+                              blurRadius: 48,
+                              spreadRadius: 6,
+                            ),
+                            // Gold halo
+                            BoxShadow(
+                              color: _kGold.withValues(alpha: 0.18 + _glow.value * 0.14),
+                              blurRadius: 28,
+                              spreadRadius: 0,
+                            ),
+                            // Depth
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.55),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: DefaultTextStyle(
+                          style: const TextStyle(
+                            decoration: TextDecoration.none,
+                            fontFamilyFallback: ['NotoSansArabic', 'Arial'],
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Crown icon with gold glow
+                              _GlowingCrown(glowT: _glow.value),
+                              const SizedBox(height: 20),
+
+                              // Arabic headline — largest, most prominent
+                              Text(
+                                'الغرفة ارتقت!',
+                                textAlign: TextAlign.center,
+                                textDirection: TextDirection.rtl,
+                                style: TextStyle(
+                                  color: _kGold,
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w900,
+                                  height: 1.2,
+                                  letterSpacing: 0.5,
+                                  shadows: [
+                                    Shadow(
+                                      color: _kGold.withValues(alpha: 0.70),
+                                      blurRadius: 12,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+
+                              // English subtitle — clean white, smaller
+                              const Text(
+                                'Room Leveled Up',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  letterSpacing: 1.4,
+                                ),
+                              ),
+                              const SizedBox(height: 22),
+
+                              // Level pill
+                              _LevelPill(level: widget.newLevel, glowT: _glow.value),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ── Crown icon with pulsing gold glow ────────────────────────────────────────
+
+class _GlowingCrown extends StatelessWidget {
+  const _GlowingCrown({required this.glowT});
+  final double glowT;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 72,
+      height: 72,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const RadialGradient(
+          colors: [Color(0xFFFFE87C), Color(0xFFCC8A00), Color(0xFF5A18B0)],
+          stops: [0.0, 0.55, 1.0],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFFD76B).withValues(alpha: 0.40 + glowT * 0.35),
+            blurRadius: 24 + glowT * 16,
+            spreadRadius: 2,
+          ),
+          BoxShadow(
+            color: const Color(0xFF8B26D9).withValues(alpha: 0.50),
+            blurRadius: 16,
+          ),
+        ],
+      ),
+      child: const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 38),
+    );
+  }
+}
+
+// ── Level number pill ─────────────────────────────────────────────────────────
+
+class _LevelPill extends StatelessWidget {
+  const _LevelPill({required this.level, required this.glowT});
+  final int level;
+  final double glowT;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 11),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF3A1375), Color(0xFF8B26D9)],
+        ),
+        border: Border.all(
+          color: const Color(0xFFFFD76B).withValues(alpha: 0.55 + glowT * 0.30),
+          width: 1.4,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFFD76B).withValues(alpha: 0.15 + glowT * 0.15),
+            blurRadius: 14,
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'المستوى $level',
+            textDirection: TextDirection.rtl,
+            style: const TextStyle(
+              color: Color(0xFFFFD76B),
+              fontSize: 17,
+              fontWeight: FontWeight.w900,
+              decoration: TextDecoration.none,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 10),
+            child: Text(
+              '·',
+              style: TextStyle(
+                color: Colors.white38,
+                fontSize: 17,
+                decoration: TextDecoration.none,
+              ),
+            ),
+          ),
+          Text(
+            'Level $level',
+            style: const TextStyle(
+              color: Color(0xFFFFD76B),
+              fontSize: 17,
+              fontWeight: FontWeight.w900,
+              decoration: TextDecoration.none,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Sparkle particle painter ───────────────────────────────────────────────────
+// 16 particles at even angles, each traveling outward and fading.
+
+class _SparklePainter extends CustomPainter {
+  _SparklePainter({required this.progress, required this.goldColor});
+  final double progress;
+  final Color goldColor;
+
+  static const int _kCount = 16;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (progress <= 0) return;
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final maxR = size.width * 0.48;
+
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    for (int i = 0; i < _kCount; i++) {
+      final angle = (i / _kCount) * 2 * 3.141592653589793;
+      // Alternate sizes for visual rhythm
+      final dotSize = (i % 3 == 0) ? 5.0 : (i % 2 == 0) ? 3.5 : 2.5;
+      final r = maxR * Curves.easeOut.transform(progress);
+      final alpha = (1.0 - progress).clamp(0.0, 1.0);
+
+      // Use gold for large dots, white for small ones
+      final color = i % 3 == 0
+          ? goldColor.withValues(alpha: alpha * 0.95)
+          : Colors.white.withValues(alpha: alpha * 0.70);
+
+      paint.color = color;
+      canvas.drawCircle(
+        Offset(cx + r * math.cos(angle), cy + r * math.sin(angle)),
+        dotSize,
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_SparklePainter old) => old.progress != progress;
 }

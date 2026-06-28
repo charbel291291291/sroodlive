@@ -217,35 +217,77 @@ class LiveKitRoomService {
   }
 
   /// Whether a local audio track is already published (even if muted).
-  /// When true, future enable/disable calls are fast mute/unmute ops.
   bool get hasPublishedAudioTrack =>
       _room?.localParticipant?.audioTrackPublications.isNotEmpty == true;
 
+  /// The first (and normally only) local audio track publication, if any.
+  LocalTrackPublication<LocalAudioTrack>? get _localAudioPub =>
+      _room?.localParticipant?.audioTrackPublications.firstOrNull;
+
+  /// Toggle mic on/off.
+  ///
+  /// Fast path (track already published):
+  ///   Uses publication.mute/unmute with stopOnMute=false so the microphone
+  ///   hardware stays alive. No restartTrack() call — toggle is <50 ms.
+  ///
+  /// Slow path (no track yet):
+  ///   Full WebRTC publish via setMicrophoneEnabled(true). ~300–800 ms,
+  ///   happens only once. After this, all toggles use the fast path.
+  ///
+  /// Privacy: with stopOnMute=false the mic hardware remains active while
+  /// muted. No audio is transmitted — LiveKit suppresses muted tracks at
+  /// the server level. This is the standard approach for instant toggling
+  /// (Discord, Clubhouse, etc.).
   Future<void> setMicrophoneEnabled(bool enabled) async {
     _lastMicEnabled = enabled;
-    final path = hasPublishedAudioTrack ? 'mute/unmute' : 'publish';
-    _log('[MicUX] setMicrophoneEnabled($enabled) path=$path');
     final t0 = DateTime.now().millisecondsSinceEpoch;
-    await _room?.localParticipant?.setMicrophoneEnabled(enabled);
-    _log('[MicUX] setMicrophoneEnabled done in ${DateTime.now().millisecondsSinceEpoch - t0}ms');
+    final pub = _localAudioPub;
+
+    if (pub != null) {
+      // ── Fast path: keep hardware alive, only change mute signal ──────────
+      _log('[MicUX] setMicrophoneEnabled($enabled) path=fast-mute ts=${_ts()}');
+      if (enabled) {
+        await pub.unmute(stopOnMute: false);
+      } else {
+        await pub.mute(stopOnMute: false);
+      }
+      _log('[MicUX] fast-mute done in ${DateTime.now().millisecondsSinceEpoch - t0}ms');
+    } else if (enabled) {
+      // ── Slow path: first publish ──────────────────────────────────────────
+      _log('[MicUX] setMicrophoneEnabled($enabled) path=first-publish ts=${_ts()}');
+      await _room?.localParticipant?.setMicrophoneEnabled(true);
+      _log('[MicUX] first-publish done in ${DateTime.now().millisecondsSinceEpoch - t0}ms');
+    }
+    // enabled=false with no existing pub → already silent, no-op.
   }
 
-  /// Publish the local audio track in muted state immediately after room join.
-  /// Subsequent enable calls become fast unmute ops (~50 ms) instead of full
-  /// WebRTC track publishes (~500 ms).
-  /// Safe: track is muted — no audio is transmitted.
+  /// Publish the local audio track in muted state immediately after room join
+  /// so the user's first real unmute is a fast <50 ms hardware-unmute instead
+  /// of a full WebRTC publish (~300–800 ms).
+  ///
+  /// Uses stopOnMute=false so the hardware stays alive after the initial mute,
+  /// keeping every subsequent toggle on the fast path.
   Future<void> prewarmAudioTrack() async {
     if (_room == null) return;
     if (hasPublishedAudioTrack) {
       _log('[MicUX] pre-warm skipped — track already published');
       return;
     }
-    _log('[MicUX] pre-warm start — publishing muted track');
+    _log('[MicUX] pre-warm start ts=${_ts()}');
     final t0 = DateTime.now().millisecondsSinceEpoch;
     try {
+      // Publish the track (mic opens briefly — no way around this on first publish).
       await _room!.localParticipant?.setMicrophoneEnabled(true);
-      await _room!.localParticipant?.setMicrophoneEnabled(false);
-      _log('[MicUX] pre-warm done in ${DateTime.now().millisecondsSinceEpoch - t0}ms — track ready');
+      // Mute without stopping hardware so future unmutes are instant.
+      final pub = _localAudioPub;
+      if (pub != null) {
+        await pub.mute(stopOnMute: false);
+        _log('[MicUX] pre-warm done in ${DateTime.now().millisecondsSinceEpoch - t0}ms — hardware alive, track muted');
+      } else {
+        // Fallback: pub not found, disable normally (slower future toggle).
+        await _room!.localParticipant?.setMicrophoneEnabled(false);
+        _log('[MicUX] pre-warm fallback done in ${DateTime.now().millisecondsSinceEpoch - t0}ms');
+      }
     } catch (e) {
       _log('[MicUX] pre-warm failed: $e');
     }

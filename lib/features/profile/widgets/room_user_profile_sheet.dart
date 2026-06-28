@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 import '../../../core/utils/vip_visuals.dart';
 import '../../../core/vip/vip_spec.dart';
@@ -173,7 +174,7 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
         final msg = e.toString().contains('follow_blocked_by_vip')
             ? (isArabic ? 'هذا المستخدم لا يقبل المتابعة' : 'This user does not accept followers')
             : (isArabic ? 'تعذّر تنفيذ العملية' : 'Action failed, please try again');
-        _snack(msg);
+        _snack(msg, type: SroodToastType.error);
       }
     } finally {
       if (mounted) setState(() => _followBusy = false);
@@ -186,9 +187,9 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
     setState(() => _reminderBusy = true);
     try {
       await _service.createReminder(widget.userId);
-      _snack(isArabic ? 'تم حفظ التذكير' : 'Reminder saved');
+      _snack(isArabic ? 'تم حفظ التذكير' : 'Reminder saved', type: SroodToastType.success);
     } catch (_) {
-      _snack(isArabic ? 'تم حفظ التذكير' : 'Reminder saved');
+      _snack(isArabic ? 'تم حفظ التذكير' : 'Reminder saved', type: SroodToastType.success);
     } finally {
       if (mounted) setState(() => _reminderBusy = false);
     }
@@ -200,9 +201,9 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
     setState(() => _sayHiBusy = true);
     try {
       await _msgService.sendHi(widget.userId, isArabic: isArabic);
-      _snack(isArabic ? 'تم إرسال التحية' : 'Hi sent');
+      _snack(isArabic ? 'تم إرسال التحية' : 'Hi sent', type: SroodToastType.success);
     } catch (e) {
-      _snack(e.toString());
+      _snack(e.toString(), type: SroodToastType.error);
     } finally {
       if (mounted) setState(() => _sayHiBusy = false);
     }
@@ -244,7 +245,7 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
   void _copyId() {
     final id = _profile?.publicUserId ?? widget.userId;
     Clipboard.setData(ClipboardData(text: id));
-    _snack(context.isArabic ? 'تم نسخ ID' : 'ID copied');
+    _snack(context.isArabic ? 'تم نسخ ID' : 'ID copied', type: SroodToastType.success);
   }
 
   Future<void> _doReport() async {
@@ -259,7 +260,7 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
     if (submitted == true && mounted) {
       _snack(isArabic
           ? 'تم إرسال البلاغ إلى فريق الإشراف.'
-          : 'Report sent to moderation.');
+          : 'Report sent to moderation.', type: SroodToastType.success);
     }
   }
 
@@ -278,9 +279,10 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
         _isMuted
             ? (isArabic ? 'تم كتم الصوت' : 'Mic muted')
             : (isArabic ? 'تم فك الكتم' : 'Mic unmuted'),
+        type: SroodToastType.success,
       );
     } catch (e) {
-      _snack(e.toString());
+      _snack(e.toString(), type: SroodToastType.error);
     } finally {
       if (mounted) setState(() => _muteBusy = false);
     }
@@ -304,7 +306,7 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
       await cb();
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
-      _snack(e.toString());
+      _snack(e.toString(), type: SroodToastType.error);
     } finally {
       if (mounted) setState(() => _standBusy = false);
     }
@@ -328,7 +330,7 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
       await cb();
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
-      _snack(e.toString());
+      _snack(e.toString(), type: SroodToastType.error);
     } finally {
       if (mounted) setState(() => _kickBusy = false);
     }
@@ -352,7 +354,7 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
       await cb();
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
-      _snack(e.toString());
+      _snack(e.toString(), type: SroodToastType.error);
     } finally {
       if (mounted) setState(() => _banBusy = false);
     }
@@ -365,9 +367,9 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
     setState(() => _adminBusy = true);
     try {
       await cb();
-      _snack(isArabic ? 'تم تعيين مشرف' : 'Admin set');
+      _snack(isArabic ? 'تم تعيين مشرف' : 'Admin set', type: SroodToastType.success);
     } catch (e) {
-      _snack(e.toString());
+      _snack(e.toString(), type: SroodToastType.error);
     } finally {
       if (mounted) setState(() => _adminBusy = false);
     }
@@ -380,9 +382,9 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
     setState(() => _adminBusy = true);
     try {
       await cb();
-      _snack(isArabic ? 'تم إزالة المشرف' : 'Admin removed');
+      _snack(isArabic ? 'تم إزالة المشرف' : 'Admin removed', type: SroodToastType.success);
     } catch (e) {
-      _snack(e.toString());
+      _snack(e.toString(), type: SroodToastType.error);
     } finally {
       if (mounted) setState(() => _adminBusy = false);
     }
@@ -434,9 +436,9 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
     return result == true;
   }
 
-  void _snack(String msg) {
+  void _snack(String msg, {SroodToastType type = SroodToastType.info}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    SroodToast.show(context, msg, type: type);
   }
 
   // ── Build ───────────────────────────────────────────────────────────────────

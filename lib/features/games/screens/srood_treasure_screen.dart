@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/srood_treasure_models.dart';
 import '../services/srood_treasure_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 // ── Design tokens (matches app palette) ──────────────────────────────────────
 const _kBg      = Color(0xFF080510);
@@ -228,8 +229,7 @@ class _SroodTreasureScreenState extends State<SroodTreasureScreen>
 
   void _showSnack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: _kRed));
+    SroodToast.show(context, msg, type: SroodToastType.error);
   }
 
   String _localizeError(String msg) {

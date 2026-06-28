@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 import '../../../core/supabase/supabase_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
@@ -193,21 +194,11 @@ class _GiftCatalogScreenState extends State<GiftCatalogScreen>
       );
       if (!mounted) return;
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.isArabic ? 'تم إرسال الهدية!' : 'Gift sent!'),
-          backgroundColor: const Color(0xFF1A3A28),
-        ),
-      );
+      SroodToast.show(context, context.isArabic ? 'تم إرسال الهدية!' : 'Gift sent!', type: SroodToastType.success);
     } catch (e) {
       if (!mounted) return;
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: const Color(0xFF3A1422),
-        ),
-      );
+      SroodToast.show(context, e.toString(), type: SroodToastType.error);
     } finally {
       if (mounted) {
         setState(() {

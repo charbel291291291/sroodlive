@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 import '../../../core/supabase/supabase_service.dart';
 import '../models/charisma_models.dart';
@@ -201,8 +202,7 @@ class _CharismaChallengeScreenState extends State<CharismaChallengeScreen> {
 
   void _showSnack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: _kRed));
+    SroodToast.show(context, msg, type: SroodToastType.error);
   }
 
   void _showWinnerDialog(Map<String, dynamic> result) {

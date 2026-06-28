@@ -16,6 +16,7 @@ import '../widgets/vault_pin_sheet.dart';
 import 'room_details_screen.dart';
 import 'room_schedule_screen.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 class RoomsScreen extends StatefulWidget {
   const RoomsScreen({required this.isArabic, super.key});
@@ -232,9 +233,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
                 : 'This room is closed.')
           : error.toString();
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      SroodToast.show(context, message, type: SroodToastType.error);
     }
   }
 

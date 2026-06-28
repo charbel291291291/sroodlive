@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -165,24 +166,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
   // -- Snack helper ----------------------------------------------------------
 
   void _snack(String msg, {bool isError = false}) {
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(SnackBar(
-        content: Text(msg, style: const TextStyle(color: Colors.white)),
-        backgroundColor:
-            isError ? const Color(0xFF2A0F1A) : const Color(0xFF1A0D2E),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(
-            color: isError
-                ? const Color(0xFFE63946).withValues(alpha: 0.5)
-                : const Color(0xFF8B26D9).withValues(alpha: 0.4),
-          ),
-        ),
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        duration: const Duration(seconds: 3),
-      ));
+    SroodToast.show(context, msg, type: isError ? SroodToastType.error : SroodToastType.success);
   }
 
   // -- Coming Soon mini-sheet ------------------------------------------------
@@ -271,24 +255,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
     // Close the tools sheet now that the lucky bag was sent successfully.
     Navigator.of(context).pop();
 
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            context.isArabic ? 'تم إرسال حقيبة الحظ' : 'Lucky Bag sent!',
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          backgroundColor: const Color(0xFFD4380D),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      );
+    SroodToast.show(context, context.isArabic ? 'تم إرسال حقيبة الحظ' : 'Lucky Bag sent!', type: SroodToastType.success);
   }
   void _openMusic() {
     HapticFeedback.lightImpact();
@@ -362,14 +329,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
 
     final micMembers = widget.micMembers;
     if (micMembers.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.isArabic
-              ? 'لا يوجد أحد على المايك'
-              : 'No one is on mic'),
-          backgroundColor: const Color(0xFF231440),
-        ),
-      );
+      SroodToast.show(context, context.isArabic ? 'لا يوجد أحد على المايك' : 'No one is on mic', type: SroodToastType.info);
       return;
     }
 
@@ -963,10 +923,7 @@ class _MicModeSheetState extends State<_MicModeSheet> {
           _selected = widget.currentSeats;
           _saving = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_t('فشل تحديث المقاعد', 'Failed to update seats')),
-          backgroundColor: const Color(0xFF2A0F1A),
-        ));
+        SroodToast.show(context, _t('فشل تحديث المقاعد', 'Failed to update seats'), type: SroodToastType.error);
       }
     }
   }
@@ -1170,36 +1127,12 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
       widget.onBackgroundChanged?.call(url);
       widget.onBackgroundChanged?.call(url);
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-        ..clearSnackBars()
-        ..showSnackBar(SnackBar(
-          content: const Text('Background updated'),
-          backgroundColor: const Color(0xFF1A0D2E),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-                color: const Color(0xFF8B26D9).withValues(alpha: 0.4)),
-          ),
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        ));
+      SroodToast.show(context, 'Background updated', type: SroodToastType.success);
       Navigator.of(context).pop();
     } catch (_) {
       if (!mounted) return;
       setState(() => _uploading = false);
-      ScaffoldMessenger.of(context)
-        ..clearSnackBars()
-        ..showSnackBar(SnackBar(
-          content: const Text('Failed to upload image'),
-          backgroundColor: const Color(0xFF2A0F1A),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-                color: const Color(0xFFE63946).withValues(alpha: 0.5)),
-          ),
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        ));
+      SroodToast.show(context, 'Failed to upload image', type: SroodToastType.error);
     }
   }
 

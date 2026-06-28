@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/supabase/supabase_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 class AvailabilityScreen extends StatefulWidget {
   const AvailabilityScreen({required this.isArabic, super.key});
@@ -122,17 +123,10 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       });
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.isArabic ? 'تم حفظ الجدول' : 'Schedule saved'),
-          backgroundColor: const Color(0xFF123A2A),
-        ),
-      );
+      SroodToast.show(context, context.isArabic ? 'تم حفظ الجدول' : 'Schedule saved', type: SroodToastType.success);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      SroodToast.show(context, 'Error: $e', type: SroodToastType.error);
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/supabase/supabase_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 class PreferencesScreen extends StatefulWidget {
   const PreferencesScreen({super.key});
@@ -86,25 +87,11 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
         'font_size': _fontSize,
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.isArabic ? 'تم الحفظ' : 'Preferences saved'),
-          backgroundColor: const Color(0xFF1A3A28),
-        ),
-      );
+      SroodToast.show(context, context.isArabic ? 'تم الحفظ' : 'Preferences saved', type: SroodToastType.success);
     } catch (e) {
       debugPrint('[Preferences._save] error: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.isArabic
-                ? 'تعذر الحفظ. حاول مرة أخرى.'
-                : 'Could not save. Please try again.',
-          ),
-          backgroundColor: Colors.red.shade900,
-        ),
-      );
+      SroodToast.show(context, context.isArabic ? 'تعذر الحفظ. حاول مرة أخرى.' : 'Could not save. Please try again.', type: SroodToastType.error);
     }
     if (mounted) setState(() => _saving = false);
   }

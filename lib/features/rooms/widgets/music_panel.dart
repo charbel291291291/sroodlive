@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 import '../models/room_music.dart';
 import '../services/room_music_service.dart';
@@ -287,15 +288,7 @@ class _MusicPanelState extends State<MusicPanel> {
   }
 
   void _showToast(String msg) {
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(SnackBar(
-        content: Text(msg, style: const TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF2A0F4A),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      ));
+    SroodToast.show(context, msg, type: SroodToastType.info);
   }
 
   Widget _dialogField({

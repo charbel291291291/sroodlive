@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 import '../models/charisma_models.dart';
 import '../services/charisma_service.dart';
@@ -165,8 +166,7 @@ class _CharismaAdminPanelState extends State<CharismaAdminPanel>
 
   void _showSnack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg), backgroundColor: _kSurface));
+    SroodToast.show(context, msg, type: SroodToastType.info);
   }
 
   void _showWinnerSnack(Map<String, dynamic> result) {

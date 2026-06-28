@@ -4,6 +4,7 @@ import '../../../shared/widgets/avatar_with_frame.dart';
 import '../models/store_item.dart';
 import '../services/gamification_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 class StoreScreen extends StatefulWidget {
   const StoreScreen({required this.isArabic, super.key});
@@ -62,25 +63,11 @@ class _StoreScreenState extends State<StoreScreen> {
     try {
       await _service.purchaseStoreItem(item.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.isArabic
-                ? '\u062a\u0645 \u0627\u0644\u0634\u0631\u0627\u0621 \u0628\u0646\u062c\u0627\u062d!'
-                : 'Purchased!',
-          ),
-          backgroundColor: const Color(0xFF2ECC71),
-        ),
-      );
+      SroodToast.show(context, context.isArabic ? '\u062a\u0645 \u0627\u0644\u0634\u0631\u0627\u0621 \u0628\u0646\u062c\u0627\u062d!' : 'Purchased!', type: SroodToastType.success);
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: const Color(0xFFFF4D6D),
-        ),
-      );
+      SroodToast.show(context, e.toString(), type: SroodToastType.error);
     }
   }
 

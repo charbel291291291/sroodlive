@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/task_item.dart';
 import '../services/gamification_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({required this.isArabic, super.key});
@@ -59,34 +60,17 @@ class _TasksScreenState extends State<TasksScreen>
     try {
       await _service.claimTaskReward(task.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(
-                Icons.monetization_on_rounded,
-                color: Color(0xFFF0C15A),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                context.isArabic
-                    ? '\u062a\u0645 \u0627\u0633\u062a\u0644\u0627\u0645 ${_fmt(task.rewardAmount)} \u0639\u0645\u0644\u0629!'
-                    : '${_fmt(task.rewardAmount)} coins claimed!',
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFF1B102A),
-        ),
+      SroodToast.show(
+        context,
+        context.isArabic
+            ? '\u062a\u0645 \u0627\u0633\u062a\u0644\u0627\u0645 ${_fmt(task.rewardAmount)} \u0639\u0645\u0644\u0629!'
+            : '${_fmt(task.rewardAmount)} coins claimed!',
+        type: SroodToastType.success,
       );
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: const Color(0xFFFF4D6D),
-        ),
-      );
+      SroodToast.show(context, e.toString(), type: SroodToastType.error);
     }
   }
 

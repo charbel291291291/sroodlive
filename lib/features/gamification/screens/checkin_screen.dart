@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../daily_reward/daily_reward_models.dart';
 import '../../daily_reward/daily_reward_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 class CheckinScreen extends StatefulWidget {
   const CheckinScreen({required this.isArabic, super.key});
@@ -54,50 +55,25 @@ class _CheckinScreenState extends State<CheckinScreen> {
       final res = await _service.claim();
       if (!mounted) return;
       final isDiamond = res.rewardType == 'diamonds';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(
-                isDiamond
-                    ? Icons.diamond_rounded
-                    : Icons.monetization_on_rounded,
-                color: isDiamond
-                    ? const Color(0xFF60A5FA)
-                    : const Color(0xFFF0C15A),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                context.isArabic
-                    ? 'تم تسجيل الحضور! +${res.amount} ${isDiamond ? 'ماسة' : 'عملة'}'
-                    : 'Checked in! +${res.amount} ${isDiamond ? 'diamonds' : 'coins'}',
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFF1B102A),
-        ),
+      SroodToast.show(
+        context,
+        context.isArabic
+            ? 'تم تسجيل الحضور! +${res.amount} ${isDiamond ? 'ماسة' : 'عملة'}'
+            : 'Checked in! +${res.amount} ${isDiamond ? 'diamonds' : 'coins'}',
+        type: SroodToastType.success,
       );
       await _load();
     } catch (e) {
       if (!mounted) return;
       final msg = e.toString();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            msg.contains('already_claimed')
-                ? (context.isArabic
-                    ? 'تم تسجيل حضورك اليوم بالفعل'
-                    : 'Already checked in today')
-                : msg.contains('daily_reward_disabled')
-                    ? (context.isArabic
-                        ? 'الميزة غير متاحة حالياً'
-                        : 'Feature not available')
-                    : (context.isArabic
-                        ? 'تعذّر تسجيل الحضور'
-                        : 'Could not check in'),
-          ),
-          backgroundColor: const Color(0xFFFF4D6D),
-        ),
+      SroodToast.show(
+        context,
+        msg.contains('already_claimed')
+            ? (context.isArabic ? 'تم تسجيل حضورك اليوم بالفعل' : 'Already checked in today')
+            : msg.contains('daily_reward_disabled')
+                ? (context.isArabic ? 'الميزة غير متاحة حالياً' : 'Feature not available')
+                : (context.isArabic ? 'تعذّر تسجيل الحضور' : 'Could not check in'),
+        type: SroodToastType.error,
       );
     } finally {
       if (mounted) setState(() => _claiming = false);

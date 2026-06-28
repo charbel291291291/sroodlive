@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/room.dart';
@@ -467,37 +468,7 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
 
   void _snack(String msg, {bool error = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(
-                error ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
-                color: error ? const Color(0xFFFF6B7A) : const Color(0xFF6EE7B7),
-                size: 18,
-              ),
-              const SizedBox(width: 8),
-              Expanded(child: Text(msg, style: const TextStyle(color: Colors.white))),
-            ],
-          ),
-          backgroundColor: error
-              ? const Color(0xFF2A0F1A)
-              : const Color(0xFF0F2A1E),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-            side: BorderSide(
-              color: error
-                  ? const Color(0xFFE63946).withValues(alpha: 0.5)
-                  : const Color(0xFF10B981).withValues(alpha: 0.5),
-            ),
-          ),
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          duration: const Duration(seconds: 4),
-        ),
-      );
+    SroodToast.show(context, msg, type: error ? SroodToastType.error : SroodToastType.success);
   }
 
   // ── Appearance actions ───────────────────────────────────────────────────

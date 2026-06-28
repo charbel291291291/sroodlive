@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
@@ -538,15 +539,7 @@ class _AgentTile extends StatelessWidget {
                               Clipboard.setData(
                                 ClipboardData(text: agent.code),
                               );
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    isArabic ? 'تم نسخ الكود' : 'Code copied',
-                                  ),
-                                  duration: const Duration(milliseconds: 1500),
-                                  backgroundColor: const Color(0xFF1B102A),
-                                ),
-                              );
+                              SroodToast.show(context, isArabic ? 'تم نسخ الكود' : 'Code copied', type: SroodToastType.success);
                             },
                             child: const Icon(
                               Icons.copy_rounded,
@@ -609,13 +602,7 @@ class _ContactChip extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         Clipboard.setData(ClipboardData(text: label));
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isArabic ? 'تم النسخ' : 'Copied'),
-            duration: const Duration(milliseconds: 1500),
-            backgroundColor: const Color(0xFF1B102A),
-          ),
-        );
+        SroodToast.show(context, isArabic ? 'تم النسخ' : 'Copied', type: SroodToastType.success);
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),

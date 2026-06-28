@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 import '../services/owner_game_control_service.dart';
 
@@ -336,14 +337,7 @@ Widget _saveBtn(String label, VoidCallback? onPressed) => SizedBox(
 
 void _snack(BuildContext ctx, String msg, {bool error = false}) {
   if (!ctx.mounted) return;
-  ScaffoldMessenger.of(ctx).showSnackBar(
-    SnackBar(
-      content: Text(msg),
-      backgroundColor: error ? _kRed : _kGreen,
-      behavior: SnackBarBehavior.floating,
-      duration: const Duration(seconds: 3),
-    ),
-  );
+  SroodToast.show(ctx, msg, type: error ? SroodToastType.error : SroodToastType.success);
 }
 
 Future<bool?> _confirm(BuildContext ctx, String title, String body) {

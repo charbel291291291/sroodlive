@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 import '../../../core/vip/vip_privileges.dart';
 import '../../../shared/theme/vip_tier_colors.dart';
@@ -94,33 +95,7 @@ class _VipSettingsScreenState extends State<VipSettingsScreen> {
   // ── Snackbars — behavior UNCHANGED ───────────────────────────────────────
   void _showLockedSnack(VipPrivilege privilege) {
     final minLevel = privilege.minVipLevel;
-    final style    = VipTierColors.of(minLevel);
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.lock_rounded, color: Colors.white54, size: 16),
-              const SizedBox(width: 8),
-              Text(
-                _t(
-                  'متاحة من VIP$minLevel فما فوق',
-                  'Available from VIP$minLevel and above',
-                ),
-                style: const TextStyle(color: Colors.white),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFF1A0D33),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: style.border.withValues(alpha: 0.6)),
-          ),
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        ),
-      );
+    SroodToast.show(context, _t('متاحة من VIP$minLevel فما فوق', 'Available from VIP$minLevel and above'), type: SroodToastType.warning);
   }
 
   void _showSuccessSnack(VipPrivilege privilege, bool enabled) {
@@ -129,65 +104,11 @@ class _VipSettingsScreenState extends State<VipSettingsScreen> {
     final msg   = enabled
         ? _t('تم تفعيل $label', '$label enabled')
         : _t('تم إيقاف $label', '$label disabled');
-
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle_rounded,
-                  color: Color(0xFF22C55E), size: 16),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(msg, style: const TextStyle(color: Colors.white)),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFF0D2A1A),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-                color: const Color(0xFF22C55E).withValues(alpha: 0.4)),
-          ),
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        ),
-      );
+    SroodToast.show(context, msg, type: SroodToastType.success);
   }
 
   void _showError() {
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error_rounded,
-                  color: Color(0xFFEF4444), size: 16),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  _t(
-                    'حدث خطأ، يرجى المحاولة مجدداً',
-                    'Something went wrong. Setting reverted.',
-                  ),
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFF2A0F1A),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-                color: const Color(0xFFEF4444).withValues(alpha: 0.4)),
-          ),
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        ),
-      );
+    SroodToast.show(context, _t('حدث خطأ، يرجى المحاولة مجدداً', 'Something went wrong. Setting reverted.'), type: SroodToastType.error);
   }
 
   // ── Icon mapping ──────────────────────────────────────────────────────────
