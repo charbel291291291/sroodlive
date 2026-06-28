@@ -121,6 +121,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   RealtimeChannel? _roomChannel;
   RealtimeChannel? _membersChannel;
   RealtimeChannel? _giftTransactionsChannel;
+  RealtimeChannel? _walletChannel;
   Timer? _heartbeatTimer;
   Timer? _membersRefreshTimer;
   Timer? _membersDebounceTimer;
@@ -443,6 +444,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       _loadModeratorCount();
       _loadAnnouncement();
       _loadWalletBalance();
+      _subscribeWalletBalance();
       _loadMessages();
       unawaited(_loadActivePk());
       unawaited(_loadActiveRedEnvelope());
@@ -675,6 +677,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     if (rc != null) unawaited(SupabaseService.requiredClient.removeChannel(rc));
     final rec = _redEnvelopesChannel;
     if (rec != null) unawaited(SupabaseService.requiredClient.removeChannel(rec));
+    final wc = _walletChannel;
+    if (wc != null) unawaited(SupabaseService.requiredClient.removeChannel(wc));
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -1425,6 +1429,30 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       final wallet = await const WalletService().fetchWallet();
       if (mounted) setState(() => _walletCoins = wallet.coinsBalance);
     } catch (_) {}
+  }
+
+  void _subscribeWalletBalance() {
+    final uid = _currentUserId;
+    if (uid == null) return;
+    _walletChannel = SupabaseService.requiredClient
+        .channel('wallet_balance_$uid')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'wallets',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'user_id',
+            value: uid,
+          ),
+          callback: (payload) {
+            final newBalance = payload.newRecord['coins_balance'];
+            if (newBalance is int && mounted) {
+              setState(() => _walletCoins = newBalance);
+            }
+          },
+        )
+        .subscribe();
   }
 
   void _redirectToWallet() {
