@@ -445,6 +445,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       _loadAnnouncement();
       _loadWalletBalance();
       _subscribeWalletBalance();
+      // Always fetch authoritative XP/level from server — widget.room may carry
+      // a stale snapshot from the rooms list (minimize/restore or cached nav).
+      unawaited(_refreshRoomXpStats());
       _loadMessages();
       unawaited(_loadActivePk());
       unawaited(_loadActiveRedEnvelope());
@@ -548,6 +551,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       await _liveKitRoomService.reconnectIfNeeded();
       if (mounted) _setAudioState(connected: _liveKitRoomService.isConnected);
       await _syncMicConnectionWithSeat();
+      // Re-sync XP/level after reconnect — Realtime may have missed events.
+      unawaited(_refreshRoomXpStats());
     } catch (e) {
       _roomLog('[Room] reconnect failed: $e');
     } finally {
@@ -1429,6 +1434,35 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       final wallet = await const WalletService().fetchWallet();
       if (mounted) setState(() => _walletCoins = wallet.coinsBalance);
     } catch (_) {}
+  }
+
+  /// Fetches authoritative XP/level state from the server.
+  /// Called on init and after every reconnect so widget.room staleness never
+  /// causes the displayed level to lag behind the server truth.
+  Future<void> _refreshRoomXpStats() async {
+    try {
+      final result = await SupabaseService.requiredClient
+          .rpc('get_room_xp_stats', params: {'p_room_id': widget.room.id});
+      if (!mounted || result == null) return;
+      final data = result as Map<String, dynamic>;
+      final newLevel = (data['room_level'] as num?)?.toInt() ?? _roomLevel;
+      setState(() {
+        if (newLevel > _lastShownLevel) {
+          _lastShownLevel = newLevel;
+          _showRoomLevelUpOverlay(newLevel);
+        }
+        _roomLevel = newLevel;
+        _roomXp = (data['room_xp'] as num?)?.toInt() ?? _roomXp;
+        _xpToday = (data['xp_today'] as num?)?.toInt() ?? _xpToday;
+        _xpWeek = (data['xp_week'] as num?)?.toInt() ?? _xpWeek;
+        _dailyStreak = (data['daily_streak'] as num?)?.toInt() ?? _dailyStreak;
+        _streakMultiplier =
+            (data['streak_multiplier'] as num?)?.toDouble() ?? _streakMultiplier;
+      });
+      _roomLog('[Room] refreshRoomXpStats level=$newLevel xp=${data['room_xp']}');
+    } catch (e) {
+      _roomLog('[Room] refreshRoomXpStats failed: $e');
+    }
   }
 
   void _subscribeWalletBalance() {
