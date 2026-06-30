@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../models/gold_ladder_models.dart';
 
@@ -15,7 +16,8 @@ class GoldLadderQuizService {
           .eq('game_key', 'gold_ladder')
           .maybeSingle();
       return data == null || data['is_enabled'] == true;
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) debugPrint('[GoldLadderQuizService] isGameEnabled: $e');
       return true;
     }
   }
@@ -88,7 +90,8 @@ class GoldLadderQuizService {
       return (data as List<dynamic>)
           .map((e) => GoldLadderWinner.fromJson(e as Map<String, dynamic>))
           .toList();
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) debugPrint('[GoldLadderQuizService] fetchRecentWinners: $e');
       return [];
     }
   }
