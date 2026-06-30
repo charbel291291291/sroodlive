@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:srood_live/shared/utils/error_utils.dart';
+import 'package:srood_live/shared/widgets/coin_ui.dart';
 import 'package:srood_live/shared/widgets/srood_toast.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -49,7 +50,7 @@ const _kDefaultItems = [
   (id: 'france', name: 'France', nameAr: 'فرنسا', icon: '🇫🇷', mult: 16.0),
 ];
 
-const _kBetChips = [100, 1000, 10000, 100000];
+const _kBetChips = [100, 1000, 5000, 10000, 20000, 100000];
 
 enum _Phase { loading, betting, spinning, settled, error }
 
@@ -2094,89 +2095,15 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
   }
 
   Widget _buildChips(bool locked) {
-    return Row(
-      children: _kBetChips.map((chip) {
-        final sel = chip == _betAmount;
-        final disabled = locked || (_balance < chip && !sel);
-        return Expanded(
-          child: GestureDetector(
-            onTap: locked
-                ? null
-                : () {
-                    HapticFeedback.selectionClick();
-                    setState(() => _betAmount = chip);
-                  },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              margin: EdgeInsets.symmetric(horizontal: _isCompactWidth ? 2 : 3),
-              padding: EdgeInsets.symmetric(vertical: _isCompactWidth ? 5 : 8),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                gradient: sel && !locked
-                    ? const LinearGradient(
-                        colors: [Color(0xFFFFE040), Color(0xFFCC9900)],
-                      )
-                    : disabled
-                    ? const LinearGradient(
-                        colors: [Color(0xFF1A1A28), Color(0xFF141420)],
-                      )
-                    : const LinearGradient(
-                        colors: [Color(0xFF1E2A14), Color(0xFF162010)],
-                      ),
-                border: Border.all(
-                  color: sel && !locked
-                      ? _kGoldLight
-                      : disabled
-                      ? _kGoldDark.withValues(alpha: 0.2)
-                      : _kGreenWin.withValues(alpha: 0.5),
-                  width: sel && !locked ? 2 : 1,
-                ),
-                boxShadow: sel && !locked
-                    ? [
-                        BoxShadow(
-                          color: _kGold.withValues(alpha: 0.4),
-                          blurRadius: 10,
-                        ),
-                      ]
-                    : [],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '✕',
-                    style: TextStyle(
-                      color: disabled
-                          ? Colors.white12
-                          : sel && !locked
-                          ? const Color(0xFF2A1200)
-                          : _kGreenWin,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      _formatCoins(chip),
-                      maxLines: 1,
-                      style: TextStyle(
-                        color: disabled
-                            ? Colors.white24
-                            : sel && !locked
-                            ? const Color(0xFF1A1200)
-                            : _kGreenWin,
-                        fontSize: _responsiveFont(13, 11),
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      }).toList(),
+    final chipSize = _isCompactWidth ? 50.0 : 54.0;
+    return CoinChipRow(
+      chips: _kBetChips,
+      selected: _betAmount,
+      balance: _balance,
+      locked: locked,
+      chipSize: chipSize,
+      spacing: _isCompactWidth ? 3 : 5,
+      onSelect: (v) => setState(() => _betAmount = v),
     );
   }
 
@@ -2784,37 +2711,39 @@ class _MagicCountryBadgeCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (hasExposure) ...[
-                const SizedBox(height: 2),
-                SizedBox(
-                  height: compact ? 15 : 19,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (betAmount > 0)
-                        Flexible(
-                          child: _CountryBetPill(
-                            icon: Icons.person_rounded,
-                            amount: formatCoins(betAmount),
-                            color: _kBlueGlow,
-                            compact: compact,
-                          ),
-                        ),
-                      if (betAmount > 0 && teamTotal > 0)
-                        SizedBox(width: compact ? 2 : 3),
-                      if (teamTotal > 0)
-                        Flexible(
-                          child: _CountryBetPill(
-                            icon: Icons.groups_rounded,
-                            amount: formatCoins(teamTotal),
-                            color: _kGold,
-                            compact: compact,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
+              // Always reserve fixed height for bet pills so the Expanded
+              // square above never resizes when a bet is placed.
+              const SizedBox(height: 2),
+              SizedBox(
+                height: compact ? 15 : 19,
+                child: hasExposure
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (betAmount > 0)
+                            Flexible(
+                              child: _CountryBetPill(
+                                icon: Icons.person_rounded,
+                                amount: formatCoins(betAmount),
+                                color: _kBlueGlow,
+                                compact: compact,
+                              ),
+                            ),
+                          if (betAmount > 0 && teamTotal > 0)
+                            SizedBox(width: compact ? 2 : 3),
+                          if (teamTotal > 0)
+                            Flexible(
+                              child: _CountryBetPill(
+                                icon: Icons.groups_rounded,
+                                amount: formatCoins(teamTotal),
+                                color: _kGold,
+                                compact: compact,
+                              ),
+                            ),
+                        ],
+                      )
+                    : const SizedBox.shrink(),
+              ),
             ],
           ),
         );
