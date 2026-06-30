@@ -100,8 +100,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await showAppUpdateDialog(context, info: info, isArabic: widget.isArabic);
   }
 
+  Future<bool> _confirmAction(
+    BuildContext context, {
+    required String title,
+    required String body,
+    required String confirmLabel,
+    bool isDanger = true,
+  }) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: const Color(0xFF141720),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            content: Text(
+              body,
+              style: const TextStyle(color: Color(0xFF9E91B8)),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text(
+                  'إلغاء',
+                  style: TextStyle(color: Color(0xFF9E91B8)),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(
+                  confirmLabel,
+                  style: TextStyle(
+                    color: isDanger
+                        ? const Color(0xFFEF4444)
+                        : const Color(0xFFF0C15A),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   Future<void> _logout() async {
     if (_isLoggingOut) return;
+    final isArabic = context.isArabic;
+    final ok = await _confirmAction(
+      context,
+      title: isArabic ? 'تسجيل الخروج' : 'Logout',
+      body: isArabic
+          ? 'هل تريد تسجيل الخروج من حسابك؟'
+          : 'Are you sure you want to log out?',
+      confirmLabel: isArabic ? 'خروج' : 'Logout',
+    );
+    if (!ok || !mounted) return;
     setState(() => _isLoggingOut = true);
     debugPrint('[SettingsLogout] logout pressed');
 
@@ -225,13 +285,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ...options.map((option) {
                     final selected =
                         option.key == settings.privacyProfileVisibility;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(16),
-                          onTap: () => Navigator.of(context).pop(option.key),
+                    return Semantics(
+                      label: option.title,
+                      button: true,
+                      enabled: true,
+                      selected: selected,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: () => Navigator.of(context).pop(option.key),
                           child: Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
@@ -287,6 +352,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ),
                         ),
+                      ),
                       ),
                     );
                   }),

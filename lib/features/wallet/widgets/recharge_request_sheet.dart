@@ -84,6 +84,7 @@ class _RechargeRequestSheetState extends State<RechargeRequestSheet> {
   }
 
   void _submit() {
+    FocusScope.of(context).unfocus();
     if (_submitting) return;
 
     final coins = int.tryParse(_coinsController.text.trim()) ?? 0;
@@ -148,15 +149,31 @@ class _RechargeRequestSheetState extends State<RechargeRequestSheet> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  isArabic
-                      ? '\u0637\u0644\u0628 \u0634\u062d\u0646'
-                      : 'Recharge Request',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                  ),
+                Row(
+                  textDirection: textDirection,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        isArabic
+                            ? '\u0637\u0644\u0628 \u0634\u062d\u0646'
+                            : 'Recharge Request',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      tooltip: '\u0625\u063a\u0644\u0627\u0642',
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        color: Color(0xFF9E91B8),
+                        size: 20,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Text(

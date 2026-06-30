@@ -62,6 +62,7 @@ class _ReportReasonSheetState extends State<ReportReasonSheet> {
   }
 
   Future<void> _submit() async {
+    FocusScope.of(context).unfocus();
     if (_selectedReason == null) return;
     setState(() { _submitting = true; _error = null; });
     try {
@@ -91,7 +92,9 @@ class _ReportReasonSheetState extends State<ReportReasonSheet> {
     final isArabic = widget.isArabic;
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
 
-    return Directionality(
+    return SafeArea(
+      top: false,
+      child: Directionality(
       textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
       child: Container(
         margin: EdgeInsets.only(bottom: bottom),
@@ -112,14 +115,29 @@ class _ReportReasonSheetState extends State<ReportReasonSheet> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              child: Text(
-                isArabic ? 'الإبلاغ عن مستخدم' : 'Report User',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                ),
+              padding: const EdgeInsets.fromLTRB(20, 8, 8, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      isArabic ? 'الإبلاغ عن مستخدم' : 'Report User',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    tooltip: 'إغلاق',
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: Color(0xFF9E91B8),
+                      size: 20,
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 4),
@@ -246,6 +264,7 @@ class _ReportReasonSheetState extends State<ReportReasonSheet> {
           ],
         ),
       ),
+    ),
     );
   }
 }

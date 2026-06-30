@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/widgets/skeleton_loader.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../../profile/screens/user_profile_screen.dart';
 import '../../gifts/screens/gift_history_screen.dart';
@@ -39,6 +41,56 @@ class _AppNotification {
     this.actorId,
     this.targetId,
   });
+}
+
+Future<bool> _confirmAction(
+  BuildContext context, {
+  required String title,
+  required String body,
+  required String confirmLabel,
+  bool isDanger = true,
+}) async {
+  return await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF141720),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          content: Text(
+            body,
+            style: const TextStyle(color: Color(0xFF9E91B8)),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text(
+                'إلغاء',
+                style: TextStyle(color: Color(0xFF9E91B8)),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(
+                confirmLabel,
+                style: TextStyle(
+                  color: isDanger
+                      ? const Color(0xFFEF4444)
+                      : const Color(0xFFF0C15A),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ) ??
+      false;
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
@@ -91,13 +143,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         _notifications = items;
         _isLoading = false;
       });
-    } catch (_) {
+    } catch (e, st) {
+      debugError('_NotificationsScreenState._load', e, st);
       if (!mounted) return;
       setState(() => _isLoading = false);
     }
   }
 
   Future<void> _markAllRead() async {
+    final ok = await _confirmAction(
+      context,
+      title: 'قراءة جميع الإشعارات',
+      body: 'هل تريد تحديد جميع الإشعارات كمقروءة؟',
+      confirmLabel: 'تأكيد',
+      isDanger: false,
+    );
+    if (!ok || !mounted) return;
     try {
       final user = SupabaseService.requiredClient.auth.currentUser;
       if (user == null) return;
@@ -125,7 +186,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             )
             .toList();
       });
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('_NotificationsScreenState._markAllRead', e, st);
+      if (context.mounted) SroodToast.error(context, e);
+    }
   }
 
   Future<void> _markRead(String id) async {
@@ -134,7 +198,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           .from('notifications')
           .update({'is_read': true})
           .eq('id', id);
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('_NotificationsScreenState._markRead', e, st);
+    }
   }
 
   void _navigateFor(_AppNotification n) {
@@ -181,7 +247,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
         ),
       );
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('_NotificationsScreenState._openRoom', e, st);
+    }
   }
 
   IconData _iconForType(String type) {
@@ -231,11 +299,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               _buildHeader(isArabic, unreadCount),
               Expanded(
                 child: _isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFF8B26D9),
-                        ),
-                      )
+                    ? const SkeletonLoader(count: 8, type: SkeletonType.listTile)
                     : _notifications.isEmpty
                     ? _buildEmpty(isArabic)
                     : RefreshIndicator(
@@ -416,9 +480,15 @@ class _NotificationTile extends StatelessWidget {
     final dir = isArabic ? TextDirection.rtl : TextDirection.ltr;
     final isUnread = !notification.isRead;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
+    return Semantics(
+      label: notification.title.isNotEmpty
+          ? notification.title
+          : 'إشعار',
+      button: true,
+      enabled: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -511,6 +581,7 @@ class _NotificationTile extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

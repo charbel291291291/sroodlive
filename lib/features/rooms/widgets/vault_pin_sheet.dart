@@ -97,7 +97,9 @@ class _VaultPinSheetState extends State<VaultPinSheet>
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SafeArea(
+      top: false,
+      child: Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [Color(0xFF1E0755), Color(0xFF120430)],
@@ -115,16 +117,35 @@ class _VaultPinSheetState extends State<VaultPinSheet>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Drag handle
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.25),
-              borderRadius: BorderRadius.circular(2),
-            ),
+          // Drag handle + close button row
+          Row(
+            children: [
+              const Spacer(),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: IconButton(
+                    onPressed: () => Navigator.of(context).pop(null),
+                    tooltip: 'إغلاق',
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: Color(0xFF9E91B8),
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 4),
 
           // Vault icon
           _VaultIcon(),
@@ -238,6 +259,7 @@ class _VaultPinSheetState extends State<VaultPinSheet>
           ),
         ],
       ),
+    ),
     );
   }
 }

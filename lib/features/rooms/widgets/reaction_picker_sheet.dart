@@ -32,7 +32,9 @@ class ReactionPickerSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SafeArea(
+      top: false,
+      child: Container(
       decoration: const BoxDecoration(
         color: Color(0xFF1A0B33),
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -54,14 +56,29 @@ class ReactionPickerSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          Text(
-            'React',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.85),
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.3,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const SizedBox(width: 40),
+              Text(
+                'React',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                tooltip: 'إغلاق',
+                icon: const Icon(
+                  Icons.close_rounded,
+                  color: Color(0xFF9E91B8),
+                  size: 20,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 14),
           GridView.builder(
@@ -99,6 +116,7 @@ class ReactionPickerSheet extends StatelessWidget {
           const SizedBox(height: 8),
         ],
       ),
+    ),
     );
   }
 
