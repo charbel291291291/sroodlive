@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:srood_live/shared/utils/error_utils.dart';
 
@@ -10,6 +12,7 @@ import '../games/screens/crash_game_screen.dart';
 import '../messages/screens/messages_screen.dart';
 import '../profile/profile_screen.dart';
 import '../rooms/screens/rooms_screen.dart';
+import '../rooms/services/room_read_service.dart';
 import '../wallet/screens/wallet_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -21,6 +24,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int selectedIndex = 0;
+  int _roomsUnread = 0;
   int _messagesUnread = 0;
 
   // Auto-show the daily reward at most once per widget instance. Non-static so
@@ -30,11 +34,27 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    RoomReadService.instance.unreadCount.addListener(_onRoomsUnreadChanged);
+    _roomsUnread = RoomReadService.instance.unreadCount.value;
+    unawaited(RoomReadService.instance.initialize());
+
     // Run startup checks once per session, after the first frame so the
     // navigator is ready to show dialogs.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _runStartupChecks();
     });
+  }
+
+  void _onRoomsUnreadChanged() {
+    if (!mounted) return;
+    final count = RoomReadService.instance.unreadCount.value;
+    if (_roomsUnread != count) setState(() => _roomsUnread = count);
+  }
+
+  @override
+  void dispose() {
+    RoomReadService.instance.unreadCount.removeListener(_onRoomsUnreadChanged);
+    super.dispose();
   }
 
   Future<void> _runStartupChecks() async {
@@ -93,6 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: _BottomNavBar(
         selectedIndex: selectedIndex,
         isArabic: isArabic,
+        roomsUnread: _roomsUnread,
         messagesUnread: _messagesUnread,
         onSelected: (i) => setState(() => selectedIndex = i),
       ),
@@ -106,12 +127,14 @@ class _BottomNavBar extends StatelessWidget {
   const _BottomNavBar({
     required this.selectedIndex,
     required this.isArabic,
+    required this.roomsUnread,
     required this.messagesUnread,
     required this.onSelected,
   });
 
   final int selectedIndex;
   final bool isArabic;
+  final int roomsUnread;
   final int messagesUnread;
   final ValueChanged<int> onSelected;
 
@@ -125,6 +148,7 @@ class _BottomNavBar extends StatelessWidget {
         gradTop: const Color(0xFF9B59F5),
         gradBot: const Color(0xFF4C1D95),
         glow: const Color(0xFF8B5CF6),
+        badge: roomsUnread,
       ),
       _NavItem(
         icon: Icons.chat_bubble_rounded,

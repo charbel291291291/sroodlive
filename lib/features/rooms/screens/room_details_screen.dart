@@ -27,6 +27,7 @@ import '../services/livekit_room_service.dart';
 import '../services/rooms_service.dart';
 import '../services/room_management_service.dart';
 import '../services/room_messages_service.dart';
+import '../services/room_read_service.dart';
 import '../services/room_chat_image_upload_service.dart';
 import '../models/pk_session.dart';
 import '../services/team_pk_service.dart';
@@ -357,6 +358,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
     _roomLog('[PerfRoom] open id=${widget.room.id} ts=${DateTime.now().millisecondsSinceEpoch}');
     _roomLog('[Room] ${_roomTs()} room screen opened id=${widget.room.id} restoring=$_isRestoring');
+    unawaited(RoomReadService.instance.setActiveRoom(widget.room.id));
 
     // ── Reuse music services when returning from minimize (same room) ─────────
     final savedMusic = session.musicService;
@@ -570,6 +572,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         break;
       case AppLifecycleState.resumed:
         _roomLog('[VoiceLifecycle] state=resumed');
+        unawaited(RoomReadService.instance.setActiveRoom(widget.room.id));
         if (!_connectedAudio || !_liveKitRoomService.isConnected) {
           _roomLog('[VoiceLifecycle] audio dropped while backgrounded -- reconnecting');
           unawaited(_reconnectAudio());
@@ -661,6 +664,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
   @override
   void dispose() {
+    RoomReadService.instance.clearActiveRoom(widget.room.id);
     _musicService.removeListener(_onLocalMusicChanged);
     // On minimize: music services are handed to ActiveRoomSession — do NOT dispose.
     // On true leave: dispose everything.

@@ -173,10 +173,15 @@ class RoomMusicService extends ChangeNotifier {
 
   // ── Playback ──────────────────────────────────────────────────────────────
 
-  Future<void> playSong(int index) async {
-    if (index < 0 || index >= _playlist.length) {
-      return;
-    }
+  Future<void> playSong(
+    int index, {
+    bool userInitiated = false,
+    Set<int>? failedIndexes,
+  }) async {
+    if (index < 0 || index >= _playlist.length) return;
+
+    final skipCycle = userInitiated ? <int>{} : (failedIndexes ?? <int>{});
+
     _currentIndex = index;
     _error = null;
     _isLoading = true;
@@ -192,8 +197,8 @@ class RoomMusicService extends ChangeNotifier {
       _error = _friendlyError(validationError);
       _isLoading = false;
       notifyListeners();
-      // Skip broken track — advance to the next one
-      await _advanceToNext();
+      skipCycle.add(index);
+      await _advanceToNext(failedIndexes: skipCycle);
       return;
     }
 
@@ -214,17 +219,16 @@ class RoomMusicService extends ChangeNotifier {
       await _player.play();
       debugPrint('[RoomMusic:OK] playback started for "${song.title}"');
     } on PlayerException catch (e) {
-      // PlayerException carries the ExoPlayer error code and message
       debugPrint('[RoomMusic:PLAYER_ERROR] ─────────────────────────────────');
       debugPrint('[RoomMusic:PLAYER_ERROR]  code    = ${e.code}');
       debugPrint('[RoomMusic:PLAYER_ERROR]  message = ${e.message}');
       debugPrint('[RoomMusic:PLAYER_ERROR]  song id = ${song.id}');
       debugPrint('[RoomMusic:PLAYER_ERROR]  url     = "${song.url}"');
-      _error = 'هذا الملف الصوتي لا يمكن تشغيله'; // friendly
+      _error = 'هذا الملف الصوتي لا يمكن تشغيله';
       _isLoading = false;
       notifyListeners();
-      // Skip to next track rather than hanging on the broken one
-      await _advanceToNext();
+      skipCycle.add(index);
+      await _advanceToNext(failedIndexes: skipCycle);
     } catch (e, st) {
       debugPrint('[RoomMusic:ERROR] Unexpected error for "${song.title}": $e');
       if (kDebugMode) {
@@ -314,7 +318,7 @@ class RoomMusicService extends ChangeNotifier {
     } else if (_currentIndex >= 0) {
       await _player.play();
     } else if (_playlist.isNotEmpty) {
-      await playSong(0);
+      await playSong(0, userInitiated: true);
     }
   }
 
@@ -328,24 +332,49 @@ class RoomMusicService extends ChangeNotifier {
 
   Future<void> next() => _advanceToNext();
   Future<void> previous() async {
-    if (_playlist.isEmpty) {
-      return;
-    }
+    if (_playlist.isEmpty) return;
     if (_position.inSeconds > 3) {
       await _player.seek(Duration.zero);
       return;
     }
     final prev = _currentIndex > 0 ? _currentIndex - 1 : _playlist.length - 1;
-    await playSong(prev);
+    await playSong(prev, userInitiated: true);
   }
 
-  Future<void> _advanceToNext() async {
+  Future<void> _advanceToNext({Set<int>? failedIndexes}) async {
     if (_playlist.isEmpty) return;
     if (_loop) return;
+    final failed = failedIndexes ?? <int>{};
+    if (failed.length >= _playlist.length) {
+      await _stopFailedSkipCycle();
+      return;
+    }
+
+    final candidates = List<int>.generate(
+      _playlist.length,
+      (offset) => (_currentIndex + offset + 1) % _playlist.length,
+    ).where((index) => !failed.contains(index)).toList();
+    if (candidates.isEmpty) {
+      await _stopFailedSkipCycle();
+      return;
+    }
+
     final next = _shuffle
-        ? (DateTime.now().millisecondsSinceEpoch % _playlist.length)
-        : (_currentIndex + 1) % _playlist.length;
-    await playSong(next);
+        ? candidates[DateTime.now().millisecondsSinceEpoch % candidates.length]
+        : candidates.first;
+    await playSong(next, failedIndexes: failed);
+  }
+
+  Future<void> _stopFailedSkipCycle() async {
+    debugPrint(
+      '[RoomMusic] all ${_playlist.length} tracks failed — stopping playback',
+    );
+    await _player.stop();
+    _currentIndex = -1;
+    _isPlaying = false;
+    _isLoading = false;
+    _error = 'لا يمكن تشغيل أي من المقاطع الموسيقية';
+    notifyListeners();
   }
 
   Future<void> seek(Duration pos) => _player.seek(pos);

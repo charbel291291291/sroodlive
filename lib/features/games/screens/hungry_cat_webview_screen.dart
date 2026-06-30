@@ -386,9 +386,13 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
 
     _betSeq++;
     final mySeq = _betSeq;
+    // Capture round identity before any await.  If the round changes while
+    // the RPC is in-flight, the response belongs to the old round and must
+    // not mutate current UI state.
+    final requestRoundId = _roundId;
     final tapAt = DateTime.now();
     debugPrint(
-      '[HungryCatBet] tap seq=$mySeq food=${food.foodId} roundId=$_roundId amount=$betAmount',
+      '[HungryCatBet] tap seq=$mySeq food=${food.foodId} roundId=$requestRoundId amount=$betAmount',
     );
     debugPrint(
       '[HungryCatPerf] tap received seq=$mySeq at ${tapAt.millisecondsSinceEpoch}ms',
@@ -408,11 +412,23 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
 
     try {
       final result = await _service.placeGlobalBet(
-        roundId: _roundId!,
+        roundId: requestRoundId!,
         foodId: food.foodId,
         amount: betAmount,
       );
       if (!mounted) return;
+
+      // Stale-response guard: the round changed while the RPC was in-flight.
+      // Discard local bet state and fetch the authoritative balance instead.
+      if (_roundId != requestRoundId) {
+        debugPrint(
+          '[HungryCat] stale bet response ignored seq=$mySeq '
+          'requestRound=$requestRoundId currentRound=$_roundId',
+        );
+        setState(() => _decrementPending(food.foodId));
+        _refreshBalance();
+        return;
+      }
 
       final reqEnd = DateTime.now();
       debugPrint(
@@ -439,6 +455,19 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
         '[HungryCatBet] failed seq=$mySeq food=${food.foodId} error=$errStr',
       );
       if (!mounted) return;
+
+      // Stale-error guard: round changed — don't roll back optimistic balance
+      // for the old round; fetch authoritative balance instead.
+      if (_roundId != requestRoundId) {
+        debugPrint(
+          '[HungryCat] stale bet error ignored seq=$mySeq '
+          'requestRound=$requestRoundId currentRound=$_roundId',
+        );
+        setState(() => _decrementPending(food.foodId));
+        _refreshBalance();
+        return;
+      }
+
       setState(() {
         if (mySeq > _lastAppliedBalanceSeq) {
           _balance += betAmount;
