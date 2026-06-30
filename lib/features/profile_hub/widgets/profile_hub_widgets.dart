@@ -71,106 +71,114 @@ class ProfileMenuItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final direction = isArabic ? TextDirection.rtl : TextDirection.ltr;
 
-    return Opacity(
-      opacity: isEnabled ? 1 : 0.48,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(20),
-            onTap: isEnabled ? onTap : null,
-            child: Container(
-              constraints: BoxConstraints(
-                minHeight: subtitle == null ? 58 : 68,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: profileHubCard,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: profileHubBorder),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF8B26D9).withValues(alpha: 0.08),
-                    blurRadius: 18,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Row(
-                textDirection: direction,
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: gradientIcon
-                          ? const LinearGradient(
-                              colors: [Color(0xFF7D2BFF), profileHubGold],
-                            )
-                          : null,
-                      color: gradientIcon
-                          ? null
-                          : profileHubGold.withValues(alpha: 0.12),
-                      border: Border.all(
-                        color: profileHubGold.withValues(alpha: 0.45),
+    return Semantics(
+      label: subtitle != null ? '$title، $subtitle' : title,
+      button: true,
+      enabled: isEnabled,
+      child: Opacity(
+        opacity: isEnabled ? 1 : 0.48,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: isEnabled ? onTap : null,
+              child: Container(
+                constraints: BoxConstraints(
+                  minHeight: subtitle == null ? 58 : 68,
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: profileHubCard,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: profileHubBorder),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF8B26D9).withValues(alpha: 0.08),
+                      blurRadius: 18,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  textDirection: direction,
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: gradientIcon
+                            ? const LinearGradient(
+                                colors: [Color(0xFF7D2BFF), profileHubGold],
+                              )
+                            : null,
+                        color: gradientIcon
+                            ? null
+                            : profileHubGold.withValues(alpha: 0.12),
+                        border: Border.all(
+                          color: profileHubGold.withValues(alpha: 0.45),
+                        ),
+                      ),
+                      child: Icon(
+                        icon,
+                        color: gradientIcon
+                            ? const Color(0xFF160B26)
+                            : profileHubGold,
+                        size: 21,
                       ),
                     ),
-                    child: Icon(
-                      icon,
-                      color: gradientIcon
-                          ? const Color(0xFF160B26)
-                          : profileHubGold,
-                      size: 21,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: isArabic
-                          ? CrossAxisAlignment.end
-                          : CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        if (subtitle != null) ...[
-                          const SizedBox(height: 3),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: isArabic
+                            ? CrossAxisAlignment.end
+                            : CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
                           Text(
-                            subtitle!,
+                            title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: profileHubMuted,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
                             ),
                           ),
+                          if (subtitle != null) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              subtitle!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: profileHubMuted,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
-                    ),
-                  ),
-                  if (badge != null) ...[
-                    const SizedBox(width: 8),
-                    _BadgePill(label: badge!),
-                  ],
-                  trailing ??
-                      Icon(
-                        isArabic
-                            ? Icons.chevron_left_rounded
-                            : Icons.chevron_right_rounded,
-                        color: const Color(0xFF9E91B8),
                       ),
-                ],
+                    ),
+                    if (badge != null) ...[
+                      const SizedBox(width: 8),
+                      _BadgePill(label: badge!),
+                    ],
+                    trailing ??
+                        Icon(
+                          isArabic
+                              ? Icons.chevron_left_rounded
+                              : Icons.chevron_right_rounded,
+                          color: const Color(0xFF9E91B8),
+                        ),
+                  ],
+                ),
               ),
             ),
           ),
