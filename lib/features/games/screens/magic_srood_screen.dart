@@ -1353,7 +1353,12 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
   //   Row 1 (flex 22): [Brazil 6]          [Argentina 3]
   //   Row 2 (flex 34): [Germany 4] [CENTER] [England 5]
   //                    [Portugal 2][CENTER] [France 7]
-  //   Row 3 (flex 22): [Spain 0]            [Italy 1]
+  //   Row 3 (same H):  [Spain 0]            [Italy 1]
+  //
+  // All 4 card rows share the same computed height so every card square is
+  // identical.  The equation is:
+  //   arenaH = 4×cardH + 4 (gap below top) + 5 (mid spacer) + 4 (gap above bot)
+  //   cardH  = (arenaH − 13) / 4
 
   Widget _buildMainArena() {
     if (_phase == _Phase.loading) return _buildLoading();
@@ -1375,94 +1380,104 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
       );
     }
 
-    return Stack(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(6, 0, 6, 0),
-          child: Column(
-            children: [
-              // ── Top two featured cards ──────────────────────────────────────
-              Expanded(
-                flex: 24,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    children: [
-                      Expanded(child: _countryCard(6)), // Brazil
-                      const SizedBox(width: 6),
-                      Expanded(child: _countryCard(3)), // Argentina
-                    ],
-                  ),
-                ),
-              ),
-              // ── Middle: side columns + center panel ─────────────────────────
-              Expanded(
-                flex: 34,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Left: Germany (top) + Portugal (bottom)
-                    Expanded(
-                      flex: 32,
-                      child: Column(
-                        children: [
-                          Expanded(child: _countryCard(4)), // Germany
-                          const SizedBox(height: 5),
-                          Expanded(child: _countryCard(2)), // Portugal
-                        ],
-                      ),
+    return LayoutBuilder(
+      builder: (context, cs) {
+        // Clamp so the layout is safe on tiny or very tall screens.
+        final cardH = ((cs.maxHeight - 13.0) / 4.0).clamp(52.0, 120.0);
+        final midH = cardH * 2 + 5;
+
+        return Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(6, 0, 6, 0),
+              child: Column(
+                children: [
+                  // ── Top row ─────────────────────────────────────────────────
+                  SizedBox(
+                    height: cardH,
+                    child: Row(
+                      children: [
+                        Expanded(child: _countryCard(6)), // Brazil
+                        const SizedBox(width: 6),
+                        Expanded(child: _countryCard(3)), // Argentina
+                      ],
                     ),
-                    const SizedBox(width: 5),
-                    // Center panel — smaller so cards get more room
-                    Expanded(flex: 32, child: _buildCenterPanel()),
-                    const SizedBox(width: 5),
-                    // Right: England (top) + France (bottom)
-                    Expanded(
-                      flex: 32,
-                      child: Column(
-                        children: [
-                          Expanded(child: _countryCard(5)), // England
-                          const SizedBox(height: 5),
-                          Expanded(child: _countryCard(7)), // France
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // ── Bottom two cards ────────────────────────────────────────────
-              Expanded(
-                flex: 24,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Row(
-                    children: [
-                      Expanded(child: _countryCard(0)), // Spain
-                      const SizedBox(width: 6),
-                      Expanded(child: _countryCard(1)), // Italy
-                    ],
                   ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        // Coin burst overlay
-        if (_phase == _Phase.settled)
-          Positioned.fill(
-            child: IgnorePointer(
-              child: AnimatedBuilder(
-                animation: _coinCtrl,
-                builder: (context, child) => _coinCtrl.value > 0
-                    ? CustomPaint(painter: _GoldBurstPainter(_coinCtrl.value))
-                    : const SizedBox.shrink(),
+                  const SizedBox(height: 4),
+                  // ── Middle: side columns + center panel ─────────────────────
+                  SizedBox(
+                    height: midH,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Left column — Germany (top) + Portugal (bottom)
+                        Expanded(
+                          flex: 32,
+                          child: Column(
+                            children: [
+                              Expanded(child: _countryCard(4)), // Germany
+                              const SizedBox(height: 5),
+                              Expanded(child: _countryCard(2)), // Portugal
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Expanded(flex: 32, child: _buildCenterPanel()),
+                        const SizedBox(width: 5),
+                        // Right column — England (top) + France (bottom)
+                        Expanded(
+                          flex: 32,
+                          child: Column(
+                            children: [
+                              Expanded(child: _countryCard(5)), // England
+                              const SizedBox(height: 5),
+                              Expanded(child: _countryCard(7)), // France
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  // ── Bottom row ───────────────────────────────────────────────
+                  SizedBox(
+                    height: cardH,
+                    child: Row(
+                      children: [
+                        Expanded(child: _countryCard(0)), // Spain
+                        const SizedBox(width: 6),
+                        Expanded(child: _countryCard(1)), // Italy
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-        // Round result card (slides up from bottom when settled)
-        if (_phase == _Phase.settled && _winItemId != null)
-          Positioned(bottom: 4, left: 12, right: 12, child: _buildResultCard()),
-      ],
+            // Coin burst overlay
+            if (_phase == _Phase.settled)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: AnimatedBuilder(
+                    animation: _coinCtrl,
+                    builder: (context, child) => _coinCtrl.value > 0
+                        ? CustomPaint(
+                            painter: _GoldBurstPainter(_coinCtrl.value),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ),
+              ),
+            // Round result card (slides up from bottom when settled)
+            if (_phase == _Phase.settled && _winItemId != null)
+              Positioned(
+                bottom: 4,
+                left: 12,
+                right: 12,
+                child: _buildResultCard(),
+              ),
+          ],
+        );
+      },
     );
   }
 
