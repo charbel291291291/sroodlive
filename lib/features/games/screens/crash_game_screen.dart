@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'gold_ladder_quiz_screen.dart';
 import 'hungry_cat_webview_screen.dart';
+import 'magic_srood_screen.dart';
 import 'rocket_crash_webview_screen.dart';
 import 'spin_wheel_screen.dart';
 import 'srood_blocks_screen.dart';
@@ -40,7 +41,9 @@ class CrashGameScreen extends StatelessWidget {
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
+                            color: const Color(
+                              0xFF8B5CF6,
+                            ).withValues(alpha: 0.35),
                             blurRadius: 18,
                             offset: const Offset(0, 8),
                           ),
@@ -64,7 +67,10 @@ class CrashGameScreen extends StatelessWidget {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(30),
                         color: const Color(0xFF6D28D9).withValues(alpha: 0.3),
@@ -91,8 +97,8 @@ class CrashGameScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(14, 0, 14, 120),
               sliver: SliverGrid(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount:   2,
-                  mainAxisSpacing:  12,
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
                   childAspectRatio: 0.95,
                 ),
@@ -110,83 +116,104 @@ class CrashGameScreen extends StatelessWidget {
 
   List<_GameData> _gamesData(BuildContext context, bool ar) => [
     _GameData(
-      emoji:     '🎡',
+      emoji: '🎡',
       assetPath: 'assets/images/games/spin_wheel.webp',
-      title:     ar ? 'عجلة الحظ'       : 'Spin Wheel',
-      subtitle:  ar ? 'لف العجلة واربح' : 'Spin & win',
-      colors:    const [Color(0xFFF97316), Color(0xFF7C2D12)],
+      title: ar ? 'عجلة الحظ' : 'Spin Wheel',
+      subtitle: ar ? 'لف العجلة واربح' : 'Spin & win',
+      colors: const [Color(0xFFF97316), Color(0xFF7C2D12)],
       glowColor: const Color(0xFFF97316),
-      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => SpinWheelScreen(isArabic: ar),
-      )),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => SpinWheelScreen(isArabic: ar)),
+      ),
     ),
     _GameData(
-      emoji:     '🐱',
+      emoji: '🐱',
       assetPath: 'assets/images/games/hungry_cat.webp',
-      title:     ar ? 'القط الجائع'      : 'Hungry Cat',
-      subtitle:  ar ? 'أطعم القط واكسب' : 'Feed & earn',
-      colors:    const [Color(0xFFF0C15A), Color(0xFF92400E)],
+      title: ar ? 'القط الجائع' : 'Hungry Cat',
+      subtitle: ar ? 'أطعم القط واكسب' : 'Feed & earn',
+      colors: const [Color(0xFFF0C15A), Color(0xFF92400E)],
       glowColor: const Color(0xFFF0C15A),
-      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => HungryCatWebviewScreen(isArabic: ar),
-      )),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => HungryCatWebviewScreen(isArabic: ar),
+        ),
+      ),
     ),
     _GameData(
-      emoji:     '🚀',
+      emoji: '🚀',
       assetPath: 'assets/images/games/rocket_crash.webp',
-      title:     ar ? 'صاروخ الانهيار'  : 'Rocket Crash',
-      subtitle:  ar ? 'اسحب قبل السقوط' : 'Cash out in time',
-      colors:    const [Color(0xFF1A6FFF), Color(0xFF030E2A)],
+      title: ar ? 'صاروخ الانهيار' : 'Rocket Crash',
+      subtitle: ar ? 'اسحب قبل السقوط' : 'Cash out in time',
+      colors: const [Color(0xFF1A6FFF), Color(0xFF030E2A)],
       glowColor: const Color(0xFF1A6FFF),
-      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => RocketCrashWebviewScreen(isArabic: ar),
-      )),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => RocketCrashWebviewScreen(isArabic: ar),
+        ),
+      ),
     ),
     _GameData(
-      emoji:     '🏆',
+      emoji: '🏆',
       assetPath: 'assets/images/games/gold_ladder.webp',
-      title:     ar ? 'سلم الذهب'       : 'Gold Ladder',
-      subtitle:  ar ? 'جاوب واطلع فوق'  : 'Answer & climb',
-      colors:    const [Color(0xFF22C55E), Color(0xFF064E3B)],
+      title: ar ? 'سلم الذهب' : 'Gold Ladder',
+      subtitle: ar ? 'جاوب واطلع فوق' : 'Answer & climb',
+      colors: const [Color(0xFF22C55E), Color(0xFF064E3B)],
       glowColor: const Color(0xFF22C55E),
-      badge:     ar ? 'تحدي' : 'QUIZ',
-      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => GoldLadderQuizScreen(isArabic: ar),
-      )),
+      badge: ar ? 'تحدي' : 'QUIZ',
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => GoldLadderQuizScreen(isArabic: ar),
+        ),
+      ),
     ),
     _GameData(
-      emoji:     '🎰',
+      emoji: '🎰',
       assetPath: 'assets/images/games/srood_draw.webp',
-      title:     ar ? 'سرود درو'          : 'Srood Draw',
-      subtitle:  ar ? 'اشتري تذكرة واكسب' : 'Buy a ticket & win',
-      colors:    const [Color(0xFFEC4899), Color(0xFF831843)],
+      title: ar ? 'سرود درو' : 'Srood Draw',
+      subtitle: ar ? 'اشتري تذكرة واكسب' : 'Buy a ticket & win',
+      colors: const [Color(0xFFEC4899), Color(0xFF831843)],
       glowColor: const Color(0xFFEC4899),
-      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => SroodLotoScreen(isArabic: ar),
-      )),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => SroodLotoScreen(isArabic: ar)),
+      ),
     ),
     _GameData(
-      emoji:     '💎',
+      emoji: '💎',
       assetPath: 'assets/images/games/srood_treasure.webp',
-      title:     ar ? 'سرود تريجر'   : 'Srood Treasure',
-      subtitle:  ar ? 'اختار صندوقك' : 'Pick your box',
-      colors:    const [Color(0xFF06B6D4), Color(0xFF164E63)],
+      title: ar ? 'سرود تريجر' : 'Srood Treasure',
+      subtitle: ar ? 'اختار صندوقك' : 'Pick your box',
+      colors: const [Color(0xFF06B6D4), Color(0xFF164E63)],
       glowColor: const Color(0xFF06B6D4),
-      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => SroodTreasureScreen(isArabic: ar),
-      )),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => SroodTreasureScreen(isArabic: ar),
+        ),
+      ),
     ),
     _GameData(
-      emoji:     '🟪',
+      emoji: '⚽',
+      assetPath: null,
+      title: ar ? 'ماجيك سرود' : 'Magic Srood',
+      subtitle: ar ? 'اختر الفريق واكسب' : 'Pick & win',
+      colors: const [Color(0xFFFFCC00), Color(0xFF4A3000)],
+      glowColor: const Color(0xFFFFCC00),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => MagicSroodScreen(isArabic: ar)),
+      ),
+    ),
+    _GameData(
+      emoji: '🟪',
       assetPath: 'assets/images/games/srood_blocks.webp',
-      title:     ar ? 'سرود بلوكس'          : 'Srood Blocks',
-      subtitle:  ar ? 'رتّب البلوكس واكسب XP' : 'Stack & earn XP',
-      colors:    const [Color(0xFF8B5CF6), Color(0xFF2E1065)],
+      title: ar ? 'سرود بلوكس' : 'Srood Blocks',
+      subtitle: ar ? 'رتّب البلوكس واكسب XP' : 'Stack & earn XP',
+      colors: const [Color(0xFF8B5CF6), Color(0xFF2E1065)],
       glowColor: const Color(0xFF8B5CF6),
-      badge:     ar ? 'جديد' : 'NEW',
-      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => SroodBlocksScreen(isArabic: ar),
-      )),
+      badge: ar ? 'جديد' : 'NEW',
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => SroodBlocksScreen(isArabic: ar),
+        ),
+      ),
     ),
   ];
 }
@@ -205,14 +232,14 @@ class _GameData {
     this.assetPath,
   });
 
-  final String        emoji;
-  final String        title;
-  final String        subtitle;
-  final List<Color>   colors;
-  final Color         glowColor;
-  final VoidCallback  onTap;
-  final String?       badge;
-  final String?       assetPath;
+  final String emoji;
+  final String title;
+  final String subtitle;
+  final List<Color> colors;
+  final Color glowColor;
+  final VoidCallback onTap;
+  final String? badge;
+  final String? assetPath;
 }
 
 // ── Grid card ─────────────────────────────────────────────────────────────────
@@ -240,9 +267,7 @@ class _GameGridCard extends StatelessWidget {
                 data.colors[1].withValues(alpha: 0.35),
               ],
             ),
-            border: Border.all(
-              color: data.colors[0].withValues(alpha: 0.28),
-            ),
+            border: Border.all(color: data.colors[0].withValues(alpha: 0.28)),
             boxShadow: [
               BoxShadow(
                 color: data.glowColor.withValues(alpha: 0.12),
@@ -296,11 +321,16 @@ class _GameGridCard extends StatelessWidget {
                           ? Image.asset(
                               data.assetPath!,
                               fit: BoxFit.contain,
-                              errorBuilder: (context2, err, st) =>
-                                  Text(data.emoji, style: const TextStyle(fontSize: 26)),
+                              errorBuilder: (context2, err, st) => Text(
+                                data.emoji,
+                                style: const TextStyle(fontSize: 26),
+                              ),
                             )
                           : Center(
-                              child: Text(data.emoji, style: const TextStyle(fontSize: 26)),
+                              child: Text(
+                                data.emoji,
+                                style: const TextStyle(fontSize: 26),
+                              ),
                             ),
                     ),
 
@@ -310,7 +340,10 @@ class _GameGridCard extends StatelessWidget {
                     if (data.badge != null)
                       Container(
                         margin: const EdgeInsets.only(bottom: 5),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(30),
                           color: data.colors[0].withValues(alpha: 0.3),
@@ -367,7 +400,9 @@ class _GameGridCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(9),
                     color: Colors.white.withValues(alpha: 0.08),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.1),
+                    ),
                   ),
                   child: const Icon(
                     Icons.arrow_forward_rounded,

@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -12,6 +12,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../games/screens/crash_game_screen.dart';
 import '../../games/screens/gold_ladder_quiz_screen.dart';
 import '../../games/screens/hungry_cat_webview_screen.dart';
+import '../../games/screens/magic_srood_screen.dart';
 import '../../games/screens/spin_wheel_screen.dart';
 import '../../games/screens/srood_loto_screen.dart';
 import '../../games/screens/srood_treasure_screen.dart';
@@ -2868,6 +2869,13 @@ class _GameCenterSheet extends StatelessWidget {
         labelEn: 'Hungry Cat',
         accent: const Color(0xFF4ADE80),
         screen: HungryCatWebviewScreen(isArabic: isArabic),
+      ),
+      _GameEntry(
+        icon: Icons.sports_soccer_rounded,
+        labelAr: 'ماجيك سرود',
+        labelEn: 'Magic Srood',
+        accent: const Color(0xFFFFCC00),
+        screen: MagicSroodScreen(isArabic: isArabic),
       ),
       _GameEntry(
         icon: Icons.stairs_rounded,
