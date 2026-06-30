@@ -898,13 +898,9 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
       ? _items[i].foodId
       : _kDefaultItems[i % _kDefaultItems.length].id;
 
-  String _formatCoins(int v) {
-    if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
-    if (v >= 1000) {
-      return '${(v / 1000).toStringAsFixed(v % 1000 == 0 ? 0 : 1)}K';
-    }
-    return '$v';
-  }
+  // Delegates to the shared formatter so every coin label in the app is
+  // identical (avoids "1.0M" vs "1M" drift that the old inline version had).
+  String _formatCoins(int v) => formatCoinAmount(v);
 
   String _friendly(String e) {
     final rejection = magicSroodBetRejectionMessage(e, isArabic: false);
@@ -1605,7 +1601,7 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
         betAmount: betAmt,
         teamTotal: _teamTotals[itemId] ?? 0,
         isPrevWinner: isPrevWinner,
-        formatCoins: _formatCoins,
+        formatCoins: formatCoinAmount,
         isSpinning: isSpinning,
         isArabic: _ar,
         selectedTab: _selectedTab,
@@ -1706,16 +1702,11 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
                     ),
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
-                      child: Text(
-                        won
-                            ? '+${_formatCoins(_spinDelta!)} 🪙'
-                            : '-${_formatCoins(_totalBetAmount)} 🪙',
-                        maxLines: 1,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                          fontSize: _responsiveFont(13, 11),
-                        ),
+                      child: CoinAmountText(
+                        amount: won ? _spinDelta! : _totalBetAmount,
+                        prefix: won ? '+' : '-',
+                        fontSize: _responsiveFont(13, 11),
+                        color: Colors.white,
                       ),
                     ),
                   ),
@@ -2250,45 +2241,11 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
                 ),
               ),
               const SizedBox(height: 2),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 16,
-                    height: 16,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [Color(0xFFFFEE44), Color(0xFFCC8800)],
-                      ),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        '✕',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 8,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        _formatCoins(todayWin),
-                        maxLines: 1,
-                        style: TextStyle(
-                          color: todayWin > 0 ? _kGreenWin : Colors.white60,
-                          fontSize: _responsiveFont(15, 13),
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+              CoinAmountText(
+                amount: todayWin,
+                fontSize: _responsiveFont(15, 13),
+                iconSize: 16,
+                color: todayWin > 0 ? _kGreenWin : Colors.white60,
               ),
             ],
           ),
