@@ -20,13 +20,50 @@ class LiveKitRoomService {
   String? _lastRoomId;
   bool _lastMicEnabled = false;
 
+  // True while the room library is in its internal reconnect cycle.
+  // Outgoing sends are blocked until the cycle completes.
+  bool _isReconnecting = false;
+
+  // Mic state that was requested while the socket was not connected.
+  // Applied exactly once when the socket reaches ConnectionState.connected.
+  bool? _pendingMicEnabled;
+
   void Function(Set<String> speakingIdentities)? onSpeakersChanged;
+
+  /// Called once the socket reaches ConnectionState.connected — either on the
+  /// initial join or after a successful reconnect.  The room screen uses this
+  /// to trigger a single controlled resync of mic/music/seat state.
+  void Function()? onConnected;
 
   Room? get room => _room;
 
   bool get isConnected =>
-      _room != null &&
-      _room!.connectionState == ConnectionState.connected;
+      _room != null && _room!.connectionState == ConnectionState.connected;
+
+  bool get isReconnecting => _isReconnecting;
+
+  // ── Safe send helper ──────────────────────────────────────────────────────
+
+  /// Runs [action] only when the LiveKit socket is fully connected.
+  /// Logs and silently skips the call if the socket is not ready.
+  Future<void> runWhenConnected(
+    Future<void> Function() action, {
+    String label = 'LiveKit action',
+  }) async {
+    if (!isConnected) {
+      _log(
+        '[$label] skipped — socket not connected '
+        '(state=${_room?.connectionState})',
+      );
+      return;
+    }
+    try {
+      await action();
+    } catch (e, st) {
+      _log('[$label] failed: $e');
+      if (kDebugMode) debugPrintStack(stackTrace: st, label: label);
+    }
+  }
 
   Future<Room> connect({
     required String roomId,
@@ -38,9 +75,7 @@ class LiveKitRoomService {
     _lastRoomId = roomId;
     _lastMicEnabled = microphoneEnabled;
 
-    _log(
-      '[LiveKit] ${_ts()} token requested roomId=$roomId',
-    );
+    _log('[LiveKit] ${_ts()} token requested roomId=$roomId');
     final tokenResponse = await _tokenService.getToken(roomId: roomId);
     _log('[LiveKit] ${_ts()} token received - connecting...');
 
@@ -105,24 +140,50 @@ class LiveKitRoomService {
     }
   }
 
+  /// Applies and clears the pending mic state that was saved while the socket
+  /// was disconnected.  Must only be called when [isConnected] is already true.
+  Future<void> _applyPendingMicState() async {
+    final pending = _pendingMicEnabled;
+    if (pending == null) return;
+    _pendingMicEnabled = null;
+    _log(
+      '[LiveKitGuard] reconnect resync applied — applying pending mic=$pending',
+    );
+    await setMicrophoneEnabled(pending);
+  }
+
   void _setupEventListeners(Room room) {
     final listener = room.createListener();
     _listener = listener;
 
     listener
-      ..on<RoomConnectedEvent>((_) {
+      ..on<RoomConnectedEvent>((_) async {
+        _isReconnecting = false;
         _log('[LiveKit] ${_ts()} RoomConnectedEvent');
+        await _applyPendingMicState();
+        onConnected?.call();
+      })
+      ..on<RoomReconnectingEvent>((_) {
+        _isReconnecting = true;
+        _log(
+          '[LiveKit] ${_ts()} RoomReconnectingEvent — outgoing sends blocked',
+        );
+      })
+      ..on<RoomReconnectedEvent>((_) async {
+        _isReconnecting = false;
+        _log('[LiveKit] ${_ts()} RoomReconnectedEvent — sends unblocked');
+        await _applyPendingMicState();
+        onConnected?.call();
       })
       ..on<RoomDisconnectedEvent>((e) {
+        _isReconnecting = false;
         _log('[LiveKit] ${_ts()} RoomDisconnectedEvent reason=${e.reason}');
       })
       ..on<ParticipantConnectedEvent>((e) {
         _log('[LiveKit] ParticipantConnected id=${e.participant.identity}');
       })
       ..on<ParticipantDisconnectedEvent>((e) {
-        _log(
-          '[LiveKit] ParticipantDisconnected id=${e.participant.identity}',
-        );
+        _log('[LiveKit] ParticipantDisconnected id=${e.participant.identity}');
       })
       ..on<TrackPublishedEvent>((e) {
         _log(
@@ -175,9 +236,9 @@ class LiveKitRoomService {
       return devices.any((d) {
         final t = d.type.toString().toLowerCase();
         return t.contains('wired') ||
-               t.contains('bluetooth') ||
-               t.contains('headphone') ||
-               t.contains('headset');
+            t.contains('bluetooth') ||
+            t.contains('headphone') ||
+            t.contains('headset');
       });
     } catch (e) {
       _log('[LiveKit] headsetConnected check failed: $e');
@@ -240,6 +301,16 @@ class LiveKitRoomService {
   /// (Discord, Clubhouse, etc.).
   Future<void> setMicrophoneEnabled(bool enabled) async {
     _lastMicEnabled = enabled;
+    if (!isConnected) {
+      _pendingMicEnabled = enabled;
+      _log(
+        '[LiveKitGuard] mic skipped because socket not connected '
+        '(state=${_room?.connectionState}) — pending mic state saved: $enabled',
+      );
+      return;
+    }
+    // Consume any stale pending state now that we are actually sending.
+    _pendingMicEnabled = null;
     final t0 = DateTime.now().millisecondsSinceEpoch;
     final pub = _localAudioPub;
 
@@ -251,12 +322,18 @@ class LiveKitRoomService {
       } else {
         await pub.mute(stopOnMute: false);
       }
-      _log('[MicUX] fast-mute done in ${DateTime.now().millisecondsSinceEpoch - t0}ms');
+      _log(
+        '[MicUX] fast-mute done in ${DateTime.now().millisecondsSinceEpoch - t0}ms',
+      );
     } else if (enabled) {
       // ── Slow path: first publish ──────────────────────────────────────────
-      _log('[MicUX] setMicrophoneEnabled($enabled) path=first-publish ts=${_ts()}');
+      _log(
+        '[MicUX] setMicrophoneEnabled($enabled) path=first-publish ts=${_ts()}',
+      );
       await _room?.localParticipant?.setMicrophoneEnabled(true);
-      _log('[MicUX] first-publish done in ${DateTime.now().millisecondsSinceEpoch - t0}ms');
+      _log(
+        '[MicUX] first-publish done in ${DateTime.now().millisecondsSinceEpoch - t0}ms',
+      );
     }
     // enabled=false with no existing pub → already silent, no-op.
   }
@@ -269,6 +346,10 @@ class LiveKitRoomService {
   /// keeping every subsequent toggle on the fast path.
   Future<void> prewarmAudioTrack() async {
     if (_room == null) return;
+    if (!isConnected) {
+      _log('[MicUX] pre-warm skipped — not connected');
+      return;
+    }
     if (hasPublishedAudioTrack) {
       _log('[MicUX] pre-warm skipped — track already published');
       return;
@@ -282,11 +363,15 @@ class LiveKitRoomService {
       final pub = _localAudioPub;
       if (pub != null) {
         await pub.mute(stopOnMute: false);
-        _log('[MicUX] pre-warm done in ${DateTime.now().millisecondsSinceEpoch - t0}ms — hardware alive, track muted');
+        _log(
+          '[MicUX] pre-warm done in ${DateTime.now().millisecondsSinceEpoch - t0}ms — hardware alive, track muted',
+        );
       } else {
         // Fallback: pub not found, disable normally (slower future toggle).
         await _room!.localParticipant?.setMicrophoneEnabled(false);
-        _log('[MicUX] pre-warm fallback done in ${DateTime.now().millisecondsSinceEpoch - t0}ms');
+        _log(
+          '[MicUX] pre-warm fallback done in ${DateTime.now().millisecondsSinceEpoch - t0}ms',
+        );
       }
     } catch (e) {
       _log('[MicUX] pre-warm failed: $e');
@@ -294,6 +379,9 @@ class LiveKitRoomService {
   }
 
   Future<void> disconnect({bool invalidateToken = true}) async {
+    onConnected = null;
+    _isReconnecting = false;
+    _pendingMicEnabled = null;
     await _audioDevicesSub?.cancel();
     _audioDevicesSub = null;
     _listener?.dispose();
