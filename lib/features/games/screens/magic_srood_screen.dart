@@ -109,7 +109,6 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
   Map<String, int> _teamTotals = {};
   bool _followPrevious = false;
   int _selectedTab = 0; // 0=My Bets, 1=All Users, 2=Popularity
-  int _difficulty = 0; // 0=Normal, 1=Advanced, 2=Master
   String? _prevWinnerId;
 
   // Slot-machine display for last round results
@@ -882,6 +881,16 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
     return 'x$v';
   }
 
+  String _rarityAt(int i) {
+    if (i < _items.length) return _items[i].rarity;
+    final multiplier = _kDefaultItems[i % _kDefaultItems.length].mult;
+    if (multiplier >= 100) return 'legendary';
+    if (multiplier >= 30) return 'epic';
+    if (multiplier >= 10) return 'rare';
+    if (multiplier >= 3) return 'uncommon';
+    return 'common';
+  }
+
   String _idAt(int i) => i < _items.length
       ? _items[i].foodId
       : _kDefaultItems[i % _kDefaultItems.length].id;
@@ -1114,7 +1123,7 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
                   if (_phase == _Phase.loading || _phase == _Phase.error)
                     Expanded(child: _buildMainArena())
                   else ...[
-                    _buildModeSelector(),
+                    _buildGameActions(),
                     _buildRoundLabel(),
                     Expanded(child: _buildMainArena()),
                     _buildHistoryStrip(),
@@ -1275,14 +1284,9 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
     );
   }
 
-  // ── Mode selector ─────────────────────────────────────────────────────────────
-
-  Widget _buildModeSelector() {
-    final tabs = _ar
-        ? ['عادي', 'متقدم', 'ماستر ♟']
-        : ['Normal', 'Advanced', 'Master ♟'];
+  Widget _buildGameActions() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 5, 10, 0),
+      padding: const EdgeInsets.fromLTRB(10, 3, 10, 0),
       child: Row(
         children: [
           _mkBtn(
@@ -1292,63 +1296,7 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
               _sounds.muted = _globalMuted;
             }),
           ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Container(
-              height: 36,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                color: const Color(0xFF2A1800),
-                border: Border.all(color: _kGoldDark.withValues(alpha: 0.6)),
-              ),
-              child: Row(
-                children: List.generate(tabs.length, (i) {
-                  final sel = i == _difficulty;
-                  return Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _difficulty = i),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        margin: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          gradient: sel
-                              ? const LinearGradient(
-                                  colors: [
-                                    Color(0xFFCC9900),
-                                    Color(0xFF8A6400),
-                                  ],
-                                )
-                              : null,
-                          boxShadow: sel
-                              ? [
-                                  BoxShadow(
-                                    color: _kGold.withValues(alpha: 0.3),
-                                    blurRadius: 8,
-                                  ),
-                                ]
-                              : [],
-                        ),
-                        child: Center(
-                          child: Text(
-                            tabs[i],
-                            style: TextStyle(
-                              color: sel ? Colors.white : _kTextDim,
-                              fontSize: 11,
-                              fontWeight: sel
-                                  ? FontWeight.w900
-                                  : FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
+          const Spacer(),
           _mkBtn(Icons.more_vert_rounded, () {}),
         ],
       ),
@@ -1631,15 +1579,15 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
             : (isActive && isSpinning ? 1.06 : 1.0),
         child: child,
       ),
-      child: _TeamBadge(
+      child: _MagicCountryBadgeCard(
         icon: _iconAt(index),
         name: _nameAt(index),
         multLabel: _multLabelAt(index),
-        width: double.infinity,
-        height: double.infinity,
+        rarity: _rarityAt(index),
         isActive: isActive,
         isWinner: isWinner,
         isSelected: isSelected,
+        isDisabled: !canTap && !isSpinning && !isWinner,
         isBusy: isBusy,
         betAmount: betAmt,
         teamTotal: _teamTotals[itemId] ?? 0,
@@ -2518,6 +2466,413 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
 
 // ── Team badge widget ─────────────────────────────────────────────────────────
 
+class _MagicCountryBadgeCard extends StatelessWidget {
+  const _MagicCountryBadgeCard({
+    required this.icon,
+    required this.name,
+    required this.multLabel,
+    required this.rarity,
+    required this.isActive,
+    required this.isWinner,
+    required this.isSelected,
+    required this.isDisabled,
+    required this.isBusy,
+    required this.betAmount,
+    required this.teamTotal,
+    required this.isPrevWinner,
+    required this.formatCoins,
+    required this.isSpinning,
+    required this.isArabic,
+  });
+
+  final String icon, name, multLabel, rarity;
+  final bool isActive,
+      isWinner,
+      isSelected,
+      isDisabled,
+      isBusy,
+      isPrevWinner,
+      isSpinning,
+      isArabic;
+  final int betAmount, teamTotal;
+  final String Function(int) formatCoins;
+
+  int get _stars {
+    switch (rarity.toLowerCase()) {
+      case 'legendary':
+        return 5;
+      case 'epic':
+        return 4;
+      case 'rare':
+        return 3;
+      case 'uncommon':
+        return 2;
+    }
+    final value = double.tryParse(multLabel.replaceFirst('x', '')) ?? 1;
+    if (value >= 100) return 5;
+    if (value >= 30) return 4;
+    if (value >= 10) return 3;
+    if (value >= 3) return 2;
+    return 1;
+  }
+
+  Color get _rarityColor {
+    switch (rarity.toLowerCase()) {
+      case 'legendary':
+        return const Color(0xFF55EEFF);
+      case 'epic':
+        return const Color(0xFFFF8A35);
+      case 'rare':
+        return const Color(0xFF399CFF);
+      case 'uncommon':
+        return const Color(0xFF45E6A1);
+      default:
+        return _kGold;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasExposure = betAmount > 0 || teamTotal > 0;
+    final spotlight = isActive && isSpinning;
+    final accent = isWinner
+        ? _kGreenWin
+        : isSelected
+        ? _kBlueGlow
+        : spotlight
+        ? _kGoldLight
+        : _rarityColor;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact =
+            constraints.maxWidth < 108 || constraints.maxHeight < 96;
+        final radius = compact ? 11.0 : 15.0;
+        return AnimatedOpacity(
+          duration: const Duration(milliseconds: 160),
+          opacity: isDisabled ? 0.58 : 1,
+          child: Column(
+            children: [
+              Expanded(
+                child: Center(
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(radius),
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Color(0xFFFFC52F),
+                            Color(0xFFD88708),
+                            Color(0xFF6E3400),
+                          ],
+                          stops: [0, 0.52, 1],
+                        ),
+                        border: Border.all(
+                          color: accent,
+                          width: isSelected || isWinner || spotlight ? 3 : 2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: accent.withValues(
+                              alpha: isSelected || isWinner || _stars >= 4
+                                  ? 0.62
+                                  : 0.24,
+                            ),
+                            blurRadius: compact ? 8 : 14,
+                            spreadRadius: isSelected || isWinner ? 1.5 : 0,
+                          ),
+                          const BoxShadow(
+                            color: Color(0x99000000),
+                            blurRadius: 5,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(radius - 2),
+                        child: Stack(
+                          children: [
+                            const Positioned.fill(
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Color(0x12FFFFFF),
+                                      Color(0x22000000),
+                                      Color(0x66000000),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              left: -8,
+                              top: -9,
+                              child: Transform.rotate(
+                                angle: -0.55,
+                                child: Container(
+                                  width: compact ? 34 : 46,
+                                  height: compact ? 14 : 18,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(20),
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Colors.white.withValues(alpha: 0),
+                                        Colors.white.withValues(alpha: 0.5),
+                                        Colors.white.withValues(alpha: 0),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              top: compact ? 3 : 5,
+                              left: 5,
+                              right: 5,
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  List.generate(_stars, (_) => '★').join(),
+                                  maxLines: 1,
+                                  style: TextStyle(
+                                    color: _kCream,
+                                    fontSize: compact ? 8 : 11,
+                                    height: 1,
+                                    shadows: const [
+                                      Shadow(
+                                        color: Color(0xFF5B2500),
+                                        blurRadius: 3,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Positioned.fill(
+                              top: compact ? 13 : 18,
+                              bottom: compact ? 15 : 20,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Flexible(
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Container(
+                                        width: compact ? 34 : 50,
+                                        height: compact ? 34 : 50,
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          gradient: const RadialGradient(
+                                            colors: [
+                                              Color(0xFFFFF7CF),
+                                              Color(0xFFDCA52B),
+                                              Color(0xFF6A3500),
+                                            ],
+                                          ),
+                                          border: Border.all(
+                                            color: _kCream,
+                                            width: compact ? 1.5 : 2,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: accent.withValues(
+                                                alpha: 0.5,
+                                              ),
+                                              blurRadius: compact ? 5 : 10,
+                                            ),
+                                          ],
+                                        ),
+                                        child: Text(
+                                          icon,
+                                          style: TextStyle(
+                                            fontSize: compact ? 19 : 28,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(height: compact ? 1 : 3),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                    ),
+                                    child: Text(
+                                      name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: compact ? 7.5 : 10,
+                                        fontWeight: FontWeight.w900,
+                                        shadows: const [
+                                          Shadow(
+                                            color: Colors.black,
+                                            blurRadius: 3,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Positioned(
+                              right: compact ? 3 : 5,
+                              bottom: compact ? 2 : 4,
+                              child: Text(
+                                multLabel,
+                                maxLines: 1,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: compact ? 10 : 15,
+                                  fontWeight: FontWeight.w900,
+                                  shadows: const [
+                                    Shadow(
+                                      color: Color(0xFF190800),
+                                      offset: Offset(1, 1),
+                                      blurRadius: 1,
+                                    ),
+                                    Shadow(
+                                      color: Color(0xFF190800),
+                                      offset: Offset(-1, -1),
+                                      blurRadius: 1,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            if (isPrevWinner || isWinner)
+                              Positioned(
+                                left: 3,
+                                bottom: 2,
+                                child: Icon(
+                                  isWinner
+                                      ? Icons.workspace_premium_rounded
+                                      : Icons.emoji_events_rounded,
+                                  color: isWinner ? _kGreenWin : _kGoldLight,
+                                  size: compact ? 11 : 15,
+                                ),
+                              ),
+                            if (isBusy)
+                              Positioned.fill(
+                                child: ColoredBox(
+                                  color: const Color(0x77000000),
+                                  child: Center(
+                                    child: SizedBox.square(
+                                      dimension: compact ? 17 : 22,
+                                      child: const CircularProgressIndicator(
+                                        color: _kGoldLight,
+                                        strokeWidth: 2.5,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              if (hasExposure) ...[
+                const SizedBox(height: 2),
+                SizedBox(
+                  height: compact ? 15 : 19,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (betAmount > 0)
+                        Flexible(
+                          child: _CountryBetPill(
+                            icon: Icons.person_rounded,
+                            amount: formatCoins(betAmount),
+                            color: _kBlueGlow,
+                            compact: compact,
+                          ),
+                        ),
+                      if (betAmount > 0 && teamTotal > 0)
+                        SizedBox(width: compact ? 2 : 3),
+                      if (teamTotal > 0)
+                        Flexible(
+                          child: _CountryBetPill(
+                            icon: Icons.groups_rounded,
+                            amount: formatCoins(teamTotal),
+                            color: _kGold,
+                            compact: compact,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CountryBetPill extends StatelessWidget {
+  const _CountryBetPill({
+    required this.icon,
+    required this.amount,
+    required this.color,
+    required this.compact,
+  });
+
+  final IconData icon;
+  final String amount;
+  final Color color;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 72),
+      padding: EdgeInsets.symmetric(horizontal: compact ? 3 : 5),
+      decoration: BoxDecoration(
+        color: const Color(0xCC160B02),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.72)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: color, size: compact ? 8 : 11),
+          SizedBox(width: compact ? 1 : 2),
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                amount,
+                maxLines: 1,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: compact ? 7 : 9,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ignore: unused_element
 class _TeamBadge extends StatelessWidget {
   const _TeamBadge({
     required this.icon,
