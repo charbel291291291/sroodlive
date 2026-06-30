@@ -854,13 +854,6 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
     });
   }
 
-  void _skipToNextRound() {
-    _autoAdvanceTimer?.cancel();
-    _progressCtrl.stop();
-    HapticFeedback.lightImpact();
-    _loadNextRound();
-  }
-
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
   String _iconAt(int i) => i < _items.length
@@ -1400,9 +1393,9 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
   // ── Main arena ────────────────────────────────────────────────────────────────
   //
   // Layout matches the reference screenshot:
-  //   Row 1 (flex 22): [Brazil 6]          [France 7]
+  //   Row 1 (flex 22): [Brazil 6]          [Argentina 3]
   //   Row 2 (flex 34): [Germany 4] [CENTER] [England 5]
-  //                    [Portugal 2][CENTER] [Argentina 3]
+  //                    [Portugal 2][CENTER] [France 7]
   //   Row 3 (flex 22): [Spain 0]            [Italy 1]
 
   Widget _buildMainArena() {
@@ -1440,7 +1433,7 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
                     children: [
                       Expanded(child: _countryCard(6)), // Brazil
                       const SizedBox(width: 6),
-                      Expanded(child: _countryCard(7)), // France
+                      Expanded(child: _countryCard(3)), // Argentina
                     ],
                   ),
                 ),
@@ -1466,14 +1459,14 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
                     // Center panel
                     Expanded(flex: 44, child: _buildCenterPanel()),
                     const SizedBox(width: 5),
-                    // Right: England (top) + Argentina (bottom)
+                    // Right: England (top) + France (bottom)
                     Expanded(
                       flex: 28,
                       child: Column(
                         children: [
                           Expanded(child: _countryCard(5)), // England
                           const SizedBox(height: 5),
-                          Expanded(child: _countryCard(3)), // Argentina
+                          Expanded(child: _countryCard(7)), // France
                         ],
                       ),
                     ),
@@ -1521,7 +1514,6 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
   Widget _buildCenterPanel() {
     final betting = _phase == _Phase.betting;
     final spinning = _phase == _Phase.spinning;
-    final settled = _phase == _Phase.settled;
     final urgent = betting && _secsLeft <= 10;
     const totalSecs = 30.0;
     final timerProg = betting ? (_secsLeft / totalSecs).clamp(0.0, 1.0) : 0.0;
@@ -1530,7 +1522,6 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
         : spinning
         ? _kGoldLight
         : _kGold;
-    final prizePool = _teamTotals.values.fold(0, (s, v) => s + v);
 
     return Container(
       decoration: BoxDecoration(
@@ -1551,291 +1542,61 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(14),
-        child: Column(
-          children: [
-            // ── Timer ring + status ─────────────────────────────────────────
-            Expanded(
-              flex: 32,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 6, 8, 4),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final diameter = (constraints.biggest.shortestSide * 0.72).clamp(
+              58.0,
+              104.0,
+            );
+            return Center(
+              child: SizedBox.square(
+                dimension: diameter,
+                child: Stack(
+                  alignment: Alignment.center,
                   children: [
-                    SizedBox(
-                      width: 44,
-                      height: 44,
-                      child: Stack(
-                        alignment: Alignment.center,
+                    SizedBox.expand(
+                      child: CircularProgressIndicator(
+                        value: spinning ? null : timerProg,
+                        strokeWidth: 4,
+                        strokeCap: StrokeCap.round,
+                        backgroundColor: Colors.white10,
+                        valueColor: AlwaysStoppedAnimation<Color>(accent),
+                      ),
+                    ),
+                    AnimatedBuilder(
+                      animation: _breathAnim,
+                      builder: (_, child) => Transform.scale(
+                        scale: urgent ? _breathAnim.value : 1.0,
+                        child: child,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          SizedBox.expand(
-                            child: CircularProgressIndicator(
-                              value: 1.0,
-                              strokeWidth: 3,
-                              color: Colors.white10,
-                            ),
-                          ),
-                          SizedBox.expand(
-                            child: AnimatedBuilder(
-                              animation: _breathAnim,
-                              builder: (_, child) => Transform.scale(
-                                scale: urgent ? _breathAnim.value : 1.0,
-                                child: CircularProgressIndicator(
-                                  value: spinning ? null : timerProg,
-                                  strokeWidth: 3,
-                                  strokeCap: StrokeCap.round,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    accent,
-                                  ),
-                                ),
-                              ),
-                            ),
+                          Icon(
+                            Icons.sports_soccer_rounded,
+                            color: accent,
+                            size: diameter * 0.34,
                           ),
                           if (betting)
                             Text(
                               '$_secsLeft',
+                              maxLines: 1,
                               style: TextStyle(
                                 color: accent,
-                                fontSize: 14,
+                                fontSize: diameter * 0.21,
                                 fontWeight: FontWeight.w900,
                               ),
-                            )
-                          else if (spinning)
-                            Icon(
-                              Icons.sports_soccer_rounded,
-                              color: _kGold,
-                              size: 18,
-                            )
-                          else if (settled)
-                            const Icon(
-                              Icons.check_circle_rounded,
-                              color: _kGreenWin,
-                              size: 18,
                             ),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            betting
-                                ? (_ar ? 'وقت الاختيار' : 'Select Time')
-                                : spinning
-                                ? (_ar ? 'جارٍ الدوران' : 'Spinning…')
-                                : settled
-                                ? (_ar ? 'انتهت' : 'Settled')
-                                : '',
-                            style: TextStyle(
-                              color: accent,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w900,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (prizePool > 0)
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Text('🪙', style: TextStyle(fontSize: 9)),
-                                const SizedBox(width: 2),
-                                Flexible(
-                                  child: Text(
-                                    _formatCoins(prizePool),
-                                    style: const TextStyle(
-                                      color: _kGoldLight,
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                        ],
-                      ),
-                    ),
-                    // Skip next button (settled state)
-                    if (settled) ...[
-                      const SizedBox(width: 4),
-                      GestureDetector(
-                        onTap: _skipToNextRound,
-                        child: AnimatedBuilder(
-                          animation: _progressCtrl,
-                          builder: (context, child) => SizedBox(
-                            width: 30,
-                            height: 30,
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                SizedBox.expand(
-                                  child: CircularProgressIndicator(
-                                    value: _progressCtrl.value,
-                                    strokeWidth: 2.5,
-                                    backgroundColor: Colors.white12,
-                                    valueColor:
-                                        const AlwaysStoppedAnimation<Color>(
-                                          _kGold,
-                                        ),
-                                  ),
-                                ),
-                                const Icon(
-                                  Icons.skip_next_rounded,
-                                  color: _kGold,
-                                  size: 13,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
-            ),
-
-            // ── Split Prize Pool banner ─────────────────────────────────────
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 3),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF7A3000), Color(0xFF3A1400)],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-              ),
-              child: Text(
-                _ar ? 'تقسيم الجائزة' : 'Split Prize Pool',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: _kGoldLight,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-
-            // ── Slot display ────────────────────────────────────────────────
-            Expanded(
-              flex: 30,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(5, 5, 5, 4),
-                child: _buildSlotDisplay(),
-              ),
-            ),
-
-            // ── Last Round's Results button ─────────────────────────────────
-            GestureDetector(
-              onTap: () {},
-              child: Container(
-                width: double.infinity,
-                margin: const EdgeInsets.fromLTRB(5, 0, 5, 5),
-                padding: const EdgeInsets.symmetric(vertical: 5),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF1A6600), Color(0xFF0E3A00)],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  ),
-                  border: Border.all(color: _kGreenWin.withValues(alpha: 0.55)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _kGreenWin.withValues(alpha: 0.15),
-                      blurRadius: 8,
-                    ),
-                  ],
-                ),
-                child: Text(
-                  _ar ? 'نتائج الجولة الأخيرة' : "Last Round's Results",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: _kGreenWin,
-                    fontSize: 8,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-          ],
+            );
+          },
         ),
       ),
-    );
-  }
-
-  // ── Slot display ──────────────────────────────────────────────────────────────
-
-  Widget _buildSlotDisplay() {
-    return LayoutBuilder(
-      builder: (_, cs) {
-        final totalW = cs.maxWidth.isInfinite ? 120.0 : cs.maxWidth;
-        final fontSize = (totalW / 6 * 0.58).clamp(10.0, 20.0);
-        return Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            color: const Color(0xFF0D0600),
-            border: Border.all(color: _kGoldDark.withValues(alpha: 0.9)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.5),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.all(2),
-          child: Row(
-            children: List.generate(6, (i) {
-              final digit = _slotNums[i];
-              final isBlank = digit == '?' || digit.trim().isEmpty;
-              return Expanded(
-                child: Container(
-                  margin: const EdgeInsets.all(1),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(4),
-                    gradient: LinearGradient(
-                      colors: isBlank
-                          ? [const Color(0xFF2A1A00), const Color(0xFF1A0A00)]
-                          : [const Color(0xFF6A3A00), const Color(0xFF3A1E00)],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                    border: Border.all(
-                      color: isBlank
-                          ? _kGoldDim.withValues(alpha: 0.3)
-                          : _kGoldDark.withValues(alpha: 0.8),
-                    ),
-                  ),
-                  child: AspectRatio(
-                    aspectRatio: 0.75,
-                    child: Center(
-                      child: Text(
-                        isBlank ? '?' : digit,
-                        style: TextStyle(
-                          color: isBlank ? _kGoldDim : _kGoldLight,
-                          fontSize: fontSize,
-                          fontWeight: FontWeight.w900,
-                          shadows: isBlank
-                              ? []
-                              : const [
-                                  Shadow(color: _kGoldDark, blurRadius: 8),
-                                ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
-        );
-      },
     );
   }
 
