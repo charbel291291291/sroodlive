@@ -1,3 +1,5 @@
+import 'package:srood_live/shared/utils/error_utils.dart';
+
 import '../../../core/constants/coin_constants.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../models/recharge_package.dart';
@@ -74,7 +76,8 @@ class WalletService {
       if (packages.isNotEmpty) {
         return packages;
       }
-    } catch (_) {
+    } catch (e, st) {
+      debugError('WalletService.fetchRechargePackages', e, st);
       // The app can run before the latest economy migration is applied.
     }
 
@@ -123,7 +126,8 @@ class WalletService {
         );
 
         return data.toString();
-      } catch (_) {
+      } catch (e, st) {
+        debugError('WalletService.createRechargeRequest', e, st);
         // Fall back to the legacy request RPC until the new RPC is deployed.
       }
     }

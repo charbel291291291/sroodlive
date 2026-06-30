@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:srood_live/shared/utils/error_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/supabase/supabase_service.dart';
@@ -103,7 +104,8 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
           .maybeSingle();
       if (!mounted) return;
       setState(() { _coins = data?['coins_balance'] as int? ?? 0; _loadingWallet = false; });
-    } catch (_) {
+    } catch (e, st) {
+      debugError('SpinWheelScreen._loadWallet', e, st);
       if (mounted) setState(() => _loadingWallet = false);
     }
   }
@@ -123,7 +125,8 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
       if (targetIndex < 0) targetIndex = 0;
       _animateTo(targetIndex);
       setState(() { _coins = newBalance; _lastPrizeIndex = targetIndex; });
-    } catch (_) {
+    } catch (e, st) {
+      debugError('SpinWheelScreen._spin', e, st);
       final targetIndex = _localSpin();
       _animateTo(targetIndex);
       setState(() { _coins -= _kSpinCost; _lastPrizeIndex = targetIndex; });

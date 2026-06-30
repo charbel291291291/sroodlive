@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:srood_live/shared/utils/error_utils.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -87,7 +88,8 @@ class _GoldLadderQuizScreenState extends State<GoldLadderQuizScreen> {
     Map<String, dynamic> msg;
     try {
       msg = jsonDecode(raw) as Map<String, dynamic>;
-    } catch (_) {
+    } catch (e, st) {
+      debugError('GoldLadderQuizScreen._onWebMessage', e, st);
       return;
     }
 

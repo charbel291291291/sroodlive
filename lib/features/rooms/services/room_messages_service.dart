@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../../moderation/services/moderation_service.dart';
 
@@ -128,7 +129,8 @@ class RoomMessagesService {
           .toList()
           .reversed
           .toList();
-    } catch (_) {
+    } catch (e, st) {
+      debugError('RoomMessagesService.fetchRecent', e, st);
       return [];
     }
   }

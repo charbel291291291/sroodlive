@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 
 import '../../shared/widgets/premium_ui.dart';
 import 'daily_reward_models.dart';
@@ -94,7 +95,9 @@ class _DailyRewardPopupState extends State<DailyRewardPopup> {
       try {
         final fresh = await const DailyRewardService().getState();
         if (mounted) setState(() => _state = fresh);
-      } catch (_) {}
+      } catch (e, st) {
+        debugError('DailyRewardPopup._claim', e, st);
+      }
     } catch (e) {
       if (!mounted) return;
       final raw = e.toString();

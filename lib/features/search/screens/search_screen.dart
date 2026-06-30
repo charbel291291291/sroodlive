@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../../profile/screens/user_profile_screen.dart';
 import '../../rooms/models/room.dart';
@@ -136,7 +137,8 @@ class _SearchScreenState extends State<SearchScreen>
         _results = [...users, ...rooms];
         _isSearching = false;
       });
-    } catch (_) {
+    } catch (e, st) {
+      debugError('SearchScreen._search', e, st);
       if (!mounted) return;
       setState(() => _isSearching = false);
     }

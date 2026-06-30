@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import '../../core/supabase/supabase_service.dart';
 import '../home/home_screen.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
@@ -113,7 +114,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         MaterialPageRoute<void>(builder: (_) => const HomeScreen()),
         (_) => false,
       );
-    } catch (_) {
+    } catch (e, st) {
+      debugError('ProfileSetupScreen._saveProfile', e, st);
       if (!mounted) return;
       setState(() => _isLoading = false);
     }

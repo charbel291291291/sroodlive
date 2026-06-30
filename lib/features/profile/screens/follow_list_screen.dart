@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../services/follow_service.dart';
 import 'user_profile_screen.dart';
@@ -56,7 +57,8 @@ class _FollowListScreenState extends State<FollowListScreen> {
         _users = users;
         _isLoading = false;
       });
-    } catch (_) {
+    } catch (e, st) {
+      debugError('FollowListScreen._load', e, st);
       if (!mounted) return;
       setState(() {
         _isLoading = false;
@@ -76,8 +78,8 @@ class _FollowListScreenState extends State<FollowListScreen> {
       }
       if (!mounted) return;
       setState(() => user.viewerFollows = !user.viewerFollows);
-    } catch (_) {
-      // leave state unchanged on failure
+    } catch (e, st) {
+      debugError('FollowListScreen._toggleFollow', e, st);
     }
     if (!mounted) return;
     setState(() => _pending.remove(user.id));

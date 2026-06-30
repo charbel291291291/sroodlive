@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import 'package:srood_live/shared/widgets/srood_toast.dart';
 import '../../../core/supabase/supabase_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
@@ -175,7 +176,9 @@ class _RoomScheduleScreenState extends State<RoomScheduleScreen> {
       if (!mounted) return;
       SroodToast.show(context, context.isArabic ? 'تم تسجيل التذكير' : 'Reminder set!', type: SroodToastType.success);
       _load();
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('_RoomScheduleScreenState._rsvp', e, st);
+    }
   }
 
   Future<void> _delete(String scheduleId) async {
@@ -185,7 +188,9 @@ class _RoomScheduleScreenState extends State<RoomScheduleScreen> {
           .delete()
           .eq('id', scheduleId);
       _load();
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('_RoomScheduleScreenState._delete', e, st);
+    }
   }
 
   @override

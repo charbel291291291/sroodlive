@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:srood_live/shared/utils/error_utils.dart';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -958,8 +959,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         );
         return;
       }
-    } catch (_) {
-      // Non-fatal — let the server enforce uniqueness if the check fails.
+    } catch (e, st) {
+      debugError('AdminDashboard._setGoldenId uniqueness check', e, st);
     }
 
     // ── Save ───────────────────────────────────────────────────────────────
@@ -1217,7 +1218,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             .map((r) => _ModEvent.fromJson(r as Map<String, dynamic>))
             .toList();
       });
-    } catch (_) {
+    } catch (e, st) {
+      debugError('AdminDashboard._loadModEvents', e, st);
     } finally {
       if (mounted) setState(() => _modEventsLoading = false);
     }
@@ -7508,7 +7510,8 @@ class _ReportTileState extends State<_ReportTile> {
     try {
       final rows = await _adminService.fetchReportEvidence(widget.report.id);
       if (mounted) setState(() { _evidence = rows; _evidenceLoading = false; });
-    } catch (_) {
+    } catch (e, st) {
+      debugError('AdminDashboard._loadEvidence', e, st);
       if (mounted) setState(() { _evidence = const []; _evidenceLoading = false; });
     }
   }
@@ -8322,7 +8325,8 @@ class _StartupPromoEditDialogState extends State<_StartupPromoEditDialog> {
           filename: picked.name,
           contentType: contentType,
         );
-      } catch (_) {
+      } catch (e, st) {
+        debugError('AdminDashboard._uploadPromoImage primary', e, st);
         url = await widget.adminService.uploadAdminAsset(
           bytes: bytes,
           filename: picked.name,

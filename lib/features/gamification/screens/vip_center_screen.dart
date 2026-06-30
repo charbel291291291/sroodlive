@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import 'package:flutter/services.dart';
 import 'package:srood_live/shared/widgets/srood_toast.dart';
 
@@ -134,7 +135,8 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
       final vip = await VipService().getMyVip();
       if (!mounted) return;
       setState(() => _userVip = vip);
-    } catch (_) {
+    } catch (e, st) {
+      debugError('VipCenterScreen._loadData', e, st);
       // _userVip stays null; progress section shows empty-state gracefully.
     }
   }
@@ -147,7 +149,8 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
         _adminRole = role;
         _adminLoading = false;
       });
-    } catch (_) {
+    } catch (e, st) {
+      debugError('VipCenterScreen._loadAdminRole', e, st);
       if (!mounted) return;
       setState(() => _adminLoading = false);
     }

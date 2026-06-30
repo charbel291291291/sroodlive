@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'package:srood_live/shared/utils/error_utils.dart';
 
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 import '../../../core/supabase/supabase_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
@@ -97,7 +99,8 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
         _viewerCount = (countRow as List).length;
         _loading = false;
       });
-    } catch (_) {
+    } catch (e, st) {
+      debugError('HostControlsScreen._load', e, st);
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -112,7 +115,8 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
         'set_room_muted',
         params: {'p_room_id': widget.roomId, 'p_is_muted': next},
       );
-    } catch (_) {
+    } catch (e, st) {
+      debugError('HostControlsScreen._muteAll', e, st);
       if (mounted) setState(() => _allMuted = !next); // rollback on error
     }
   }
@@ -126,7 +130,9 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
           .eq('room_id', widget.roomId)
           .eq('user_id', seat.userId);
       await _load();
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('HostControlsScreen._toggleSeatMute', e, st);
+    }
   }
 
   Future<void> _kickUser(_Seat seat) async {
@@ -169,7 +175,10 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
         params: {'p_room_id': widget.roomId, 'p_user_id': seat.userId},
       );
       await _load();
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('HostControlsScreen._kickUser', e, st);
+      if (mounted) SroodToast.show(context, friendlyMessage(e), type: SroodToastType.error);
+    }
   }
 
   Future<void> _endSession() async {
@@ -214,7 +223,9 @@ class _HostControlsScreenState extends State<HostControlsScreen> {
             'ended_at': DateTime.now().toIso8601String(),
           })
           .eq('id', widget.roomId);
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('HostControlsScreen._endSession', e, st);
+    }
     if (mounted) Navigator.of(context).pop();
   }
 

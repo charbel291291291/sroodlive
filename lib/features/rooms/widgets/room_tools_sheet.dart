@@ -1,5 +1,6 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:math' as math;
+import 'package:srood_live/shared/utils/error_utils.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1130,7 +1131,8 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
       if (!mounted) return;
       SroodToast.show(context, 'Background updated', type: SroodToastType.success);
       Navigator.of(context).pop();
-    } catch (_) {
+    } catch (e, st) {
+      debugError('_BackgroundSheetState._uploadImage', e, st);
       if (!mounted) return;
       setState(() => _uploading = false);
       SroodToast.show(context, 'Failed to upload image', type: SroodToastType.error);
@@ -1174,7 +1176,8 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
       await _mgmt.updateRoom(widget.roomId, clearBackground: true);
       widget.onBackgroundChanged?.call(null);
       if (mounted) Navigator.of(context).pop();
-    } catch (_) {
+    } catch (e, st) {
+      debugError('_BackgroundSheetState._removeBackground', e, st);
       if (mounted) setState(() => _uploading = false);
     }
   }
@@ -1458,7 +1461,9 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
       await _sfxPlayer?.setAsset(asset);
       await _sfxPlayer?.seek(Duration.zero);
       unawaited(_sfxPlayer?.play());
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('_LuckyBagSheetState._playSfx', e, st);
+    }
   }
 
   List<int> get _coinPresets =>

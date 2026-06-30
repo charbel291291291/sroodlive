@@ -149,17 +149,13 @@ class _ToastCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: const Color(0xFF16052E),
-        borderRadius: BorderRadius.circular(14),
-        border: Border(
-          left: BorderSide(color: accent, width: 3),
-          top:    BorderSide(color: accent.withValues(alpha: 0.18), width: 0.5),
-          right:  BorderSide(color: accent.withValues(alpha: 0.10), width: 0.5),
-          bottom: BorderSide(color: accent.withValues(alpha: 0.10), width: 0.5),
-        ),
+        border: Border.all(color: accent.withValues(alpha: 0.18), width: 0.5),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.55),
@@ -172,26 +168,39 @@ class _ToastCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Stack(
         children: [
-          Icon(icon, color: accent, size: 20),
-          const SizedBox(width: 10),
-          Flexible(
-            child: Text(
-              message,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13.5,
-                fontWeight: FontWeight.w500,
-                decoration: TextDecoration.none,
-                height: 1.35,
-              ),
+          // Left accent bar
+          Positioned(
+            left: 0, top: 0, bottom: 0,
+            child: Container(width: 3, color: accent),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Icon(icon, color: accent, size: 20),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Text(
+                    message,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w500,
+                      decoration: TextDecoration.none,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
+    ),
     );
   }
 }

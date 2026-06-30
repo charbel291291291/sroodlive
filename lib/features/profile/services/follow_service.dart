@@ -1,3 +1,5 @@
+import 'package:srood_live/shared/utils/error_utils.dart';
+
 import '../../../core/supabase/supabase_service.dart';
 import '../../vip/services/vip_privilege_service.dart';
 
@@ -23,7 +25,8 @@ class FollowService {
           .maybeSingle();
 
       return data != null;
-    } catch (_) {
+    } catch (e, st) {
+      debugError('FollowService.isFollowing', e, st);
       return false;
     }
   }
@@ -84,7 +87,8 @@ class FollowService {
           .eq('following_id', user.id)
           .maybeSingle();
       return data != null;
-    } catch (_) {
+    } catch (e, st) {
+      debugError('FollowService.isFollowedBy', e, st);
       return false;
     }
   }
@@ -109,7 +113,8 @@ class FollowService {
           .eq('following_id', user.id)
           .maybeSingle();
       return themFollowsMe != null;
-    } catch (_) {
+    } catch (e, st) {
+      debugError('FollowService.isMutualFollow', e, st);
       return false;
     }
   }
@@ -138,7 +143,8 @@ class FollowService {
           .count()
           .eq('following_id', userId)
           .inFilter('follower_id', followingIds.toList());
-    } catch (_) {
+    } catch (e, st) {
+      debugError('FollowService.friendsCount', e, st);
       return 0;
     }
   }
@@ -153,7 +159,8 @@ class FollowService {
           .select('follower_id')
           .eq(column, value);
       return (rows as List).length;
-    } catch (_) {
+    } catch (e, st) {
+      debugError('FollowService._safeCount', e, st);
       return 0;
     }
   }

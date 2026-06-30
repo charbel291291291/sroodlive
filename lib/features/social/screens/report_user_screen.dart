@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import '../../../core/supabase/supabase_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
@@ -112,7 +113,8 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
       });
       if (!mounted) return;
       setState(() => _submitted = true);
-    } catch (_) {
+    } catch (e, st) {
+      debugError('ReportUserScreen._submit', e, st);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

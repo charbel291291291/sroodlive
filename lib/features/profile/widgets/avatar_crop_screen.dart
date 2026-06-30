@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -58,7 +59,8 @@ class _AvatarCropScreenState extends State<AvatarCropScreen> {
       final bytes = byteData.buffer.asUint8List();
       if (!mounted) return;
       Navigator.of(context).pop<Uint8List>(bytes);
-    } catch (_) {
+    } catch (e, st) {
+      debugError('AvatarCropScreen._save', e, st);
       if (!mounted) return;
       setState(() => _saving = false);
       SroodToast.show(context, widget.isArabic ? 'تعذّر قص الصورة. حاول مرة أخرى.' : 'Could not crop the image. Please try again.', type: SroodToastType.error);

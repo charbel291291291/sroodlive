@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 
@@ -140,7 +141,8 @@ class _SplashScreenState extends State<SplashScreen> {
       }
 
       _resolveNav(_NavTarget.home);
-    } catch (_) {
+    } catch (e, st) {
+      debugError('SplashScreen._init', e, st);
       _resolveNav(_NavTarget.onboarding);
     }
   }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import 'package:srood_live/shared/widgets/skeleton_loader.dart';
-import 'package:srood_live/shared/widgets/srood_toast.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../../profile/screens/user_profile_screen.dart';
 import '../../gifts/screens/gift_history_screen.dart';
@@ -144,7 +144,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         _isLoading = false;
       });
     } catch (e, st) {
-      debugError('_NotificationsScreenState._load', e, st);
+      debugError('NotificationsScreen._loadNotifications', e, st);
       if (!mounted) return;
       setState(() => _isLoading = false);
     }
@@ -187,8 +187,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             .toList();
       });
     } catch (e, st) {
-      debugError('_NotificationsScreenState._markAllRead', e, st);
-      if (context.mounted) SroodToast.error(context, e);
+      debugError('NotificationsScreen._markAllRead', e, st);
     }
   }
 
@@ -199,7 +198,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           .update({'is_read': true})
           .eq('id', id);
     } catch (e, st) {
-      debugError('_NotificationsScreenState._markRead', e, st);
+      debugError('NotificationsScreen._markRead', e, st);
     }
   }
 
@@ -248,7 +247,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ),
       );
     } catch (e, st) {
-      debugError('_NotificationsScreenState._openRoom', e, st);
+      debugError('NotificationsScreen._openRoom', e, st);
     }
   }
 

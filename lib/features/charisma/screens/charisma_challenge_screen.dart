@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:srood_live/shared/utils/error_utils.dart';
 
 import 'package:flutter/material.dart';
 import 'package:srood_live/shared/widgets/srood_toast.dart';
@@ -75,7 +76,9 @@ class _CharismaChallengeScreenState extends State<CharismaChallengeScreen> {
         setState(() => _isAdmin =
             list.any((r) => ['super_admin', 'admin'].contains(r)));
       }
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('CharismaChallengeScreen._checkAdmin', e, st);
+    }
   }
 
   Future<void> _load({bool silent = false}) async {
@@ -107,7 +110,8 @@ class _CharismaChallengeScreenState extends State<CharismaChallengeScreen> {
         _boards[challengeId]      = board;
         _boardLoading[challengeId] = false;
       });
-    } catch (_) {
+    } catch (e, st) {
+      debugError('CharismaChallengeScreen._loadBoard', e, st);
       if (mounted) setState(() => _boardLoading[challengeId] = false);
     }
   }

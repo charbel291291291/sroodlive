@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:srood_live/shared/utils/error_utils.dart';
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -65,7 +66,9 @@ class _RoomsScreenState extends State<RoomsScreen> {
         activeCounts = await _roomsService.getActiveMemberCounts(
           rooms.map((r) => r.id).toList(),
         );
-      } catch (_) {}
+      } catch (e, st) {
+        debugError('RoomsScreen._loadRooms activeCounts', e, st);
+      }
 
       if (!mounted) return;
       setState(() {
@@ -177,8 +180,8 @@ class _RoomsScreenState extends State<RoomsScreen> {
           }
         }
       }
-    } catch (_) {
-      // On error, open with VIP0 — better than crashing.
+    } catch (e, st) {
+      debugError('RoomsScreen._openRoom', e, st);
     }
     if (!mounted) return;
     await Navigator.of(context).push(
@@ -875,7 +878,7 @@ class _SlideData {
       if (h == null || h.isEmpty) return fb;
       try {
         return Color(int.parse(h.length == 6 ? 'FF$h' : h, radix: 16));
-      } catch (_) {
+      } catch (e) {
         return fb;
       }
     }
@@ -1029,8 +1032,8 @@ class _RoomsHeroBannerState extends State<_RoomsHeroBanner> {
           unawaited(precacheImage(NetworkImage(url), context));
         }
       }
-    } catch (_) {
-      // silently fall back to hardcoded slides
+    } catch (e, st) {
+      debugError('RoomsScreen._loadPromoSlides', e, st);
     }
   }
 

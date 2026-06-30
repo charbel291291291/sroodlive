@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:srood_live/shared/utils/error_utils.dart';
 
 import 'package:flutter/material.dart';
 import 'package:srood_live/shared/widgets/srood_toast.dart';
@@ -116,7 +117,9 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
   Future<void> _loadStats() async {
     try {
       _stats = await _svc.getRoomStats(_roomId);
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('_RoomOwnerManagementScreenState._loadStats', e, st);
+    }
   }
 
   Future<void> _loadMembers() async {
@@ -137,19 +140,25 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
             },
           )
           .toList();
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('_RoomOwnerManagementScreenState._loadMembers', e, st);
+    }
   }
 
   Future<void> _loadModerators() async {
     try {
       _moderators = await _svc.getModerators(_roomId);
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('_RoomOwnerManagementScreenState._loadModerators', e, st);
+    }
   }
 
   Future<void> _loadBans() async {
     try {
       _bans = await _svc.getBans(_roomId);
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('_RoomOwnerManagementScreenState._loadBans', e, st);
+    }
   }
 
   Future<void> _loadAnnouncement() async {
@@ -158,19 +167,25 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
       if (_activeAnnouncement != null) {
         _announcementCtrl.text = _activeAnnouncement!.message;
       }
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('_RoomOwnerManagementScreenState._loadAnnouncement', e, st);
+    }
   }
 
   Future<void> _loadSchedules() async {
     try {
       _schedules = await _svc.getRoomSchedules(_roomId);
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('_RoomOwnerManagementScreenState._loadSchedules', e, st);
+    }
   }
 
   Future<void> _loadGiftSummary() async {
     try {
       _giftSummary = await _svc.getGiftSummary(_roomId);
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('_RoomOwnerManagementScreenState._loadGiftSummary', e, st);
+    }
   }
 
   // ── Actions ──────────────────────────────────────────────────────────────

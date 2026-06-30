@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -142,7 +143,8 @@ class _SroodBlocksScreenState extends State<SroodBlocksScreen> {
     try {
       final lb = await SroodBlocksService.getWeeklyLeaderboard();
       if (mounted) setState(() { _leaderboard = lb; _loadingLeaderboard = false; });
-    } catch (_) {
+    } catch (e, st) {
+      debugError('SroodBlocksScreen._loadLeaderboard', e, st);
       if (mounted) setState(() => _loadingLeaderboard = false);
     }
   }
@@ -822,7 +824,8 @@ class _BlocksGameState extends State<_BlocksGameScreen> {
       if (mounted) {
         _showGameOverDialog(result);
       }
-    } catch (_) {
+    } catch (e, st) {
+      debugError('SroodBlocksScreen._endGame', e, st);
       if (mounted) _showGameOverDialog(null);
     }
   }

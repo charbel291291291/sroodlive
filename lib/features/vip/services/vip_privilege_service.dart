@@ -1,3 +1,5 @@
+import 'package:srood_live/shared/utils/error_utils.dart';
+
 import '../../../core/supabase/supabase_service.dart';
 import '../../../core/vip/vip_privileges.dart';
 import '../../rooms/utils/vip_room_features.dart';
@@ -55,7 +57,8 @@ class VipPrivilegeService {
         for (final p in VipPrivilege.values)
           p: (row[p.columnName] as bool?) ?? false,
       };
-    } catch (_) {
+    } catch (e, st) {
+      debugError('VipPrivilegeService.loadSettings', e, st);
       return {for (final p in VipPrivilege.values) p: false};
     }
   }
@@ -133,7 +136,8 @@ class VipPrivilegeService {
           .eq('user_id', userId)
           .maybeSingle();
       return (row?[privilege.columnName] as bool?) ?? false;
-    } catch (_) {
+    } catch (e, st) {
+      debugError('VipPrivilegeService._isPrivilegeActiveForUser', e, st);
       return false;
     }
   }
@@ -167,7 +171,8 @@ Future<int> currentUserEffectiveVipLevel() async {
       vipLevel: level,
       vipExpiresAt: expiresAt,
     );
-  } catch (_) {
+  } catch (e, st) {
+    debugError('currentUserEffectiveVipLevel', e, st);
     return 0;
   }
 }

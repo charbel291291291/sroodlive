@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:srood_live/shared/utils/error_utils.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -190,7 +191,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (frames.isEmpty) {
           frames = _fallbackAvatarFrames;
         }
-      } catch (_) {
+      } catch (e, st) {
+        debugError('ProfileScreen._loadFrames', e, st);
         frames = _fallbackAvatarFrames;
       }
 
@@ -295,7 +297,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<UserWallet> _safeEnsureWallet(String userId) async {
     try {
       return await _walletService.ensureWallet();
-    } catch (_) {
+    } catch (e, st) {
+      debugError('ProfileScreen._safeEnsureWallet', e, st);
       return UserWallet.empty(userId);
     }
   }
@@ -306,7 +309,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .from('gift_transactions')
           .count()
           .eq('receiver_id', userId);
-    } catch (_) {
+    } catch (e, st) {
+      debugError('ProfileScreen._safeGiftCount', e, st);
       return 0;
     }
   }

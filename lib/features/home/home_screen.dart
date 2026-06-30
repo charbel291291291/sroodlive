@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 
 import '../../core/update/app_update_dialog.dart';
 import '../../core/update/app_update_service.dart';
@@ -61,8 +62,8 @@ class _HomeScreenState extends State<HomeScreen> {
       final isArabic =
           AppLanguageController.of(context).locale.languageCode == 'ar';
       await showDailyRewardDialog(context, state: state, isArabic: isArabic);
-    } catch (_) {
-      // Daily reward is non-critical; never block the home screen.
+    } catch (e, st) {
+      debugError('HomeScreen._maybeTriggerDailyReward', e, st);
     }
   }
 

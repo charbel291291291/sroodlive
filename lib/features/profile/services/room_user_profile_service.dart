@@ -1,3 +1,5 @@
+import 'package:srood_live/shared/utils/error_utils.dart';
+
 import '../../../core/config/supabase_config.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../../wealth/services/wealth_service.dart';
@@ -33,7 +35,9 @@ class RoomUserProfileService {
       final w = await _wealthService.getUserWealth(userId);
       wealthLevel = w.wealthLevel;
       wealthTierNumber = w.tierNumber;
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('RoomUserProfileService.fetchUserProfile', e, st);
+    }
 
     // Fetch charm level via RPC (non-fatal - defaults to 1).
     int charmLevel = 1;
@@ -50,7 +54,9 @@ class RoomUserProfileService {
           charmLevel = v.toInt();
         }
       }
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('RoomUserProfileService.fetchUserProfile', e, st);
+    }
 
     return RoomUserProfile(
       userId: userId,
@@ -137,7 +143,8 @@ class RoomUserProfileService {
           count: 1,
         );
       }).toList();
-    } catch (_) {
+    } catch (e, st) {
+      debugError('RoomUserProfileService.fetchGiftWall', e, st);
       return const [];
     }
   }
@@ -154,7 +161,8 @@ class RoomUserProfileService {
           .eq(column, value);
 
       return response;
-    } catch (_) {
+    } catch (e, st) {
+      debugError('RoomUserProfileService._safeCount', e, st);
       return 0;
     }
   }

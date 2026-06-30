@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:srood_live/shared/utils/error_utils.dart';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -68,7 +69,8 @@ class _RoomSettingsSheetState extends State<RoomSettingsSheet> {
           _loadingAnnouncement = false;
         });
       }
-    } catch (_) {
+    } catch (e, st) {
+      debugError('_RoomSettingsSheetState._loadAnnouncement', e, st);
       if (mounted) setState(() => _loadingAnnouncement = false);
     }
   }

@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
@@ -104,7 +105,8 @@ class RoomsService {
       return (data as List<dynamic>)
           .map((item) => RoomMember.fromJson(item as Map<String, dynamic>))
           .toList();
-    } catch (_) {
+    } catch (e, st) {
+      debugError('RoomsService.getAllRoomMembers', e, st);
       final data = await client
           .from('room_members')
           .select()
@@ -134,7 +136,8 @@ class RoomsService {
       return (data as List<dynamic>)
           .map((item) => RoomMember.fromJson(item as Map<String, dynamic>))
           .toList();
-    } catch (_) {
+    } catch (e, st) {
+      debugError('RoomsService.getActiveRoomMembers', e, st);
       try {
         final data = await client
             .from('room_members')
@@ -149,7 +152,8 @@ class RoomsService {
         return (data as List<dynamic>)
             .map((item) => RoomMember.fromJson(item as Map<String, dynamic>))
             .toList();
-      } catch (_) {
+      } catch (e2, st2) {
+        debugError('RoomsService.getActiveRoomMembers', e2, st2);
         final data = await client
             .from('room_members')
             .select()
@@ -212,7 +216,9 @@ class RoomsService {
             .maybeSingle();
         final raw = profile?['country_code']?.toString().trim().toUpperCase();
         if (raw != null && raw.isNotEmpty) resolvedCode = raw;
-      } catch (_) {}
+      } catch (e, st) {
+        debugError('RoomsService.createRoom', e, st);
+      }
     }
 
     final inserted = await client.from('rooms').insert({
@@ -545,7 +551,8 @@ class RoomsService {
       await client.rpc('leave_room_and_maybe_close', params: {
         'p_room_id': roomId,
       });
-    } catch (_) {
+    } catch (e, st) {
+      debugError('RoomsService.leaveRoom', e, st);
       // Fallback to direct update if the RPC isn't deployed yet.
       final now = DateTime.now().toUtc().toIso8601String();
       await client
@@ -587,7 +594,9 @@ class RoomsService {
   Future<void> closeEmptyRooms() async {
     try {
       await SupabaseService.requiredClient.rpc('close_empty_rooms');
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('RoomsService.closeEmptyRooms', e, st);
+    }
   }
 
   // ── Room appearance (cover + avatar images) ─────────────────────────────

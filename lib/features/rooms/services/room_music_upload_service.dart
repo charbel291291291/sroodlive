@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
@@ -133,12 +134,40 @@ class RoomMusicUploadService {
 
   // ── Add a track from a URL (paste link) ───────────────────────────────────
 
+  static const _allowedExtensions = {'mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac'};
+
+  /// Returns null if [url] is a valid audio URL, or an error message otherwise.
+  String? validateUrl(String url) {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return 'URL is empty';
+    final uri = Uri.tryParse(trimmed);
+    if (uri == null || !uri.hasScheme || !uri.hasAuthority) return 'Invalid URL format';
+    if (uri.scheme != 'http' && uri.scheme != 'https') return 'URL must start with http or https';
+    final segments = uri.pathSegments;
+    if (segments.isNotEmpty) {
+      final last = segments.last;
+      final dotIdx = last.lastIndexOf('.');
+      if (dotIdx != -1) {
+        final ext = last.substring(dotIdx + 1).toLowerCase().split('?').first;
+        if (ext.isNotEmpty && ext.length <= 5 && !_allowedExtensions.contains(ext)) {
+          return 'Unsupported audio format: .$ext';
+        }
+      }
+    }
+    return null;
+  }
+
   Future<RoomSong?> addTrackFromUrl(
     String roomId, {
     required String url,
     required String title,
     String? artist,
   }) async {
+    final urlError = validateUrl(url.trim());
+    if (urlError != null) {
+      if (kDebugMode) debugPrint('[MusicUpload] addTrackFromUrl rejected: $urlError  url=$url');
+      return null;
+    }
     try {
       final result = await _db.rpc(
         'add_room_music_track',
@@ -177,7 +206,8 @@ class RoomMusicUploadService {
     if (path == null) return null;
     try {
       return File(path).readAsBytesSync();
-    } catch (_) {
+    } catch (e, st) {
+      debugError('RoomMusicUploadService._getBytes', e, st);
       return null;
     }
   }

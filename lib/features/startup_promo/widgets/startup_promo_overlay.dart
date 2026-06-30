@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 
 import '../models/startup_promo.dart';
 import '../services/startup_promo_service.dart';
@@ -31,9 +32,8 @@ class StartupPromoController {
     try {
       await precacheImage(NetworkImage(promo.imageUrl), context);
       debugPrint('[PerfStartupPromo] image precached in ${DateTime.now().millisecondsSinceEpoch - t0}ms');
-    } catch (_) {
-      // Continue even if precache fails — errorBuilder handles bad images.
-      debugPrint('[PerfStartupPromo] precache failed, showing anyway');
+    } catch (e, st) {
+      debugError('StartupPromoOverlay._load', e, st);
     }
 
     if (!context.mounted) return;

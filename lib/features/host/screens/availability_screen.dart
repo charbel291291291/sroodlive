@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import '../../../core/supabase/supabase_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 import 'package:srood_live/shared/widgets/srood_toast.dart';
@@ -96,7 +97,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
           );
         }
       }
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('AvailabilityScreen._load', e, st);
+    }
 
     if (!mounted) return;
     setState(() => _isLoading = false);

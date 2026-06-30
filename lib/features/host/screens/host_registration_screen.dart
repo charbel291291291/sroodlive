@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import 'package:srood_live/shared/widgets/srood_toast.dart';
 import '../../../core/supabase/supabase_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
@@ -56,10 +57,13 @@ class _HostRegistrationScreenState extends State<HostRegistrationScreen> {
       if (data != null) {
         setState(() => _existingStatus = data['status'] as String?);
       }
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('HostRegistrationScreen._checkExisting', e, st);
+    }
   }
 
   Future<void> _submit() async {
+    FocusScope.of(context).unfocus();
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _isLoading = true);
     try {

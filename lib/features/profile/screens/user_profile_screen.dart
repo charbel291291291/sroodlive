@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../../../shared/widgets/vip_badge.dart';
 import '../../../shared/widgets/vip_username.dart';
@@ -121,7 +122,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             ? _followers + 1
             : (_followers - 1).clamp(0, 1 << 31);
       });
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('UserProfileScreen._toggleFollow', e, st);
+    }
     if (mounted) setState(() => _followBusy = false);
   }
 

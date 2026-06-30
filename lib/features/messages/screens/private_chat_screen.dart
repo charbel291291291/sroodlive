@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:srood_live/shared/utils/error_utils.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -127,7 +128,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     try {
       cid = await _service.getOrCreateConversation(widget.targetUserId);
       debugPrint('[MessagesProfile] conversationId=$cid');
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('PrivateChatScreen._load', e, st);
+    }
 
     if (cid == null) {
       if (mounted) {
@@ -213,6 +216,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // ---------------------------------------------------------------------------
 
   Future<void> _send() async {
+    FocusScope.of(context).unfocus();
     final body = _controller.text.trim();
     if (body.isEmpty || _sending) return;
     setState(() => _sending = true);

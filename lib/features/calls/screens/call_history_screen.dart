@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import '../../../core/supabase/supabase_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
@@ -102,7 +103,8 @@ class _CallHistoryScreenState extends State<CallHistoryScreen>
         _calls = calls;
         _isLoading = false;
       });
-    } catch (_) {
+    } catch (e, st) {
+      debugError('CallHistoryScreen._load', e, st);
       if (!mounted) return;
       setState(() => _isLoading = false);
     }

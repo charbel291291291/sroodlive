@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../shared/theme/vip_tier_colors.dart';
@@ -56,7 +57,8 @@ class _BackpackScreenState extends State<BackpackScreen> {
                 expiresAt == null || expiresAt.isBefore(DateTime.now());
             _userVipLevel = expired ? 0 : level;
           }
-        } catch (_) {
+        } catch (e, st) {
+          debugError('BackpackScreen._loadVipLevel', e, st);
           _userVipLevel = 0;
         }
       }
@@ -177,8 +179,13 @@ class _BackpackScreenState extends State<BackpackScreen> {
           final count = _loading ? null : _count(c.$1);
           return Padding(
             padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () => setState(() => _filter = c.$1),
+            child: Semantics(
+              label: c.$2,
+              button: true,
+              enabled: true,
+              selected: selected,
+              child: GestureDetector(
+                onTap: () => setState(() => _filter = c.$1),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
                 padding: const EdgeInsets.symmetric(
@@ -236,6 +243,7 @@ class _BackpackScreenState extends State<BackpackScreen> {
                     ],
                   ],
                 ),
+              ),
               ),
             ),
           );
@@ -473,25 +481,30 @@ class _GoToStoreButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => StoreScreen(isArabic: isArabic)),
-      ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF6B2FD4), Color(0xFF9B4DFF)],
-          ),
-          borderRadius: BorderRadius.circular(999),
+    return Semantics(
+      label: isArabic ? 'الذهاب إلى المتجر' : 'Go to Store',
+      button: true,
+      enabled: true,
+      child: GestureDetector(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => StoreScreen(isArabic: isArabic)),
         ),
-        child: Text(
-          isArabic ? 'الذهاب إلى المتجر' : 'Go to Store',
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w900,
-            fontSize: 14,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF6B2FD4), Color(0xFF9B4DFF)],
+            ),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            isArabic ? 'الذهاب إلى المتجر' : 'Go to Store',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 14,
+            ),
           ),
         ),
       ),

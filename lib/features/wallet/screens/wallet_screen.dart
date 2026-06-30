@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 import '../models/recharge_package.dart';
@@ -91,7 +92,8 @@ class _WalletScreenState extends State<WalletScreen> {
         _activityLoading = false;
       });
       debugPrint('[PerfWallet] recent activity loaded in ${DateTime.now().millisecondsSinceEpoch - t0}ms count=${txs.length}');
-    } catch (_) {
+    } catch (e, st) {
+      debugError('WalletScreen._loadRecentActivity', e, st);
       if (!mounted) return;
       setState(() => _activityLoading = false);
     }
@@ -107,7 +109,8 @@ class _WalletScreenState extends State<WalletScreen> {
         _pendingLoading = false;
       });
       debugPrint('[PerfWallet] pending requests loaded in ${DateTime.now().millisecondsSinceEpoch - t0}ms count=${pending.length}');
-    } catch (_) {
+    } catch (e, st) {
+      debugError('WalletScreen._loadPendingRequests', e, st);
       if (!mounted) return;
       setState(() => _pendingLoading = false);
     }

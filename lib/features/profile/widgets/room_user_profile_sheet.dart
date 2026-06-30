@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import 'package:flutter/services.dart';
 import 'package:srood_live/shared/widgets/srood_toast.dart';
 
@@ -134,7 +135,8 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
         _giftWall = wall;
         _loading = false;
       });
-    } catch (_) {
+    } catch (e, st) {
+      debugError('RoomUserProfileSheet._load', e, st);
       if (!mounted) return;
       setState(() {
         _error = '';
@@ -188,7 +190,8 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
     try {
       await _service.createReminder(widget.userId);
       _snack(isArabic ? 'تم حفظ التذكير' : 'Reminder saved', type: SroodToastType.success);
-    } catch (_) {
+    } catch (e, st) {
+      debugError('RoomUserProfileSheet._createReminder', e, st);
       _snack(isArabic ? 'تم حفظ التذكير' : 'Reminder saved', type: SroodToastType.success);
     } finally {
       if (mounted) setState(() => _reminderBusy = false);

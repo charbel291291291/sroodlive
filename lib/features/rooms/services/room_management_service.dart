@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
@@ -146,7 +147,8 @@ class RoomManagementService {
       mods = (data as List<dynamic>)
           .map((e) => RoomModerator.fromJson(e as Map<String, dynamic>))
           .toList();
-    } catch (_) {
+    } catch (e, st) {
+      debugError('RoomManagementService.getModerators', e, st);
       final data = await client
           .from('room_moderators')
           .select()

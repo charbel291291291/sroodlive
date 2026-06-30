@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:srood_live/shared/utils/error_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
@@ -114,7 +115,8 @@ class VipService {
           result[uid] = vip;
         }
       }
-    } catch (_) {
+    } catch (e, st) {
+      debugError('VipService.getUsersVip', e, st);
       for (final id in missing) {
         result[id] = UserVip.none(id);
       }
@@ -166,7 +168,8 @@ class VipService {
           UserVip.fromJson(Map<String, dynamic>.from(raw as Map));
       _cache[userId] = vip;
       return vip;
-    } catch (_) {
+    } catch (e, st) {
+      debugError('VipService.refreshUserVip', e, st);
       return _cache[userId]; // return stale cache on error
     }
   }
@@ -184,7 +187,8 @@ class VipService {
           .map((r) => VipLevelMeta.fromJson(Map<String, dynamic>.from(r as Map)))
           .toList();
       return _levelsCache!;
-    } catch (_) {
+    } catch (e, st) {
+      debugError('VipService.getVipLevels', e, st);
       return [];
     }
   }
@@ -293,7 +297,8 @@ class VipService {
       _cache[uid] = vip;
       _myVipController.add(vip);
       return vip;
-    } catch (_) {
+    } catch (e, st) {
+      debugError('VipService._refreshMyVipFromServer', e, st);
       return _cache[uid];
     }
   }

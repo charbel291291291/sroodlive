@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 import '../../../core/constants/coin_constants.dart';
@@ -80,7 +81,9 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
       if (rows.isEmpty || !mounted) return;
       final row = rows.first as Map<String, dynamic>;
       setState(() => _hasAgency = row['has_agency'] == true);
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('WithdrawalScreen._checkAgency', e, st);
+    }
   }
 
   @override
@@ -106,10 +109,13 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
             ? _minDiamonds
             : _availableDiamonds;
       });
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('WithdrawalScreen._loadDiamonds', e, st);
+    }
   }
 
   Future<void> _submit() async {
+    FocusScope.of(context).unfocus();
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     setState(() => _isLoading = true);

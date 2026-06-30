@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import 'package:just_audio/just_audio.dart';
 import 'dart:math' as math;
 
@@ -93,6 +94,11 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   late final RoomSyncedMusicService _syncedMusic;
   final RoomMusicUploadService _uploadService = const RoomMusicUploadService();
 
+  // Shared one-shot SFX player for lucky-bag appear sound.
+  // A single persistent player avoids creating a new ExoPlayer pipeline on
+  // every appearance event, which was pushing the pipeline count above 6.
+  AudioPlayer? _sfxPlayer;
+
   Set<String> _speakingUserIds = {};
 
   bool _leaving = false;
@@ -125,6 +131,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   Timer? _heartbeatTimer;
   Timer? _membersRefreshTimer;
   Timer? _membersDebounceTimer;
+  // Debounce timer for post-reconnect resync — prevents duplicate
+  // _syncMicConnectionWithSeat calls when RoomConnectedEvent and
+  // RoomReconnectedEvent fire in quick succession.
+  Timer? _reconnectDebounce;
   Timer? _giftBannerTimer;
   Timer? _giftFeedCleanupTimer;
   Timer? _vipEntryBannerTimer;
@@ -398,16 +408,43 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     _dailyStreak = widget.room.dailyStreak;
     _streakMultiplier = widget.room.streakMultiplier;
 
+    // Wire the onConnected callback once.  Both RoomConnectedEvent and
+    // RoomReconnectedEvent fire this, so we debounce 150 ms to collapse any
+    // rapid double-fire into a single controlled resync.
+    _liveKitRoomService.onConnected = () {
+      if (!mounted) return;
+      _roomLog('[VoiceLifecycle] onConnected fired');
+      _connectedAudio = true;
+      _setAudioState(connecting: false, connected: true);
+      _reconnectDebounce?.cancel();
+      _reconnectDebounce = Timer(const Duration(milliseconds: 150), () {
+        if (!mounted || !_liveKitRoomService.isConnected) {
+          _roomLog('[LiveKitGuard] reconnect resync skipped, already applied or unmounted');
+          return;
+        }
+        _roomLog('[LiveKitGuard] reconnect resync applied');
+        unawaited(_syncMicConnectionWithSeat());
+      });
+    };
+
     if (_isRestoring) {
-      // Already in a live session — foreground service already running,
-      // LiveKit already connected. Just re-wire the speakers callback and
-      // mark audio as connected so the UI reflects the correct state.
+      // Already in a live session — foreground service already running.
+      // Only mark audio as connected when the socket is actually in the
+      // connected state.  If it is mid-reconnect, leave _connectedAudio false
+      // so _syncMicConnectionWithSeat does not fire against a broken socket;
+      // onConnected will flip the flag and trigger resync once the socket is ready.
       _liveKitRoomService.onSpeakersChanged = (ids) {
         if (mounted) setState(() => _speakingUserIds = ids);
       };
-      _connectedAudio = true;
-      _setAudioState(connecting: false, connected: true);
-      _roomLog('[RoomMinimize] restore — audio state marked connected, skipping early connect');
+      final restoredConnected = _liveKitRoomService.isConnected;
+      _connectedAudio = restoredConnected;
+      _setAudioState(connecting: !restoredConnected, connected: restoredConnected);
+      if (restoredConnected) {
+        _roomLog('[RoomMinimize] restore — socket confirmed connected');
+      } else {
+        _roomLog('[RoomMinimize] restore — socket reconnecting, '
+            'waiting for onConnected before mic sync');
+      }
     } else {
       // Fresh entry — start foreground service and connect LiveKit.
       unawaited(VoiceRoomForegroundService.start());
@@ -549,8 +586,15 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     if (mounted) _setAudioState(connecting: true);
     try {
       await _liveKitRoomService.reconnectIfNeeded();
-      if (mounted) _setAudioState(connected: _liveKitRoomService.isConnected);
-      await _syncMicConnectionWithSeat();
+      final nowConnected = _liveKitRoomService.isConnected;
+      if (mounted) _setAudioState(connected: nowConnected);
+      if (nowConnected) {
+        // Only push mic/seat state once the socket is confirmed ready.
+        await _syncMicConnectionWithSeat();
+      } else {
+        _roomLog('[Room] reconnect completed but socket not yet connected — '
+            'skipping mic sync (onConnected will fire when ready)');
+      }
       // Re-sync XP/level after reconnect — Realtime may have missed events.
       unawaited(_refreshRoomXpStats());
     } catch (e) {
@@ -630,6 +674,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     _heartbeatTimer?.cancel();
     _membersRefreshTimer?.cancel();
     _membersDebounceTimer?.cancel();
+    _reconnectDebounce?.cancel();
     _audioStateNotifier.dispose();
     _giftBannerNotifier.dispose();
     _vipBannerNotifier.dispose();
@@ -684,6 +729,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     if (rec != null) unawaited(SupabaseService.requiredClient.removeChannel(rec));
     final wc = _walletChannel;
     if (wc != null) unawaited(SupabaseService.requiredClient.removeChannel(wc));
+    _sfxPlayer?.dispose();
+    debugPrint('[RoomDetails] sfxPlayer disposed');
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -714,15 +761,14 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
 
   Future<void> _playLuckyBagAppearSound() async {
-    final player = AudioPlayer(handleInterruptions: false);
     try {
-      await player.setAsset('assets/sounds/lucky_bag_open.mp3');
-      await player.play();
-      await player.processingStateStream
-          .firstWhere((s) => s == ProcessingState.completed);
-    } catch (_) {
-    } finally {
-      await player.dispose();
+      _sfxPlayer ??= AudioPlayer(handleInterruptions: false);
+      debugPrint('[RoomDetails] sfxPlayer: setAsset lucky_bag_open');
+      await _sfxPlayer!.setAsset('assets/sounds/lucky_bag_open.mp3');
+      debugPrint('[RoomDetails] sfxPlayer: play');
+      unawaited(_sfxPlayer!.play());
+    } catch (e, st) {
+      debugError('_RoomDetailsScreenState._playLuckyBagAppearSound', e, st);
     }
   }
 
@@ -979,7 +1025,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     if (pk == null || !pk.isActive) return;
     try {
       await _pkService.finishPk(pk.id);
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('_RoomDetailsScreenState._handlePkAutoFinish', e, st);
+    }
   }
 
   Future<void> _handlePkCancelRequested() async {
@@ -987,7 +1035,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     if (pk == null) return;
     try {
       await _pkService.cancelPk(pk.id);
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('_RoomDetailsScreenState._handlePkCancelRequested', e, st);
+    }
   }
 
   void _startHeartbeat() {
@@ -1418,7 +1468,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
           _moderatorUserIds = mods.map((m) => m.userId).toSet();
         });
       }
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('_RoomDetailsScreenState._loadModerators', e, st);
+    }
   }
 
   Future<void> _loadAnnouncement() async {
@@ -1426,14 +1478,18 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       final ann = await const RoomManagementService()
           .getActiveAnnouncement(widget.room.id);
       if (mounted) setState(() => _activeAnnouncementText = ann?.message);
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('_RoomDetailsScreenState._loadAnnouncement', e, st);
+    }
   }
 
   Future<void> _loadWalletBalance() async {
     try {
       final wallet = await const WalletService().fetchWallet();
       if (mounted) setState(() => _walletCoins = wallet.coinsBalance);
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('_RoomDetailsScreenState._loadWalletBalance', e, st);
+    }
   }
 
   /// Fetches authoritative XP/level state from the server.
@@ -1590,7 +1646,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
               } else {
                 applyProfile(null);
               }
-            } catch (_) {}
+            } catch (e, st) {
+              debugError('_RoomDetailsScreenState._subscribeToMessages.insert', e, st);
+            }
           },
         )
         .onPostgresChanges(
@@ -1615,7 +1673,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
               setState(() {
                 _chatMessages[idx] = _chatMessages[idx].copyWithRemoved();
               });
-            } catch (_) {}
+            } catch (e, st) {
+              debugError('_RoomDetailsScreenState._subscribeToMessages.update', e, st);
+            }
           },
         )
         .subscribe();
@@ -1797,7 +1857,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         ));
         SroodToast.show(context, e.displayMessage, type: SroodToastType.error);
       }
-    } catch (_) {
+    } catch (e, st) {
+      debugError('_RoomDetailsScreenState._sendChatMessage', e, st);
       // Remove optimistic on any other failure.
       if (mounted) {
         setState(() => _chatMessages.removeWhere(
@@ -1929,7 +1990,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       await _musicService.stop();
       try {
         await _syncedMusic.stopForRoom();
-      } catch (_) {
+      } catch (e, st) {
+        debugError('RoomDetailsScreen._stopMusic', e, st);
         if (!mounted) return;
         SroodToast.show(context, context.isArabic ? 'تعذّر إيقاف الموسيقى. حاول مجدداً.' : 'Could not stop music. Please try again.', type: SroodToastType.error);
       }
@@ -3028,9 +3090,14 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       _roomLog('[MicUX] permission ok +${DateTime.now().millisecondsSinceEpoch - tapMs}ms');
     }
 
-    // ── LiveKit + RPC in parallel ─────────────────────────────────────────────
+    // ── LiveKit + RPC ─────────────────────────────────────────────────────────
+    // RPC always runs so Supabase mute state stays authoritative.
+    // LiveKit setMicrophoneEnabled is internally guarded — if the socket is not
+    // connected it saves a pending state and applies it automatically on the
+    // next RoomConnectedEvent / RoomReconnectedEvent.
     try {
       final t1 = DateTime.now().millisecondsSinceEpoch;
+      // Run in parallel; both are individually safe if the other fails.
       await Future.wait([
         _liveKitRoomService.setMicrophoneEnabled(nextValue),
         _roomsService.setMyMuteStatus(
@@ -3086,7 +3153,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ActiveRoomSession.instance.clear();
       });
-    } catch (_) {
+    } catch (e, st) {
+      debugError('RoomDetailsScreen._leaveRoom', e, st);
       if (!mounted) return;
       setState(() => _leaving = false);
       SroodToast.show(context, context.isArabic ? '\u062a\u0639\u0630\u0631 \u0645\u063a\u0627\u062f\u0631\u0629 \u0627\u0644\u063a\u0631\u0641\u0629. \u062d\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.' : 'Could not leave the room. Please try again.', type: SroodToastType.error);
@@ -3111,7 +3179,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ActiveRoomSession.instance.clear();
       });
-    } catch (_) {
+    } catch (e, st) {
+      debugError('RoomDetailsScreen._closeRoom', e, st);
       if (!mounted) return;
       setState(() {
         _isClosingRoom = false;
@@ -3128,7 +3197,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     try {
       final count = await const PrivateMessageService().fetchTotalUnreadCount();
       if (mounted) setState(() => _inboxUnreadCount = count);
-    } catch (_) {}
+    } catch (e, st) {
+      debugError('RoomDetailsScreen._loadInboxUnread', e, st);
+    }
   }
 
   Future<void> _openInbox() async {
@@ -8157,8 +8228,8 @@ class _GiftSheetState extends State<_GiftSheet> {
     try {
       final wallet = await const WalletService().fetchWallet();
       if (mounted) setState(() => _userCoinsBalance = wallet.coinsBalance);
-    } catch (_) {
-      // Balance display is best-effort; gift sending is validated server-side.
+    } catch (e, st) {
+      debugError('RoomDetailsScreen._loadBalance', e, st);
     }
   }
 
@@ -9059,7 +9130,8 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
     _focus.requestFocus();
     try {
       await widget.onSendMessage(text);
-    } catch (_) {
+    } catch (e, st) {
+      debugError('RoomChatInputBar._send', e, st);
       if (mounted) {
         _ctrl.text = text;
         _ctrl.selection = TextSelection.collapsed(offset: text.length);
@@ -10181,6 +10253,7 @@ class _LuckyBagEntranceOverlayState extends State<_LuckyBagEntranceOverlay>
   late final Animation<double> _scale;
   late final Animation<double> _masterFade;
   late final Animation<double> _sparkle;
+  AudioPlayer? _sfxPlayer;
 
   @override
   void initState() {
@@ -10236,22 +10309,22 @@ class _LuckyBagEntranceOverlayState extends State<_LuckyBagEntranceOverlay>
   Future<void> _tryPlaySound() async {
     if (!widget.soundEnabled) return;
     _roomLog('[GIFT-AUDIO] play overlay sound without pausing music (lucky_bag_open)');
-    final player = AudioPlayer(handleInterruptions: false);
     try {
-      await player.setAsset('assets/sounds/lucky_bag_open.mp3');
-      await player.play();
-      await player.processingStateStream
-          .firstWhere((s) => s == ProcessingState.completed);
-    } catch (_) {
-      // TODO: add assets/sounds/lucky_bag_open.mp3 when sound assets are ready.
-    } finally {
-      await player.dispose();
+      _sfxPlayer ??= AudioPlayer(handleInterruptions: false);
+      debugPrint('[LuckyBagEntrance] sfxPlayer: setAsset lucky_bag_open');
+      await _sfxPlayer!.setAsset('assets/sounds/lucky_bag_open.mp3');
+      debugPrint('[LuckyBagEntrance] sfxPlayer: play');
+      unawaited(_sfxPlayer!.play());
+    } catch (e, st) {
+      debugError('RoomDetailsScreen._playLuckyBagOpenSound', e, st);
     }
   }
 
   @override
   void dispose() {
     _ctrl.dispose();
+    _sfxPlayer?.dispose();
+    debugPrint('[LuckyBagEntrance] sfxPlayer disposed');
     super.dispose();
   }
 
@@ -10423,6 +10496,7 @@ class _LuckyBagWinOverlayState extends State<_LuckyBagWinOverlay>
   late final Animation<double> _textScale;
   late final Animation<double> _textBounce;
   late final Animation<int> _countUp;
+  AudioPlayer? _sfxPlayer;
 
   // Pre-computed random-ish coin positions (deterministic, no dart:math Random seed needed)
   static const _coinXFractions = [
@@ -10492,22 +10566,22 @@ class _LuckyBagWinOverlayState extends State<_LuckyBagWinOverlay>
   Future<void> _tryPlayWinSound() async {
     if (!widget.soundEnabled) return;
     _roomLog('[GIFT-AUDIO] play overlay sound without pausing music (lucky_bag_win)');
-    final player = AudioPlayer(handleInterruptions: false);
     try {
-      await player.setAsset('assets/sounds/lucky_bag_win.wav');
-      await player.play();
-      await player.processingStateStream
-          .firstWhere((s) => s == ProcessingState.completed);
-    } catch (_) {
-      // TODO: add assets/sounds/lucky_bag_win.wav when sound assets are ready.
-    } finally {
-      await player.dispose();
+      _sfxPlayer ??= AudioPlayer(handleInterruptions: false);
+      debugPrint('[LuckyBagWin] sfxPlayer: setAsset lucky_bag_win');
+      await _sfxPlayer!.setAsset('assets/sounds/lucky_bag_win.wav');
+      debugPrint('[LuckyBagWin] sfxPlayer: play');
+      unawaited(_sfxPlayer!.play());
+    } catch (e, st) {
+      debugError('RoomDetailsScreen._playLuckyBagWinSound', e, st);
     }
   }
 
   @override
   void dispose() {
     _ctrl.dispose();
+    _sfxPlayer?.dispose();
+    debugPrint('[LuckyBagWin] sfxPlayer disposed');
     super.dispose();
   }
 

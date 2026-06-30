@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import 'package:srood_live/shared/widgets/srood_toast.dart';
 import '../../../core/supabase/supabase_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
@@ -75,7 +76,8 @@ class _BlockUserScreenState extends State<BlockUserScreen> {
         _blocked = items;
         _isLoading = false;
       });
-    } catch (_) {
+    } catch (e, st) {
+      debugError('BlockUserScreen._load', e, st);
       if (!mounted) return;
       setState(() => _isLoading = false);
     }
