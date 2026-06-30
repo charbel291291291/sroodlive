@@ -136,6 +136,12 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
   static bool _globalMuted = false;
   bool get _muted => _globalMuted;
   bool get _ar => widget.isArabic;
+  bool get _isCompactWidth => MediaQuery.sizeOf(context).width < 380;
+
+  double _responsiveFont(double normal, double compact) {
+    return _isCompactWidth ? compact : normal;
+  }
+
   bool get _hasBets => _betsByItem.isNotEmpty;
   bool get _hasActiveBets =>
       _hasBets && (_phase == _Phase.betting || _phase == _Phase.spinning);
@@ -1229,33 +1235,44 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
                   ),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.fromLTRB(12, 7, 8, 7),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  color: const Color(0xFF242331),
-                  border: Border.all(color: Colors.white12),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: _isCompactWidth ? 104 : 140,
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('⚡', style: TextStyle(fontSize: 14)),
-                    const SizedBox(width: 5),
-                    Text(
-                      _formatCoins(todayWin),
-                      style: TextStyle(
-                        color: todayWin > 0 ? _kGreenWin : Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(12, 7, 8, 7),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    color: const Color(0xFF242331),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('⚡', style: TextStyle(fontSize: 14)),
+                      const SizedBox(width: 5),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            _formatCoins(todayWin),
+                            maxLines: 1,
+                            style: TextStyle(
+                              color: todayWin > 0 ? _kGreenWin : Colors.white,
+                              fontSize: _responsiveFont(14, 12),
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 2),
-                    const Icon(
-                      Icons.chevron_right_rounded,
-                      color: Colors.white38,
-                      size: 18,
-                    ),
-                  ],
+                      const SizedBox(width: 2),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: Colors.white38,
+                        size: 18,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -1616,6 +1633,7 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
                               fontSize: 10,
                               fontWeight: FontWeight.w900,
                             ),
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           if (prizePool > 0)
@@ -1898,7 +1916,10 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
         opacity: _resultSlideCtrl,
         child: Container(
           margin: const EdgeInsets.only(bottom: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: EdgeInsets.symmetric(
+            horizontal: _isCompactWidth ? 10 : 16,
+            vertical: _isCompactWidth ? 7 : 10,
+          ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             gradient: const LinearGradient(
@@ -1915,32 +1936,38 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
           child: Row(
             children: [
               Text(icon, style: const TextStyle(fontSize: 28)),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      color: _kGold,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 14,
-                    ),
-                  ),
-                  if (mult.isNotEmpty)
+              SizedBox(width: _isCompactWidth ? 6 : 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                     Text(
-                      mult,
-                      style: const TextStyle(
-                        color: _kGoldLight,
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: _kGold,
                         fontWeight: FontWeight.w900,
-                        fontSize: 18,
+                        fontSize: _responsiveFont(14, 12),
                       ),
                     ),
-                ],
+                    if (mult.isNotEmpty)
+                      Text(
+                        mult,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: _kGoldLight,
+                          fontWeight: FontWeight.w900,
+                          fontSize: _responsiveFont(18, 15),
+                        ),
+                      ),
+                  ],
+                ),
               ),
               if (_hasBets && _spinDelta != null) ...[
-                const Spacer(),
+                SizedBox(width: _isCompactWidth ? 4 : 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
@@ -1950,14 +1977,23 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
                     color: won ? _kGreenWin : _kRedAccent,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Text(
-                    won
-                        ? '+${_formatCoins(_spinDelta!)} 🪙'
-                        : '-${_formatCoins(_totalBetAmount)} 🪙',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 13,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: _isCompactWidth ? 92 : 140,
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        won
+                            ? '+${_formatCoins(_spinDelta!)} 🪙'
+                            : '-${_formatCoins(_totalBetAmount)} 🪙',
+                        maxLines: 1,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: _responsiveFont(13, 11),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -2059,9 +2095,15 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
 
   Widget _buildBottomControls() {
     final active = _phase == _Phase.betting;
+    final gap = _isCompactWidth ? 4.0 : 8.0;
     return Container(
-      margin: const EdgeInsets.fromLTRB(8, 2, 8, 0),
-      padding: const EdgeInsets.fromLTRB(4, 6, 4, 8),
+      margin: EdgeInsets.fromLTRB(
+        _isCompactWidth ? 4 : 8,
+        2,
+        _isCompactWidth ? 4 : 8,
+        0,
+      ),
+      padding: EdgeInsets.fromLTRB(4, _isCompactWidth ? 4 : 6, 4, gap),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
         color: Colors.black.withValues(alpha: 0.16),
@@ -2074,13 +2116,13 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
           const SizedBox(height: 4),
           // Tab content (My Bets status / All Users / Popularity)
           _buildTabContent(active),
-          const SizedBox(height: 8),
+          SizedBox(height: gap),
           // Chips row
           _buildChips(!active),
-          const SizedBox(height: 8),
+          SizedBox(height: gap),
           // Follow Previous — centered like image B
           _buildFollowToggle(),
-          const SizedBox(height: 8),
+          SizedBox(height: gap),
           // Balance row — two columns like image B
           _buildBalanceRow(),
         ],
@@ -2223,8 +2265,11 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
         HapticFeedback.selectionClick();
         setState(() => _followPrevious = !_followPrevious);
       },
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: _isCompactWidth ? 5 : 8,
+        runSpacing: 2,
         children: [
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
@@ -2253,13 +2298,17 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          Text(
-            _ar ? 'تتبع الاختيار السابق' : 'Follow Previous Choice',
-            style: TextStyle(
-              color: _followPrevious ? _kGold : Colors.white60,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: _isCompactWidth ? 205 : 280),
+            child: Text(
+              _ar ? 'تتبع الاختيار السابق' : 'Follow Previous Choice',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: _followPrevious ? _kGold : Colors.white60,
+                fontSize: _responsiveFont(12, 11),
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -2271,7 +2320,6 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
     final pending = _itemPendingCounts.values.fold(0, (s, c) => s + c);
     if (pending > 0) {
       return Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(
             width: 12,
@@ -2279,12 +2327,16 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
             child: CircularProgressIndicator(strokeWidth: 2, color: _kGold),
           ),
           const SizedBox(width: 6),
-          Text(
-            _ar ? 'جارٍ الإرسال...' : 'Placing bet...',
-            style: const TextStyle(
-              color: _kGold,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+          Flexible(
+            child: Text(
+              _ar ? 'جارٍ الإرسال...' : 'Placing bet...',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: _kGold,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -2347,8 +2399,8 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
                   },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              margin: EdgeInsets.symmetric(horizontal: _isCompactWidth ? 2 : 3),
+              padding: EdgeInsets.symmetric(vertical: _isCompactWidth ? 5 : 8),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
                 gradient: sel && !locked
@@ -2394,16 +2446,20 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
                       fontWeight: FontWeight.w900,
                     ),
                   ),
-                  Text(
-                    _formatCoins(chip),
-                    style: TextStyle(
-                      color: disabled
-                          ? Colors.white24
-                          : sel && !locked
-                          ? const Color(0xFF1A1200)
-                          : _kGreenWin,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      _formatCoins(chip),
+                      maxLines: 1,
+                      style: TextStyle(
+                        color: disabled
+                            ? Colors.white24
+                            : sel && !locked
+                            ? const Color(0xFF1A1200)
+                            : _kGreenWin,
+                        fontSize: _responsiveFont(13, 11),
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ),
                 ],
@@ -2428,9 +2484,11 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
             children: [
               Text(
                 _ar ? 'رصيدي' : 'My Balance',
-                style: const TextStyle(
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
                   color: Colors.white60,
-                  fontSize: 11,
+                  fontSize: _responsiveFont(11, 10),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -2459,12 +2517,18 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
                     ),
                   ),
                   const SizedBox(width: 4),
-                  Text(
-                    _formatCoins(_balance),
-                    style: const TextStyle(
-                      color: _kGold,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        _formatCoins(_balance),
+                        maxLines: 1,
+                        style: TextStyle(
+                          color: _kGold,
+                          fontSize: _responsiveFont(15, 13),
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -2502,9 +2566,11 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
             children: [
               Text(
                 _ar ? 'جوائز اليوم' : "Today's rewards",
-                style: const TextStyle(
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
                   color: Colors.white60,
-                  fontSize: 11,
+                  fontSize: _responsiveFont(11, 10),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -2533,12 +2599,18 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
                     ),
                   ),
                   const SizedBox(width: 4),
-                  Text(
-                    _formatCoins(todayWin),
-                    style: TextStyle(
-                      color: todayWin > 0 ? _kGreenWin : Colors.white60,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        _formatCoins(todayWin),
+                        maxLines: 1,
+                        style: TextStyle(
+                          color: todayWin > 0 ? _kGreenWin : Colors.white60,
+                          fontSize: _responsiveFont(15, 13),
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -2822,8 +2894,12 @@ class _TeamBadge extends StatelessWidget {
                 final aH = cs.maxHeight.isInfinite ? 100.0 : cs.maxHeight;
                 final aW = cs.maxWidth.isInfinite ? 150.0 : cs.maxWidth;
                 final s = (aH / 115.0).clamp(0.55, 1.0);
-                // Icon box: ~38% of card width, scaled by s
-                final iconSz = (aW * 0.34 * s).clamp(32.0, 52.0);
+                final compact = aW < 130 || aH < 92;
+                final contentPadding = (compact ? 6.0 : 10.0) * s;
+                final iconSz = (aW * (compact ? 0.29 : 0.34) * s).clamp(
+                  compact ? 24.0 : 32.0,
+                  compact ? 40.0 : 52.0,
+                );
                 final nameColor = isWinner
                     ? _kGreenWin
                     : isSelected
@@ -2831,7 +2907,7 @@ class _TeamBadge extends StatelessWidget {
                     : Colors.white;
 
                 return Padding(
-                  padding: EdgeInsets.all(10.0 * s),
+                  padding: EdgeInsets.all(contentPadding),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -2868,7 +2944,7 @@ class _TeamBadge extends StatelessWidget {
                         ),
                       ),
 
-                      SizedBox(width: 8 * s),
+                      SizedBox(width: (compact ? 4 : 8) * s),
 
                       // ── Right column: badge → name → sub-info ──
                       Expanded(
@@ -2880,8 +2956,8 @@ class _TeamBadge extends StatelessWidget {
                             // Multiplier pill — _GameGridCard "badge" pattern
                             Container(
                               padding: EdgeInsets.symmetric(
-                                horizontal: 7 * s,
-                                vertical: 2 * s,
+                                horizontal: (compact ? 5 : 7) * s,
+                                vertical: (compact ? 1 : 2) * s,
                               ),
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(30),
@@ -2890,17 +2966,22 @@ class _TeamBadge extends StatelessWidget {
                                   color: iconColors[0].withValues(alpha: 0.55),
                                 ),
                               ),
-                              child: Text(
-                                multLabel,
-                                style: TextStyle(
-                                  color: accent,
-                                  fontSize: (aW * 0.11 * s).clamp(9.0, 15.0),
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 0.3,
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  multLabel,
+                                  maxLines: 1,
+                                  style: TextStyle(
+                                    color: accent,
+                                    fontSize: (aW * 0.11 * s).clamp(8.0, 15.0),
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.3,
+                                  ),
                                 ),
                               ),
                             ),
-                            SizedBox(height: 4 * s),
+                            SizedBox(height: (compact ? 1 : 4) * s),
                             // Country name — _GameGridCard "title" pattern
                             Text(
                               name,
@@ -2912,38 +2993,55 @@ class _TeamBadge extends StatelessWidget {
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
-                            SizedBox(height: 2 * s),
+                            SizedBox(height: compact ? 0 : 2 * s),
                             // Stars + people count — _GameGridCard "subtitle" pattern
                             Row(
-                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(
-                                  List.generate(stars, (_) => '★').join(),
-                                  style: TextStyle(
-                                    color: accent.withValues(alpha: 0.85),
-                                    fontSize: (aW * 0.085 * s).clamp(7.0, 11.0),
-                                    height: 1.0,
+                                Flexible(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      List.generate(stars, (_) => '★').join(),
+                                      maxLines: 1,
+                                      style: TextStyle(
+                                        color: accent.withValues(alpha: 0.85),
+                                        fontSize: (aW * 0.085 * s).clamp(
+                                          6.0,
+                                          11.0,
+                                        ),
+                                        height: 1.0,
+                                      ),
+                                    ),
                                   ),
                                 ),
                                 if (teamTotal > 0) ...[
-                                  SizedBox(width: 5 * s),
+                                  SizedBox(width: (compact ? 2 : 5) * s),
                                   Icon(
                                     Icons.people_rounded,
                                     color: Colors.white.withValues(alpha: 0.50),
-                                    size: (aW * 0.08 * s).clamp(7.0, 11.0),
+                                    size: (aW * 0.08 * s).clamp(6.0, 11.0),
                                   ),
-                                  SizedBox(width: 2 * s),
-                                  Text(
-                                    formatCoins(teamTotal),
-                                    style: TextStyle(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.55,
+                                  SizedBox(width: s),
+                                  Flexible(
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        formatCoins(teamTotal),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.55,
+                                          ),
+                                          fontSize: (aW * 0.08 * s).clamp(
+                                            6.0,
+                                            10.0,
+                                          ),
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
-                                      fontSize: (aW * 0.08 * s).clamp(
-                                        7.0,
-                                        10.0,
-                                      ),
-                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ],
@@ -2963,29 +3061,36 @@ class _TeamBadge extends StatelessWidget {
               Positioned(
                 top: 5,
                 right: 5,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFFE040), Color(0xFFCC9900)],
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 64),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
                     ),
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: [
-                      BoxShadow(
-                        color: _kGold.withValues(alpha: 0.55),
-                        blurRadius: 8,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFFE040), Color(0xFFCC9900)],
                       ),
-                    ],
-                  ),
-                  child: Text(
-                    formatCoins(betAmount),
-                    style: const TextStyle(
-                      color: Color(0xFF1A0800),
-                      fontSize: 9,
-                      fontWeight: FontWeight.w900,
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _kGold.withValues(alpha: 0.55),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        formatCoins(betAmount),
+                        maxLines: 1,
+                        style: const TextStyle(
+                          color: Color(0xFF1A0800),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
                     ),
                   ),
                 ),
