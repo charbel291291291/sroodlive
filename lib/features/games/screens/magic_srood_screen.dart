@@ -112,6 +112,10 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
   int _selectedTab = 0; // 0=My Bets, 1=All Users, 2=Popularity
   String? _prevWinnerId;
 
+  // Inline warning shown near chips instead of covering the balance row.
+  String? _betWarning;
+  Timer? _betWarningTimer;
+
   // Slot-machine display for last round results
   final List<String> _slotNums = ['?', '?', '?', '?', '?', '?'];
 
@@ -210,6 +214,7 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
     _balanceDebounceTimer?.cancel();
     _reconnectTimer?.cancel();
     _autoAdvanceTimer?.cancel();
+    _betWarningTimer?.cancel();
     _channel?.unsubscribe();
     _pulseCtrl.dispose();
     _breathCtrl.dispose();
@@ -486,10 +491,7 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
     final teamIcon = _iconAt(index);
     final betAmount = _betAmount;
     if (_balance < betAmount) {
-      _showSnack(
-        _ar ? 'رصيد غير كافٍ' : 'Insufficient coins',
-        type: SroodToastType.warning,
-      );
+      _showBetWarning(_ar ? 'رصيد غير كافٍ' : 'Insufficient coins');
       return;
     }
     _betSeq++;
@@ -1036,6 +1038,17 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
     SroodToast.show(context, msg, type: type);
   }
 
+  /// Shows a compact inline warning near the bet chips instead of a bottom
+  /// toast that would cover the balance row.
+  void _showBetWarning(String msg) {
+    if (!mounted) return;
+    _betWarningTimer?.cancel();
+    setState(() => _betWarning = msg);
+    _betWarningTimer = Timer(const Duration(milliseconds: 1800), () {
+      if (mounted) setState(() => _betWarning = null);
+    });
+  }
+
   Future<bool> _showLeaveDialog() async {
     return await showDialog<bool>(
           context: context,
@@ -1199,11 +1212,11 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
                     children: [
                       Row(
                         children: [
-                          const Text('⚡', style: TextStyle(fontSize: 17)),
-                          const SizedBox(width: 4),
+                          const AppCoinIcon(size: 18),
+                          const SizedBox(width: 5),
                           Flexible(
                             child: Text(
-                              '${_formatCoins(_balance)}/${_formatCoins(maxCoins)}',
+                              _formatCoins(_balance),
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: Colors.white,
@@ -1212,6 +1225,7 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
                               ),
                             ),
                           ),
+                          const SizedBox(width: 2),
                           const Icon(
                             Icons.chevron_right_rounded,
                             color: Colors.white38,
@@ -1252,7 +1266,11 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text('⚡', style: TextStyle(fontSize: 14)),
+                      Icon(
+                        Icons.emoji_events_rounded,
+                        color: todayWin > 0 ? _kGreenWin : Colors.white38,
+                        size: 16,
+                      ),
                       const SizedBox(width: 5),
                       Flexible(
                         child: FittedBox(
@@ -1261,18 +1279,12 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
                             _formatCoins(todayWin),
                             maxLines: 1,
                             style: TextStyle(
-                              color: todayWin > 0 ? _kGreenWin : Colors.white,
+                              color: todayWin > 0 ? _kGreenWin : Colors.white60,
                               fontSize: _responsiveFont(14, 12),
                               fontWeight: FontWeight.w900,
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 2),
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        color: Colors.white38,
-                        size: 18,
                       ),
                     ],
                   ),
@@ -1375,7 +1387,7 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
             children: [
               // ── Top two featured cards ──────────────────────────────────────
               Expanded(
-                flex: 22,
+                flex: 24,
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Row(
@@ -1389,13 +1401,13 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
               ),
               // ── Middle: side columns + center panel ─────────────────────────
               Expanded(
-                flex: 36,
+                flex: 34,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Left: Germany (top) + Portugal (bottom)
                     Expanded(
-                      flex: 28,
+                      flex: 32,
                       child: Column(
                         children: [
                           Expanded(child: _countryCard(4)), // Germany
@@ -1405,12 +1417,12 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
                       ),
                     ),
                     const SizedBox(width: 5),
-                    // Center panel
-                    Expanded(flex: 44, child: _buildCenterPanel()),
+                    // Center panel — smaller so cards get more room
+                    Expanded(flex: 32, child: _buildCenterPanel()),
                     const SizedBox(width: 5),
                     // Right: England (top) + France (bottom)
                     Expanded(
-                      flex: 28,
+                      flex: 32,
                       child: Column(
                         children: [
                           Expanded(child: _countryCard(5)), // England
@@ -1424,7 +1436,7 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
               ),
               // ── Bottom two cards ────────────────────────────────────────────
               Expanded(
-                flex: 22,
+                flex: 24,
                 child: Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Row(
@@ -1493,9 +1505,9 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
         borderRadius: BorderRadius.circular(14),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final diameter = (constraints.biggest.shortestSide * 0.72).clamp(
-              58.0,
-              104.0,
+            final diameter = (constraints.biggest.shortestSide * 0.65).clamp(
+              48.0,
+              86.0,
             );
             return Center(
               child: SizedBox.square(
@@ -1596,6 +1608,7 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
         formatCoins: _formatCoins,
         isSpinning: isSpinning,
         isArabic: _ar,
+        selectedTab: _selectedTab,
       ),
     );
 
@@ -1737,63 +1750,65 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              itemCount: _history.length,
-              itemBuilder: (ctx, i) {
-                final h = _history[i];
-                final isNew = i == 0;
-                return Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 3,
-                        vertical: 3,
-                      ),
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: const Color(0xFF2A1A00),
-                        border: Border.all(
-                          color: _kGoldDark.withValues(alpha: 0.7),
+            child: ClipRect(
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                itemCount: _history.length,
+                itemBuilder: (ctx, i) {
+                  final h = _history[i];
+                  final isNew = i == 0;
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 3,
+                          vertical: 3,
+                        ),
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFF2A1A00),
+                          border: Border.all(
+                            color: _kGoldDark.withValues(alpha: 0.7),
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            h.foodIcon,
+                            style: const TextStyle(fontSize: 18),
+                          ),
                         ),
                       ),
-                      child: Center(
-                        child: Text(
-                          h.foodIcon,
-                          style: const TextStyle(fontSize: 18),
-                        ),
-                      ),
-                    ),
-                    if (isNew)
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 2,
-                            vertical: 1,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _kRedAccent,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            'NEW',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 6,
-                              fontWeight: FontWeight.w900,
+                      if (isNew)
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 2,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _kRedAccent,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'NEW',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 6,
+                                fontWeight: FontWeight.w900,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                  ],
-                );
-              },
+                    ],
+                  );
+                },
+              ),
             ),
           ),
         ],
@@ -1827,6 +1842,9 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
           // Tab content (My Bets status / All Users / Popularity)
           _buildTabContent(active),
           SizedBox(height: gap),
+          // Inline warning (e.g. insufficient coins) — sits above chips so it
+          // never covers the balance row below.
+          _buildBetWarning(),
           // Chips row
           _buildChips(!active),
           SizedBox(height: gap),
@@ -2088,22 +2106,72 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
         _ar
             ? 'اختر المبلغ ثم اضغط على الفريق 👆'
             : 'Choose wager > choose team 👆',
-        style: const TextStyle(color: _kTextDim, fontSize: 11),
+        style: const TextStyle(color: Color(0xFFB8A060), fontSize: 11),
       );
     }
     return const SizedBox.shrink();
   }
 
   Widget _buildChips(bool locked) {
-    final chipSize = _isCompactWidth ? 50.0 : 54.0;
+    // Compact screens: two rows of 3 chips so nothing is clipped.
+    if (_isCompactWidth) {
+      const row1 = [100, 1000, 5000];
+      const row2 = [10000, 20000, 100000];
+      Widget row(List<int> chips) => CoinChipRow(
+        chips: chips,
+        selected: _betAmount,
+        balance: _balance,
+        locked: locked,
+        chipSize: 46,
+        spacing: 4,
+        onSelect: (v) => setState(() => _betAmount = v),
+      );
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [row(row1), const SizedBox(height: 4), row(row2)],
+      );
+    }
     return CoinChipRow(
       chips: _kBetChips,
       selected: _betAmount,
       balance: _balance,
       locked: locked,
-      chipSize: chipSize,
-      spacing: _isCompactWidth ? 3 : 5,
+      chipSize: 54,
+      spacing: 5,
       onSelect: (v) => setState(() => _betAmount = v),
+    );
+  }
+
+  /// Inline warning banner shown directly above chips instead of a bottom
+  /// toast that would obscure the balance row.
+  Widget _buildBetWarning() {
+    if (_betWarning == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.warning_amber_rounded,
+            color: Color(0xFFFFAA00),
+            size: 14,
+          ),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              _betWarning!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFFFFCC44),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -2132,40 +2200,11 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    width: 16,
-                    height: 16,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [Color(0xFFFFEE44), Color(0xFFCC8800)],
-                      ),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        '✕',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 8,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        _formatCoins(_balance),
-                        maxLines: 1,
-                        style: TextStyle(
-                          color: _kGold,
-                          fontSize: _responsiveFont(15, 13),
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
+                  CoinAmountText(
+                    amount: _balance,
+                    fontSize: _responsiveFont(15, 13),
+                    iconSize: 16,
+                    color: _kGold,
                   ),
                 ],
               ),
@@ -2410,6 +2449,7 @@ class _MagicCountryBadgeCard extends StatelessWidget {
     required this.formatCoins,
     required this.isSpinning,
     required this.isArabic,
+    required this.selectedTab,
   });
 
   final String icon, name, multLabel, rarity;
@@ -2423,6 +2463,9 @@ class _MagicCountryBadgeCard extends StatelessWidget {
       isArabic;
   final int betAmount, teamTotal;
   final String Function(int) formatCoins;
+
+  /// 0 = My Bets, 1 = All Users, 2 = Popularity
+  final int selectedTab;
 
   int get _stars {
     switch (rarity.toLowerCase()) {
@@ -2460,7 +2503,13 @@ class _MagicCountryBadgeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasExposure = betAmount > 0 || teamTotal > 0;
+    // Only show the pill that matches the active tab.
+    // tab 0 = My Bets → show betAmount only
+    // tab 1 = All Users → show teamTotal only
+    // tab 2 = Popularity → no pills on the card
+    final showMyBetPill = selectedTab == 0 && betAmount > 0;
+    final showTeamPill = selectedTab == 1 && teamTotal > 0;
+    final hasExposure = showMyBetPill || showTeamPill;
     final spotlight = isActive && isSpinning;
     final accent = isWinner
         ? _kGreenWin
@@ -2474,6 +2523,15 @@ class _MagicCountryBadgeCard extends StatelessWidget {
       builder: (context, constraints) {
         final compact =
             constraints.maxWidth < 108 || constraints.maxHeight < 96;
+        // Estimate the square side that AspectRatio(1) will produce so we
+        // know whether even the short country name will fit.
+        final pillH = compact ? 15.0 : 19.0;
+        final squareSize = (constraints.maxHeight - 2.0 - pillH).clamp(
+          30.0,
+          constraints.maxWidth,
+        );
+        // Below 60 px the name won't be readable — show flag + multiplier only.
+        final hideLabel = squareSize < 60;
         final radius = compact ? 11.0 : 15.0;
         return AnimatedOpacity(
           duration: const Duration(milliseconds: 160),
@@ -2583,12 +2641,14 @@ class _MagicCountryBadgeCard extends StatelessWidget {
                               ),
                             ),
                             Positioned.fill(
-                              top: compact ? 13 : 18,
-                              bottom: compact ? 15 : 20,
+                              // Tighter margins on compact cards give the
+                              // flag + name column enough room to breathe.
+                              top: compact ? 8 : 18,
+                              bottom: compact ? 10 : 20,
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Flexible(
+                                  Expanded(
                                     child: FittedBox(
                                       fit: BoxFit.scaleDown,
                                       child: Container(
@@ -2626,29 +2686,31 @@ class _MagicCountryBadgeCard extends StatelessWidget {
                                       ),
                                     ),
                                   ),
-                                  SizedBox(height: compact ? 1 : 3),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 4,
-                                    ),
-                                    child: Text(
-                                      name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: compact ? 7.5 : 10,
-                                        fontWeight: FontWeight.w900,
-                                        shadows: const [
-                                          Shadow(
-                                            color: Colors.black,
-                                            blurRadius: 3,
-                                          ),
-                                        ],
+                                  if (!hideLabel) ...[
+                                    SizedBox(height: compact ? 1 : 3),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                      ),
+                                      child: Text(
+                                        name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: compact ? 7.5 : 10,
+                                          fontWeight: FontWeight.w900,
+                                          shadows: const [
+                                            Shadow(
+                                              color: Colors.black,
+                                              blurRadius: 3,
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                  ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -2677,16 +2739,40 @@ class _MagicCountryBadgeCard extends StatelessWidget {
                                 ),
                               ),
                             ),
+                            // Winner/prev-winner badge lives at the top-left
+                            // corner so it never competes with the multiplier
+                            // label at bottom-right or the country name below
+                            // the flag.
                             if (isPrevWinner || isWinner)
                               Positioned(
-                                left: 3,
-                                bottom: 2,
-                                child: Icon(
-                                  isWinner
-                                      ? Icons.workspace_premium_rounded
-                                      : Icons.emoji_events_rounded,
-                                  color: isWinner ? _kGreenWin : _kGoldLight,
-                                  size: compact ? 11 : 15,
+                                left: compact ? 3 : 4,
+                                top: compact ? 3 : 5,
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: compact ? 3 : 5,
+                                    vertical: compact ? 1 : 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isWinner
+                                        ? _kGreenWin
+                                        : const Color(0xCC3D2A00),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: isWinner
+                                          ? _kGreenWin
+                                          : _kGoldLight.withValues(alpha: 0.8),
+                                      width: 0.8,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    isWinner
+                                        ? Icons.workspace_premium_rounded
+                                        : Icons.emoji_events_rounded,
+                                    color: isWinner
+                                        ? Colors.white
+                                        : _kGoldLight,
+                                    size: compact ? 9 : 12,
+                                  ),
                                 ),
                               ),
                             if (isBusy)
@@ -2720,7 +2806,7 @@ class _MagicCountryBadgeCard extends StatelessWidget {
                     ? Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          if (betAmount > 0)
+                          if (showMyBetPill)
                             Flexible(
                               child: _CountryBetPill(
                                 icon: Icons.person_rounded,
@@ -2729,9 +2815,9 @@ class _MagicCountryBadgeCard extends StatelessWidget {
                                 compact: compact,
                               ),
                             ),
-                          if (betAmount > 0 && teamTotal > 0)
+                          if (showMyBetPill && showTeamPill)
                             SizedBox(width: compact ? 2 : 3),
-                          if (teamTotal > 0)
+                          if (showTeamPill)
                             Flexible(
                               child: _CountryBetPill(
                                 icon: Icons.groups_rounded,
