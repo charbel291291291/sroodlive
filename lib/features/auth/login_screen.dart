@@ -48,6 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
+    FocusScope.of(context).unfocus();
     final isArabic = _isArabic(context);
 
     setState(() {
