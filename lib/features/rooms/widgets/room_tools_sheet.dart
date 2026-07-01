@@ -15,6 +15,7 @@ import '../../games/screens/fish_hunt_screen.dart';
 import '../../games/screens/gold_ladder_quiz_screen.dart';
 import '../../games/screens/hungry_cat_webview_screen.dart';
 import '../../games/screens/magic_srood_screen.dart';
+import '../../games/screens/roulette_screen.dart';
 import '../../games/screens/spin_wheel_screen.dart';
 import '../../games/screens/srood_loto_screen.dart';
 import '../../games/screens/srood_treasure_screen.dart';
@@ -3182,6 +3183,13 @@ class _GameCenterSheet extends StatelessWidget {
         labelEn: 'Fish Hunt',
         accent: const Color(0xFF38BDF8),
         screen: FishHuntScreen(isArabic: isArabic),
+      ),
+      _GameEntry(
+        icon: Icons.casino_rounded,
+        labelAr: 'روليت سرود',
+        labelEn: 'Srood Roulette',
+        accent: const Color(0xFFA78BFA),
+        screen: RouletteScreen(isArabic: isArabic),
       ),
     ];
 
