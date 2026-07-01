@@ -143,7 +143,32 @@ class _RouletteScreenState extends State<RouletteScreen> {
       await _loadState(silent: true);
     } catch (e) {
       if (!mounted) return;
-      _showToast(_isArabic ? 'تعذر الرهان' : 'Bet failed', isError: true);
+      final errStr = '$e'.toLowerCase();
+      if (errStr.contains('betting_closed') ||
+          errStr.contains('round_not_found')) {
+        _showToast(
+          _isArabic
+              ? 'انتهت الجولة، جارٍ التحديث...'
+              : 'Round closed, refreshing…',
+          isError: true,
+        );
+        await _loadState(silent: true);
+      } else if (errStr.contains('insufficient_coins')) {
+        _showToast(
+          _isArabic ? 'رصيد غير كافٍ' : 'Insufficient coins',
+          isError: true,
+        );
+      } else if (errStr.contains('invalid_bet_amount') ||
+          errStr.contains('invalid_bet_zone')) {
+        _showToast(_isArabic ? 'رهان غير صالح' : 'Invalid bet', isError: true);
+      } else if (errStr.contains('not_authenticated')) {
+        _showToast(
+          _isArabic ? 'يرجى تسجيل الدخول' : 'Please sign in',
+          isError: true,
+        );
+      } else {
+        _showToast(_isArabic ? 'تعذر الرهان' : 'Bet failed', isError: true);
+      }
     } finally {
       if (mounted) {
         setState(() => _pendingZones.remove(zone));
