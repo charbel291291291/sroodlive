@@ -205,6 +205,63 @@ class CoinAmountBadge extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// CoinBalancePill
+//
+// The standard top-bar balance chip: a rounded pill with the shared coin glyph
+// and a compact, consistently-formatted amount. Use it anywhere a screen shows
+// the user's coin balance in a header so every game's balance looks identical.
+//
+// Usage:
+//   CoinBalancePill(amount: balance)
+//   CoinBalancePill(amount: balance, loading: _loadingWallet)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class CoinBalancePill extends StatelessWidget {
+  const CoinBalancePill({
+    super.key,
+    required this.amount,
+    this.loading = false,
+    this.fontSize = 13,
+    this.iconSize = 15,
+  });
+
+  final int amount;
+  final bool loading;
+  final double fontSize;
+  final double iconSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF2A1800), Color(0xFF1A0E00)],
+        ),
+        border: Border.all(color: kCoinGoldMid.withValues(alpha: 0.55)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppCoinIcon(size: iconSize),
+          const SizedBox(width: 5),
+          Text(
+            loading ? '…' : formatCoinAmount(amount),
+            style: TextStyle(
+              color: kCoinGoldLight,
+              fontSize: fontSize,
+              fontWeight: FontWeight.w900,
+              height: 1.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // CoinChipButton
 //
 // The premium coin-chip for bet-amount selectors.
@@ -338,13 +395,9 @@ class CoinChipButton extends StatelessWidget {
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  '🪙',
-                  style: TextStyle(
-                    fontSize: size * 0.22,
-                    height: 1,
-                  ),
-                ),
+                // Unified coin glyph (was a raw 🪙 emoji) so every coin in the
+                // app renders identically.
+                AppCoinIcon(size: size * 0.26),
                 const SizedBox(height: 1),
                 FittedBox(
                   fit: BoxFit.scaleDown,

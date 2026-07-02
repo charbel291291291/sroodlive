@@ -831,13 +831,9 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     SroodToast.show(context, msg, type: type);
   }
 
-  String _formatCoins(int v) {
-    if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
-    if (v >= 1000) {
-      return '${(v / 1000).toStringAsFixed(v % 1000 == 0 ? 0 : 1)}K';
-    }
-    return '$v';
-  }
+  // Unified coin formatting (shared formatCoinAmount) for cross-game
+  // consistency. Thin alias to keep call sites unchanged.
+  String _formatCoins(int v) => formatCoinAmount(v);
 
   Future<bool> _showLeaveDialog() async {
     return await showDialog<bool>(

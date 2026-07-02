@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/srood_treasure_models.dart';
 import '../services/srood_treasure_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
+import 'package:srood_live/shared/widgets/coin_ui.dart';
 import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 // ── Design tokens (matches app palette) ──────────────────────────────────────
@@ -245,17 +246,9 @@ class _SroodTreasureScreenState extends State<SroodTreasureScreen>
     return msg;
   }
 
-  static String _fmt(int coins) {
-    if (coins >= 1000000) {
-      final v = coins / 1000000;
-      return '${v == v.truncateToDouble() ? v.toInt() : v.toStringAsFixed(1)}M';
-    }
-    if (coins >= 1000) {
-      final v = coins / 1000;
-      return '${v == v.truncateToDouble() ? v.toInt() : v.toStringAsFixed(0)}K';
-    }
-    return '$coins';
-  }
+  // Unified coin formatting (shared formatCoinAmount) so amounts read the same
+  // in every game. Kept as a thin alias to avoid touching all call sites.
+  static String _fmt(int coins) => formatCoinAmount(coins);
 
   static Color _prizeColor(int? coins) {
     if (coins == null) return Colors.white;
@@ -353,7 +346,7 @@ class _SroodTreasureScreenState extends State<SroodTreasureScreen>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.toll_rounded, color: _kGold, size: 14),
+                const AppCoinIcon(size: 14),
                 const SizedBox(width: 4),
                 Text(_fmt(_userBalance),
                     style: const TextStyle(
@@ -924,7 +917,7 @@ class _SroodTreasureScreenState extends State<SroodTreasureScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.toll_rounded, color: _kGold, size: 20),
+              const AppCoinIcon(size: 20),
               const SizedBox(width: 6),
               Text(
                 _fmt(payout),

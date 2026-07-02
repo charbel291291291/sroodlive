@@ -4,6 +4,7 @@ import 'package:srood_live/shared/widgets/srood_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/supabase/supabase_service.dart';
+import '../../../shared/widgets/coin_ui.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class SpinWheelScreen extends StatefulWidget {
@@ -203,7 +204,7 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
                         ),
                       ),
                     ),
-                    _CoinBadge(coins: _coins, loading: _loadingWallet),
+                    CoinBalancePill(amount: _coins, loading: _loadingWallet),
                   ],
                 ),
               ),
@@ -297,45 +298,6 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-widgets
 // ─────────────────────────────────────────────────────────────────────────────
-
-class _CoinBadge extends StatelessWidget {
-  const _CoinBadge({required this.coins, required this.loading});
-  final int coins;
-  final bool loading;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFF3A2A10),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFF0C15A).withValues(alpha: 0.40)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFF0C15A).withValues(alpha: 0.15),
-            blurRadius: 8,
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('🪙', style: TextStyle(fontSize: 14)),
-          const SizedBox(width: 4),
-          Text(
-            loading ? '...' : '$coins',
-            style: const TextStyle(
-              color: Color(0xFFF0C15A),
-              fontSize: 14,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _GoldenPointer extends StatelessWidget {
   const _GoldenPointer({required this.size});
