@@ -23,6 +23,7 @@ import '../../wallet/screens/withdrawal_screen.dart';
 import '../models/profile_hub_models.dart';
 import '../services/settings_service.dart';
 import '../widgets/profile_hub_widgets.dart';
+import 'delete_account_screen.dart';
 import 'my_level_screen.dart';
 import 'policy_screen.dart';
 import 'preferences_screen.dart';
@@ -880,6 +881,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         )
                       : null,
                   onTap: _logout,
+                ),
+                // Store-required in-app account deletion (Google Play User Data
+                // policy / Apple 5.1.1(v)). Routes to a dedicated confirm screen.
+                ProfileMenuItem(
+                  icon: Icons.delete_forever_rounded,
+                  title: isArabic ? 'حذف الحساب' : 'Delete Account',
+                  isArabic: isArabic,
+                  isEnabled: !_isLoggingOut,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => DeleteAccountScreen(isArabic: isArabic),
+                    ),
+                  ),
                 ),
               ],
             );
