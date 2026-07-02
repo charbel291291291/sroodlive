@@ -117,8 +117,15 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
     setState(() { _spinning = true; _lastPrizeIndex = null; });
     _resultCtrl.reset();
 
+    // Per-spin idempotency key: a network retry of the same spin returns the
+    // original server result instead of charging/paying twice.
+    final spinId =
+        '${DateTime.now().microsecondsSinceEpoch}-${math.Random().nextInt(1 << 32)}';
+
     try {
-      final result = await SupabaseService.requiredClient.rpc('spin_wheel').single();
+      final result = await SupabaseService.requiredClient
+          .rpc('spin_wheel', params: {'p_client_spin_id': spinId})
+          .single();
       if (!mounted) return;
       final prizeLabel = result['prize_label'] as String? ?? 'Try again';
       final newBalance = result['new_coins_balance'] as int? ?? (_coins - _kSpinCost);
