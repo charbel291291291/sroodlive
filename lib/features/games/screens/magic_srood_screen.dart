@@ -4,7 +4,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:srood_live/shared/utils/error_utils.dart';
 import 'package:srood_live/shared/widgets/coin_ui.dart';
 import 'package:srood_live/shared/widgets/srood_toast.dart';
@@ -12,6 +11,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
 import '../models/hungry_cat_models.dart';
+import '../services/game_sound_service.dart';
 import '../services/magic_srood_client_logic.dart';
 import '../services/magic_srood_service.dart';
 
@@ -70,7 +70,7 @@ class MagicSroodScreen extends StatefulWidget {
 class _MagicSroodScreenState extends State<MagicSroodScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   late final _service = widget.service;
-  late final _MagicSroodSounds _sounds;
+  late final GameSoundService _sounds;
 
   List<HungryCatFood> _items = [];
   int _balance = 0;
@@ -159,7 +159,17 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _sounds = _MagicSroodSounds();
+    _sounds = GameSoundService(
+      tag: 'MagicSroodSounds',
+      tickAsset: 'assets/sounds/coin_rain.wav',
+      preloadEvent: 'bet',
+      events: const {
+        'bet': GameSound('assets/sounds/lucky_bag_open.mp3'),
+        'spin': GameSound('assets/sounds/lucky_bag_open.mp3'),
+        'win': GameSound('assets/sounds/lucky_bag_win.wav'),
+        'lose': GameSound('assets/sounds/lucky_bag_open.mp3'),
+      },
+    );
     _sounds.init();
 
     _pulseCtrl = AnimationController(
@@ -511,7 +521,7 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
       );
       if (!mounted) return;
       HapticFeedback.selectionClick();
-      _sounds.playBet();
+      _sounds.playEvent('bet');
       setState(() {
         if (mySeq >= _lastAppliedBalanceSeq) {
           _lastAppliedBalanceSeq = mySeq;
@@ -666,7 +676,7 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
     _settling = true;
     _balanceBeforeSpin = _balance;
     setState(() => _phase = _Phase.spinning);
-    _sounds.playSpin();
+    _sounds.playEvent('spin');
     _runFreeSpin();
     _startResultPoll();
     try {
@@ -758,12 +768,12 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
 
     final won = _betsByItem.containsKey(_winItemId);
     if (won) {
-      _sounds.playWin();
+      _sounds.playEvent('win');
       HapticFeedback.heavyImpact();
       _coinCtrl.reset();
       _coinCtrl.forward();
     } else if (_hasBets) {
-      _sounds.playLose();
+      _sounds.playEvent('lose');
       HapticFeedback.mediumImpact();
     } else {
       HapticFeedback.mediumImpact();
@@ -3338,85 +3348,3 @@ class _GoldBurstPainter extends CustomPainter {
 // Two players instead of five — keeps concurrent ExoPlayer pipeline count low.
 // _tick: dedicated, loaded once (fires every second during countdown).
 // _event: shared for bet / spin / win / lose (these never overlap each other).
-class _MagicSroodSounds {
-  final AudioPlayer _tick = AudioPlayer();
-  final AudioPlayer _event = AudioPlayer();
-
-  bool muted = false;
-
-  // Path currently loaded in _event player (avoids unnecessary reloads).
-  String? _loadedEventPath;
-
-  // Debounce stamp for tick — prevents seek+play spam that fills ExoPlayer's
-  // internal frame pipeline and triggers PipelineWatcher warnings.
-  DateTime? _lastTickAt;
-
-  Future<void> init() async {
-    debugPrint('[MagicSroodSounds] init — 2 players');
-    await _tryLoad(_tick, 'assets/sounds/coin_rain.wav');
-    // Pre-load the most common event sound; others are loaded on first play.
-    await _tryLoad(_event, 'assets/sounds/lucky_bag_open.mp3');
-    _loadedEventPath = 'assets/sounds/lucky_bag_open.mp3';
-  }
-
-  Future<void> _tryLoad(AudioPlayer p, String path, {String? fallback}) async {
-    try {
-      await p.setAsset(path);
-      debugPrint('[MagicSroodSounds] loaded $path');
-    } catch (_) {
-      if (fallback != null) {
-        try {
-          await p.setAsset(fallback);
-        } catch (_) {}
-      }
-    }
-  }
-
-  void playTick() {
-    if (muted) return;
-    final now = DateTime.now();
-    if (_lastTickAt != null &&
-        now.difference(_lastTickAt!) < const Duration(milliseconds: 120)) {
-      return; // debounce — drop ticks that arrive faster than 120 ms
-    }
-    _lastTickAt = now;
-    if (_tick.processingState == ProcessingState.loading ||
-        _tick.processingState == ProcessingState.buffering) {
-      return;
-    }
-    try {
-      unawaited(_tick.seek(Duration.zero).then((_) => _tick.play()));
-    } catch (_) {}
-  }
-
-  void playBet() => _playEvent('assets/sounds/lucky_bag_open.mp3');
-  void playSpin() => _playEvent('assets/sounds/lucky_bag_open.mp3');
-  void playWin() => _playEvent('assets/sounds/lucky_bag_win.wav');
-  void playLose() => _playEvent('assets/sounds/lucky_bag_open.mp3');
-
-  void _playEvent(String path, {String? fallback}) {
-    if (muted) return;
-    unawaited(_doPlayEvent(path, fallback: fallback));
-  }
-
-  Future<void> _doPlayEvent(String path, {String? fallback}) async {
-    try {
-      if (_loadedEventPath != path) {
-        await _tryLoad(_event, path, fallback: fallback);
-        _loadedEventPath = path;
-      } else {
-        await _event.seek(Duration.zero);
-      }
-      await _event.play();
-      debugPrint('[MagicSroodSounds] play $path');
-    } catch (e) {
-      debugPrint('[MagicSroodSounds] error playing $path: $e');
-    }
-  }
-
-  void dispose() {
-    debugPrint('[MagicSroodSounds] dispose — 2 players');
-    _tick.dispose();
-    _event.dispose();
-  }
-}
