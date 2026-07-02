@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import 'fish_hunt_screen.dart';
 import 'gold_ladder_quiz_screen.dart';
 import 'hungry_cat_webview_screen.dart';
 import 'magic_srood_screen.dart';
 import 'rocket_crash_webview_screen.dart';
+import 'roulette_screen.dart';
 import 'spin_wheel_screen.dart';
 import 'srood_blocks_screen.dart';
 import 'srood_loto_screen.dart';
@@ -213,6 +215,30 @@ class CrashGameScreen extends StatelessWidget {
         MaterialPageRoute<void>(
           builder: (_) => SroodBlocksScreen(isArabic: ar),
         ),
+      ),
+    ),
+    _GameData(
+      emoji: '🎣',
+      assetPath: null,
+      title: ar ? 'صيد سرود' : 'Fish Hunt',
+      subtitle: ar ? 'اصطد واربح' : 'Shoot & win',
+      colors: const [Color(0xFF38BDF8), Color(0xFF0C2D48)],
+      glowColor: const Color(0xFF38BDF8),
+      badge: ar ? 'جديد' : 'NEW',
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => FishHuntScreen(isArabic: ar)),
+      ),
+    ),
+    _GameData(
+      emoji: '🔴',
+      assetPath: null,
+      title: ar ? 'روليت سرود' : 'Srood Roulette',
+      subtitle: ar ? 'راهن واربح' : 'Bet & win',
+      colors: const [Color(0xFFA78BFA), Color(0xFF2E1065)],
+      glowColor: const Color(0xFFA78BFA),
+      badge: ar ? 'جديد' : 'NEW',
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => RouletteScreen(isArabic: ar)),
       ),
     ),
   ];

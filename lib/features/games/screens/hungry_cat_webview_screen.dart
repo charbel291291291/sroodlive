@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:srood_live/shared/utils/error_utils.dart';
+import 'package:srood_live/shared/widgets/coin_ui.dart';
 import 'package:srood_live/shared/widgets/srood_toast.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -40,7 +41,7 @@ const _kDefaultFoods = [
   (emoji: '🌽', name: 'Corn', nameAr: 'ذرة', mult: 5.0),
 ];
 
-const _kBetChips = [100, 500, 1000, 2000, 5000];
+const _kBetChips = [100, 1000, 5000, 10000, 20000, 100000];
 
 enum _Phase { loading, betting, spinning, settled, error }
 
@@ -1133,7 +1134,6 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
         _winFoodId != null &&
         i == _findWinnerIndex();
     final foodId = i < _foods.length ? _foods[i].foodId : '';
-    final isBusy = foodId.isNotEmpty && (_foodPendingCounts[foodId] ?? 0) > 0;
     final isSelected = _betsByFood.containsKey(foodId) && foodId.isNotEmpty;
     final betAmount = _betsByFood[foodId] ?? 0;
     final canTap = _phase == _Phase.betting && i < _foods.length;
@@ -1163,7 +1163,6 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
           isActive: isActive,
           isWinner: isWinner,
           isSelected: isSelected,
-          isBusy: isBusy,
           betAmount: betAmount,
           formatCoins: _formatCoins,
           isArabic: _ar,
@@ -1525,13 +1524,21 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: _kGoldCoin.withValues(alpha: 0.6)),
                 ),
-                child: Text(
-                  '${_emojiForFoodId(e.key)} ${_formatCoins(e.value)}🪙',
-                  style: const TextStyle(
-                    color: _kCream,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${_emojiForFoodId(e.key)} ',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    CoinAmountText(
+                      amount: e.value,
+                      fontSize: 11,
+                      iconSize: 12,
+                      color: _kCream,
+                      gap: 2,
+                    ),
+                  ],
                 ),
               ),
             )
@@ -1543,76 +1550,14 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   }
 
   Widget _buildBetChips({required bool locked}) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: _kBetChips.map((chip) {
-          final sel = chip == _betAmount;
-          final disabled = locked || (_balance < chip && !sel);
-          return GestureDetector(
-            onTap: locked
-                ? null
-                : () {
-                    HapticFeedback.selectionClick();
-                    setState(() => _betAmount = chip);
-                  },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: sel && !locked
-                      ? [_kGoldLight, _kGoldCoin, const Color(0xFFD4820A)]
-                      : disabled
-                      ? [const Color(0xFF8B6A3A), const Color(0xFF6B4E2A)]
-                      : [
-                          const Color(0xFFE8A830),
-                          _kGoldCoin,
-                          const Color(0xFFC07810),
-                        ],
-                ),
-                border: Border.all(
-                  color: sel && !locked ? Colors.white : _kWoodDark,
-                  width: sel && !locked ? 2.5 : 1.5,
-                ),
-                boxShadow: sel && !locked
-                    ? [
-                        BoxShadow(
-                          color: _kGoldCoin.withValues(alpha: 0.6),
-                          blurRadius: 10,
-                          spreadRadius: 1,
-                        ),
-                      ]
-                    : [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.3),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('❌', style: TextStyle(fontSize: disabled ? 10 : 11)),
-                  Text(
-                    _formatCoins(chip),
-                    style: TextStyle(
-                      color: disabled ? Colors.white38 : Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }).toList(),
-      ),
+    return CoinChipRow(
+      chips: _kBetChips,
+      selected: _betAmount,
+      balance: _balance,
+      locked: locked,
+      chipSize: 54,
+      spacing: 5,
+      onSelect: (v) => setState(() => _betAmount = v),
     );
   }
 
@@ -1637,9 +1582,9 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
       child: IntrinsicHeight(
         child: Row(
           children: [
-            _StatCell(
+            _CoinStatCell(
               label: _ar ? 'الربح اليوم' : "Today's Winning",
-              value: '🪙 ${_formatCoins(todayWin)}',
+              amount: todayWin,
               valueColor: todayWin > 0 ? _kGreenWin : _kBrown,
             ),
             _VertDivider(),
@@ -1649,9 +1594,9 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
               valueColor: _kWoodMed,
             ),
             _VertDivider(),
-            _StatCell(
-              label: _ar ? 'رصيدي' : 'xcoins balance',
-              value: '🪙 ${_formatCoins(_balance)}',
+            _CoinStatCell(
+              label: _ar ? 'رصيدي' : 'Coins Balance',
+              amount: _balance,
               valueColor: _kBrown,
             ),
           ],
@@ -1841,6 +1786,49 @@ class _CenterLabel extends StatelessWidget {
   }
 }
 
+// Variant of _StatCell that shows a coin icon + amount using AppCoinIcon.
+class _CoinStatCell extends StatelessWidget {
+  const _CoinStatCell({
+    required this.label,
+    required this.amount,
+    required this.valueColor,
+  });
+  final String label;
+  final int amount;
+  final Color valueColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CoinAmountText(
+              amount: amount,
+              fontSize: 13,
+              iconSize: 14,
+              color: valueColor,
+              gap: 3,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: _kWoodMed,
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _StatCell extends StatelessWidget {
   const _StatCell({
     required this.label,
@@ -1901,7 +1889,6 @@ class _HungryCatBubble extends StatelessWidget {
     required this.isActive,
     required this.isWinner,
     required this.isSelected,
-    required this.isBusy,
     required this.betAmount,
     required this.formatCoins,
     required this.isArabic,
@@ -1914,7 +1901,6 @@ class _HungryCatBubble extends StatelessWidget {
   final bool isActive;
   final bool isWinner;
   final bool isSelected;
-  final bool isBusy;
   final int betAmount;
   final String Function(int) formatCoins;
   final bool isArabic;
@@ -2028,17 +2014,6 @@ class _HungryCatBubble extends StatelessWidget {
               // Shimmer sweep on winner
               if (isWinner)
                 Positioned.fill(child: ClipOval(child: _ShimmerOverlay())),
-
-              // Busy spinner
-              if (isBusy)
-                SizedBox(
-                  width: size * 0.55,
-                  height: size * 0.55,
-                  child: const CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: _kGreenWin,
-                  ),
-                ),
 
               // Bet badge
               if (betAmount > 0)

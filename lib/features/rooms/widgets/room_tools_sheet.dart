@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:srood_live/shared/utils/error_utils.dart';
 
@@ -11,9 +11,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../games/screens/crash_game_screen.dart';
+import '../../games/screens/fish_hunt_screen.dart';
 import '../../games/screens/gold_ladder_quiz_screen.dart';
 import '../../games/screens/hungry_cat_webview_screen.dart';
 import '../../games/screens/magic_srood_screen.dart';
+import '../../games/screens/roulette_screen.dart';
 import '../../games/screens/spin_wheel_screen.dart';
 import '../../games/screens/srood_loto_screen.dart';
 import '../../games/screens/srood_treasure_screen.dart';
@@ -141,14 +143,19 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
         'isOwner=${widget.isOwner} isHost=${widget.isHost} isModerator=${widget.isModerator}',
       );
       _snack(
-        _t('ليس لديك صلاحية لاستخدام هذه الأداة',
-            'You do not have permission to use this tool.'),
+        _t(
+          'ليس لديك صلاحية لاستخدام هذه الأداة',
+          'You do not have permission to use this tool.',
+        ),
         isError: true,
       );
     }
   }
 
-  void _requireModeratePermission(VoidCallback onGranted, {String tool = 'unknown'}) {
+  void _requireModeratePermission(
+    VoidCallback onGranted, {
+    String tool = 'unknown',
+  }) {
     if (_canModerate) {
       debugPrint('[RoomPerm] tool=$tool allowed=true reason=canModerate');
       onGranted();
@@ -158,8 +165,10 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
         'isOwner=${widget.isOwner} isHost=${widget.isHost} isModerator=${widget.isModerator}',
       );
       _snack(
-        _t('ليس لديك صلاحية لاستخدام هذه الأداة',
-            'You do not have permission to use this tool.'),
+        _t(
+          'ليس لديك صلاحية لاستخدام هذه الأداة',
+          'You do not have permission to use this tool.',
+        ),
         isError: true,
       );
     }
@@ -168,7 +177,11 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
   // -- Snack helper ----------------------------------------------------------
 
   void _snack(String msg, {bool isError = false}) {
-    SroodToast.show(context, msg, type: isError ? SroodToastType.error : SroodToastType.success);
+    SroodToast.show(
+      context,
+      msg,
+      type: isError ? SroodToastType.error : SroodToastType.success,
+    );
   }
 
   // -- Coming Soon mini-sheet ------------------------------------------------
@@ -198,7 +211,8 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
     Navigator.of(context).pop();
     showModalBottomSheet<void>(
       context: context,
-      useRootNavigator: true, // anchor to root overlay, not the popped sheet route
+      useRootNavigator:
+          true, // anchor to root overlay, not the popped sheet route
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => RoomSettingsSheet(
@@ -233,10 +247,8 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _LuckyBagSheet(
-        roomId: widget.room.id,
-        isArabic: context.isArabic,
-      ),
+      builder: (_) =>
+          _LuckyBagSheet(roomId: widget.room.id, isArabic: context.isArabic),
     );
 
     if (!mounted || result == null) return;
@@ -257,8 +269,13 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
     // Close the tools sheet now that the lucky bag was sent successfully.
     Navigator.of(context).pop();
 
-    SroodToast.show(context, context.isArabic ? 'تم إرسال حقيبة الحظ' : 'Lucky Bag sent!', type: SroodToastType.success);
+    SroodToast.show(
+      context,
+      context.isArabic ? 'تم إرسال حقيبة الحظ' : 'Lucky Bag sent!',
+      type: SroodToastType.success,
+    );
   }
+
   void _openMusic() {
     HapticFeedback.lightImpact();
     Navigator.of(context).pop();
@@ -275,24 +292,31 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
         title: Text(
           _t('مسح الدردشة', 'Clear Chat'),
           style: const TextStyle(
-              color: Colors.white, fontWeight: FontWeight.w800),
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         content: Text(
-          _t('هل أنت متأكد أنك تريد مسح جميع رسائل الدردشة؟',
-              'Are you sure you want to clear all chat messages?'),
+          _t(
+            'هل أنت متأكد أنك تريد مسح جميع رسائل الدردشة؟',
+            'Are you sure you want to clear all chat messages?',
+          ),
           style: TextStyle(color: Colors.white.withValues(alpha: 0.75)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(_t('إلغاء', 'Cancel'),
-                style: const TextStyle(color: Color(0xFF9E91B8))),
+            child: Text(
+              _t('إلغاء', 'Cancel'),
+              style: const TextStyle(color: Color(0xFF9E91B8)),
+            ),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFF8B26D9),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: () {
               Navigator.of(ctx).pop(true);
@@ -331,7 +355,11 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
 
     final micMembers = widget.micMembers;
     if (micMembers.isEmpty) {
-      SroodToast.show(context, context.isArabic ? 'لا يوجد أحد على المايك' : 'No one is on mic', type: SroodToastType.info);
+      SroodToast.show(
+        context,
+        context.isArabic ? 'لا يوجد أحد على المايك' : 'No one is on mic',
+        type: SroodToastType.info,
+      );
       return;
     }
 
@@ -382,7 +410,6 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
       ),
     );
   }
-
 
   // -- Build -----------------------------------------------------------------
 
@@ -461,7 +488,10 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                           labelEn: 'Clean',
                           onTap: _canModerate
                               ? _confirmClearChat
-                              : () => _requireModeratePermission(() {}, tool: 'Clean'),
+                              : () => _requireModeratePermission(
+                                  () {},
+                                  tool: 'Clean',
+                                ),
                           disabled: !_canModerate,
                         ),
                         _ToolDef(
@@ -470,7 +500,8 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                           labelEn: 'Settings',
                           onTap: _canManage
                               ? _openSettings
-                              : () => _requirePermission(() {}, tool: 'Settings'),
+                              : () =>
+                                    _requirePermission(() {}, tool: 'Settings'),
                           disabled: !_canManage,
                         ),
                         _ToolDef(
@@ -493,7 +524,10 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                           labelEn: 'Mic Mode',
                           onTap: _canModerate
                               ? _openMicMode
-                              : () => _requireModeratePermission(() {}, tool: 'MicMode'),
+                              : () => _requireModeratePermission(
+                                  () {},
+                                  tool: 'MicMode',
+                                ),
                           disabled: !_canModerate,
                         ),
                         _ToolDef(
@@ -518,9 +552,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                               : Icons.volume_off_rounded,
                           labelAr: _soundOn ? 'الصوت' : 'كتم',
                           labelEn: _soundOn ? 'Sound' : 'Muted',
-                          accent: _soundOn
-                              ? const Color(0xFF1A8CB0)
-                              : null,
+                          accent: _soundOn ? const Color(0xFF1A8CB0) : null,
                           isToggled: _soundOn,
                           onTap: _toggleSound,
                         ),
@@ -530,9 +562,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                               : Icons.auto_awesome_outlined,
                           labelAr: _visualOn ? 'مؤثرات' : 'بدون مؤثرات',
                           labelEn: _visualOn ? 'Visual' : 'Visual Off',
-                          accent: _visualOn
-                              ? const Color(0xFF8B26D9)
-                              : null,
+                          accent: _visualOn ? const Color(0xFF8B26D9) : null,
                           isToggled: _visualOn,
                           onTap: _toggleVisual,
                         ),
@@ -588,26 +618,30 @@ class _ToolGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
-      // 5 columns with 8 px gaps -> each tile width
-      const cols = 5;
-      const gap = 8.0;
-      final tileW = (constraints.maxWidth - gap * (cols - 1)) / cols;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 5 columns with 8 px gaps -> each tile width
+        const cols = 5;
+        const gap = 8.0;
+        final tileW = (constraints.maxWidth - gap * (cols - 1)) / cols;
 
-      return Wrap(
-        spacing: gap,
-        runSpacing: 12,
-        children: items
-            .map((item) => SizedBox(
+        return Wrap(
+          spacing: gap,
+          runSpacing: 12,
+          children: items
+              .map(
+                (item) => SizedBox(
                   width: tileW,
                   child: _ToolTile(
                     def: item,
                     label: isArabic ? item.labelAr : item.labelEn,
                   ),
-                ))
-            .toList(),
-      );
-    });
+                ),
+              )
+              .toList(),
+        );
+      },
+    );
   }
 }
 
@@ -640,9 +674,10 @@ class _ToolTileState extends State<_ToolTile>
       lowerBound: 0,
       upperBound: 1,
     );
-    _scale = Tween<double>(begin: 1.0, end: 0.88).animate(
-      CurvedAnimation(parent: _press, curve: Curves.easeInOut),
-    );
+    _scale = Tween<double>(
+      begin: 1.0,
+      end: 0.88,
+    ).animate(CurvedAnimation(parent: _press, curve: Curves.easeInOut));
   }
 
   @override
@@ -797,10 +832,7 @@ class _SectionLabel extends StatelessWidget {
 // --------------------
 
 class _PkActiveOptionsSheet extends StatelessWidget {
-  const _PkActiveOptionsSheet({
-    required this.isArabic,
-    required this.onCancel,
-  });
+  const _PkActiveOptionsSheet({required this.isArabic, required this.onCancel});
   final bool isArabic;
   final VoidCallback onCancel;
 
@@ -846,7 +878,8 @@ class _PkActiveOptionsSheet extends StatelessWidget {
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFFE63946),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
+                  borderRadius: BorderRadius.circular(14),
+                ),
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
               onPressed: onCancel,
@@ -892,9 +925,27 @@ class _MicModeSheet extends StatefulWidget {
 
 class _MicModeSheetState extends State<_MicModeSheet> {
   static const _options = [
-    (seats: 6,  ar: '٦ مقاعد',  en: '6 Seats',  descAr: 'مناسب للغرف الصغيرة',       descEn: 'Best for small rooms'),
-    (seats: 9,  ar: '٩ مقاعد',  en: '9 Seats',  descAr: 'توازن مثالي',                descEn: 'Balanced experience'),
-    (seats: 12, ar: '١٢ مقعد', en: '12 Seats', descAr: 'للغرف الكبيرة والحفلات',    descEn: 'Large rooms & events'),
+    (
+      seats: 6,
+      ar: '٦ مقاعد',
+      en: '6 Seats',
+      descAr: 'مناسب للغرف الصغيرة',
+      descEn: 'Best for small rooms',
+    ),
+    (
+      seats: 9,
+      ar: '٩ مقاعد',
+      en: '9 Seats',
+      descAr: 'توازن مثالي',
+      descEn: 'Balanced experience',
+    ),
+    (
+      seats: 12,
+      ar: '١٢ مقعد',
+      en: '12 Seats',
+      descAr: 'للغرف الكبيرة والحفلات',
+      descEn: 'Large rooms & events',
+    ),
   ];
 
   late int _selected;
@@ -925,7 +976,11 @@ class _MicModeSheetState extends State<_MicModeSheet> {
           _selected = widget.currentSeats;
           _saving = false;
         });
-        SroodToast.show(context, _t('فشل تحديث المقاعد', 'Failed to update seats'), type: SroodToastType.error);
+        SroodToast.show(
+          context,
+          _t('فشل تحديث المقاعد', 'Failed to update seats'),
+          type: SroodToastType.error,
+        );
       }
     }
   }
@@ -951,14 +1006,21 @@ class _MicModeSheetState extends State<_MicModeSheet> {
           Text(
             _t('عدد مقاعد الميكروفون', 'Mic Seats'),
             style: const TextStyle(
-                color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
-            _t('يؤثر على جميع المشاركين في الغرفة',
-                'Affects all participants in the room'),
+            _t(
+              'يؤثر على جميع المشاركين في الغرفة',
+              'Affects all participants in the room',
+            ),
             style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.45), fontSize: 12),
+              color: Colors.white.withValues(alpha: 0.45),
+              fontSize: 12,
+            ),
           ),
           const SizedBox(height: 16),
           ...List.generate(_options.length, (i) {
@@ -969,8 +1031,10 @@ class _MicModeSheetState extends State<_MicModeSheet> {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 margin: const EdgeInsets.only(bottom: 10),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   color: isSelected
@@ -1043,8 +1107,11 @@ class _MicModeSheetState extends State<_MicModeSheet> {
                         ),
                       )
                     else if (isSelected)
-                      const Icon(Icons.check_circle_rounded,
-                          color: Color(0xFFC875FF), size: 20),
+                      const Icon(
+                        Icons.check_circle_rounded,
+                        color: Color(0xFFC875FF),
+                        size: 20,
+                      ),
                   ],
                 ),
               ),
@@ -1080,10 +1147,26 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
   static const _kBgKey = 'room_pref_background';
 
   static const _themes = [
-    (ar: 'ليلي كلاسيكي', en: 'Classic Night', colors: [Color(0xFF231440), Color(0xFF160C2F), Color(0xFF0C0619)]),
-    (ar: 'شفق أرجواني', en: 'Purple Dusk',   colors: [Color(0xFF2D1B69), Color(0xFF11998e), Color(0xFF1A0D33)]),
-    (ar: 'نار ذهبية',   en: 'Golden Flame',  colors: [Color(0xFF3D1C02), Color(0xFF7B3F00), Color(0xFF1A0900)]),
-    (ar: 'سماء زرقاء', en: 'Deep Ocean',     colors: [Color(0xFF0A1628), Color(0xFF1A3A5C), Color(0xFF0D1F35)]),
+    (
+      ar: 'ليلي كلاسيكي',
+      en: 'Classic Night',
+      colors: [Color(0xFF231440), Color(0xFF160C2F), Color(0xFF0C0619)],
+    ),
+    (
+      ar: 'شفق أرجواني',
+      en: 'Purple Dusk',
+      colors: [Color(0xFF2D1B69), Color(0xFF11998e), Color(0xFF1A0D33)],
+    ),
+    (
+      ar: 'نار ذهبية',
+      en: 'Golden Flame',
+      colors: [Color(0xFF3D1C02), Color(0xFF7B3F00), Color(0xFF1A0900)],
+    ),
+    (
+      ar: 'سماء زرقاء',
+      en: 'Deep Ocean',
+      colors: [Color(0xFF0A1628), Color(0xFF1A3A5C), Color(0xFF0D1F35)],
+    ),
   ];
 
   int _selectedTheme = 0;
@@ -1129,13 +1212,21 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
       widget.onBackgroundChanged?.call(url);
       widget.onBackgroundChanged?.call(url);
       if (!mounted) return;
-      SroodToast.show(context, 'Background updated', type: SroodToastType.success);
+      SroodToast.show(
+        context,
+        'Background updated',
+        type: SroodToastType.success,
+      );
       Navigator.of(context).pop();
     } catch (e, st) {
       debugError('_BackgroundSheetState._uploadImage', e, st);
       if (!mounted) return;
       setState(() => _uploading = false);
-      SroodToast.show(context, 'Failed to upload image', type: SroodToastType.error);
+      SroodToast.show(
+        context,
+        'Failed to upload image',
+        type: SroodToastType.error,
+      );
     }
   }
 
@@ -1145,24 +1236,29 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1A0D33),
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20)),
-        title: const Text('Remove background?',
-            style: TextStyle(
-                color: Colors.white, fontWeight: FontWeight.w800)),
-        content: const Text('The room will revert to its default color.',
-            style: TextStyle(color: Colors.white70)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Remove background?',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+        ),
+        content: const Text(
+          'The room will revert to its default color.',
+          style: TextStyle(color: Colors.white70),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel',
-                style: TextStyle(color: Color(0xFF9E91B8))),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF9E91B8)),
+            ),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFFE63946),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('Remove'),
@@ -1187,7 +1283,9 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final hasCustomBg = widget.currentBackgroundUrl != null;
     return Container(
-      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.85),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+      ),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -1199,198 +1297,220 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
       child: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomInset),
         child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _Handle(),
-          const SizedBox(height: 8),
-          Text(
-            _t('خلفية الغرفة', 'Room Background'),
-            style: const TextStyle(
-                color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Visible to everyone in the room',
-            style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.45), fontSize: 12),
-          ),
-          const SizedBox(height: 20),
-          // -- Gradient presets --
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: Text(
-              _t('ألوان', 'COLORS').toUpperCase(),
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.40),
-                fontSize: 10,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _Handle(),
+            const SizedBox(height: 8),
+            Text(
+              _t('خلفية الغرفة', 'Room Background'),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
                 fontWeight: FontWeight.w800,
-                letterSpacing: 1.2,
               ),
             ),
-          ),
-          const SizedBox(height: 10),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 2.4,
+            const SizedBox(height: 6),
+            Text(
+              'Visible to everyone in the room',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.45),
+                fontSize: 12,
+              ),
             ),
-            itemCount: _themes.length,
-            itemBuilder: (_, i) {
-              final theme = _themes[i];
-              final isSelected = !hasCustomBg && _selectedTheme == i;
-              return GestureDetector(
-                onTap: _uploading ? null : () => _pickTheme(i),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: theme.colors,
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: isSelected
-                          ? const Color(0xFFF0C15A)
-                          : Colors.white.withValues(alpha: 0.12),
-                      width: isSelected ? 2 : 1,
-                    ),
-                  ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Text(
-                        _t(theme.ar, theme.en),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                        ),
-                      ),
-                      if (isSelected)
-                        Positioned(
-                          top: 6,
-                          right: 6,
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFF0C15A),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.check,
-                                size: 12, color: Colors.black),
-                          ),
-                        ),
-                    ],
-                  ),
+            const SizedBox(height: 20),
+            // -- Gradient presets --
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Text(
+                _t('ألوان', 'COLORS').toUpperCase(),
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.40),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
                 ),
-              );
-            },
-          ),
-          const SizedBox(height: 20),
-          // -- Custom image upload --
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: Text(
-              _t('صورة مخصصة', 'CUSTOM IMAGE').toUpperCase(),
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.40),
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.2,
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          if (hasCustomBg) ...[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: Stack(
-                children: [
-                  Image.network(
-                    widget.currentBackgroundUrl!,
-                    height: 100,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => Container(
-                      height: 100,
-                      color: Colors.white.withValues(alpha: 0.05),
-                      child: const Icon(Icons.broken_image_rounded,
-                          color: Colors.white38),
-                    ),
-                  ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: GestureDetector(
-                      onTap: _uploading ? null : _removeBackground,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.6),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.close_rounded,
-                            color: Colors.white, size: 16),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        _t('صورة مخصصة نشطة', 'Custom image active'),
-                        style: const TextStyle(
-                            color: Color(0xFFF0C15A),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ),
-                ],
               ),
             ),
             const SizedBox(height: 10),
-          ],
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFFC875FF),
-                side: BorderSide(
-                    color: const Color(0xFF8B26D9).withValues(alpha: 0.5)),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-                padding: const EdgeInsets.symmetric(vertical: 14),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 2.4,
               ),
-              onPressed: _uploading ? null : _uploadImage,
-              icon: _uploading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Color(0xFFC875FF)),
-                    )
-                  : const Icon(Icons.add_photo_alternate_rounded, size: 20),
-              label: Text(_uploading
-                  ? _t('جاري الرفع...', 'Uploading...')
-                  : _t('رفع صورة مخصصة', 'Upload Custom Image')),
+              itemCount: _themes.length,
+              itemBuilder: (_, i) {
+                final theme = _themes[i];
+                final isSelected = !hasCustomBg && _selectedTheme == i;
+                return GestureDetector(
+                  onTap: _uploading ? null : () => _pickTheme(i),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: theme.colors,
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isSelected
+                            ? const Color(0xFFF0C15A)
+                            : Colors.white.withValues(alpha: 0.12),
+                        width: isSelected ? 2 : 1,
+                      ),
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Text(
+                          _t(theme.ar, theme.en),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                        if (isSelected)
+                          Positioned(
+                            top: 6,
+                            right: 6,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFF0C15A),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.check,
+                                size: 12,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
-          ),
-          const SizedBox(height: 4),
-        ],
-      ),
+            const SizedBox(height: 20),
+            // -- Custom image upload --
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Text(
+                _t('صورة مخصصة', 'CUSTOM IMAGE').toUpperCase(),
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.40),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            if (hasCustomBg) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Stack(
+                  children: [
+                    Image.network(
+                      widget.currentBackgroundUrl!,
+                      height: 100,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Container(
+                        height: 100,
+                        color: Colors.white.withValues(alpha: 0.05),
+                        child: const Icon(
+                          Icons.broken_image_rounded,
+                          color: Colors.white38,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: GestureDetector(
+                        onTap: _uploading ? null : _removeBackground,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.6),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close_rounded,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _t('صورة مخصصة نشطة', 'Custom image active'),
+                          style: const TextStyle(
+                            color: Color(0xFFF0C15A),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFC875FF),
+                  side: BorderSide(
+                    color: const Color(0xFF8B26D9).withValues(alpha: 0.5),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: _uploading ? null : _uploadImage,
+                icon: _uploading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFFC875FF),
+                        ),
+                      )
+                    : const Icon(Icons.add_photo_alternate_rounded, size: 20),
+                label: Text(
+                  _uploading
+                      ? _t('جاري الرفع...', 'Uploading...')
+                      : _t('رفع صورة مخصصة', 'Upload Custom Image'),
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+          ],
+        ),
       ),
     );
   }
@@ -1401,7 +1521,6 @@ class _BackgroundSheetState extends State<_BackgroundSheet> {
 // ─────────────────────────────────────────────────────────────────────────────
 // Lucky Bag sheet — premium send UI (backed by red_envelopes table)
 // ─────────────────────────────────────────────────────────────────────────────
-
 
 class _LuckyBagSheet extends StatefulWidget {
   const _LuckyBagSheet({required this.roomId, required this.isArabic});
@@ -1417,9 +1536,9 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
   late final TabController _tab;
 
   static const _coinPresetsNormal = [777, 999, 2999, 4999];
-  static const _coinPresetsSuper  = [9999, 19999, 49999, 99999];
-  static const _countPresets      = [9, 19, 29, 49];
-  static const _timerPresets      = [15, 30, 60, 120, 300];
+  static const _coinPresetsSuper = [9999, 19999, 49999, 99999];
+  static const _countPresets = [9, 19, 29, 49];
+  static const _timerPresets = [15, 30, 60, 120, 300];
 
   int _selectedCoins = 777;
   int _selectedCount = 9;
@@ -1472,25 +1591,32 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
   Future<void> _send() async {
     HapticFeedback.mediumImpact();
     _playSfx('assets/sounds/lucky_bag_win.wav');
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final expiresAt = DateTime.now()
           .toUtc()
           .add(Duration(seconds: _selectedTimer))
           .toIso8601String();
-      final result = await Supabase.instance.client
-          .rpc('create_red_envelope', params: {
-        'p_room_id':     widget.roomId,
-        'p_total_coins': _selectedCoins,
-        'p_count':       _selectedCount,
-        'p_is_super':    _isSuper,
-        'p_expires_at':  expiresAt,
-      });
+      final result = await Supabase.instance.client.rpc(
+        'create_red_envelope',
+        params: {
+          'p_room_id': widget.roomId,
+          'p_total_coins': _selectedCoins,
+          'p_count': _selectedCount,
+          'p_is_super': _isSuper,
+          'p_expires_at': expiresAt,
+        },
+      );
       if (mounted) Navigator.of(context).pop(result);
     } catch (e) {
       if (!mounted) return;
-      debugPrint('[LuckyBag] send — room=${widget.roomId} '
-          'coins=$_selectedCoins count=$_selectedCount super=$_isSuper err=$e');
+      debugPrint(
+        '[LuckyBag] send — room=${widget.roomId} '
+        'coins=$_selectedCoins count=$_selectedCount super=$_isSuper err=$e',
+      );
       final msg = e.toString();
       final String friendly;
       if (msg.contains('insufficient_balance')) {
@@ -1502,7 +1628,10 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
       } else {
         friendly = _t('حدث خطأ، حاول مرة أخرى', 'An error occurred, try again');
       }
-      setState(() { _error = friendly; _loading = false; });
+      setState(() {
+        _error = friendly;
+        _loading = false;
+      });
     }
   }
 
@@ -1530,7 +1659,8 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom +
+    final bottomInset =
+        MediaQuery.of(context).viewInsets.bottom +
         MediaQuery.of(context).padding.bottom;
     final coinPresets = _coinPresets;
     final avg = (_selectedCoins / _selectedCount).round();
@@ -1542,8 +1672,16 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: isSuper
-                ? [const Color(0xFF3A0A0A), const Color(0xFF220505), const Color(0xFF130318)]
-                : [const Color(0xFF2D0808), const Color(0xFF1C0505), const Color(0xFF120316)],
+                ? [
+                    const Color(0xFF3A0A0A),
+                    const Color(0xFF220505),
+                    const Color(0xFF130318),
+                  ]
+                : [
+                    const Color(0xFF2D0808),
+                    const Color(0xFF1C0505),
+                    const Color(0xFF120316),
+                  ],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -1558,7 +1696,8 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
               Center(
                 child: Container(
                   margin: const EdgeInsets.symmetric(vertical: 12),
-                  width: 44, height: 4,
+                  width: 44,
+                  height: 4,
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(2),
@@ -1612,7 +1751,10 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
               // ── Subtitle ────────────────────────────────────────────────
               Text(
                 isSuper
-                    ? _t('أرسل حقيبة الحظ الكبرى 🔥', 'Send a Super Lucky Bag 🔥')
+                    ? _t(
+                        'أرسل حقيبة الحظ الكبرى 🔥',
+                        'Send a Super Lucky Bag 🔥',
+                      )
                     : _t('أرسل حقيبة الحظ', 'Send a Lucky Bag'),
                 style: TextStyle(
                   color: isSuper ? const Color(0xFFFFD700) : Colors.white,
@@ -1666,7 +1808,9 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
                   labelColor: Colors.white,
                   unselectedLabelColor: Colors.white54,
                   labelStyle: const TextStyle(
-                      fontWeight: FontWeight.w800, fontSize: 13),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
                   tabs: [
                     Tab(text: _t('حقيبة الحظ', 'Lucky Bag')),
                     Tab(
@@ -1691,21 +1835,25 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
               ),
               const SizedBox(height: 10),
               Row(
-                children: coinPresets.map((v) => Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: _BagPresetChip(
-                      label: _fmtN(v),
-                      selected: _selectedCoins == v,
-                      selectedColor: const Color(0xFFF0C15A),
-                      selectedBg: const Color(0xFF3D2200),
-                      onTap: () => setState(() {
-                        _selectedCoins = v;
-                        _error = null;
-                      }),
-                    ),
-                  ),
-                )).toList(),
+                children: coinPresets
+                    .map(
+                      (v) => Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: _BagPresetChip(
+                            label: _fmtN(v),
+                            selected: _selectedCoins == v,
+                            selectedColor: const Color(0xFFF0C15A),
+                            selectedBg: const Color(0xFF3D2200),
+                            onTap: () => setState(() {
+                              _selectedCoins = v;
+                              _error = null;
+                            }),
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
               ),
               const SizedBox(height: 18),
 
@@ -1716,21 +1864,25 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
               ),
               const SizedBox(height: 10),
               Row(
-                children: _countPresets.map((v) => Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: _BagPresetChip(
-                      label: '$v',
-                      selected: _selectedCount == v,
-                      selectedColor: Colors.white,
-                      selectedBg: const Color(0xFFD4380D),
-                      onTap: () => setState(() {
-                        _selectedCount = v;
-                        _error = null;
-                      }),
-                    ),
-                  ),
-                )).toList(),
+                children: _countPresets
+                    .map(
+                      (v) => Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: _BagPresetChip(
+                            label: '$v',
+                            selected: _selectedCount == v,
+                            selectedColor: Colors.white,
+                            selectedBg: const Color(0xFFD4380D),
+                            onTap: () => setState(() {
+                              _selectedCount = v;
+                              _error = null;
+                            }),
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
               ),
               const SizedBox(height: 18),
 
@@ -1741,28 +1893,34 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
               ),
               const SizedBox(height: 10),
               Row(
-                children: _timerPresets.map((secs) => Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 3),
-                    child: _BagPresetChip(
-                      label: _fmtTimer(secs),
-                      selected: _selectedTimer == secs,
-                      selectedColor: Colors.white,
-                      selectedBg: const Color(0xFF1A5276),
-                      onTap: () => setState(() {
-                        _selectedTimer = secs;
-                        _error = null;
-                      }),
-                    ),
-                  ),
-                )).toList(),
+                children: _timerPresets
+                    .map(
+                      (secs) => Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 3),
+                          child: _BagPresetChip(
+                            label: _fmtTimer(secs),
+                            selected: _selectedTimer == secs,
+                            selectedColor: Colors.white,
+                            selectedBg: const Color(0xFF1A5276),
+                            onTap: () => setState(() {
+                              _selectedTimer = secs;
+                              _error = null;
+                            }),
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
               ),
               const SizedBox(height: 14),
 
               // ── Summary pill ──────────────────────────────────────────────
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(12),
@@ -1773,8 +1931,11 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.monetization_on_rounded,
-                        color: Color(0xFFF0C15A), size: 15),
+                    const Icon(
+                      Icons.monetization_on_rounded,
+                      color: Color(0xFFF0C15A),
+                      size: 15,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       _t(
@@ -1790,10 +1951,13 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 2),
+                          horizontal: 7,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                              colors: [Color(0xFFD4380D), Color(0xFFFF6B00)]),
+                            colors: [Color(0xFFD4380D), Color(0xFFFF6B00)],
+                          ),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: const Text(
@@ -1817,7 +1981,9 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
                   _error!,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                      color: Color(0xFFFF6B6B), fontSize: 12),
+                    color: Color(0xFFFF6B6B),
+                    fontSize: 12,
+                  ),
                 ),
               ],
               const SizedBox(height: 20),
@@ -1834,16 +2000,25 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: isSuper
-                                  ? [const Color(0xFFFF8C00), const Color(0xFFD4380D)]
-                                  : [const Color(0xFFFFD700), const Color(0xFFC8850A)],
+                                  ? [
+                                      const Color(0xFFFF8C00),
+                                      const Color(0xFFD4380D),
+                                    ]
+                                  : [
+                                      const Color(0xFFFFD700),
+                                      const Color(0xFFC8850A),
+                                    ],
                             ),
                             borderRadius: BorderRadius.circular(18),
                           ),
                           child: const Center(
                             child: SizedBox(
-                              width: 22, height: 22,
+                              width: 22,
+                              height: 22,
                               child: CircularProgressIndicator(
-                                  strokeWidth: 2.5, color: Colors.white),
+                                strokeWidth: 2.5,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         )
@@ -1854,16 +2029,23 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: isSuper
-                                    ? [const Color(0xFFFF8C00), const Color(0xFFD4380D)]
-                                    : [const Color(0xFFFFD700), const Color(0xFFC8850A)],
+                                    ? [
+                                        const Color(0xFFFF8C00),
+                                        const Color(0xFFD4380D),
+                                      ]
+                                    : [
+                                        const Color(0xFFFFD700),
+                                        const Color(0xFFC8850A),
+                                      ],
                               ),
                               borderRadius: BorderRadius.circular(18),
                               boxShadow: [
                                 BoxShadow(
-                                  color: (isSuper
-                                          ? const Color(0xFFFF6B00)
-                                          : const Color(0xFFFFD700))
-                                      .withValues(alpha: 0.38),
+                                  color:
+                                      (isSuper
+                                              ? const Color(0xFFFF6B00)
+                                              : const Color(0xFFFFD700))
+                                          .withValues(alpha: 0.38),
                                   blurRadius: 18,
                                   offset: const Offset(0, 4),
                                 ),
@@ -1872,13 +2054,19 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.card_giftcard_rounded,
-                                    size: 20, color: Colors.white),
+                                const Icon(
+                                  Icons.card_giftcard_rounded,
+                                  size: 20,
+                                  color: Colors.white,
+                                ),
                                 const SizedBox(width: 8),
                                 Text(
                                   isSuper
                                       ? _t('إرسال الكبرى', 'Send Super Bag')
-                                      : _t('إرسال حقيبة الحظ', 'Send Lucky Bag'),
+                                      : _t(
+                                          'إرسال حقيبة الحظ',
+                                          'Send Lucky Bag',
+                                        ),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 16,
@@ -1888,7 +2076,9 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
                                 const SizedBox(width: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 3),
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.black.withValues(alpha: 0.22),
                                     borderRadius: BorderRadius.circular(8),
@@ -1905,8 +2095,11 @@ class _LuckyBagSheetState extends State<_LuckyBagSheet>
                                         ),
                                       ),
                                       const SizedBox(width: 3),
-                                      const Icon(Icons.monetization_on_rounded,
-                                          size: 12, color: Colors.white),
+                                      const Icon(
+                                        Icons.monetization_on_rounded,
+                                        size: 12,
+                                        color: Colors.white,
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -1956,31 +2149,31 @@ class _BagHeaderAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-                color: Colors.white.withValues(alpha: 0.12)),
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: Colors.white60),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white60,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 13, color: Colors.white60),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: const TextStyle(
-                    color: Colors.white60,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1988,11 +2181,7 @@ class _BagHeaderAction extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _LuxuryBagWidget extends StatelessWidget {
-  const _LuxuryBagWidget({
-    super.key,
-    required this.size,
-    this.isSuper = false,
-  });
+  const _LuxuryBagWidget({super.key, required this.size, this.isSuper = false});
   final double size;
   final bool isSuper;
 
@@ -2015,10 +2204,11 @@ class _LuxuryBagWidget extends StatelessWidget {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: (isSuper
-                            ? const Color(0xFFFF6B00)
-                            : const Color(0xFFE63946))
-                        .withValues(alpha: 0.42),
+                    color:
+                        (isSuper
+                                ? const Color(0xFFFF6B00)
+                                : const Color(0xFFE63946))
+                            .withValues(alpha: 0.42),
                     blurRadius: 36,
                     spreadRadius: 8,
                   ),
@@ -2071,8 +2261,16 @@ class _LuxuryBagPainter extends CustomPainter {
         center: const Alignment(-0.25, -0.35),
         radius: 1.15,
         colors: isSuper
-            ? [const Color(0xFFE84820), const Color(0xFFA01008), const Color(0xFF5C0004)]
-            : [const Color(0xFFBF1B0B), const Color(0xFF8B0000), const Color(0xFF4A0000)],
+            ? [
+                const Color(0xFFE84820),
+                const Color(0xFFA01008),
+                const Color(0xFF5C0004),
+              ]
+            : [
+                const Color(0xFFBF1B0B),
+                const Color(0xFF8B0000),
+                const Color(0xFF4A0000),
+              ],
       ).createShader(Rect.fromLTWH(0, bodyTop, w, bodyH));
     canvas.drawRRect(bodyRect, bodyPaint);
 
@@ -2096,21 +2294,26 @@ class _LuxuryBagPainter extends CustomPainter {
 
     // ── Highlight streak (upper-left gloss) ──────────────────────────────────
     final glossPath = Path()
-      ..addRRect(RRect.fromRectAndRadius(
-        Rect.fromLTWH(w * 0.07, bodyTop + 5, w * 0.33, bodyH * 0.18),
-        const Radius.circular(20),
-      ));
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(w * 0.07, bodyTop + 5, w * 0.33, bodyH * 0.18),
+          const Radius.circular(20),
+        ),
+      );
     canvas.drawPath(
       glossPath,
       Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white.withValues(alpha: 0.28),
-            Colors.white.withValues(alpha: 0.0),
-          ],
-        ).createShader(Rect.fromLTWH(w * 0.07, bodyTop + 5, w * 0.33, bodyH * 0.18)),
+        ..shader =
+            LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withValues(alpha: 0.28),
+                Colors.white.withValues(alpha: 0.0),
+              ],
+            ).createShader(
+              Rect.fromLTWH(w * 0.07, bodyTop + 5, w * 0.33, bodyH * 0.18),
+            ),
     );
 
     // ── Center emblem ────────────────────────────────────────────────────────
@@ -2142,10 +2345,7 @@ class _LuxuryBagPainter extends CustomPainter {
     )..layout();
     dollarPainter.paint(
       canvas,
-      Offset(
-        w * 0.5 - dollarPainter.width / 2,
-        bodyTop + bodyH * 0.64,
-      ),
+      Offset(w * 0.5 - dollarPainter.width / 2, bodyTop + bodyH * 0.64),
     );
 
     // ── Gold handles ─────────────────────────────────────────────────────────
@@ -2182,12 +2382,12 @@ class _LuxuryBagPainter extends CustomPainter {
       Offset(w * 0.5, 0),
       knotR,
       Paint()
-        ..shader = RadialGradient(
-          colors: [const Color(0xFFFFE066), const Color(0xFFC8850A)],
-        ).createShader(Rect.fromCircle(
-          center: Offset(w * 0.5, 0),
-          radius: knotR,
-        )),
+        ..shader =
+            RadialGradient(
+              colors: [const Color(0xFFFFE066), const Color(0xFFC8850A)],
+            ).createShader(
+              Rect.fromCircle(center: Offset(w * 0.5, 0), radius: knotR),
+            ),
     );
     canvas.drawCircle(
       Offset(w * 0.5, 0),
@@ -2204,17 +2404,26 @@ class _LuxuryBagPainter extends CustomPainter {
         Offset(x, bodyTop + 1.5),
         w * 0.032,
         Paint()
-          ..shader = RadialGradient(
-            colors: [const Color(0xFFFFE066), const Color(0xFFC8850A)],
-          ).createShader(Rect.fromCircle(
-            center: Offset(x, bodyTop + 1.5),
-            radius: w * 0.032,
-          )),
+          ..shader =
+              RadialGradient(
+                colors: [const Color(0xFFFFE066), const Color(0xFFC8850A)],
+              ).createShader(
+                Rect.fromCircle(
+                  center: Offset(x, bodyTop + 1.5),
+                  radius: w * 0.032,
+                ),
+              ),
       );
     }
   }
 
-  void _drawStar(Canvas canvas, Offset center, double outerR, double innerR, int points) {
+  void _drawStar(
+    Canvas canvas,
+    Offset center,
+    double outerR,
+    double innerR,
+    int points,
+  ) {
     final path = Path();
     for (int i = 0; i < points * 2; i++) {
       final r = i.isEven ? outerR : innerR;
@@ -2250,12 +2459,14 @@ class _LuxuryBagPainter extends CustomPainter {
     canvas.drawPath(
       outerPath,
       Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [const Color(0xFFFFE880), const Color(0xFFD4A500)],
-        ).createShader(Rect.fromLTWH(
-          center.dx - r, center.dy - r, r * 2, r * 2)),
+        ..shader =
+            LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [const Color(0xFFFFE880), const Color(0xFFD4A500)],
+            ).createShader(
+              Rect.fromLTWH(center.dx - r, center.dy - r, r * 2, r * 2),
+            ),
     );
     // Inner facet
     final innerPath = Path()
@@ -2296,11 +2507,20 @@ class _LuckyBagRulesSheet extends StatelessWidget {
             ('💡', 'يظهر رصيدك فوراً بعد الفتح'),
           ]
         : const [
-            ('🎁', 'Anyone in the room — including the sender — can open a bag'),
-            ('🎲', 'Coins are distributed randomly; each claim gets a different amount'),
+            (
+              '🎁',
+              'Anyone in the room — including the sender — can open a bag',
+            ),
+            (
+              '🎲',
+              'Coins are distributed randomly; each claim gets a different amount',
+            ),
             ('⏱️', 'Bags expire automatically 5 minutes after being sent'),
             ('🔒', 'Each person can only claim once per bag'),
-            ('✨', 'Super Lucky Bags carry larger coin amounts and premium effects'),
+            (
+              '✨',
+              'Super Lucky Bags carry larger coin amounts and premium effects',
+            ),
             ('💡', 'Your balance updates instantly the moment you claim'),
           ];
 
@@ -2316,7 +2536,8 @@ class _LuckyBagRulesSheet extends StatelessWidget {
           Center(
             child: Container(
               margin: const EdgeInsets.symmetric(vertical: 12),
-              width: 44, height: 4,
+              width: 44,
+              height: 4,
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(2),
@@ -2325,8 +2546,11 @@ class _LuckyBagRulesSheet extends StatelessWidget {
           ),
           Row(
             children: [
-              const Icon(Icons.info_outline_rounded,
-                  color: Color(0xFFF0C15A), size: 20),
+              const Icon(
+                Icons.info_outline_rounded,
+                color: Color(0xFFF0C15A),
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Text(
                 _t('قواعد حقيبة الحظ', 'Lucky Bag Rules'),
@@ -2339,29 +2563,31 @@ class _LuckyBagRulesSheet extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 18),
-          ...rules.map((r) => Padding(
-            padding: const EdgeInsets.only(bottom: 14),
-            child: Directionality(
-              textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(r.$1, style: const TextStyle(fontSize: 18)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      r.$2,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.8),
-                        fontSize: 13,
-                        height: 1.45,
+          ...rules.map(
+            (r) => Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: Directionality(
+                textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(r.$1, style: const TextStyle(fontSize: 18)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        r.$2,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.8),
+                          fontSize: 13,
+                          height: 1.45,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          )),
+          ),
         ],
       ),
     );
@@ -2373,10 +2599,7 @@ class _LuckyBagRulesSheet extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _LuckyBagHistorySheet extends StatefulWidget {
-  const _LuckyBagHistorySheet({
-    required this.roomId,
-    required this.isArabic,
-  });
+  const _LuckyBagHistorySheet({required this.roomId, required this.isArabic});
   final String roomId;
   final bool isArabic;
 
@@ -2398,21 +2621,30 @@ class _LuckyBagHistorySheetState extends State<_LuckyBagHistorySheet> {
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final client = Supabase.instance.client;
 
       // Fetch recent envelopes for this room
       final envelopesRaw = await client
           .from('red_envelopes')
-          .select('id, total_coins, envelope_count, claimed_count, is_super, sender_id, created_at')
+          .select(
+            'id, total_coins, envelope_count, claimed_count, is_super, sender_id, created_at',
+          )
           .eq('room_id', widget.roomId)
           .order('created_at', ascending: false)
           .limit(10);
 
       final envelopes = List<Map<String, dynamic>>.from(envelopesRaw as List);
       if (envelopes.isEmpty) {
-        if (mounted) setState(() { _claims = []; _loading = false; });
+        if (mounted)
+          setState(() {
+            _claims = [];
+            _loading = false;
+          });
         return;
       }
 
@@ -2421,7 +2653,9 @@ class _LuckyBagHistorySheetState extends State<_LuckyBagHistorySheet> {
       // Fetch claims for those envelopes with claimer profiles
       final claimsRaw = await client
           .from('red_envelope_claims')
-          .select('envelope_id, claimer_id, coins_received, claimed_at, profiles!claimer_id(display_name, avatar_url)')
+          .select(
+            'envelope_id, claimer_id, coins_received, claimed_at, profiles!claimer_id(display_name, avatar_url)',
+          )
           .inFilter('envelope_id', envIds)
           .order('claimed_at', ascending: false)
           .limit(50);
@@ -2432,22 +2666,33 @@ class _LuckyBagHistorySheetState extends State<_LuckyBagHistorySheet> {
       final envMap = {for (final e in envelopes) e['id'] as String: e};
 
       final rows = claimsData.map((c) {
-        final env = envMap[c['envelope_id'] as String?] ?? const <String, dynamic>{};
+        final env =
+            envMap[c['envelope_id'] as String?] ?? const <String, dynamic>{};
         final profile = c['profiles'] as Map<String, dynamic>? ?? {};
         return _ClaimRow(
           claimerName: (profile['display_name'] as String?) ?? '—',
           avatarUrl: profile['avatar_url'] as String?,
           coinsReceived: (c['coins_received'] as num?)?.toInt() ?? 0,
-          claimedAt: DateTime.tryParse(c['claimed_at'] as String? ?? '') ?? DateTime.now(),
+          claimedAt:
+              DateTime.tryParse(c['claimed_at'] as String? ?? '') ??
+              DateTime.now(),
           isSuper: env['is_super'] == true,
           bagTotal: (env['total_coins'] as num?)?.toInt() ?? 0,
         );
       }).toList();
 
-      if (mounted) setState(() { _claims = rows; _loading = false; });
+      if (mounted)
+        setState(() {
+          _claims = rows;
+          _loading = false;
+        });
     } catch (e) {
       debugPrint('[LuckyBag] history load error: $e');
-      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+      if (mounted)
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
     }
   }
 
@@ -2468,40 +2713,49 @@ class _LuckyBagHistorySheetState extends State<_LuckyBagHistorySheet> {
           // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-            child: Column(children: [
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(vertical: 12),
-                  width: 44, height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              Row(
-                children: [
-                  const Icon(Icons.history_rounded,
-                      color: Color(0xFFF0C15A), size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    _t('سجل الفتح', 'Claim History'),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w900,
+            child: Column(
+              children: [
+                Center(
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 12),
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: _load,
-                    child: const Icon(Icons.refresh_rounded,
-                        color: Colors.white38, size: 20),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-            ]),
+                ),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.history_rounded,
+                      color: Color(0xFFF0C15A),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _t('سجل الفتح', 'Claim History'),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: _load,
+                      child: const Icon(
+                        Icons.refresh_rounded,
+                        color: Colors.white38,
+                        size: 20,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+              ],
+            ),
           ),
 
           const Divider(color: Colors.white10, height: 1),
@@ -2511,42 +2765,45 @@ class _LuckyBagHistorySheetState extends State<_LuckyBagHistorySheet> {
             child: _loading
                 ? const Center(
                     child: CircularProgressIndicator(
-                        color: Color(0xFFFFD700), strokeWidth: 2),
+                      color: Color(0xFFFFD700),
+                      strokeWidth: 2,
+                    ),
                   )
                 : _error != null
-                    ? Center(
-                        child: Text(
-                          _t('حدث خطأ', 'Error loading history'),
+                ? Center(
+                    child: Text(
+                      _t('حدث خطأ', 'Error loading history'),
+                      style: const TextStyle(color: Colors.white38),
+                    ),
+                  )
+                : _claims.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.inbox_rounded,
+                          size: 42,
+                          color: Colors.white24,
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          _t('لا توجد فتحات بعد', 'No claims yet'),
                           style: const TextStyle(color: Colors.white38),
                         ),
-                      )
-                    : _claims.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.inbox_rounded,
-                                    size: 42, color: Colors.white24),
-                                const SizedBox(height: 10),
-                                Text(
-                                  _t('لا توجد فتحات بعد', 'No claims yet'),
-                                  style: const TextStyle(color: Colors.white38),
-                                ),
-                              ],
-                            ),
-                          )
-                        : ListView.separated(
-                            padding: EdgeInsets.fromLTRB(
-                                20, 12, 20, 12 + bottomInset),
-                            itemCount: _claims.length,
-                            separatorBuilder: (_, _) =>
-                                const Divider(color: Colors.white10, height: 1),
-                            itemBuilder: (_, i) {
-                              final row = _claims[i];
-                              return _HistoryTile(
-                                  row: row, isArabic: widget.isArabic);
-                            },
-                          ),
+                      ],
+                    ),
+                  )
+                : ListView.separated(
+                    padding: EdgeInsets.fromLTRB(20, 12, 20, 12 + bottomInset),
+                    itemCount: _claims.length,
+                    separatorBuilder: (_, _) =>
+                        const Divider(color: Colors.white10, height: 1),
+                    itemBuilder: (_, i) {
+                      final row = _claims[i];
+                      return _HistoryTile(row: row, isArabic: widget.isArabic);
+                    },
+                  ),
           ),
         ],
       ),
@@ -2579,7 +2836,8 @@ class _HistoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final local = row.claimedAt.toLocal();
-    final timeStr = '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+    final timeStr =
+        '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
@@ -2597,9 +2855,10 @@ class _HistoryTile extends StatelessWidget {
                         ? row.claimerName[0].toUpperCase()
                         : '?',
                     style: const TextStyle(
-                        color: Color(0xFFF0C15A),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700),
+                      color: Color(0xFFF0C15A),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
                   )
                 : null,
           ),
@@ -2635,10 +2894,13 @@ class _HistoryTile extends StatelessWidget {
                       const SizedBox(width: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 5, vertical: 1),
+                          horizontal: 5,
+                          vertical: 1,
+                        ),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                              colors: [Color(0xFFD4380D), Color(0xFFFF6B00)]),
+                            colors: [Color(0xFFD4380D), Color(0xFFFF6B00)],
+                          ),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: const Text(
@@ -2667,13 +2929,17 @@ class _HistoryTile extends StatelessWidget {
               ),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                  color: const Color(0xFFF0C15A).withValues(alpha: 0.35)),
+                color: const Color(0xFFF0C15A).withValues(alpha: 0.35),
+              ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.monetization_on_rounded,
-                    size: 13, color: Color(0xFFF0C15A)),
+                const Icon(
+                  Icons.monetization_on_rounded,
+                  size: 13,
+                  color: Color(0xFFF0C15A),
+                ),
                 const SizedBox(width: 4),
                 Text(
                   '+${row.coinsReceived}',
@@ -2701,17 +2967,17 @@ class _BagSectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Align(
-        alignment: AlignmentDirectional.centerStart,
-        child: Text(
-          text,
-          style: TextStyle(
-            color: color,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.5,
-          ),
-        ),
-      );
+    alignment: AlignmentDirectional.centerStart,
+    child: Text(
+      text,
+      style: TextStyle(
+        color: color,
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.5,
+      ),
+    ),
+  );
 }
 
 class _BagPresetChip extends StatelessWidget {
@@ -2740,9 +3006,7 @@ class _BagPresetChip extends StatelessWidget {
         duration: const Duration(milliseconds: 140),
         height: 44,
         decoration: BoxDecoration(
-          color: selected
-              ? selectedBg
-              : Colors.white.withValues(alpha: 0.07),
+          color: selected ? selectedBg : Colors.white.withValues(alpha: 0.07),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: selected
@@ -2766,10 +3030,8 @@ class _BagPresetChip extends StatelessWidget {
   }
 }
 
-
 class _ComingSoonSheet extends StatelessWidget {
-  const _ComingSoonSheet(
-      {required this.featureName, required this.isArabic});
+  const _ComingSoonSheet({required this.featureName, required this.isArabic});
 
   final String featureName;
   final bool isArabic;
@@ -2793,10 +3055,14 @@ class _ComingSoonSheet extends StatelessWidget {
               shape: BoxShape.circle,
               color: const Color(0xFF8B26D9).withValues(alpha: 0.15),
               border: Border.all(
-                  color: const Color(0xFF8B26D9).withValues(alpha: 0.4)),
+                color: const Color(0xFF8B26D9).withValues(alpha: 0.4),
+              ),
             ),
-            child: const Icon(Icons.rocket_launch_rounded,
-                color: Color(0xFFC875FF), size: 26),
+            child: const Icon(
+              Icons.rocket_launch_rounded,
+              color: Color(0xFFC875FF),
+              size: 26,
+            ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -2826,7 +3092,8 @@ class _ComingSoonSheet extends StatelessWidget {
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFF8B26D9),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
+                  borderRadius: BorderRadius.circular(14),
+                ),
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
               onPressed: () => Navigator.of(context).pop(),
@@ -2910,6 +3177,20 @@ class _GameCenterSheet extends StatelessWidget {
         accent: const Color(0xFFFFD700),
         screen: CharismaChallengeScreen(isArabic: isArabic),
       ),
+      _GameEntry(
+        icon: Icons.set_meal_rounded,
+        labelAr: 'صيد سرود',
+        labelEn: 'Fish Hunt',
+        accent: const Color(0xFF38BDF8),
+        screen: FishHuntScreen(isArabic: isArabic),
+      ),
+      _GameEntry(
+        icon: Icons.casino_rounded,
+        labelAr: 'روليت سرود',
+        labelEn: 'Srood Roulette',
+        accent: const Color(0xFFA78BFA),
+        screen: RouletteScreen(isArabic: isArabic),
+      ),
     ];
 
     return Container(
@@ -2946,21 +3227,21 @@ class _GameCenterSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          ...games.map((g) => _GameRow(
-                game: g,
-                isArabic: isArabic,
-                onTap: () {
-                  // Capture root navigator BEFORE popping this sheet.
-                  // After pop(), this widget's context is defunct; any
-                  // Navigator.of(context) call on it crashes with
-                  // "widget has been unmounted".
-                  final rootNav = Navigator.of(context, rootNavigator: true);
-                  Navigator.of(context).pop(); // close game-center sheet
-                  rootNav.push(
-                    MaterialPageRoute<void>(builder: (_) => g.screen),
-                  );
-                },
-              )),
+          ...games.map(
+            (g) => _GameRow(
+              game: g,
+              isArabic: isArabic,
+              onTap: () {
+                // Capture root navigator BEFORE popping this sheet.
+                // After pop(), this widget's context is defunct; any
+                // Navigator.of(context) call on it crashes with
+                // "widget has been unmounted".
+                final rootNav = Navigator.of(context, rootNavigator: true);
+                Navigator.of(context).pop(); // close game-center sheet
+                rootNav.push(MaterialPageRoute<void>(builder: (_) => g.screen));
+              },
+            ),
+          ),
         ],
       ),
     );
@@ -2984,8 +3265,11 @@ class _GameEntry {
 }
 
 class _GameRow extends StatelessWidget {
-  const _GameRow(
-      {required this.game, required this.isArabic, required this.onTap});
+  const _GameRow({
+    required this.game,
+    required this.isArabic,
+    required this.onTap,
+  });
 
   final _GameEntry game;
   final bool isArabic;
@@ -3005,12 +3289,10 @@ class _GameRow extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               color: game.accent.withValues(alpha: 0.08),
-              border: Border.all(
-                  color: game.accent.withValues(alpha: 0.25)),
+              border: Border.all(color: game.accent.withValues(alpha: 0.25)),
             ),
             child: Row(
-              textDirection:
-                  isArabic ? TextDirection.rtl : TextDirection.ltr,
+              textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
               children: [
                 Container(
                   width: 42,
@@ -3019,7 +3301,8 @@ class _GameRow extends StatelessWidget {
                     shape: BoxShape.circle,
                     color: game.accent.withValues(alpha: 0.15),
                     border: Border.all(
-                        color: game.accent.withValues(alpha: 0.4)),
+                      color: game.accent.withValues(alpha: 0.4),
+                    ),
                   ),
                   child: Icon(game.icon, color: game.accent, size: 20),
                 ),
@@ -3048,5 +3331,3 @@ class _GameRow extends StatelessWidget {
     );
   }
 }
-
-

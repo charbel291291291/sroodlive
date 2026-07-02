@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -161,7 +162,9 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
   void _resolveBoot(String reason) {
     _bootTimeout?.cancel();
     if (_bootResolved) return;
-    debugPrint('[RocketCrash] boot overlay hidden reason=$reason');
+    if (kDebugMode) {
+      debugPrint('[RocketCrash] boot overlay hidden reason=$reason');
+    }
     if (mounted) {
       setState(() => _bootResolved = true);
     } else {
@@ -175,7 +178,9 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     _bootTimeout?.cancel();
     _bootTimeout = Timer(const Duration(seconds: 5), () {
       if (!mounted || _bootResolved) return;
-      debugPrint('[RocketCrash] boot fallback timeout fired - no game data');
+      if (kDebugMode) {
+        debugPrint('[RocketCrash] boot fallback timeout fired - no game data');
+      }
       setState(() {
         _pageError = true;
         _pageErrorMsg = 'sync_timeout';
@@ -191,10 +196,16 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
       // recreate a healthy channel (avoids a ~500ms gap where realtime events
       // could be missed between unsubscribe and resubscribe).
       if (_roundChannel == null) {
-        debugPrint('[RocketCrash] app resumed - channel gone, full reinit');
+        if (kDebugMode) {
+          debugPrint('[RocketCrash] app resumed - channel gone, full reinit');
+        }
         _initGame();
       } else {
-        debugPrint('[RocketCrash] app resumed - channel alive, refreshing round');
+        if (kDebugMode) {
+          debugPrint(
+            '[RocketCrash] app resumed - channel alive, refreshing round',
+          );
+        }
         _refreshRoundFromServer('app_resumed');
         _startReconcilePoll();
       }
@@ -243,7 +254,9 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     final type = msg['type'] as String? ?? '';
     final payload = msg['payload'] as Map<String, dynamic>? ?? {};
 
-    debugPrint('[RocketCrash] <- $type');
+    if (kDebugMode) {
+      debugPrint('[RocketCrash] <- $type');
+    }
 
     // Any message proves the JS bridge is alive and the page rendered, so the
     // loading splash can come down immediately (GAME_READY is the first one).
@@ -357,17 +370,24 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
         }
       }
 
-      debugPrint('[RocketCrash] INIT_GAME history=${histValues.length} myBets=${myBets.where((b) => b != null).length}');
+      if (kDebugMode) {
+        debugPrint(
+          '[RocketCrash] INIT_GAME history=${histValues.length} '
+          'myBets=${myBets.where((b) => b != null).length}',
+        );
+      }
 
       // Dispose any previous channel before creating a new subscription.
       _disposeRoundChannel();
       _subscribeToRounds();
 
-      debugPrint(
-        '[RocketCrash] round loaded roundId=$_roundId phase=$phase '
-        'balance=$balance serverOffset=${_serverTimeOffsetMs.round()}ms '
-        'histCount=${histValues.length}',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          '[RocketCrash] round loaded roundId=$_roundId phase=$phase '
+          'balance=$balance serverOffset=${_serverTimeOffsetMs.round()}ms '
+          'histCount=${histValues.length}',
+        );
+      }
 
       final roundPayload = <String, dynamic>{
         'roundId': _roundId,
@@ -428,7 +448,9 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     if (!mounted) return;
     if (SupabaseService.requiredClient.auth.currentUser == null) return;
 
-    debugPrint('[RocketCrash] refreshing round from server reason=$reason');
+    if (kDebugMode) {
+      debugPrint('[RocketCrash] refreshing round from server reason=$reason');
+    }
     _roundRefreshDebounce?.cancel();
     _roundRefreshDebounce = Timer(
       const Duration(milliseconds: 800),
@@ -442,7 +464,10 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
   //
   // lockFreeRead: use the read-only RPC (no advisory lock, no creation).
   // Used by the reconciliation poll so it cannot contend with pg_cron.
-  Future<void> _runRoundRefresh(String reason, {bool lockFreeRead = false}) async {
+  Future<void> _runRoundRefresh(
+    String reason, {
+    bool lockFreeRead = false,
+  }) async {
     if (!mounted) return;
     if (_roundRefreshInFlight) {
       _refreshPending = true;
@@ -457,7 +482,11 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
 
       // Lock-free read returns null between rounds — nothing to post.
       if (round == null) {
-        debugPrint('[RocketCrash] lockFreeRead: no active round, skipping post');
+        if (kDebugMode) {
+          debugPrint(
+            '[RocketCrash] lockFreeRead: no active round, skipping post',
+          );
+        }
         return;
       }
       if (!mounted) return;
@@ -478,13 +507,16 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
       final prevRoundNumber = _currentRoundNumber;
       _roundId = roundId;
       _currentRoundNumber = roundNumber;
-      _serverRoundReady = roundId != null && roundNumber > 0 && phase != 'crashed';
+      _serverRoundReady =
+          roundId != null && roundNumber > 0 && phase != 'crashed';
       if (mounted) setState(() {});
 
-      debugPrint(
-        '[RocketCrash] refreshed round phase=$phase roundId=$roundId '
-        'rNum=$roundNumber reason=$reason',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          '[RocketCrash] refreshed round phase=$phase roundId=$roundId '
+          'rNum=$roundNumber reason=$reason',
+        );
+      }
 
       final payload = <String, dynamic>{
         'roundId': roundId,
@@ -501,7 +533,9 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
       }
 
       _post('SET_ROUND_STATE', payload);
-      debugPrint('[RocketCrash] -> SET_ROUND_STATE refreshed');
+      if (kDebugMode) {
+        debugPrint('[RocketCrash] -> SET_ROUND_STATE refreshed');
+      }
 
       if (roundId != null) _sendBetFeed(roundId);
 
@@ -556,7 +590,11 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
           callback: _onAnyRoundChange,
         )
         .subscribe((status, [err]) {
-          debugPrint('[RocketCrash] realtime $status ${err ?? ''}');
+          if (err != null) {
+            debugPrint('[RocketCrash] realtime $status $err');
+          } else if (kDebugMode) {
+            debugPrint('[RocketCrash] realtime $status');
+          }
         });
   }
 
@@ -565,9 +603,11 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
 
     if (payload.newRecord.isEmpty && payload.oldRecord.isEmpty) {
       if (!_loggedEmptyRealtimePayload) {
-        debugPrint(
-          '[RocketCrash] empty realtime payload, refreshing from server',
-        );
+        if (kDebugMode) {
+          debugPrint(
+            '[RocketCrash] empty realtime payload, refreshing from server',
+          );
+        }
         _loggedEmptyRealtimePayload = true;
       }
       _refreshRoundFromServer('empty_realtime_payload');
@@ -582,11 +622,13 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     final rNum = _parseInt(rec['round_number']);
     final rowId = rec['id']?.toString();
 
-    debugPrint(
-      '[RocketCrash] round change status=$status rNum=$rNum '
-      'id=$rowId newKeys=${payload.newRecord.keys.toList()} '
-      'oldKeys=${payload.oldRecord.keys.toList()}',
-    );
+    if (kDebugMode) {
+      debugPrint(
+        '[RocketCrash] round change status=$status rNum=$rNum '
+        'id=$rowId newKeys=${payload.newRecord.keys.toList()} '
+        'oldKeys=${payload.oldRecord.keys.toList()}',
+      );
+    }
 
     if (status == null || status.isEmpty || rNum <= 0 || rowId == null) {
       debugPrint('[RocketCrash] malformed realtime payload, refreshing');
@@ -776,7 +818,9 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
       }
 
       HapticFeedback.lightImpact();
-      debugPrint('[RocketCrash] bet placed betId=$betId amount=$amount');
+      if (kDebugMode) {
+        debugPrint('[RocketCrash] bet placed betId=$betId amount=$amount');
+      }
       _post('BET_ACCEPTED', {
         'slotIndex': slotIndex,
         'betId': betId,
@@ -869,11 +913,17 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     final slotIndex = _parseInt(payload['slotIndex']);
     final betId = payload['betId']?.toString();
 
-    debugPrint('[RocketCashout] request slot=$slotIndex betId=$betId');
+    if (kDebugMode) {
+      debugPrint('[RocketCashout] request slot=$slotIndex betId=$betId');
+    }
 
     // Server round must be ready. The JS-supplied multiplier is NEVER used.
     if (!_serverRoundReady || _roundId == null) {
-      debugPrint('[RocketCashout] rejected: server_not_ready slot=$slotIndex');
+      if (kDebugMode) {
+        debugPrint(
+          '[RocketCashout] rejected: server_not_ready slot=$slotIndex',
+        );
+      }
       _post('CASHOUT_REJECTED', {
         'slotIndex': slotIndex,
         'code': 'server_not_ready',
@@ -882,7 +932,9 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
       return;
     }
     if (betId == null || betId.isEmpty) {
-      debugPrint('[RocketCashout] rejected: no_bet_id slot=$slotIndex');
+      if (kDebugMode) {
+        debugPrint('[RocketCashout] rejected: no_bet_id slot=$slotIndex');
+      }
       _post('CASHOUT_REJECTED', {
         'slotIndex': slotIndex,
         'code': 'no_bet_id',
@@ -891,7 +943,9 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
       return;
     }
     if (_settledBetIds.contains(betId)) {
-      debugPrint('[RocketCashout] rejected: already_settled betId=$betId');
+      if (kDebugMode) {
+        debugPrint('[RocketCashout] rejected: already_settled betId=$betId');
+      }
       _post('CASHOUT_REJECTED', {
         'slotIndex': slotIndex,
         'code': 'already_settled',
@@ -906,13 +960,17 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
 
     try {
       // Server always calculates the multiplier; JS payload value is ignored.
-      debugPrint('[RocketCashout] calling server RPC betId=$betId');
+      if (kDebugMode) {
+        debugPrint('[RocketCashout] calling server RPC betId=$betId');
+      }
       final result = await _service.cashOutRocketBet(betId);
       if (!mounted) return;
 
       final status = result['status']?.toString();
       if (status == 'lost') {
-        debugPrint('[RocketCashout] rejected: round_crashed betId=$betId');
+        if (kDebugMode) {
+          debugPrint('[RocketCashout] rejected: round_crashed betId=$betId');
+        }
         _post('CASHOUT_REJECTED', {
           'slotIndex': slotIndex,
           'code': 'round_crashed',
@@ -929,9 +987,12 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
       );
 
       HapticFeedback.mediumImpact();
-      debugPrint(
-        '[RocketCashout] accepted slot=$slotIndex x$actualMult win=$winAmount balance=$newBalance',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          '[RocketCashout] accepted slot=$slotIndex x$actualMult '
+          'win=$winAmount balance=$newBalance',
+        );
+      }
       _post('CASHOUT_ACCEPTED', {
         'slotIndex': slotIndex,
         'betId': betId,
@@ -981,7 +1042,9 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     try {
       final balance = await _service.fetchBalance();
       if (!mounted) return;
-      debugPrint('[RocketCrash] wallet updated coins=$balance');
+      if (kDebugMode) {
+        debugPrint('[RocketCrash] wallet updated coins=$balance');
+      }
       _post('WALLET_UPDATED', {'balance': balance});
     } catch (e) {
       debugPrint('[RocketCrash] refreshBalance error: $e');
@@ -995,14 +1058,18 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
     final message = jsonEncode({'type': type, 'payload': payload});
     if (_dedupePostTypes.contains(type) &&
         _lastPostedMessages[type] == message) {
-      debugPrint('[RocketCrash] -> $type skipped duplicate');
+      if (kDebugMode) {
+        debugPrint('[RocketCrash] -> $type skipped duplicate');
+      }
       return;
     }
     if (_dedupePostTypes.contains(type)) {
       _lastPostedMessages[type] = message;
     }
 
-    debugPrint('[RocketCrash] -> $type');
+    if (kDebugMode) {
+      debugPrint('[RocketCrash] -> $type');
+    }
     final encoded = jsonEncode(message);
     _controller.runJavaScript(
       'window.onSroodMessage && window.onSroodMessage(JSON.parse($encoded));',
