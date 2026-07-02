@@ -16,7 +16,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#020818;font-family:
 
 /* ── top bar ── */
 #title-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
-#back-btn{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.09);border:none;color:#fff;font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1}
+#back-btn{height:34px;padding:0 12px;border-radius:10px;background:rgba(255,255,255,.09);border:none;color:#fff;font-size:12px;font-weight:800;letter-spacing:.2px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1;white-space:nowrap}
 #game-title{font-size:17px;font-weight:900;letter-spacing:1px;background:linear-gradient(90deg,#00d4ff,#7b2fff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 #round-lbl{margin-left:auto;font-size:10px;color:#5ec8ff;font-weight:900;letter-spacing:.3px;background:rgba(6,20,44,.82);border:1px solid rgba(94,200,255,.28);border-radius:999px;padding:5px 8px;white-space:nowrap;box-shadow:0 0 14px rgba(0,212,255,.12)}
 #round-lbl.waiting{color:#ffd97a;border-color:rgba(255,217,122,.42);background:rgba(42,31,5,.72)}
@@ -144,7 +144,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#020818;font-family:
   <!-- TOP BAR -->
   <div id="topbar">
     <div id="title-row">
-      <button id="back-btn" onclick="closeGame()">&#8592;</button>
+      <button id="back-btn" onclick="closeGame()">Leave Game</button>
       <span id="game-title">ROCKET CRASH</span>
       <span id="round-lbl">Round #0</span>
       <button id="sound-btn" onclick="toggleSound()">🔊</button>
@@ -1057,6 +1057,7 @@ window.onSroodMessage = function(msg) {
       _startRaf(); // start the single RAF loop now that server data is arriving
       G.balance = payload.balance || 0;
       G.locale  = payload.locale  || 'en';
+      updateLeaveLabel();
       G.soundOn = payload.sound   !== false;
       G.serverSynced = payload.serverSynced === true || G.serverSynced;
       if (G.serverSynced) {
@@ -1392,6 +1393,13 @@ function updateSoundBtn() {
 }
 
 function closeGame() { postToFlutter('GAME_CLOSED', {}); }
+
+// Localizes the Leave Game button label. Flutter owns the confirm/exit flow;
+// this only sets the visible text to match the current locale.
+function updateLeaveLabel() {
+  const b = document.getElementById('back-btn');
+  if (b) b.textContent = (G.locale === 'ar') ? 'مغادرة اللعبة' : 'Leave Game';
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // FAKE PLAYER FEED
