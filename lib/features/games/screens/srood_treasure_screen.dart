@@ -719,46 +719,54 @@ class _SroodTreasureScreenState extends State<SroodTreasureScreen>
 
     Color borderColor;
     double borderWidth;
-    List<BoxShadow>? shadows;
+    final glows = isPersonal && !isOpened;
 
-    if (isPersonal && !isOpened) {
+    if (glows) {
       borderColor = _kGold;
       borderWidth = 2;
-      shadows = [BoxShadow(color: _kGold.withValues(alpha: _glowAnim.value * 0.5), blurRadius: 12, spreadRadius: 2)];
     } else if (isOpened) {
       borderColor = _prizeColor(prize).withValues(alpha: 0.5);
       borderWidth = 1;
-      shadows = null;
     } else if (canSelect || canOpen) {
       borderColor = _kPurple.withValues(alpha: 0.5);
       borderWidth = 1;
-      shadows = null;
     } else {
       borderColor = _kBorder;
       borderWidth = 1;
-      shadows = null;
     }
 
+    Widget buildTile(List<BoxShadow>? shadows) => GestureDetector(
+      onTap: () {
+        if (canSelect) _selectBox(number);
+        if (canOpen) _openBox(number);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        decoration: BoxDecoration(
+          color: isOpened
+              ? _prizeColor(prize).withValues(alpha: 0.08)
+              : (isPersonal ? _kGold.withValues(alpha: 0.08) : _kCard),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: borderColor, width: borderWidth),
+          boxShadow: shadows,
+        ),
+        child: boxContent,
+      ),
+    );
+
+    // Only the player's own (still-closed) box breathes with the glow
+    // animation — every other box stays static so the grid doesn't rebuild
+    // all 16 tiles at 60fps for the whole session.
+    if (!glows) return buildTile(null);
     return AnimatedBuilder(
       animation: _glowAnim,
-      builder: (_, child) => GestureDetector(
-        onTap: () {
-          if (canSelect) _selectBox(number);
-          if (canOpen) _openBox(number);
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          decoration: BoxDecoration(
-            color: isOpened
-                ? _prizeColor(prize).withValues(alpha: 0.08)
-                : (isPersonal ? _kGold.withValues(alpha: 0.08) : _kCard),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: borderColor, width: borderWidth),
-            boxShadow: shadows,
-          ),
-          child: boxContent,
+      builder: (_, _) => buildTile([
+        BoxShadow(
+          color: _kGold.withValues(alpha: _glowAnim.value * 0.5),
+          blurRadius: 12,
+          spreadRadius: 2,
         ),
-      ),
+      ]),
     );
   }
 

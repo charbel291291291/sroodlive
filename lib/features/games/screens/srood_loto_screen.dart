@@ -79,7 +79,14 @@ class _SroodLotoScreenState extends State<SroodLotoScreen>
         CurvedAnimation(parent: _glowCtrl, curve: Curves.easeInOut));
 
     _celebCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200));
+        vsync: this, duration: const Duration(milliseconds: 1200))
+      ..addStatusListener((status) {
+        // Once the success banner has fully faded out, drop it from the tree
+        // instead of leaving an invisible box holding layout space.
+        if (status == AnimationStatus.completed && mounted) {
+          setState(() => _lastBuyResult = null);
+        }
+      });
 
     _load();
   }
@@ -122,14 +129,19 @@ class _SroodLotoScreenState extends State<SroodLotoScreen>
     _ticker?.cancel();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
+      final wasCountingDown = _secsUntilDraw > 0;
       setState(() {
         if (_secsUntilDraw  > 0) _secsUntilDraw--;
         if (_secsUntilClose > 0) _secsUntilClose--;
       });
-      // Reload when countdown hits zero
-      if (_secsUntilDraw == 0) {
+      // Reload only when the countdown actually crosses zero. If the server
+      // already reported 0 (no upcoming draw yet), keep ticking quietly
+      // instead of re-fetching in a loop every few seconds.
+      if (wasCountingDown && _secsUntilDraw == 0) {
         _ticker?.cancel();
-        Future.delayed(const Duration(seconds: 3), () => _load(silent: true));
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted) _load(silent: true);
+        });
       }
     });
   }

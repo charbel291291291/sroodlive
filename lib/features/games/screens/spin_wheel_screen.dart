@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:srood_live/shared/utils/error_utils.dart';
+import 'package:srood_live/shared/widgets/srood_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/supabase/supabase_service.dart';
@@ -118,6 +119,7 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
 
     try {
       final result = await SupabaseService.requiredClient.rpc('spin_wheel').single();
+      if (!mounted) return;
       final prizeLabel = result['prize_label'] as String? ?? 'Try again';
       final newBalance = result['new_coins_balance'] as int? ?? (_coins - _kSpinCost);
       int targetIndex = _kPrizes.indexWhere((p) => p.label == prizeLabel);
@@ -126,21 +128,18 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
       _animateTo(targetIndex);
       setState(() { _coins = newBalance; _lastPrizeIndex = targetIndex; });
     } catch (e, st) {
+      // The spin is decided entirely server-side; never simulate a result or
+      // adjust the balance locally when the RPC fails.
       debugError('SpinWheelScreen._spin', e, st);
-      final targetIndex = _localSpin();
-      _animateTo(targetIndex);
-      setState(() { _coins -= _kSpinCost; _lastPrizeIndex = targetIndex; });
+      if (!mounted) return;
+      setState(() => _spinning = false);
+      SroodToast.show(
+        context,
+        widget.isArabic ? 'تعذر الدوران، حاول مجدداً' : 'Spin failed, please try again',
+        type: SroodToastType.error,
+      );
+      _loadWallet();
     }
-  }
-
-  int _localSpin() {
-    final total = _kPrizes.fold(0, (s, p) => s + p.weight);
-    int r = math.Random().nextInt(total);
-    for (int i = 0; i < _kPrizes.length; i++) {
-      r -= _kPrizes[i].weight;
-      if (r < 0) return i;
-    }
-    return 0;
   }
 
   void _animateTo(int prizeIndex) {
