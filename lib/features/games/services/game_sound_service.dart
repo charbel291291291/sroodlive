@@ -3,12 +3,10 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
-/// A single named event sound with an optional fallback asset used when the
-/// primary asset is missing.
+/// A single named event sound.
 class GameSound {
-  const GameSound(this.path, {this.fallback});
+  const GameSound(this.path);
   final String path;
-  final String? fallback;
 }
 
 /// Reusable two-player sound engine shared by game screens.
@@ -21,7 +19,7 @@ class GameSound {
 ///
 /// Safe by design — every entry point is a no-op if:
 ///   * audio failed to initialize,
-///   * the requested asset is missing (falls back, else stays silent),
+///   * the requested asset is missing,
 ///   * the service has been disposed.
 /// Nothing here ever throws to the caller, so a game keeps working with no sound.
 class GameSoundService {
@@ -42,7 +40,7 @@ class GameSoundService {
   /// Event name to pre-load into the event player at init (optional).
   final String? preloadEvent;
 
-  /// Named events → asset (+ optional fallback).
+  /// Named events → dedicated asset.
   final Map<String, GameSound> events;
 
   /// Minimum spacing between tick plays.
@@ -77,22 +75,15 @@ class GameSoundService {
     final pre = preloadEvent;
     if (pre != null && events.containsKey(pre)) {
       final s = events[pre]!;
-      await _tryLoad(_event!, s.path, fallback: s.fallback);
+      await _tryLoad(_event!, s.path);
       _loadedEventPath = s.path;
     }
   }
 
-  Future<void> _tryLoad(AudioPlayer p, String path, {String? fallback}) async {
+  Future<void> _tryLoad(AudioPlayer p, String path) async {
     try {
       await p.setAsset(path);
-    } catch (_) {
-      // Missing/failed asset: try the fallback, else stay silently unplayable.
-      if (fallback != null) {
-        try {
-          await p.setAsset(fallback);
-        } catch (_) {}
-      }
-    }
+    } catch (_) {}
   }
 
   /// Plays the debounced tick sound. Safe to call rapidly.
@@ -129,7 +120,7 @@ class GameSoundService {
     if (p == null || _disposed) return;
     try {
       if (_loadedEventPath != s.path) {
-        await _tryLoad(p, s.path, fallback: s.fallback);
+        await _tryLoad(p, s.path);
         _loadedEventPath = s.path;
       } else {
         await p.seek(Duration.zero);

@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/srood_treasure_models.dart';
+import '../services/game_sound_service.dart';
 import '../services/srood_treasure_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 import 'package:srood_live/shared/widgets/coin_ui.dart';
@@ -45,6 +48,17 @@ class _SroodTreasureScreenState extends State<SroodTreasureScreen>
   late final AnimationController _glowCtrl;
   late final Animation<double> _glowAnim;
 
+  final GameSoundService _sounds = GameSoundService(
+    tag: 'SroodTreasure',
+    events: const {
+      'open': GameSound('assets/sounds/srood_treasure_open.mp3'),
+      'suspense': GameSound('assets/sounds/srood_treasure_suspense.mp3'),
+      'reveal': GameSound('assets/sounds/srood_treasure_reveal.mp3'),
+    },
+  );
+  Timer? _suspenseTimer;
+  String? _resultSoundGameId;
+
   bool get _isArabic => context.isArabic;
 
   @override
@@ -55,12 +69,15 @@ class _SroodTreasureScreenState extends State<SroodTreasureScreen>
       ..repeat(reverse: true);
     _glowAnim = Tween<double>(begin: 0.3, end: 1.0).animate(
         CurvedAnimation(parent: _glowCtrl, curve: Curves.easeInOut));
+    _sounds.init();
     _load();
   }
 
   @override
   void dispose() {
     _glowCtrl.dispose();
+    _suspenseTimer?.cancel();
+    _sounds.dispose();
     super.dispose();
   }
 
@@ -81,6 +98,13 @@ class _SroodTreasureScreenState extends State<SroodTreasureScreen>
         _game        = state.currentGame;
         _phase       = _phaseFrom(_game?.status);
       });
+      final g = _game;
+      if (_phase == _Phase.completed &&
+          g != null &&
+          _resultSoundGameId != g.id) {
+        _resultSoundGameId = g.id;
+        _sounds.playEvent('reveal');
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -104,6 +128,7 @@ class _SroodTreasureScreenState extends State<SroodTreasureScreen>
     setState(() => _actionLoading = true);
     try {
       await _service.startGame();
+      _resultSoundGameId = null;
       await _load(silent: true);
     } catch (e) {
       if (!mounted) return;
@@ -133,13 +158,22 @@ class _SroodTreasureScreenState extends State<SroodTreasureScreen>
 
   Future<void> _openBox(int boxNumber) async {
     if (_openingBox != null || _actionLoading || _game == null) return;
+    _sounds.playEvent('open');
+    _suspenseTimer?.cancel();
+    _suspenseTimer = Timer(const Duration(milliseconds: 350), () {
+      if (mounted && _openingBox != null) {
+        _sounds.playEvent('suspense');
+      }
+    });
     setState(() => _openingBox = boxNumber);
     try {
       await _service.openBox(_game!.id, boxNumber);
+      _suspenseTimer?.cancel();
       await _load(silent: true);
     } catch (e) {
       if (mounted) _showSnack(_localizeError(e.toString()));
     } finally {
+      _suspenseTimer?.cancel();
       if (mounted) setState(() => _openingBox = null);
     }
   }

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../../../shared/widgets/coin_ui.dart';
+import '../services/game_sound_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class SpinWheelScreen extends StatefulWidget {
@@ -57,6 +58,17 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
   int _coins = 0;
   int? _lastPrizeIndex;
   double _currentAngle = 0;
+  int? _lastTickSegment;
+
+  final GameSoundService _sounds = GameSoundService(
+    tag: 'SpinWheel',
+    tickAsset: 'assets/sounds/spin_wheel_tick.mp3',
+    tickDebounce: const Duration(milliseconds: 70),
+    events: const {
+      'spin': GameSound('assets/sounds/spin_wheel_spin.mp3'),
+      'result': GameSound('assets/sounds/spin_wheel_result.mp3'),
+    },
+  );
 
   @override
   void initState() {
@@ -66,6 +78,14 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
       vsync: this,
       duration: const Duration(seconds: 4),
     );
+    _wheelCtrl.addListener(() {
+      if (!_spinning) return;
+      final segmentAngle = (2 * math.pi) / _kPrizes.length;
+      final segment = (_rotationAnim.value / segmentAngle).floor();
+      if (segment == _lastTickSegment) return;
+      _lastTickSegment = segment;
+      _sounds.playTick();
+    });
     _wheelCtrl.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         setState(() {
@@ -73,6 +93,7 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
           _currentAngle = _rotationAnim.value % (2 * math.pi);
         });
         HapticFeedback.heavyImpact();
+        _sounds.playEvent('result');
         _resultCtrl.forward(from: 0);
       }
     });
@@ -84,6 +105,7 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
     _resultScale = CurvedAnimation(parent: _resultCtrl, curve: Curves.easeOutBack);
     _resultOpacity = CurvedAnimation(parent: _resultCtrl, curve: Curves.easeIn);
 
+    _sounds.init();
     _loadWallet();
   }
 
@@ -91,6 +113,7 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
   void dispose() {
     _wheelCtrl.dispose();
     _resultCtrl.dispose();
+    _sounds.dispose();
     super.dispose();
   }
 
@@ -115,6 +138,8 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
   Future<void> _spin() async {
     if (_spinning || _coins < _kSpinCost) return;
     HapticFeedback.mediumImpact();
+    _sounds.playEvent('spin');
+    _lastTickSegment = null;
     setState(() { _spinning = true; _lastPrizeIndex = null; });
     _resultCtrl.reset();
 

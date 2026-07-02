@@ -122,21 +122,15 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // TODO(assets): the hcat_*.wav sounds are not in assets/sounds yet, so
-    // these fall back to existing shared sounds. Drop in the real assets later.
     _sounds = GameSoundService(
       tag: 'HungryCatSounds',
-      tickAsset: 'assets/sounds/hcat_tick.wav',
+      tickAsset: 'assets/sounds/hungry_cat_tick.mp3',
       preloadEvent: 'bet',
       events: const {
-        'bet': GameSound('assets/sounds/hcat_bet.wav',
-            fallback: 'assets/sounds/lucky_bag_open.mp3'),
-        'spin': GameSound('assets/sounds/hcat_spin.wav',
-            fallback: 'assets/sounds/lucky_bag_open.mp3'),
-        'win': GameSound('assets/sounds/hcat_win.wav',
-            fallback: 'assets/sounds/lucky_bag_win.wav'),
-        'lose': GameSound('assets/sounds/hcat_lose.wav',
-            fallback: 'assets/sounds/lucky_bag_open.mp3'),
+        'bet': GameSound('assets/sounds/hungry_cat_bite.mp3'),
+        'spin': GameSound('assets/sounds/hungry_cat_spin.mp3'),
+        'win': GameSound('assets/sounds/hungry_cat_win.mp3'),
+        'lose': GameSound('assets/sounds/hungry_cat_lose.mp3'),
       },
     );
     _sounds.init();
