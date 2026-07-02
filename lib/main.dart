@@ -10,6 +10,7 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 import 'core/config/app_config.dart';
 import 'core/config/supabase_config.dart';
+import 'core/services/firebase_service.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/vip/services/vip_service.dart';
 import 'core/theme/app_theme.dart';
@@ -48,12 +49,20 @@ Future<void> main() async {
     }
   }
 
+  // Firebase foundation (Crashlytics + Analytics + FCM). Self-guarding: no-ops
+  // if native config is absent, so it never blocks startup.
+  await FirebaseService.instance.init();
+
   if (SupabaseConfig.isConfigured) {
     await Supabase.initialize(
       url: SupabaseConfig.url,
       anonKey: SupabaseConfig.anonKey,
     );
     VipService().init();
+    // If a session is already restored at cold start, register the push token now.
+    if (Supabase.instance.client.auth.currentUser != null) {
+      unawaited(FirebaseService.instance.onSignedIn());
+    }
   }
 
   runApp(const SrOOdLiveApp());
@@ -81,6 +90,11 @@ class _SrOOdLiveAppState extends State<SrOOdLiveApp> {
   }
 
   void _onAuthStateChange(AuthState state) {
+    // On sign-in, register the device's FCM token with the backend.
+    if (state.event == AuthChangeEvent.signedIn) {
+      unawaited(FirebaseService.instance.onSignedIn());
+      return;
+    }
     if (state.event != AuthChangeEvent.signedOut) return;
     debugPrint('[RootAuth] signedOut detected — navigating to onboarding');
     // Use addPostFrameCallback so we never mutate the navigator mid-build.
