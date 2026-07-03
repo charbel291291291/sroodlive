@@ -17,6 +17,8 @@ import '../../shared/widgets/vip_badge.dart';
 import '../../shared/widgets/vip_username.dart';
 import '../profile_hub/screens/customer_service_screen.dart';
 import '../profile_hub/screens/settings_screen.dart';
+import '../profile_hub/screens/my_agency_screen.dart';
+import '../host/screens/host_registration_screen.dart';
 import '../gamification/screens/backpack_screen.dart';
 import '../gamification/screens/checkin_screen.dart';
 import '../gamification/screens/store_screen.dart';
@@ -1251,7 +1253,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _DailyCheckinCard(isArabic: isArabic, onTap: _openCheckin),
                     const SizedBox(height: 14),
 
-                    // 10. Account & Support
+                    // 10. Host & Agency (moved out of Settings). Routes to the
+                    // secured Phase 1/2 flow (MyAgencyScreen), never the legacy
+                    // direct-table AgencyManagementScreen.
+                    _HostAgencySection(
+                      isArabic: isArabic,
+                      onMyAgency: () =>
+                          _openProfileHub(MyAgencyScreen(isArabic: isArabic)),
+                      onBecomeHost: () => _openProfileHub(
+                        HostRegistrationScreen(isArabic: isArabic),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // 11. Account & Support
                     _AccountSection(
                       isArabic: isArabic,
                       onWallet: _openWalletScreen,
@@ -2742,6 +2757,52 @@ class _AccountSection extends StatelessWidget {
               : 'Help, recharge & reports',
           isArabic: isArabic,
           onTap: onCustomerService,
+          showDivider: false,
+        ),
+      ],
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Host & Agency Section (moved here from Settings)
+// -----------------------------------------------------------------------------
+
+class _HostAgencySection extends StatelessWidget {
+  const _HostAgencySection({
+    required this.isArabic,
+    required this.onMyAgency,
+    required this.onBecomeHost,
+  });
+
+  final bool isArabic;
+  final VoidCallback onMyAgency;
+  final VoidCallback onBecomeHost;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SectionCard(
+      isArabic: isArabic,
+      title: isArabic ? 'المضيف والوكالة' : 'Host & Agency',
+      icon: Icons.groups_rounded,
+      children: [
+        ProfileListRow(
+          icon: Icons.apartment_rounded,
+          iconColor: const Color(0xFFF0C15A),
+          title: isArabic ? 'الوكالة والاستضافة' : 'Agency & Hosting',
+          subtitle: isArabic
+              ? 'حالتك، انضم بكود، قدّم كمضيف، أو أدر وكالتك'
+              : 'Your status, join by code, apply, or manage your agency',
+          isArabic: isArabic,
+          onTap: onMyAgency,
+        ),
+        ProfileListRow(
+          icon: Icons.live_tv_rounded,
+          iconColor: const Color(0xFF8B5CF6),
+          title: isArabic ? 'التسجيل كمضيف' : 'Become a host',
+          subtitle: isArabic ? 'انضم لبرنامج المضيفين' : 'Join the host program',
+          isArabic: isArabic,
+          onTap: onBecomeHost,
           showDivider: false,
         ),
       ],

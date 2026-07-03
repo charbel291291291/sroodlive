@@ -11,9 +11,7 @@ import '../../games/screens/spin_wheel_screen.dart';
 import '../../gifts/screens/gift_history_screen.dart';
 import '../../rooms/screens/room_schedule_screen.dart';
 import '../../social/screens/leaderboard_screen.dart';
-import 'agency_management_screen.dart';
 import '../../host/screens/availability_screen.dart';
-import '../../host/screens/host_registration_screen.dart';
 import '../../notifications/screens/notifications_screen.dart';
 import '../../onboarding/onboarding_screen.dart';
 import '../../social/screens/block_user_screen.dart';
@@ -745,42 +743,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
 
-                // ── 5. Host & Agency ─────────────────────────────────────
-                ProfileSectionTitle(
-                  title: isArabic ? 'المضيف والوكالة' : 'Host & Agency',
-                  subtitle: isArabic
-                      ? 'التسجيل، الإدارة، برنامج المضيف'
-                      : 'Register, manage, host program',
-                  isArabic: isArabic,
-                ),
-                ProfileMenuItem(
-                  icon: Icons.live_tv_rounded,
-                  title: isArabic ? 'التسجيل كمضيف' : 'Become a host',
-                  subtitle: isArabic
-                      ? 'انضم لبرنامج المضيفين'
-                      : 'Join the host program',
-                  isArabic: isArabic,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) =>
-                          HostRegistrationScreen(isArabic: isArabic),
-                    ),
-                  ),
-                ),
-                ProfileMenuItem(
-                  icon: Icons.groups_rounded,
-                  title: isArabic ? 'إدارة الوكالة' : 'Manage agency',
-                  subtitle: isArabic
-                      ? 'أعضاء الوكالة، الأهداف، الأداء'
-                      : 'Agency members, targets, performance',
-                  isArabic: isArabic,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) =>
-                          AgencyManagementScreen(isArabic: isArabic),
-                    ),
-                  ),
-                ),
+                // Host & Agency actions moved to the Me page (ProfileScreen) —
+                // see _HostAgencySection there. Settings no longer routes to the
+                // agency/host flow.
 
                 // ── 6. Social ────────────────────────────────────────────
                 ProfileSectionTitle(
