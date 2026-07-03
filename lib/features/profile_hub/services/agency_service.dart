@@ -78,4 +78,95 @@ class AgencyService {
         throw ArgumentError('Unknown application type: $applicationType');
     }
   }
+
+  // ── Agency owner ───────────────────────────────────────────────────────────
+
+  /// The host agency the current user owns (if any), for the owner entry point
+  /// and to surface the join code. Host agencies only — never recharge agencies.
+  Future<Map<String, dynamic>?> getMyOwnedAgency() async {
+    final userId = SupabaseService.requiredClient.auth.currentUser?.id;
+    if (userId == null) return null;
+    final data = await SupabaseService.requiredClient
+        .from('agencies')
+        .select('id, name, agency_code, status, country')
+        .eq('owner_user_id', userId)
+        .limit(1);
+    final rows = data as List<dynamic>;
+    return rows.isEmpty ? null : rows.first as Map<String, dynamic>;
+  }
+
+  Future<List<Map<String, dynamic>>> ownerListHosts() async {
+    final data =
+        await SupabaseService.requiredClient.rpc('agency_owner_list_hosts');
+    return _rows(data);
+  }
+
+  Future<List<Map<String, dynamic>>> ownerListPendingApplications() async {
+    final data = await SupabaseService.requiredClient
+        .rpc('agency_owner_list_pending_applications');
+    return _rows(data);
+  }
+
+  Future<void> ownerReviewApplication({
+    required String applicationId,
+    required bool approve,
+    String? reply,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'agency_owner_review_application',
+      params: {
+        'p_application_id': applicationId,
+        'p_approve': approve,
+        'p_reply': reply,
+      },
+    );
+  }
+
+  // ── Admin (host agencies only) ─────────────────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> adminListHostAgencyApplications({
+    String? status,
+    int limit = 50,
+  }) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'admin_list_host_agency_applications',
+      params: {'p_status': status, 'p_limit': limit},
+    );
+    return _rows(data);
+  }
+
+  Future<void> adminReviewApplication({
+    required String applicationId,
+    required bool approve,
+    String? reply,
+  }) async {
+    await SupabaseService.requiredClient.rpc(
+      'admin_review_agency_application',
+      params: {
+        'p_application_id': applicationId,
+        'p_approve': approve,
+        'p_reply': reply,
+      },
+    );
+  }
+
+  Future<void> adminAssignHost({
+    required String agencyId,
+    required String hostUserId,
+  }) async {
+    await SupabaseService.requiredClient.rpc('admin_assign_host_to_agency',
+        params: {'p_agency_id': agencyId, 'p_host_user_id': hostUserId});
+  }
+
+  Future<void> adminRemoveHost({
+    required String hostUserId,
+    String? reason,
+  }) async {
+    await SupabaseService.requiredClient.rpc('admin_remove_host_from_agency',
+        params: {'p_host_user_id': hostUserId, 'p_reason': reason});
+  }
+
+  List<Map<String, dynamic>> _rows(dynamic data) => (data as List<dynamic>)
+      .map((e) => Map<String, dynamic>.from(e as Map))
+      .toList();
 }
