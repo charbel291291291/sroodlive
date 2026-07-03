@@ -7993,6 +7993,10 @@ class _LuxuryGiftVideoOverlay extends StatefulWidget {
 class _LuxuryGiftVideoOverlayState extends State<_LuxuryGiftVideoOverlay> {
   late final VideoPlayerController _controller;
   bool _ready = false;
+  // Guards against the position listener firing onDone repeatedly once the
+  // video reaches its end (the listener ticks every frame). The parent's
+  // 6-second force-clear timer is unchanged and still the hard backstop.
+  bool _completed = false;
 
   @override
   void initState() {
@@ -8016,11 +8020,12 @@ class _LuxuryGiftVideoOverlayState extends State<_LuxuryGiftVideoOverlay> {
   }
 
   void _handleVideoState() {
-    if (!_controller.value.isInitialized) {
+    if (_completed || !_controller.value.isInitialized) {
       return;
     }
 
     if (_controller.value.position >= _controller.value.duration) {
+      _completed = true;
       widget.onDone();
     }
   }
@@ -8053,13 +8058,18 @@ class _LuxuryGiftVideoOverlayState extends State<_LuxuryGiftVideoOverlay> {
     // cropping top/bottom if needed. This eliminates the black letterbox bars
     // that BoxFit.contain creates for portrait-aspect videos like Golden Lion.
     // ClipRect confines the overflow to the stage bounds.
+    // RepaintBoundary isolates the video texture layer so the ~24-30fps decoder
+    // output does not repaint together with the frequently-rebuilding room UI
+    // Stack (chat, seats, speaking indicators). Visual output is unchanged.
     final Widget videoChild = _ready
-        ? FittedBox(
-            fit: BoxFit.cover,
-            child: SizedBox(
-              width: _controller.value.size.width,
-              height: _controller.value.size.height,
-              child: VideoPlayer(_controller),
+        ? RepaintBoundary(
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: _controller.value.size.width,
+                height: _controller.value.size.height,
+                child: VideoPlayer(_controller),
+              ),
             ),
           )
         : const Center(child: CircularProgressIndicator());
