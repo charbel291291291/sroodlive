@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../models/srood_loto_models.dart';
 import '../services/srood_loto_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
+import 'package:srood_live/shared/widgets/coin_ui.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens
@@ -243,11 +244,9 @@ class _SroodLotoScreenState extends State<SroodLotoScreen>
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  String _formatCoins(int coins) {
-    if (coins >= 1000000) return '${(coins / 1000000).toStringAsFixed(1)}M';
-    if (coins >= 1000)    return '${(coins / 1000).toStringAsFixed(0)}K';
-    return coins.toString();
-  }
+  // Unified coin formatting (shared formatCoinAmount) for cross-game
+  // consistency. Thin alias to keep call sites unchanged.
+  String _formatCoins(int coins) => formatCoinAmount(coins);
 
   String _formatCountdown(int secs) {
     final m = secs ~/ 60;
@@ -444,8 +443,7 @@ class _SroodLotoScreenState extends State<SroodLotoScreen>
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.toll_rounded,
-                                color: _kGold, size: 13),
+                            const AppCoinIcon(size: 13),
                             const SizedBox(width: 4),
                             Text(
                               _formatCoins(data.userBalance),
@@ -698,7 +696,7 @@ class _SroodLotoScreenState extends State<SroodLotoScreen>
                   const Spacer(),
                   Row(
                     children: [
-                      const Icon(Icons.toll_rounded, color: _kGold, size: 13),
+                      const AppCoinIcon(size: 13),
                       const SizedBox(width: 3),
                       Text(
                         _formatCoins(r.prize),
@@ -1190,7 +1188,7 @@ class _TicketCard extends StatelessWidget {
               if (isWon)
                 Row(
                   children: [
-                    const Icon(Icons.toll_rounded, color: _kGold, size: 14),
+                    const AppCoinIcon(size: 14),
                     const SizedBox(width: 3),
                     Text(
                       '+${formatCoins(ticket.prizeCoins)}',

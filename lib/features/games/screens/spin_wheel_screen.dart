@@ -4,6 +4,8 @@ import 'package:srood_live/shared/widgets/srood_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/supabase/supabase_service.dart';
+import '../../../shared/widgets/coin_ui.dart';
+import '../services/game_sound_service.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class SpinWheelScreen extends StatefulWidget {
@@ -56,6 +58,17 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
   int _coins = 0;
   int? _lastPrizeIndex;
   double _currentAngle = 0;
+  int? _lastTickSegment;
+
+  final GameSoundService _sounds = GameSoundService(
+    tag: 'SpinWheel',
+    tickAsset: 'assets/sounds/spin_wheel_tick.mp3',
+    tickDebounce: const Duration(milliseconds: 70),
+    events: const {
+      'spin': GameSound('assets/sounds/spin_wheel_spin.mp3'),
+      'result': GameSound('assets/sounds/spin_wheel_result.mp3'),
+    },
+  );
 
   @override
   void initState() {
@@ -65,6 +78,14 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
       vsync: this,
       duration: const Duration(seconds: 4),
     );
+    _wheelCtrl.addListener(() {
+      if (!_spinning) return;
+      final segmentAngle = (2 * math.pi) / _kPrizes.length;
+      final segment = (_rotationAnim.value / segmentAngle).floor();
+      if (segment == _lastTickSegment) return;
+      _lastTickSegment = segment;
+      _sounds.playTick();
+    });
     _wheelCtrl.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         setState(() {
@@ -72,6 +93,7 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
           _currentAngle = _rotationAnim.value % (2 * math.pi);
         });
         HapticFeedback.heavyImpact();
+        _sounds.playEvent('result');
         _resultCtrl.forward(from: 0);
       }
     });
@@ -83,6 +105,7 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
     _resultScale = CurvedAnimation(parent: _resultCtrl, curve: Curves.easeOutBack);
     _resultOpacity = CurvedAnimation(parent: _resultCtrl, curve: Curves.easeIn);
 
+    _sounds.init();
     _loadWallet();
   }
 
@@ -90,6 +113,7 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
   void dispose() {
     _wheelCtrl.dispose();
     _resultCtrl.dispose();
+    _sounds.dispose();
     super.dispose();
   }
 
@@ -114,11 +138,20 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
   Future<void> _spin() async {
     if (_spinning || _coins < _kSpinCost) return;
     HapticFeedback.mediumImpact();
+    _sounds.playEvent('spin');
+    _lastTickSegment = null;
     setState(() { _spinning = true; _lastPrizeIndex = null; });
     _resultCtrl.reset();
 
+    // Per-spin idempotency key: a network retry of the same spin returns the
+    // original server result instead of charging/paying twice.
+    final spinId =
+        '${DateTime.now().microsecondsSinceEpoch}-${math.Random().nextInt(1 << 32)}';
+
     try {
-      final result = await SupabaseService.requiredClient.rpc('spin_wheel').single();
+      final result = await SupabaseService.requiredClient
+          .rpc('spin_wheel', params: {'p_client_spin_id': spinId})
+          .single();
       if (!mounted) return;
       final prizeLabel = result['prize_label'] as String? ?? 'Try again';
       final newBalance = result['new_coins_balance'] as int? ?? (_coins - _kSpinCost);
@@ -196,7 +229,7 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
                         ),
                       ),
                     ),
-                    _CoinBadge(coins: _coins, loading: _loadingWallet),
+                    CoinBalancePill(amount: _coins, loading: _loadingWallet),
                   ],
                 ),
               ),
@@ -290,45 +323,6 @@ class _SpinWheelScreenState extends State<SpinWheelScreen>
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-widgets
 // ─────────────────────────────────────────────────────────────────────────────
-
-class _CoinBadge extends StatelessWidget {
-  const _CoinBadge({required this.coins, required this.loading});
-  final int coins;
-  final bool loading;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFF3A2A10),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFF0C15A).withValues(alpha: 0.40)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFF0C15A).withValues(alpha: 0.15),
-            blurRadius: 8,
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('🪙', style: TextStyle(fontSize: 14)),
-          const SizedBox(width: 4),
-          Text(
-            loading ? '...' : '$coins',
-            style: const TextStyle(
-              color: Color(0xFFF0C15A),
-              fontSize: 14,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _GoldenPointer extends StatelessWidget {
   const _GoldenPointer({required this.size});

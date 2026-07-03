@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/supabase/supabase_service.dart';
 
 import '../../../shared/branding/branding_assets.dart';
+import '../../profile_hub/screens/admin_host_agency_review_screen.dart';
 import '../models/admin_models.dart';
 import '../services/admin_access_service.dart';
 import '../services/admin_service.dart';
@@ -2824,6 +2825,30 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   subtitle: 'Agency and agent performance will appear here once recharges are approved.',
                 )
               : Column(children: _bdReport.map(_BdReportTile.new).toList()),
+        ),
+        const SizedBox(height: 14),
+        // Host agencies are a SEPARATE system from recharge agencies above.
+        // Small entry point into the focused host-agency application review.
+        Card(
+          color: const Color(0xFF141720),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: const BorderSide(color: Color(0xFF1E2435)),
+          ),
+          child: ListTile(
+            leading: const Icon(Icons.badge_rounded, color: Color(0xFFF0C15A)),
+            title: const Text('Host Agencies — Applications',
+                style: TextStyle(color: Colors.white)),
+            subtitle: const Text(
+                'Review become-host / join-agency / create-agency requests (host agencies, not recharge).',
+                style: TextStyle(color: Color(0xFF9E91B8), fontSize: 12)),
+            trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white54),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const AdminHostAgencyReviewScreen(),
+              ),
+            ),
+          ),
         ),
       ],
     );

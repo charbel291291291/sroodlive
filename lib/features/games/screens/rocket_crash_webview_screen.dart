@@ -294,8 +294,81 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
       case 'SET_SOUND_SETTING':
         break;
       case 'GAME_CLOSED':
-        if (mounted) Navigator.of(context).maybePop();
+        // JS "Leave Game" button. Same path as the Android system back so the
+        // confirmation + route exit behave identically everywhere.
+        await _leaveGame();
     }
+  }
+
+  // -- Leave / exit ----------------------------------------------------------
+
+  // True while the leave-confirmation dialog is open, so a second trigger
+  // (e.g. Android back while the JS button dialog is up) can't stack dialogs.
+  bool _leaving = false;
+
+  // Exits the Crash Rocket screen. If a round is currently running
+  // (betting/flying, i.e. _serverRoundReady) we confirm first — the round keeps
+  // going on the server, so the user can safely return later. Once the round
+  // has crashed/settled (or nothing is live) we exit immediately. Always pops
+  // the Flutter route (closes the game screen) rather than navigating inside
+  // the WebView's own history, and never re-opens the game afterwards.
+  Future<void> _leaveGame() async {
+    if (_leaving || !mounted) return;
+    final nav = Navigator.of(context);
+    final ar = widget.isArabic;
+
+    if (_serverRoundReady) {
+      _leaving = true;
+      final leave = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF0A1230),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            ar ? 'مغادرة اللعبة؟' : 'Leave Game?',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: 17,
+            ),
+          ),
+          content: Text(
+            ar
+                ? 'ستستمر جولتك الحالية على الخادم. يمكنك العودة لاحقاً.'
+                : 'Your active round will continue on the server. You can return later.',
+            style: const TextStyle(
+              color: Color(0xFFB6C2E0),
+              fontSize: 14,
+              height: 1.4,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(
+                ar ? 'إلغاء' : 'Cancel',
+                style: const TextStyle(color: Color(0xFF9E91B8)),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(
+                ar ? 'مغادرة' : 'Leave',
+                style: const TextStyle(
+                  color: Color(0xFFFF6B6B),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+      _leaving = false;
+      if (leave != true || !mounted) return;
+    }
+    nav.pop();
   }
 
   // -- Init ------------------------------------------------------------------
@@ -715,7 +788,12 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
         'crashMultiplier': cm,
       });
 
+      // The crash result + banner are already shown instantly by the JS from
+      // the crashMultiplier above. The history refresh and the wallet refresh
+      // both run AFTER the instant post and are non-blocking, so an auto-cashout
+      // payout settled by the server is reflected without delaying the result.
       _refreshHistory();
+      _refreshBalance();
     }
   }
 
@@ -1179,7 +1257,14 @@ class _RocketCrashWebviewScreenState extends State<RocketCrashWebviewScreen>
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: true,
+      // Intercept Android system back so it runs the same Leave Game flow as
+      // the in-game button (confirm while running, exit immediately once
+      // crashed). We never auto-pop; _leaveGame() owns the actual route exit.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _leaveGame();
+      },
       child: Scaffold(
         backgroundColor: const Color(0xFF020818),
         body: SafeArea(

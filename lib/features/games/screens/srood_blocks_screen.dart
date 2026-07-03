@@ -7,6 +7,7 @@ import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 import '../models/srood_blocks_models.dart';
 import '../services/srood_blocks_service.dart';
+import 'package:srood_live/shared/widgets/coin_ui.dart';
 
 // ── Tetromino definitions ─────────────────────────────────────────────────────
 
@@ -377,9 +378,9 @@ class _SroodBlocksScreenState extends State<SroodBlocksScreen> {
         )),
         const SizedBox(width: 12),
         Expanded(child: _StatCard(
-          icon: '🪙',
+          icon: '🪙', // stat-card trio (🎮/⭐/🪙) kept as a cohesive visual
           label: _ar ? 'العملات' : 'Coins',
-          value: '${s.coinsBalance}',
+          value: formatCoinAmount(s.coinsBalance),
         )),
       ],
     );

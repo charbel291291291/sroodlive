@@ -4,7 +4,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:srood_live/shared/utils/error_utils.dart';
 import 'package:srood_live/shared/widgets/coin_ui.dart';
 import 'package:srood_live/shared/widgets/srood_toast.dart';
@@ -12,6 +11,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
 import '../models/hungry_cat_models.dart';
+import '../services/game_sound_service.dart';
 import '../services/hungry_cat_game_service.dart';
 
 // ── Theme ────────────────────────────────────────────────────────────────────
@@ -56,7 +56,7 @@ class HungryCatWebviewScreen extends StatefulWidget {
 class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   final _service = const HungryCatGameService();
-  late final _HungryCatSounds _sounds;
+  late final GameSoundService _sounds;
 
   List<HungryCatFood> _foods = [];
   int _balance = 0;
@@ -122,7 +122,17 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _sounds = _HungryCatSounds();
+    _sounds = GameSoundService(
+      tag: 'HungryCatSounds',
+      tickAsset: 'assets/sounds/hungry_cat_tick.mp3',
+      preloadEvent: 'bet',
+      events: const {
+        'bet': GameSound('assets/sounds/hungry_cat_bite.mp3'),
+        'spin': GameSound('assets/sounds/hungry_cat_spin.mp3'),
+        'win': GameSound('assets/sounds/hungry_cat_win.mp3'),
+        'lose': GameSound('assets/sounds/hungry_cat_lose.mp3'),
+      },
+    );
     _sounds.init();
 
     _pulseCtrl = AnimationController(
@@ -290,7 +300,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
         setState(() => _secsLeft = 0);
         _triggerSettle();
       } else {
-        if (left <= 5) _sounds.playCountdownTick();
+        if (left <= 5) _sounds.playTick();
         setState(() => _secsLeft = left);
       }
     });
@@ -440,7 +450,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
       );
 
       HapticFeedback.selectionClick();
-      _sounds.playBetPlaced();
+      _sounds.playEvent('bet');
       setState(() {
         if (mySeq >= _lastAppliedBalanceSeq) {
           _lastAppliedBalanceSeq = mySeq;
@@ -532,7 +542,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     _settling = true;
     _balanceBeforeSpin = _balance;
     setState(() => _phase = _Phase.spinning);
-    _sounds.playSpinStart();
+    _sounds.playEvent('spin');
     _runFreeSpin();
     _startResultPoll();
 
@@ -641,12 +651,12 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
 
     final wonBetOnWinner = _betsByFood.containsKey(_winFoodId);
     if (wonBetOnWinner) {
-      _sounds.playWin();
+      _sounds.playEvent('win');
       HapticFeedback.heavyImpact();
       _coinCtrl.reset();
       _coinCtrl.forward();
     } else if (_hasBets) {
-      _sounds.playLose();
+      _sounds.playEvent('lose');
       HapticFeedback.mediumImpact();
     } else {
       HapticFeedback.mediumImpact();
@@ -831,13 +841,9 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     SroodToast.show(context, msg, type: type);
   }
 
-  String _formatCoins(int v) {
-    if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
-    if (v >= 1000) {
-      return '${(v / 1000).toStringAsFixed(v % 1000 == 0 ? 0 : 1)}K';
-    }
-    return '$v';
-  }
+  // Unified coin formatting (shared formatCoinAmount) for cross-game
+  // consistency. Thin alias to keep call sites unchanged.
+  String _formatCoins(int v) => formatCoinAmount(v);
 
   Future<bool> _showLeaveDialog() async {
     return await showDialog<bool>(
@@ -2320,97 +2326,3 @@ class _WheelFramePainter extends CustomPainter {
 // Two players instead of five — keeps concurrent ExoPlayer pipeline count low.
 // _tick: dedicated, loaded once (fires every second during countdown).
 // _event: shared for bet / spin / win / lose (these never overlap each other).
-class _HungryCatSounds {
-  final AudioPlayer _tick = AudioPlayer();
-  final AudioPlayer _event = AudioPlayer();
-
-  bool muted = false;
-
-  String? _loadedEventPath;
-  DateTime? _lastTickAt;
-
-  Future<void> init() async {
-    debugPrint('[HungryCatSounds] init — 2 players');
-    await _tryLoad(_tick, 'assets/sounds/hcat_tick.wav');
-    await _tryLoad(
-      _event,
-      'assets/sounds/hcat_bet.wav',
-      fallback: 'assets/sounds/lucky_bag_open.mp3',
-    );
-    _loadedEventPath = 'assets/sounds/hcat_bet.wav';
-  }
-
-  Future<void> _tryLoad(
-    AudioPlayer player,
-    String path, {
-    String? fallback,
-  }) async {
-    try {
-      await player.setAsset(path);
-      debugPrint('[HungryCatSounds] loaded $path');
-    } catch (_) {
-      if (fallback != null) {
-        try {
-          await player.setAsset(fallback);
-        } catch (_) {}
-      }
-    }
-  }
-
-  void playCountdownTick() {
-    if (muted) return;
-    final now = DateTime.now();
-    if (_lastTickAt != null &&
-        now.difference(_lastTickAt!) < const Duration(milliseconds: 120)) {
-      return;
-    }
-    _lastTickAt = now;
-    if (_tick.processingState == ProcessingState.loading ||
-        _tick.processingState == ProcessingState.buffering) {
-      return;
-    }
-    try {
-      unawaited(_tick.seek(Duration.zero).then((_) => _tick.play()));
-    } catch (_) {}
-  }
-
-  void playBetPlaced() => _playEvent(
-    'assets/sounds/hcat_bet.wav',
-    fallback: 'assets/sounds/lucky_bag_open.mp3',
-  );
-  void playSpinStart() => _playEvent(
-    'assets/sounds/hcat_spin.wav',
-    fallback: 'assets/sounds/lucky_bag_open.mp3',
-  );
-  void playWin() => _playEvent(
-    'assets/sounds/hcat_win.wav',
-    fallback: 'assets/sounds/lucky_bag_win.wav',
-  );
-  void playLose() => _playEvent('assets/sounds/hcat_lose.wav');
-
-  void _playEvent(String path, {String? fallback}) {
-    if (muted) return;
-    unawaited(_doPlayEvent(path, fallback: fallback));
-  }
-
-  Future<void> _doPlayEvent(String path, {String? fallback}) async {
-    try {
-      if (_loadedEventPath != path) {
-        await _tryLoad(_event, path, fallback: fallback);
-        _loadedEventPath = path;
-      } else {
-        await _event.seek(Duration.zero);
-      }
-      await _event.play();
-      debugPrint('[HungryCatSounds] play $path');
-    } catch (e) {
-      debugPrint('[HungryCatSounds] error playing $path: $e');
-    }
-  }
-
-  void dispose() {
-    debugPrint('[HungryCatSounds] dispose — 2 players');
-    _tick.dispose();
-    _event.dispose();
-  }
-}
