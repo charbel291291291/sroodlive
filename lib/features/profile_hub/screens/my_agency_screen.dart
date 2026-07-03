@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/profile_hub_models.dart';
 import '../services/agency_service.dart';
 import '../widgets/profile_hub_widgets.dart';
+import 'agency_owner_screen.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
 class MyAgencyScreen extends StatefulWidget {
@@ -16,8 +17,12 @@ class MyAgencyScreen extends StatefulWidget {
 
 class _MyAgencyScreenState extends State<MyAgencyScreen> {
   final AgencyService _service = const AgencyService();
-  late Future<({AgencyMembership? membership, List<AgencyApplication> apps})>
-  _future;
+  late Future<
+      ({
+        AgencyMembership? membership,
+        List<AgencyApplication> apps,
+        Map<String, dynamic>? ownedAgency,
+      })> _future;
 
   @override
   void initState() {
@@ -25,11 +30,16 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
     _future = _load();
   }
 
-  Future<({AgencyMembership? membership, List<AgencyApplication> apps})>
-  _load() async {
+  Future<
+      ({
+        AgencyMembership? membership,
+        List<AgencyApplication> apps,
+        Map<String, dynamic>? ownedAgency,
+      })> _load() async {
     final membership = await _service.getMyMembership();
     final apps = await _service.getMyApplications();
-    return (membership: membership, apps: apps);
+    final ownedAgency = await _service.getMyOwnedAgency();
+    return (membership: membership, apps: apps, ownedAgency: ownedAgency);
   }
 
   void _retry() => setState(() => _future = _load());
@@ -84,6 +94,7 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
     final phoneController = TextEditingController();
     final countryController = TextEditingController();
     final experienceController = TextEditingController();
+    final agencyCodeController = TextEditingController();
 
     final submitted = await showModalBottomSheet<bool>(
       context: context,
@@ -128,6 +139,18 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  // Join requires the agency's code; the server resolves and
+                  // validates the agency (client never sends agency_id).
+                  if (type == 'join_agency') ...[
+                    TextField(
+                      controller: agencyCodeController,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: InputDecoration(
+                        labelText: context.isArabic ? 'كود الوكالة' : 'Agency code',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
                   TextField(
                     controller: phoneController,
                     decoration: InputDecoration(
@@ -184,6 +207,9 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
         phone: phoneController.text.trim(),
         country: countryController.text.trim(),
         experience: experienceController.text.trim(),
+        agencyCode: agencyCodeController.text.trim().isEmpty
+            ? null
+            : agencyCodeController.text.trim(),
       );
       _retry();
     }
@@ -192,6 +218,7 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
     phoneController.dispose();
     countryController.dispose();
     experienceController.dispose();
+    agencyCodeController.dispose();
   }
 
   @override
@@ -203,7 +230,11 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
       isArabic: isArabic,
       children: [
         FutureBuilder<
-          ({AgencyMembership? membership, List<AgencyApplication> apps})
+          ({
+            AgencyMembership? membership,
+            List<AgencyApplication> apps,
+            Map<String, dynamic>? ownedAgency,
+          })
         >(
           future: _future,
           builder: (context, snapshot) {
@@ -226,9 +257,25 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
 
             final membership = snapshot.data!.membership;
             final applications = snapshot.data!.apps;
+            final ownedAgency = snapshot.data!.ownedAgency;
 
             return Column(
               children: [
+                // Agency owners get a focused management entry point.
+                if (ownedAgency != null)
+                  ProfileMenuItem(
+                    icon: Icons.manage_accounts_rounded,
+                    title: isArabic ? 'إدارة وكالتي' : 'Manage my agency',
+                    subtitle: isArabic
+                        ? 'المضيفات النشطات والطلبات قيد الانتظار.'
+                        : 'Active hosts and pending applications.',
+                    isArabic: isArabic,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const AgencyOwnerScreen(),
+                      ),
+                    ),
+                  ),
                 if (membership == null)
                   ProfileEmptyState(
                     icon: Icons.groups_rounded,
