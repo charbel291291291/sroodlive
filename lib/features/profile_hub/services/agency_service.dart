@@ -39,26 +39,43 @@ class AgencyService {
         .toList();
   }
 
+  /// Submits an application through the server-side SECURITY DEFINER RPCs.
+  /// Direct table inserts are revoked; the server forces user_id = auth.uid()
+  /// and status = pending, and (for join) resolves the agency from the code.
   Future<void> submitApplication({
     required String applicationType,
     required String message,
     String? phone,
     String? country,
     String? experience,
+    String? agencyCode,
   }) async {
-    final userId = SupabaseService.requiredClient.auth.currentUser?.id;
-    if (userId == null) {
-      throw StateError('No logged-in user found.');
+    final client = SupabaseService.requiredClient;
+    switch (applicationType) {
+      case 'become_host':
+        await client.rpc('apply_to_become_host', params: {
+          'p_message': message,
+          'p_phone': phone,
+          'p_country': country,
+          'p_experience': experience,
+        });
+      case 'create_agency':
+        await client.rpc('apply_to_create_agency', params: {
+          'p_message': message,
+          'p_phone': phone,
+          'p_country': country,
+          'p_experience': experience,
+        });
+      case 'join_agency':
+        await client.rpc('apply_to_join_agency', params: {
+          'p_agency_code': agencyCode,
+          'p_message': message,
+          'p_phone': phone,
+          'p_country': country,
+          'p_experience': experience,
+        });
+      default:
+        throw ArgumentError('Unknown application type: $applicationType');
     }
-
-    await SupabaseService.requiredClient.from('agency_applications').insert({
-      'user_id': userId,
-      'application_type': applicationType,
-      'message': message,
-      'phone': phone,
-      'country': country,
-      'experience': experience,
-      'status': 'pending',
-    });
   }
 }

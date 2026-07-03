@@ -84,6 +84,7 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
     final phoneController = TextEditingController();
     final countryController = TextEditingController();
     final experienceController = TextEditingController();
+    final agencyCodeController = TextEditingController();
 
     final submitted = await showModalBottomSheet<bool>(
       context: context,
@@ -128,6 +129,18 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  // Join requires the agency's code; the server resolves and
+                  // validates the agency (client never sends agency_id).
+                  if (type == 'join_agency') ...[
+                    TextField(
+                      controller: agencyCodeController,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: InputDecoration(
+                        labelText: context.isArabic ? 'كود الوكالة' : 'Agency code',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
                   TextField(
                     controller: phoneController,
                     decoration: InputDecoration(
@@ -184,6 +197,9 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
         phone: phoneController.text.trim(),
         country: countryController.text.trim(),
         experience: experienceController.text.trim(),
+        agencyCode: agencyCodeController.text.trim().isEmpty
+            ? null
+            : agencyCodeController.text.trim(),
       );
       _retry();
     }
@@ -192,6 +208,7 @@ class _MyAgencyScreenState extends State<MyAgencyScreen> {
     phoneController.dispose();
     countryController.dispose();
     experienceController.dispose();
+    agencyCodeController.dispose();
   }
 
   @override
