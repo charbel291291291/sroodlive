@@ -4,6 +4,13 @@ import '../../../core/supabase/supabase_service.dart';
 import '../../profile/screens/user_profile_screen.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 
+/// LEGACY — pre-Phase-1 agency owner screen that writes directly to the
+/// `agency_members` / `agency_applications` tables (see `_updateMemberStatus`
+/// and `_updateAppStatus`), bypassing the hardened Phase 1/2 RPCs. It is no
+/// longer linked from Settings; normal users now go through [MyAgencyScreen]
+/// and owners through `AgencyOwnerScreen`. Kept temporarily for reference only
+/// — do not add new entry points to it. Remove once the secured flow fully
+/// covers owner member management.
 class AgencyManagementScreen extends StatefulWidget {
   const AgencyManagementScreen({required this.isArabic, super.key});
 

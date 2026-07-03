@@ -11,7 +11,7 @@ import '../../games/screens/spin_wheel_screen.dart';
 import '../../gifts/screens/gift_history_screen.dart';
 import '../../rooms/screens/room_schedule_screen.dart';
 import '../../social/screens/leaderboard_screen.dart';
-import 'agency_management_screen.dart';
+import 'my_agency_screen.dart';
 import '../../host/screens/availability_screen.dart';
 import '../../host/screens/host_registration_screen.dart';
 import '../../notifications/screens/notifications_screen.dart';
@@ -767,17 +767,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                 ),
+                // Routes to the secured Phase 1/2 flow (MyAgencyScreen), which
+                // uses the hardened apply_to_* / owner-review RPCs. This
+                // replaced the legacy AgencyManagementScreen (direct table
+                // writes) — see that file's legacy note.
                 ProfileMenuItem(
                   icon: Icons.groups_rounded,
-                  title: isArabic ? 'إدارة الوكالة' : 'Manage agency',
+                  title: isArabic ? 'الوكالة والاستضافة' : 'Agency & Hosting',
                   subtitle: isArabic
-                      ? 'أعضاء الوكالة، الأهداف، الأداء'
-                      : 'Agency members, targets, performance',
+                      ? 'حالتك، انضم بكود، قدّم كمضيف، أو أدر وكالتك'
+                      : 'Your status, join by code, apply, or manage your agency',
                   isArabic: isArabic,
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) =>
-                          AgencyManagementScreen(isArabic: isArabic),
+                      builder: (_) => MyAgencyScreen(isArabic: isArabic),
                     ),
                   ),
                 ),
