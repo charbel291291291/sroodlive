@@ -10,12 +10,10 @@ import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../games/screens/crash_game_screen.dart';
-import '../../games/screens/fish_hunt_screen.dart';
 import '../../games/screens/gold_ladder_quiz_screen.dart';
+import '../../games/screens/crash_rocket_screen.dart';
 import '../../games/screens/hungry_cat_webview_screen.dart';
 import '../../games/screens/magic_srood_screen.dart';
-import '../../games/screens/roulette_screen.dart';
 import '../../games/screens/spin_wheel_screen.dart';
 import '../../games/screens/srood_loto_screen.dart';
 import '../../games/screens/srood_treasure_screen.dart';
@@ -184,20 +182,6 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
     );
   }
 
-  // -- Coming Soon mini-sheet ------------------------------------------------
-
-  void _showComingSoon(String featureAr, String featureEn) {
-    HapticFeedback.lightImpact();
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _ComingSoonSheet(
-        featureName: context.isArabic ? featureAr : featureEn,
-        isArabic: context.isArabic,
-      ),
-    );
-  }
-
   // -- Navigation helpers ----------------------------------------------------
 
   void _openSettings() {
@@ -236,7 +220,8 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useRootNavigator: true,
-      builder: (_) => _GameCenterSheet(isArabic: isArabic),
+      builder: (_) =>
+          _GameCenterSheet(isArabic: isArabic, roomId: widget.room.id),
     );
   }
 
@@ -510,13 +495,6 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
                           labelEn: 'Music',
                           accent: const Color(0xFFC875FF),
                           onTap: _openMusic,
-                        ),
-                        _ToolDef(
-                          icon: Icons.graphic_eq_rounded,
-                          labelAr: 'صوت',
-                          labelEn: 'Voice',
-                          onTap: () =>
-                              _showComingSoon('مؤثر صوتي', 'Voice Effect'),
                         ),
                         _ToolDef(
                           icon: Icons.mic_rounded,
@@ -824,9 +802,6 @@ class _SectionLabel extends StatelessWidget {
 }
 
 // --------------------
-// Coming Soon sheet
-// --------------------
-
 // --------------------
 // Shown when a PK is already active and host opens the tool again.
 // --------------------
@@ -2640,11 +2615,12 @@ class _LuckyBagHistorySheetState extends State<_LuckyBagHistorySheet> {
 
       final envelopes = List<Map<String, dynamic>>.from(envelopesRaw as List);
       if (envelopes.isEmpty) {
-        if (mounted)
+        if (mounted) {
           setState(() {
             _claims = [];
             _loading = false;
           });
+        }
         return;
       }
 
@@ -2681,18 +2657,20 @@ class _LuckyBagHistorySheetState extends State<_LuckyBagHistorySheet> {
         );
       }).toList();
 
-      if (mounted)
+      if (mounted) {
         setState(() {
           _claims = rows;
           _loading = false;
         });
+      }
     } catch (e) {
       debugPrint('[LuckyBag] history load error: $e');
-      if (mounted)
+      if (mounted) {
         setState(() {
           _error = e.toString();
           _loading = false;
         });
+      }
     }
   }
 
@@ -3030,90 +3008,15 @@ class _BagPresetChip extends StatelessWidget {
   }
 }
 
-class _ComingSoonSheet extends StatelessWidget {
-  const _ComingSoonSheet({required this.featureName, required this.isArabic});
-
-  final String featureName;
-  final bool isArabic;
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).padding.bottom;
-    return Container(
-      padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomInset),
-      decoration: const BoxDecoration(
-        color: Color(0xFF1A0D33),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFF8B26D9).withValues(alpha: 0.15),
-              border: Border.all(
-                color: const Color(0xFF8B26D9).withValues(alpha: 0.4),
-              ),
-            ),
-            child: const Icon(
-              Icons.rocket_launch_rounded,
-              color: Color(0xFFC875FF),
-              size: 26,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            featureName,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            isArabic
-                ? 'هذه الميزة قيد التطوير وستكون متاحة قريباً.'
-                : 'This feature is under development and will be available soon.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.60),
-              fontSize: 13,
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF8B26D9),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(isArabic ? 'حسناً' : 'Got it'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // --------------------
 // Game Center sheet
 // --------------------
 
 class _GameCenterSheet extends StatelessWidget {
-  const _GameCenterSheet({required this.isArabic});
+  const _GameCenterSheet({required this.isArabic, required this.roomId});
 
   final bool isArabic;
+  final String roomId;
 
   String get _title => isArabic ? 'مركز الألعاب' : 'Game Center';
 
@@ -3122,18 +3025,18 @@ class _GameCenterSheet extends StatelessWidget {
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final games = [
       _GameEntry(
-        icon: Icons.rocket_launch_rounded,
-        labelAr: 'صاروخ',
-        labelEn: 'Rocket Crash',
-        accent: const Color(0xFFE63946),
-        screen: CrashGameScreen(isArabic: isArabic),
-      ),
-      _GameEntry(
         icon: Icons.casino_rounded,
         labelAr: 'عجلة الحظ',
         labelEn: 'Spin Wheel',
         accent: const Color(0xFFF0C15A),
         screen: SpinWheelScreen(isArabic: isArabic),
+      ),
+      _GameEntry(
+        icon: Icons.rocket_launch_rounded,
+        labelAr: 'صاروخ سرود',
+        labelEn: 'Srood Rocket',
+        accent: const Color(0xFF28C7FA),
+        screen: CrashRocketScreen(isArabic: isArabic, roomId: roomId),
       ),
       _GameEntry(
         icon: Icons.pets_rounded,
@@ -3176,20 +3079,6 @@ class _GameCenterSheet extends StatelessWidget {
         labelEn: 'Charisma Challenge',
         accent: const Color(0xFFFFD700),
         screen: CharismaChallengeScreen(isArabic: isArabic),
-      ),
-      _GameEntry(
-        icon: Icons.set_meal_rounded,
-        labelAr: 'صيد سرود',
-        labelEn: 'Fish Hunt',
-        accent: const Color(0xFF38BDF8),
-        screen: FishHuntScreen(isArabic: isArabic),
-      ),
-      _GameEntry(
-        icon: Icons.casino_rounded,
-        labelAr: 'روليت سرود',
-        labelEn: 'Srood Roulette',
-        accent: const Color(0xFFA78BFA),
-        screen: RouletteScreen(isArabic: isArabic),
       ),
     ];
 

@@ -56,7 +56,7 @@ class _OwnerGameControlScreenState extends State<OwnerGameControlScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 4, vsync: this);
+    _tabs = TabController(length: 3, vsync: this);
     _checkOwner();
   }
 
@@ -126,7 +126,6 @@ class _OwnerGameControlScreenState extends State<OwnerGameControlScreen>
                 ),
                 tabs: const [
                   Tab(text: 'Hungry Cat'),
-                  Tab(text: 'Rocket Crash'),
                   Tab(text: 'Gold Ladder'),
                   Tab(text: 'Audit Log'),
                 ],
@@ -150,7 +149,6 @@ class _OwnerGameControlScreenState extends State<OwnerGameControlScreen>
       controller: _tabs,
       children: [
         _HungryCatTab(svc: _svc),
-        _RocketCrashTab(svc: _svc),
         _GoldLadderTab(svc: _svc),
         _AuditLogTab(svc: _svc),
       ],
@@ -1469,7 +1467,6 @@ class _AuditLogTabState extends State<_AuditLogTab>
                 children: [
                   null,
                   'hungry_cat',
-                  'crash_rocket',
                   'gold_ladder',
                 ].map((g) {
                   final active = _filterGame == g;

@@ -13,7 +13,6 @@ import '../models/admin_models.dart';
 import '../services/admin_access_service.dart';
 import '../services/admin_service.dart';
 import '../../games/screens/hungry_cat_admin_panel.dart';
-import '../../games/screens/rocket_crash_admin_panel.dart';
 import '../../games/screens/srood_loto_admin_panel.dart';
 import '../../charisma/screens/charisma_admin_panel.dart';
 import '../../startup_promo/models/startup_promo.dart' show AdminStartupPromo;
@@ -2348,7 +2347,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         SizedBox(
           height: panelHeight,
           child: DefaultTabController(
-            length: 3,
+            length: 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -2366,7 +2365,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     tabAlignment: TabAlignment.start,
                     tabs: [
                       Tab(icon: Text('ðŸ±'), text: 'Hungry Cat'),
-                      Tab(icon: Text('ðŸš€'), text: 'Rocket Crash'),
                       Tab(icon: Text('ðŸŽ°'), text: 'Srood Draw'),
                     ],
                   ),
@@ -2376,7 +2374,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   child: TabBarView(
                     children: const [
                       HungryCatAdminPanel(),
-                      RocketCrashAdminPanel(),
                       SroodLotoAdminPanel(),
                     ],
                   ),

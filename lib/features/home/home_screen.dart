@@ -102,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         },
       ),
-      CrashGameScreen(isArabic: isArabic),
+      GameCenterScreen(isArabic: isArabic),
       WalletScreen(isArabic: isArabic),
       ProfileScreen(isArabic: isArabic),
     ];
