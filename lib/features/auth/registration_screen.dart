@@ -164,8 +164,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     const SizedBox(height: 6),
                     Text(
                       isArabic
-                          ? 'انضم إلى ${AppConfig.instance.appDisplayName} وابدأ البث المباشر.'
-                          : 'Join ${AppConfig.instance.appDisplayName} and start streaming.',
+                          ? 'انضم إلى ${AppConfig.instance.appDisplayName} واستمتع بالغرف المباشرة.'
+                          : 'Join ${AppConfig.instance.appDisplayName} and enjoy live rooms.',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 14,

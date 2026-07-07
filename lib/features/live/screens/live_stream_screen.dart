@@ -411,26 +411,6 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
             active: _isCameraOff,
             onTap: () => setState(() => _isCameraOff = !_isCameraOff),
           ),
-          const SizedBox(height: 12),
-          _CircleControl(
-            icon: Icons.cameraswitch_rounded,
-            active: false,
-            onTap: () {},
-          ),
-          const SizedBox(height: 12),
-          _CircleControl(
-            icon: Icons.auto_awesome_rounded,
-            active: false,
-            onTap: () {},
-            tooltip: isArabic ? 'جمال' : 'Beauty',
-          ),
-          const SizedBox(height: 12),
-          _CircleControl(
-            icon: Icons.card_giftcard_rounded,
-            active: false,
-            gold: true,
-            onTap: () {},
-          ),
         ],
       ),
     );
@@ -596,26 +576,6 @@ class _LiveStreamScreenState extends State<LiveStreamScreen>
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () {},
-                child: Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.5),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.card_giftcard_rounded,
-                    color: Color(0xFFF0C15A),
-                    size: 20,
-                  ),
-                ),
-              ),
               if (widget.isHost) ...[
                 const SizedBox(width: 8),
                 GestureDetector(
@@ -720,15 +680,11 @@ class _CircleControl extends StatelessWidget {
     required this.icon,
     required this.active,
     required this.onTap,
-    this.gold = false,
-    this.tooltip,
   });
 
   final IconData icon;
   final bool active;
   final VoidCallback onTap;
-  final bool gold;
-  final String? tooltip;
 
   @override
   Widget build(BuildContext context) {
@@ -750,9 +706,7 @@ class _CircleControl extends StatelessWidget {
         ),
         child: Icon(
           icon,
-          color: gold
-              ? const Color(0xFFF0C15A)
-              : active
+          color: active
               ? const Color(0xFFCCA0FF)
               : Colors.white,
           size: 22,

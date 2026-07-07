@@ -96,6 +96,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   late Animation<Offset> _resultSlideAnim;
 
   RealtimeChannel? _channel;
+  int _channelGeneration = 0;
   int _reconnectAttempts = 0;
   Timer? _reconnectTimer;
 
@@ -172,6 +173,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     _balanceDebounceTimer?.cancel();
     _reconnectTimer?.cancel();
     _autoAdvanceTimer?.cancel();
+    _channelGeneration++;
     _channel?.unsubscribe();
     _pulseCtrl.dispose();
     _breathCtrl.dispose();
@@ -302,10 +304,13 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
 
   void _subscribeToRound(String roundId) {
     _reconnectTimer?.cancel();
-    _channel?.unsubscribe();
+    final generation = ++_channelGeneration;
+    final previousChannel = _channel;
+    _channel = null;
+    previousChannel?.unsubscribe();
     setState(() => _reconnecting = false);
 
-    _channel = SupabaseService.requiredClient
+    final channel = SupabaseService.requiredClient
         .channel('hcat_global_$roundId')
         .onPostgresChanges(
           event: PostgresChangeEvent.update,
@@ -319,7 +324,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
           callback: _onRoundUpdate,
         )
         .subscribe((status, [err]) {
-          if (!mounted) return;
+          if (!mounted || generation != _channelGeneration) return;
           final unhealthy =
               status == RealtimeSubscribeStatus.channelError ||
               status == RealtimeSubscribeStatus.closed ||
@@ -332,6 +337,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
             _reconnectAttempts = 0;
           }
         });
+    _channel = channel;
   }
 
   void _scheduleReconnect(String roundId) {

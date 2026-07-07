@@ -408,38 +408,13 @@ class _CallTile extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                _formatDate(call.calledAt, isArabic),
-                style: const TextStyle(
-                  color: Color(0xFF9E91B8),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 6),
-              GestureDetector(
-                onTap: () {},
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF3A174F),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: const Color(0xFF8B26D9).withValues(alpha: 0.5),
-                    ),
-                  ),
-                  child: Icon(
-                    call.isVideo ? Icons.videocam_rounded : Icons.call_rounded,
-                    color: const Color(0xFFF0C15A),
-                    size: 18,
-                  ),
-                ),
-              ),
-            ],
+          Text(
+            _formatDate(call.calledAt, isArabic),
+            style: const TextStyle(
+              color: Color(0xFF9E91B8),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),

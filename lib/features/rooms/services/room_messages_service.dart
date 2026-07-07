@@ -22,6 +22,9 @@ class RoomMessage {
     this.imageUrl,
     this.imagePath,
     this.isRemoved = false,
+    this.senderIsOfficialAgent = false,
+    this.senderAgencyName,
+    this.senderAgencyCountry,
   });
 
   final String id;
@@ -37,6 +40,9 @@ class RoomMessage {
   final String? imageUrl;
   final String? imagePath;
   final bool isRemoved;
+  final bool senderIsOfficialAgent;
+  final String? senderAgencyName;
+  final String? senderAgencyCountry;
 
   bool get isSystem => messageType == 'system';
   bool get isImage  => messageType == 'image';
@@ -61,6 +67,26 @@ class RoomMessage {
       imageUrl:  json['image_url']  as String?,
       imagePath: json['image_path'] as String?,
       isRemoved: json['is_removed'] as bool? ?? false,
+      senderIsOfficialAgent: _boolFrom(
+        profile,
+        json['metadata'],
+        const [
+          'is_official_agent',
+          'official_agent',
+          'is_agent',
+          'agent_verified',
+        ],
+      ),
+      senderAgencyName: _stringFrom(
+        profile,
+        json['metadata'],
+        const ['agency_name', 'agent_agency_name'],
+      ),
+      senderAgencyCountry: _stringFrom(
+        profile,
+        json['metadata'],
+        const ['agency_country', 'agent_country'],
+      ),
     );
   }
 
@@ -69,7 +95,8 @@ class RoomMessage {
     senderAvatarUrl: senderAvatarUrl, senderVipLevel: senderVipLevel,
     senderRole: senderRole, message: message, messageType: messageType,
     createdAt: createdAt, imageUrl: imageUrl, imagePath: imagePath,
-    isRemoved: true,
+    isRemoved: true, senderIsOfficialAgent: senderIsOfficialAgent,
+    senderAgencyName: senderAgencyName, senderAgencyCountry: senderAgencyCountry,
   );
 
   static int _effectiveSenderVipLevel(Map<String, dynamic>? profile) {
@@ -100,6 +127,40 @@ class RoomMessage {
       messageType: messageType,
       createdAt: DateTime.now(),
     );
+  }
+
+  static bool _boolFrom(
+    dynamic profile,
+    dynamic metadata,
+    List<String> keys,
+  ) {
+    for (final key in keys) {
+      final value = profile is Map<String, dynamic>
+          ? profile[key]
+          : metadata is Map<String, dynamic>
+              ? metadata[key]
+              : null;
+      if (value == true) return true;
+      if (value is String && value.toLowerCase() == 'true') return true;
+    }
+    return false;
+  }
+
+  static String? _stringFrom(
+    dynamic profile,
+    dynamic metadata,
+    List<String> keys,
+  ) {
+    for (final key in keys) {
+      final value = profile is Map<String, dynamic>
+          ? profile[key]
+          : metadata is Map<String, dynamic>
+              ? metadata[key]
+              : null;
+      final text = value?.toString().trim() ?? '';
+      if (text.isNotEmpty) return text;
+    }
+    return null;
   }
 }
 
