@@ -50,41 +50,69 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
   static const int _diamondsPerUsd = CoinConstants.diamondsPerUsd;
 
   bool _hasAgency = false;
+  int? _quotedDiamonds;
+  double? _quotedGrossUsd;
+  double? _quotedHostUsd;
+  double? _quotedAgencyUsd;
+  double? _quotedPlatformUsd;
+  int _quoteRequest = 0;
 
-  double get _grossUsd => _diamondsToWithdraw / _diamondsPerUsd;
+  bool get _hasCurrentQuote => _quotedDiamonds == _diamondsToWithdraw;
 
-  double get _hostShareRate => _hasAgency
-      ? CoinConstants.hostShareWithAgency
-      : CoinConstants.hostShareNoAgency;
+  double get _grossUsd => _hasCurrentQuote
+      ? _quotedGrossUsd ?? 0
+      : _diamondsToWithdraw / _diamondsPerUsd;
 
-  double get _estimatedUsd => _grossUsd * _hostShareRate;
+  double get _estimatedUsd => _hasCurrentQuote
+      ? _quotedHostUsd ?? 0
+      : _grossUsd * CoinConstants.hostShareNoAgency;
 
-  double get _agencyShareUsd =>
-      _hasAgency ? _grossUsd * CoinConstants.agencyShare : 0;
+  double get _agencyShareUsd => _hasCurrentQuote ? _quotedAgencyUsd ?? 0 : 0;
 
-  double get _platformShareUsd => _grossUsd - _estimatedUsd - _agencyShareUsd;
+  double get _platformShareUsd =>
+      _hasCurrentQuote ? _quotedPlatformUsd ?? 0 : _grossUsd - _estimatedUsd;
+
+  int get _hostSharePercent =>
+      _grossUsd <= 0 ? 0 : ((_estimatedUsd / _grossUsd) * 100).round();
+
+  int get _agencySharePercent =>
+      _grossUsd <= 0 ? 0 : ((_agencyShareUsd / _grossUsd) * 100).round();
+
+  int get _platformSharePercent =>
+      _grossUsd <= 0 ? 0 : ((_platformShareUsd / _grossUsd) * 100).round();
 
   @override
   void initState() {
     super.initState();
     _loadDiamonds();
-    _loadAgencyStatus();
+    _loadSplitQuote(_diamondsToWithdraw);
   }
 
-  Future<void> _loadAgencyStatus() async {
+  Future<void> _loadSplitQuote(int diamonds) async {
+    final request = ++_quoteRequest;
     try {
       final data = await SupabaseService.requiredClient.rpc(
         'preview_withdrawal_split',
-        params: {'p_diamonds': _minDiamonds},
+        params: {'p_diamonds': diamonds},
       );
       final rows = data as List<dynamic>;
-      if (rows.isEmpty || !mounted) return;
+      if (rows.isEmpty || !mounted || request != _quoteRequest) return;
       final row = rows.first as Map<String, dynamic>;
-      setState(() => _hasAgency = row['has_agency'] == true);
+      setState(() {
+        _quotedDiamonds = diamonds;
+        _quotedGrossUsd = _doubleValue(row['gross_usd']);
+        _quotedHostUsd = _doubleValue(row['host_share_usd']);
+        _quotedAgencyUsd = _doubleValue(row['agency_share_usd']);
+        _quotedPlatformUsd = _doubleValue(row['platform_share_usd']);
+        _hasAgency = row['has_agency'] == true;
+      });
     } catch (e, st) {
-      debugError('WithdrawalScreen._checkAgency', e, st);
+      debugError('WithdrawalScreen._loadSplitQuote', e, st);
     }
   }
+
+  double _doubleValue(Object? value) =>
+      value is num ? value.toDouble() : double.tryParse('$value') ?? 0;
 
   @override
   void dispose() {
@@ -109,6 +137,7 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
             ? _minDiamonds
             : _availableDiamonds;
       });
+      await _loadSplitQuote(_diamondsToWithdraw);
     } catch (e, st) {
       debugError('WithdrawalScreen._loadDiamonds', e, st);
     }
@@ -124,12 +153,15 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
       if (user == null) throw Exception('Not logged in');
 
       // Split + balance hold computed and enforced SQL-side
-      await SupabaseService.requiredClient.rpc('request_withdrawal', params: {
-        'p_diamonds': _diamondsToWithdraw,
-        'p_method': _method,
-        'p_account_details': _accountController.text.trim(),
-        'p_notes': _notesController.text.trim(),
-      });
+      await SupabaseService.requiredClient.rpc(
+        'request_withdrawal',
+        params: {
+          'p_diamonds': _diamondsToWithdraw,
+          'p_method': _method,
+          'p_account_details': _accountController.text.trim(),
+          'p_notes': _notesController.text.trim(),
+        },
+      );
 
       if (!mounted) return;
       setState(() => _isSubmitted = true);
@@ -506,6 +538,9 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
               onChanged: _availableDiamonds >= _minDiamonds
                   ? (v) => setState(() => _diamondsToWithdraw = v.round())
                   : null,
+              onChangeEnd: _availableDiamonds >= _minDiamonds
+                  ? (v) => _loadSplitQuote(v.round())
+                  : null,
             ),
           ),
           Row(
@@ -537,7 +572,7 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
 
   Widget _buildSplitBreakdown(bool isArabic) {
     final dir = isArabic ? TextDirection.rtl : TextDirection.ltr;
-    final hostPct = (_hostShareRate * 100).round();
+    final hostPct = _hostSharePercent;
 
     Widget row(String label, String value, {Color? color, bool bold = false}) {
       return Padding(
@@ -583,22 +618,22 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
             '\$${_grossUsd.toStringAsFixed(2)}',
           ),
           row(
-            isArabic
-                ? 'حصتك ($hostPct٪)'
-                : 'Your share ($hostPct%)',
+            isArabic ? 'حصتك ($hostPct٪)' : 'Your share ($hostPct%)',
             '\$${_estimatedUsd.toStringAsFixed(2)}',
             color: const Color(0xFF63E6A1),
             bold: true,
           ),
           if (_hasAgency)
             row(
-              isArabic ? 'حصة الوكالة (5٪)' : 'Agency share (5%)',
+              isArabic
+                  ? 'حصة الوكالة ($_agencySharePercent٪)'
+                  : 'Agency share ($_agencySharePercent%)',
               '\$${_agencyShareUsd.toStringAsFixed(2)}',
             ),
           row(
             isArabic
-                ? 'رسوم المنصة (${(100 - hostPct - (_hasAgency ? 5 : 0))}٪)'
-                : 'Platform fee (${100 - hostPct - (_hasAgency ? 5 : 0)}%)',
+                ? 'رسوم المنصة ($_platformSharePercent٪)'
+                : 'Platform fee ($_platformSharePercent%)',
             '\$${_platformShareUsd.toStringAsFixed(2)}',
           ),
         ],
