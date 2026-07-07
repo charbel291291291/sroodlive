@@ -201,7 +201,10 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
     if (s.contains('closed_room')) {
       return _t('الغرفة مغلقة', 'Room is closed');
     }
-    return _t('حدث خطأ، يرجى المحاولة مجدداً', 'Something went wrong, please try again');
+    return _t(
+      'حدث خطأ، يرجى المحاولة مجدداً',
+      'Something went wrong, please try again',
+    );
   }
 
   Future<void> _saveMeta() async {
@@ -277,11 +280,13 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
     try {
       await _svc.addModerator(_roomId, userId);
       // Notify the user — non-blocking, failure is logged inside service
-      unawaited(_svc.notifyModeratorAssignment(
-        userId: userId,
-        roomName: widget.room.name,
-        assigned: true,
-      ));
+      unawaited(
+        _svc.notifyModeratorAssignment(
+          roomId: _roomId,
+          userId: userId,
+          assigned: true,
+        ),
+      );
       await _loadModerators();
       if (mounted) setState(() {});
       _snack(_t('تم تعيين مشرف', 'Moderator added'));
@@ -327,11 +332,13 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
     try {
       await _svc.removeModerator(mod.id);
       // Notify the removed moderator — non-blocking
-      unawaited(_svc.notifyModeratorAssignment(
-        userId: mod.userId,
-        roomName: widget.room.name,
-        assigned: false,
-      ));
+      unawaited(
+        _svc.notifyModeratorAssignment(
+          roomId: _roomId,
+          userId: mod.userId,
+          assigned: false,
+        ),
+      );
       await _loadModerators();
       if (mounted) setState(() {});
       _snack(_t('تم إزالة المشرف', 'Moderator removed'));
@@ -483,7 +490,11 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
 
   void _snack(String msg, {bool error = false}) {
     if (!mounted) return;
-    SroodToast.show(context, msg, type: error ? SroodToastType.error : SroodToastType.success);
+    SroodToast.show(
+      context,
+      msg,
+      type: error ? SroodToastType.error : SroodToastType.success,
+    );
   }
 
   // ── Appearance actions ───────────────────────────────────────────────────
@@ -506,7 +517,10 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
     } catch (e) {
       if (mounted) {
         _snack(
-          _t('تعذر رفع الصورة. حاول مرة أخرى', 'Could not upload image. Please try again.'),
+          _t(
+            'تعذر رفع الصورة. حاول مرة أخرى',
+            'Could not upload image. Please try again.',
+          ),
           error: true,
         );
       }
@@ -533,7 +547,10 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
     } catch (e) {
       if (mounted) {
         _snack(
-          _t('تعذر رفع الصورة. حاول مرة أخرى', 'Could not upload image. Please try again.'),
+          _t(
+            'تعذر رفع الصورة. حاول مرة أخرى',
+            'Could not upload image. Please try again.',
+          ),
           error: true,
         );
       }
@@ -543,12 +560,20 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
   }
 
   Future<void> _clearCover() async {
-    await _roomSvc.clearRoomImage(roomId: _roomId, clearCover: true, clearAvatar: false);
+    await _roomSvc.clearRoomImage(
+      roomId: _roomId,
+      clearCover: true,
+      clearAvatar: false,
+    );
     if (mounted) setState(() => _roomCoverUrl = null);
   }
 
   Future<void> _clearAvatar() async {
-    await _roomSvc.clearRoomImage(roomId: _roomId, clearCover: false, clearAvatar: true);
+    await _roomSvc.clearRoomImage(
+      roomId: _roomId,
+      clearCover: false,
+      clearAvatar: true,
+    );
     if (mounted) setState(() => _roomAvatarUrl = null);
   }
 
@@ -563,8 +588,10 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
         appBar: AppBar(
           backgroundColor: const Color(0xFF12061F),
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                color: Color(0xFFBCAED6)),
+            icon: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: Color(0xFFBCAED6),
+            ),
             onPressed: () => Navigator.of(context).pop(<String, String?>{
               'cover_url': _roomCoverUrl,
               'avatar_url': _roomAvatarUrl,
@@ -610,7 +637,7 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
                   _buildAppearanceTab(),
                 ],
               ),
-        ),
+      ),
     );
   }
 
@@ -703,11 +730,6 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
                         : Text(_t('حفظ', 'Save')),
                   ),
                 ),
-                const SizedBox(height: 8),
-                _ComingSoonRow(
-                  label: _t('تغيير صورة الغرفة', 'Change Room Image'),
-                ),
-                _ComingSoonRow(label: _t('موسيقى الغرفة', 'Room Music')),
               ],
             ),
           ),
@@ -792,19 +814,19 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
 
   Color _roleColor(String role) {
     return switch (role) {
-      'host'     => const Color(0xFFF0C15A),
-      'speaker'  => const Color(0xFF8B26D9),
-      'mod'      => const Color(0xFF4ADE80),
-      _          => const Color(0xFF9E8AB8),
+      'host' => const Color(0xFFF0C15A),
+      'speaker' => const Color(0xFF8B26D9),
+      'mod' => const Color(0xFF4ADE80),
+      _ => const Color(0xFF9E8AB8),
     };
   }
 
   String _roleText(String role) {
     return switch (role) {
-      'host'    => _t('المضيف', 'Host'),
+      'host' => _t('المضيف', 'Host'),
       'speaker' => _t('متحدث', 'Speaker'),
-      'mod'     => _t('مشرف', 'Mod'),
-      _         => _t('مستمع', 'Listener'),
+      'mod' => _t('مشرف', 'Mod'),
+      _ => _t('مستمع', 'Listener'),
     };
   }
 
@@ -817,13 +839,17 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 64, height: 64,
+              width: 64,
+              height: 64,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: const Color(0xFF1A0D33),
               ),
-              child: const Icon(Icons.people_outline_rounded,
-                  color: Color(0xFF6E3AA8), size: 32),
+              child: const Icon(
+                Icons.people_outline_rounded,
+                color: Color(0xFF6E3AA8),
+                size: 32,
+              ),
             ),
             const SizedBox(height: 14),
             Text(
@@ -860,7 +886,10 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
               child: Row(
                 children: [
                   Text(
-                    _t('الأعضاء (${_members.length})', 'Members (${_members.length})'),
+                    _t(
+                      'الأعضاء (${_members.length})',
+                      'Members (${_members.length})',
+                    ),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 14,
@@ -902,14 +931,18 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
                       _Avatar(url: m['avatar_url'] as String?),
                       if (seat != null)
                         Positioned(
-                          right: -4, bottom: -4,
+                          right: -4,
+                          bottom: -4,
                           child: Container(
-                            width: 18, height: 18,
+                            width: 18,
+                            height: 18,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: const Color(0xFF8B26D9),
                               border: Border.all(
-                                color: const Color(0xFF120827), width: 1.5),
+                                color: const Color(0xFF120827),
+                                width: 1.5,
+                              ),
                             ),
                             child: Center(
                               child: Text(
@@ -950,7 +983,9 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
                             const SizedBox(width: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 7, vertical: 2),
+                                horizontal: 7,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: _roleColor(role).withValues(alpha: 0.18),
                                 borderRadius: BorderRadius.circular(20),
@@ -980,9 +1015,7 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
                   // Actions (not shown for self or host)
                   if (!isMe && role != 'host') ...[
                     _ActionIcon(
-                      icon: isMuted
-                          ? Icons.mic_off_rounded
-                          : Icons.mic_rounded,
+                      icon: isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
                       color: isMuted
                           ? Colors.red[400]!
                           : const Color(0xFF6E3AA8),
@@ -1054,7 +1087,8 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        width: 64, height: 64,
+                        width: 64,
+                        height: 64,
                         decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           color: Color(0xFF1A0D33),
@@ -1076,8 +1110,14 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        _t('عيّن مشرفاً من تبويب الأعضاء', 'Promote a member from the Members tab'),
-                        style: const TextStyle(color: Color(0xFF5A4A72), fontSize: 12),
+                        _t(
+                          'عيّن مشرفاً من تبويب الأعضاء',
+                          'Promote a member from the Members tab',
+                        ),
+                        style: const TextStyle(
+                          color: Color(0xFF5A4A72),
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
@@ -1149,7 +1189,9 @@ class _RoomOwnerManagementScreenState extends State<RoomOwnerManagementScreen>
                                       vertical: 2,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF8B26D9).withValues(alpha: 0.18),
+                                      color: const Color(
+                                        0xFF8B26D9,
+                                      ).withValues(alpha: 0.18),
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Text(
@@ -1638,7 +1680,10 @@ class _StatCard extends StatelessWidget {
                 ),
                 Text(
                   label,
-                  style: const TextStyle(color: Color(0xFF9E8AB8), fontSize: 11),
+                  style: const TextStyle(
+                    color: Color(0xFF9E8AB8),
+                    fontSize: 11,
+                  ),
                 ),
               ],
             ),
@@ -1722,51 +1767,6 @@ class _Field extends StatelessWidget {
   }
 }
 
-class _ComingSoonRow extends StatelessWidget {
-  const _ComingSoonRow({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.schedule_rounded,
-            size: 14,
-            color: Color(0xFF6E3AA8),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(color: Color(0xFF9E8AB8), fontSize: 12),
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A0E2B),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: const Color(0xFF3A2460)),
-            ),
-            child: const Text(
-              'Coming Soon',
-              style: TextStyle(
-                color: Color(0xFF6E3AA8),
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Appearance image card
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1798,7 +1798,7 @@ class _AppearanceImageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title    = isArabic ? titleAr    : titleEn;
+    final title = isArabic ? titleAr : titleEn;
     final subtitle = isArabic ? subtitleAr : subtitleEn;
     final hasImage = imageUrl?.isNotEmpty == true;
 
@@ -1825,10 +1825,7 @@ class _AppearanceImageCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             subtitle,
-            style: const TextStyle(
-              color: Color(0xFF9E8AB8),
-              fontSize: 12,
-            ),
+            style: const TextStyle(color: Color(0xFF9E8AB8), fontSize: 12),
           ),
           const SizedBox(height: 12),
 
@@ -1841,9 +1838,8 @@ class _AppearanceImageCard extends StatelessWidget {
                   ? Image.network(
                       imageUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, e, s) => _NoImagePlaceholder(
-                        aspectRatio: aspectRatio,
-                      ),
+                      errorBuilder: (_, e, s) =>
+                          _NoImagePlaceholder(aspectRatio: aspectRatio),
                     )
                   : _NoImagePlaceholder(aspectRatio: aspectRatio),
             ),
@@ -1852,8 +1848,7 @@ class _AppearanceImageCard extends StatelessWidget {
 
           // Buttons row
           Row(
-            textDirection:
-                isArabic ? TextDirection.rtl : TextDirection.ltr,
+            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
             children: [
               Expanded(
                 child: FilledButton.icon(
@@ -1890,7 +1885,9 @@ class _AppearanceImageCard extends StatelessWidget {
                     foregroundColor: const Color(0xFFE63946),
                     side: const BorderSide(color: Color(0xFF4A0010)),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -1920,9 +1917,7 @@ class _NoImagePlaceholder extends StatelessWidget {
       color: const Color(0xFF0E0720),
       child: Center(
         child: Icon(
-          aspectRatio == 1
-              ? Icons.mic_rounded
-              : Icons.image_outlined,
+          aspectRatio == 1 ? Icons.mic_rounded : Icons.image_outlined,
           size: 38,
           color: const Color(0xFF4A3470),
         ),

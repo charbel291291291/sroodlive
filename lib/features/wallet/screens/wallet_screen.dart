@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:srood_live/shared/utils/error_utils.dart';
+import 'package:srood_live/shared/widgets/coin_ui.dart';
 import 'package:srood_live/shared/widgets/srood_toast.dart';
 
 import '../models/recharge_package.dart';
@@ -39,7 +40,9 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   void initState() {
     super.initState();
-    debugPrint('[PerfWallet] screen opened ts=${DateTime.now().millisecondsSinceEpoch}');
+    debugPrint(
+      '[PerfWallet] screen opened ts=${DateTime.now().millisecondsSinceEpoch}',
+    );
     _loadAll();
   }
 
@@ -72,11 +75,14 @@ class _WalletScreenState extends State<WalletScreen> {
         _walletLoading = false;
         _error = null;
       });
-      debugPrint('[PerfWallet] balances loaded in ${DateTime.now().millisecondsSinceEpoch - t0}ms');
-    } catch (e) {
+      debugPrint(
+        '[PerfWallet] balances loaded in ${DateTime.now().millisecondsSinceEpoch - t0}ms',
+      );
+    } catch (e, st) {
       if (!mounted) return;
+      debugError('WalletScreen._loadWallet', e, st);
       setState(() {
-        _error = e.toString();
+        _error = friendlyMessage(e, isArabic: context.isArabic);
         _walletLoading = false;
       });
     }
@@ -91,7 +97,9 @@ class _WalletScreenState extends State<WalletScreen> {
         _recentActivity = txs;
         _activityLoading = false;
       });
-      debugPrint('[PerfWallet] recent activity loaded in ${DateTime.now().millisecondsSinceEpoch - t0}ms count=${txs.length}');
+      debugPrint(
+        '[PerfWallet] recent activity loaded in ${DateTime.now().millisecondsSinceEpoch - t0}ms count=${txs.length}',
+      );
     } catch (e, st) {
       debugError('WalletScreen._loadRecentActivity', e, st);
       if (!mounted) return;
@@ -102,13 +110,17 @@ class _WalletScreenState extends State<WalletScreen> {
   Future<void> _loadPendingRequests() async {
     final t0 = DateTime.now().millisecondsSinceEpoch;
     try {
-      final pending = await _walletService.fetchPendingRechargeRequests(limit: 10);
+      final pending = await _walletService.fetchPendingRechargeRequests(
+        limit: 10,
+      );
       if (!mounted) return;
       setState(() {
         _pendingRequestCount = pending.length;
         _pendingLoading = false;
       });
-      debugPrint('[PerfWallet] pending requests loaded in ${DateTime.now().millisecondsSinceEpoch - t0}ms count=${pending.length}');
+      debugPrint(
+        '[PerfWallet] pending requests loaded in ${DateTime.now().millisecondsSinceEpoch - t0}ms count=${pending.length}',
+      );
     } catch (e, st) {
       debugError('WalletScreen._loadPendingRequests', e, st);
       if (!mounted) return;
@@ -146,12 +158,20 @@ class _WalletScreenState extends State<WalletScreen> {
 
       if (!mounted) return;
 
-      SroodToast.show(context, context.isArabic ? 'تم إرسال طلب الشحن' : 'Recharge request submitted', type: SroodToastType.success);
+      SroodToast.show(
+        context,
+        context.isArabic ? 'تم إرسال طلب الشحن' : 'Recharge request submitted',
+        type: SroodToastType.success,
+      );
 
       await _refresh();
     } catch (error) {
       if (!mounted) return;
-      SroodToast.show(context, 'Recharge failed: $error', type: SroodToastType.error);
+      SroodToast.show(
+        context,
+        'Recharge failed: $error',
+        type: SroodToastType.error,
+      );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -219,8 +239,9 @@ class _WalletScreenState extends State<WalletScreen> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: EdgeInsets.fromLTRB(20, 12, 20, bottomPad),
                     child: Directionality(
-                      textDirection:
-                          isArabic ? TextDirection.rtl : TextDirection.ltr,
+                      textDirection: isArabic
+                          ? TextDirection.rtl
+                          : TextDirection.ltr,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -232,15 +253,9 @@ class _WalletScreenState extends State<WalletScreen> {
                           if (_walletLoading)
                             const _LoadingShell()
                           else if (_error != null)
-                            _ErrorCard(
-                              message: _error!,
-                              onRetry: _refresh,
-                            )
+                            _ErrorCard(message: _error!, onRetry: _refresh)
                           else ...[
-                            _BalanceCard(
-                              wallet: _wallet,
-                              isArabic: isArabic,
-                            ),
+                            _BalanceCard(wallet: _wallet, isArabic: isArabic),
                             const SizedBox(height: 20),
                             _PrimaryActions(
                               isArabic: isArabic,
@@ -250,7 +265,8 @@ class _WalletScreenState extends State<WalletScreen> {
                               onHistory: _showHistory,
                               onHelp: _showHelp,
                             ),
-                            if (!_pendingLoading && _pendingRequestCount > 0) ...[
+                            if (!_pendingLoading &&
+                                _pendingRequestCount > 0) ...[
                               const SizedBox(height: 16),
                               _PendingAlert(
                                 count: _pendingRequestCount,
@@ -422,6 +438,7 @@ class _BalanceCard extends StatelessWidget {
                   value: wallet?.coinsBalance ?? 0,
                   icon: Icons.monetization_on_rounded,
                   base: const Color(0xFFC79A3A), // gold identity
+                  iconWidget: const AppCoinIcon(size: 22),
                 ),
               ),
               const SizedBox(width: 12),
@@ -447,12 +464,16 @@ class _WalletCard extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.base,
+    this.iconWidget,
   });
 
   final String label;
   final int value;
   final IconData icon;
   final Color base;
+
+  /// Optional replacement for the default Icon — e.g. AppCoinIcon.
+  final Widget? iconWidget;
 
   @override
   Widget build(BuildContext context) {
@@ -480,7 +501,9 @@ class _WalletCard extends StatelessWidget {
                             color: Colors.white.withValues(alpha: 0.40),
                           ),
                         ),
-                        child: Icon(icon, color: Colors.white, size: 18),
+                        child:
+                            iconWidget ??
+                            Icon(icon, color: Colors.white, size: 18),
                       ),
                       const SizedBox(width: 8),
                       Flexible(
@@ -590,10 +613,7 @@ class _PrimaryActions extends StatelessWidget {
                 ),
               ),
             ),
-            _TextLink(
-              label: isArabic ? 'المساعدة' : 'Help',
-              onTap: onHelp,
-            ),
+            _TextLink(label: isArabic ? 'المساعدة' : 'Help', onTap: onHelp),
           ],
         ),
       ],
@@ -620,7 +640,9 @@ class _GoldButton extends StatelessWidget {
         onPressed: onTap,
         style: FilledButton.styleFrom(
           backgroundColor: const Color(0xFFF4C95D),
-          disabledBackgroundColor: const Color(0xFFF4C95D).withValues(alpha: 0.4),
+          disabledBackgroundColor: const Color(
+            0xFFF4C95D,
+          ).withValues(alpha: 0.4),
           foregroundColor: const Color(0xFF140820),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
@@ -725,8 +747,11 @@ class _PendingAlert extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.pending_actions_rounded,
-              color: Color(0xFFF4C95D), size: 20),
+          const Icon(
+            Icons.pending_actions_rounded,
+            color: Color(0xFFF4C95D),
+            size: 20,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -885,15 +910,13 @@ class _ActivityTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final delta =
-        tx.coinsDelta != 0 ? tx.coinsDelta : tx.diamondsDelta;
+    final delta = tx.coinsDelta != 0 ? tx.coinsDelta : tx.diamondsDelta;
     final unit = tx.coinsDelta != 0 ? 'coins' : 'diamonds';
     final isPositive = delta > 0;
     final amountColor = isPositive
         ? const Color(0xFF63E6A1)
         : const Color(0xFFFF6B8A);
-    final amountStr =
-        '${isPositive ? '+' : ''}${_fmt(delta.abs())} $unit';
+    final amountStr = '${isPositive ? '+' : ''}${_fmt(delta.abs())} $unit';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -1000,8 +1023,11 @@ class _ErrorCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Icon(Icons.error_outline_rounded,
-              color: Color(0xFFFF6B8A), size: 32),
+          const Icon(
+            Icons.error_outline_rounded,
+            color: Color(0xFFFF6B8A),
+            size: 32,
+          ),
           const SizedBox(height: 12),
           Text(
             message,
@@ -1041,8 +1067,18 @@ String _fmt(int value) {
 String _dateLabel(DateTime? dt) {
   if (dt == null) return '—';
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
 }

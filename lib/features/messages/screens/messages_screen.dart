@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
@@ -79,10 +80,11 @@ class _MessagesScreenState extends State<MessagesScreen>
         _loading = false;
         _error = null;
       });
-    } catch (err) {
+    } catch (err, st) {
       if (!mounted) return;
+      debugError('MessagesScreen._load', err, st);
       setState(() {
-        _error = err.toString();
+        _error = friendlyMessage(err, isArabic: context.isArabic);
         _loading = false;
       });
     }
@@ -416,7 +418,9 @@ class _ConversationTile extends StatelessWidget {
                             padding: const EdgeInsets.only(right: 4),
                             child: Icon(
                               Icons.push_pin_rounded,
-                              color: const Color(0xFFF0C15A).withValues(alpha: 0.75),
+                              color: const Color(
+                                0xFFF0C15A,
+                              ).withValues(alpha: 0.75),
                               size: 13,
                             ),
                           ),

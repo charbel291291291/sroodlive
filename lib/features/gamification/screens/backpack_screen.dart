@@ -69,10 +69,11 @@ class _BackpackScreenState extends State<BackpackScreen> {
         _all = items;
         _loading = false;
       });
-    } catch (e) {
+    } catch (e, st) {
       if (!mounted) return;
+      debugError('BackpackScreen._load', e, st);
       setState(() {
-        _error = e.toString();
+        _error = friendlyMessage(e, isArabic: context.isArabic);
         _loading = false;
       });
     }
@@ -83,8 +84,9 @@ class _BackpackScreenState extends State<BackpackScreen> {
     return _all.where((i) => i.itemType == _filter).toList();
   }
 
-  int _count(String type) =>
-      type == 'all' ? _all.length : _all.where((i) => i.itemType == type).length;
+  int _count(String type) => type == 'all'
+      ? _all.length
+      : _all.where((i) => i.itemType == type).length;
 
   // Safe metadata VIP level parsing — handles num, int, and String from jsonb.
   static int _metaVipLevel(BackpackItem bp) {
@@ -101,11 +103,20 @@ class _BackpackScreenState extends State<BackpackScreen> {
     try {
       await _service.equipBackpackItem(bp.id);
       if (!mounted) return;
-      SroodToast.show(context, context.isArabic ? 'تم التفعيل!' : 'Equipped!', type: SroodToastType.success);
+      SroodToast.show(
+        context,
+        context.isArabic ? 'تم التفعيل!' : 'Equipped!',
+        type: SroodToastType.success,
+      );
       await _load();
-    } catch (e) {
+    } catch (e, st) {
       if (!mounted) return;
-      SroodToast.show(context, e.toString(), type: SroodToastType.error);
+      debugError('BackpackScreen._equip', e, st);
+      SroodToast.show(
+        context,
+        friendlyMessage(e, isArabic: context.isArabic),
+        type: SroodToastType.error,
+      );
     } finally {
       if (mounted) setState(() => _equippingId = null);
     }
@@ -162,92 +173,92 @@ class _BackpackScreenState extends State<BackpackScreen> {
       ('all', context.isArabic ? 'الكل' : 'All'),
       ('avatar_frame', context.isArabic ? 'الإطارات' : 'Frames'),
       ('badge', context.isArabic ? 'الشارات' : 'Badges'),
-      (
-        'entrance_banner',
-        context.isArabic ? 'لافتات الدخول' : 'Banners',
-      ),
+      ('entrance_banner', context.isArabic ? 'لافتات الدخول' : 'Banners'),
     ];
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
-          textDirection:
-              context.isArabic ? TextDirection.rtl : TextDirection.ltr,
+          textDirection: context.isArabic
+              ? TextDirection.rtl
+              : TextDirection.ltr,
           children: chips.map((c) {
-          final selected = _filter == c.$1;
-          final count = _loading ? null : _count(c.$1);
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: Semantics(
-              label: c.$2,
-              button: true,
-              enabled: true,
-              selected: selected,
-              child: GestureDetector(
-                onTap: () => setState(() => _filter = c.$1),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: selected
-                      ? const Color(0xFFF0C15A)
-                      : const Color(0xFF1B102A),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: selected
-                        ? const Color(0xFFF0C15A)
-                        : const Color(0xFF4A3470),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      c.$2,
-                      style: TextStyle(
+            final selected = _filter == c.$1;
+            final count = _loading ? null : _count(c.$1);
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Semantics(
+                label: c.$2,
+                button: true,
+                enabled: true,
+                selected: selected,
+                child: GestureDetector(
+                  onTap: () => setState(() => _filter = c.$1),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? const Color(0xFFF0C15A)
+                          : const Color(0xFF1B102A),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
                         color: selected
-                            ? const Color(0xFF160B26)
-                            : const Color(0xFFD8CFEA),
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13,
+                            ? const Color(0xFFF0C15A)
+                            : const Color(0xFF4A3470),
                       ),
                     ),
-                    if (count != null && count > 0) ...[
-                      const SizedBox(width: 5),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? const Color(0xFF160B26).withValues(alpha: 0.25)
-                              : const Color(0xFF4A3470),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          '$count',
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          c.$2,
                           style: TextStyle(
                             color: selected
                                 ? const Color(0xFF160B26)
                                 : const Color(0xFFD8CFEA),
                             fontWeight: FontWeight.w800,
-                            fontSize: 11,
+                            fontSize: 13,
                           ),
                         ),
-                      ),
-                    ],
-                  ],
+                        if (count != null && count > 0) ...[
+                          const SizedBox(width: 5),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? const Color(
+                                      0xFF160B26,
+                                    ).withValues(alpha: 0.25)
+                                  : const Color(0xFF4A3470),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              '$count',
+                              style: TextStyle(
+                                color: selected
+                                    ? const Color(0xFF160B26)
+                                    : const Color(0xFFD8CFEA),
+                                fontWeight: FontWeight.w800,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
               ),
-              ),
-            ),
-          );
-        }).toList(),
+            );
+          }).toList(),
         ),
       ),
     );
@@ -277,10 +288,8 @@ class _BackpackScreenState extends State<BackpackScreen> {
           separatorBuilder: (_, _) => const SizedBox(height: 12),
           itemBuilder: (_, i) {
             final bp = _filtered[i];
-            final requiredVip =
-                _metaVipLevel(bp);
-            final isVipLocked =
-                requiredVip > 0 && _userVipLevel < requiredVip;
+            final requiredVip = _metaVipLevel(bp);
+            final isVipLocked = requiredVip > 0 && _userVipLevel < requiredVip;
             return _EntranceBannerCard(
               bp: bp,
               isArabic: context.isArabic,
@@ -310,10 +319,8 @@ class _BackpackScreenState extends State<BackpackScreen> {
           itemCount: _filtered.length,
           itemBuilder: (_, i) {
             final bp = _filtered[i];
-            final requiredVip =
-                _metaVipLevel(bp);
-            final isVipLocked =
-                requiredVip > 0 && _userVipLevel < requiredVip;
+            final requiredVip = _metaVipLevel(bp);
+            final isVipLocked = requiredVip > 0 && _userVipLevel < requiredVip;
             return _BadgeCard(
               bp: bp,
               isArabic: context.isArabic,
@@ -1051,10 +1058,7 @@ class _EntranceBannerCard extends StatelessWidget {
 }
 
 class _EntranceBannerPreview extends StatelessWidget {
-  const _EntranceBannerPreview({
-    required this.bp,
-    required this.isVipLocked,
-  });
+  const _EntranceBannerPreview({required this.bp, required this.isVipLocked});
   final BackpackItem bp;
   final bool isVipLocked;
 
@@ -1072,9 +1076,8 @@ class _EntranceBannerPreview extends StatelessWidget {
             Image.network(
               imageUrl,
               fit: BoxFit.cover,
-              errorBuilder: (ctx, err, stack) => _BannerGradientBg(
-                isVipLocked: isVipLocked,
-              ),
+              errorBuilder: (ctx, err, stack) =>
+                  _BannerGradientBg(isVipLocked: isVipLocked),
             )
           else
             _BannerGradientBg(isVipLocked: isVipLocked),
@@ -1096,11 +1099,7 @@ class _EntranceBannerPreview extends StatelessWidget {
             Container(
               color: Colors.black.withValues(alpha: 0.55),
               child: const Center(
-                child: Icon(
-                  Icons.lock_rounded,
-                  color: Colors.white,
-                  size: 32,
-                ),
+                child: Icon(Icons.lock_rounded, color: Colors.white, size: 32),
               ),
             ),
 

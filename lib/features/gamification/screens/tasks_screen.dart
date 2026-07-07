@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 
 import '../models/task_item.dart';
 import '../services/gamification_service.dart';
@@ -47,10 +48,11 @@ class _TasksScreenState extends State<TasksScreen>
         _tasks = tasks;
         _loading = false;
       });
-    } catch (e) {
+    } catch (e, st) {
       if (!mounted) return;
+      debugError('TasksScreen._load', e, st);
       setState(() {
-        _error = e.toString();
+        _error = friendlyMessage(e, isArabic: context.isArabic);
         _loading = false;
       });
     }
@@ -68,9 +70,14 @@ class _TasksScreenState extends State<TasksScreen>
         type: SroodToastType.success,
       );
       await _load();
-    } catch (e) {
+    } catch (e, st) {
       if (!mounted) return;
-      SroodToast.show(context, e.toString(), type: SroodToastType.error);
+      debugError('TasksScreen._claim', e, st);
+      SroodToast.show(
+        context,
+        friendlyMessage(e, isArabic: context.isArabic),
+        type: SroodToastType.error,
+      );
     }
   }
 
@@ -150,7 +157,9 @@ class _TasksScreenState extends State<TasksScreen>
       labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
       dividerColor: Colors.transparent,
       tabs: [
-        Tab(text: context.isArabic ? '\u064a\u0648\u0645\u064a\u0629' : 'Daily'),
+        Tab(
+          text: context.isArabic ? '\u064a\u0648\u0645\u064a\u0629' : 'Daily',
+        ),
         Tab(
           text: context.isArabic
               ? '\u0623\u0633\u0628\u0648\u0639\u064a\u0629'
