@@ -85,6 +85,23 @@ class RoomUserProfileService {
       wealthLevel: wealthLevel,
       wealthTierNumber: wealthTierNumber,
       isFollowedByMe: await _followService.isFollowing(userId),
+      isOfficialAgent: _boolFrom(
+        data,
+        const [
+          'is_official_agent',
+          'official_agent',
+          'is_agent',
+          'agent_verified',
+        ],
+      ),
+      agencyName: _stringFrom(
+        data,
+        const ['agency_name', 'agent_agency_name'],
+      ),
+      agencyCountry: _stringFrom(
+        data,
+        const ['agency_country', 'agent_country'],
+      ),
     );
   }
 
@@ -178,6 +195,23 @@ class RoomUserProfileService {
     if (username != null && username.isNotEmpty) return username;
 
     return 'Unknown user';
+  }
+
+  bool _boolFrom(Map<String, dynamic>? data, List<String> keys) {
+    for (final key in keys) {
+      final value = data?[key];
+      if (value == true) return true;
+      if (value is String && value.toLowerCase() == 'true') return true;
+    }
+    return false;
+  }
+
+  String? _stringFrom(Map<String, dynamic>? data, List<String> keys) {
+    for (final key in keys) {
+      final value = data?[key]?.toString().trim() ?? '';
+      if (value.isNotEmpty) return value;
+    }
+    return null;
   }
 
   String? _giftImageUrl(String code) {

@@ -18,12 +18,10 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
   bool _notifSound = true;
   bool _notifVibrate = true;
   bool _allowMessages = true;
-  bool _allowCalls = true;
   bool _autoPlay = true;
   bool _dataWarning = true;
 
   String _messageFrom = 'everyone';
-  String _callFrom = 'everyone';
   String _fontSize = 'medium';
 
   @override
@@ -54,11 +52,9 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           _notifSound = rows['notif_sound'] as bool? ?? true;
           _notifVibrate = rows['notif_vibrate'] as bool? ?? true;
           _allowMessages = rows['allow_messages'] as bool? ?? true;
-          _allowCalls = rows['allow_calls'] as bool? ?? true;
           _autoPlay = rows['auto_play'] as bool? ?? true;
           _dataWarning = rows['data_warning'] as bool? ?? true;
           _messageFrom = rows['message_from'] as String? ?? 'everyone';
-          _callFrom = rows['call_from'] as String? ?? 'everyone';
           _fontSize = rows['font_size'] as String? ?? 'medium';
         });
       }
@@ -79,11 +75,9 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
         'notif_sound': _notifSound,
         'notif_vibrate': _notifVibrate,
         'allow_messages': _allowMessages,
-        'allow_calls': _allowCalls,
         'auto_play': _autoPlay,
         'data_warning': _dataWarning,
         'message_from': _messageFrom,
-        'call_from': _callFrom,
         'font_size': _fontSize,
       });
       if (!mounted) return;
@@ -191,12 +185,6 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                               _allowMessages,
                               (v) => setState(() => _allowMessages = v),
                             ),
-                            _toggle(
-                              isArabic ? 'السماح بالمكالمات' : 'Allow calls',
-                              Icons.call_rounded,
-                              _allowCalls,
-                              (v) => setState(() => _allowCalls = v),
-                            ),
                             _picker(
                               isArabic
                                   ? 'من يمكنه مراسلتي؟'
@@ -215,26 +203,6 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                                       'nobody': 'Nobody',
                                     },
                               (v) => setState(() => _messageFrom = v),
-                              isArabic,
-                            ),
-                            _picker(
-                              isArabic
-                                  ? 'من يمكنه مكالمتي؟'
-                                  : 'Who can call me?',
-                              Icons.phone_in_talk_rounded,
-                              _callFrom,
-                              isArabic
-                                  ? {
-                                      'everyone': 'الجميع',
-                                      'followers': 'المتابعون',
-                                      'nobody': 'لا أحد',
-                                    }
-                                  : {
-                                      'everyone': 'Everyone',
-                                      'followers': 'Followers',
-                                      'nobody': 'Nobody',
-                                    },
-                              (v) => setState(() => _callFrom = v),
                               isArabic,
                             ),
                           ]),

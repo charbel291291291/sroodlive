@@ -277,8 +277,8 @@ class _HostRegistrationScreenState extends State<HostRegistrationScreen> {
                 ),
                 Text(
                   isArabic
-                      ? 'ابدأ البث وكسب الدخل'
-                      : 'Start streaming and earn income',
+                      ? 'استضف الغرف واكسب الدخل'
+                      : 'Host rooms and earn income',
                   style: const TextStyle(
                     color: Color(0xFF9E91B8),
                     fontSize: 13,
@@ -297,12 +297,12 @@ class _HostRegistrationScreenState extends State<HostRegistrationScreen> {
     final perks = isArabic
         ? [
             '💎 كسب الألماس من الهدايا',
-            '📺 بث مباشر بلا حدود',
+            '🎙️ استضافة غرف مباشرة بلا حدود',
             '🏆 أوسمة خاصة بالمضيف',
           ]
         : [
             '💎 Earn diamonds from gifts',
-            '📺 Unlimited live streaming',
+            '🎙️ Host unlimited live rooms',
             '🏆 Exclusive host badges',
           ];
 
@@ -394,12 +394,12 @@ class _HostRegistrationScreenState extends State<HostRegistrationScreen> {
             Text(
               isArabic
                   ? (isApproved
-                        ? 'يمكنك الآن البدء بالبث المباشر!'
+                        ? 'يمكنك الآن البدء باستضافة الغرف!'
                         : isPending
                         ? 'سيتم مراجعة طلبك قريباً.'
                         : 'يمكنك إعادة التقديم لاحقاً.')
                   : (isApproved
-                        ? 'You can now start live streaming!'
+                        ? 'You can now start hosting rooms!'
                         : isPending
                         ? 'Your application will be reviewed soon.'
                         : 'You can reapply later.'),

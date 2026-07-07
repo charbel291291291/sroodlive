@@ -18,7 +18,6 @@ import '../../shared/widgets/vip_username.dart';
 import '../profile_hub/screens/customer_service_screen.dart';
 import '../profile_hub/screens/settings_screen.dart';
 import '../profile_hub/screens/my_agency_screen.dart';
-import '../host/screens/host_registration_screen.dart';
 import '../gamification/screens/backpack_screen.dart';
 import '../gamification/screens/checkin_screen.dart';
 import '../gamification/screens/store_screen.dart';
@@ -353,7 +352,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      SroodToast.show(context, context.isArabic ? 'فشل فتح الغرفة: $e' : 'Failed to open room: $e', type: SroodToastType.error);
+      SroodToast.show(
+        context,
+        context.isArabic ? 'فشل فتح الغرفة: $e' : 'Failed to open room: $e',
+        type: SroodToastType.error,
+      );
     } finally {
       if (mounted) setState(() => _roomLoading = false);
     }
@@ -491,7 +494,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _copyPublicId(String publicUserId) async {
     await Clipboard.setData(ClipboardData(text: publicUserId));
     if (!mounted) return;
-    SroodToast.show(context, context.isArabic ? 'تم نسخ المعرّف' : 'ID copied', type: SroodToastType.success);
+    SroodToast.show(
+      context,
+      context.isArabic ? 'تم نسخ المعرّف' : 'ID copied',
+      type: SroodToastType.success,
+    );
   }
 
   Future<void> _showEditProfileSheet() async {
@@ -1083,12 +1090,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final goldenIdFrame = profile?['golden_id_frame']?.toString() ?? 'classic';
     final coins = wallet?.coinsBalance ?? 0;
     final diamonds = wallet?.diamondsBalance ?? 0;
-    final level =
-        _userLevel?.level ??
-        _intFromProfile(profile ?? {}, 'level', fallback: 1);
-    debugPrint(
-      '[LevelSync] display level=$level (rpc=${_userLevel?.level}, profile=${_intFromProfile(profile ?? {}, 'level', fallback: 1)})',
-    );
     final country = _profileText('country');
     final gender = _profileText('gender');
     final bio = _profileText('bio');
@@ -1260,9 +1261,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       isArabic: isArabic,
                       onMyAgency: () =>
                           _openProfileHub(MyAgencyScreen(isArabic: isArabic)),
-                      onBecomeHost: () => _openProfileHub(
-                        HostRegistrationScreen(isArabic: isArabic),
-                      ),
                     ),
                     const SizedBox(height: 14),
 
@@ -1645,7 +1643,9 @@ class _PremiumProfileHero extends StatelessWidget {
                         color: Colors.black.withValues(alpha: 0.26),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: const Color(0xFFF0C15A).withValues(alpha: 0.20),
+                          color: const Color(
+                            0xFFF0C15A,
+                          ).withValues(alpha: 0.20),
                         ),
                       ),
                       child: Text(
@@ -2769,15 +2769,10 @@ class _AccountSection extends StatelessWidget {
 // -----------------------------------------------------------------------------
 
 class _HostAgencySection extends StatelessWidget {
-  const _HostAgencySection({
-    required this.isArabic,
-    required this.onMyAgency,
-    required this.onBecomeHost,
-  });
+  const _HostAgencySection({required this.isArabic, required this.onMyAgency});
 
   final bool isArabic;
   final VoidCallback onMyAgency;
-  final VoidCallback onBecomeHost;
 
   @override
   Widget build(BuildContext context) {
@@ -2795,14 +2790,6 @@ class _HostAgencySection extends StatelessWidget {
               : 'Your status, join by code, apply, or manage your agency',
           isArabic: isArabic,
           onTap: onMyAgency,
-        ),
-        ProfileListRow(
-          icon: Icons.live_tv_rounded,
-          iconColor: const Color(0xFF8B5CF6),
-          title: isArabic ? 'التسجيل كمضيف' : 'Become a host',
-          subtitle: isArabic ? 'انضم لبرنامج المضيفين' : 'Join the host program',
-          isArabic: isArabic,
-          onTap: onBecomeHost,
           showDivider: false,
         ),
       ],
@@ -3180,7 +3167,6 @@ class _GoldMiniButton extends StatelessWidget {
   }
 }
 
-
 // Compact square stat chip used on a single row in the profile hero for
 // Charm / Wealth / Gender. Vertical layout (icon → label → value) keeps each
 // chip narrow so three fit side by side without overflow on small phones.
@@ -3209,11 +3195,7 @@ class _HeroStatChip extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color.lerp(colorA, Colors.white, 0.18)!,
-            colorA,
-            colorB,
-          ],
+          colors: [Color.lerp(colorA, Colors.white, 0.18)!, colorA, colorB],
           stops: const [0.0, 0.5, 1.0],
         ),
         border: Border.all(
@@ -3556,7 +3538,13 @@ class _AvatarFramePickerTile extends StatelessWidget {
           Navigator.of(context).pop<String?>(frame?.frameKey);
           return;
         }
-        SroodToast.show(context, isArabic ? 'هذا الإطار متاح لمستوى VIP أعلى' : 'This frame requires a higher VIP level', type: SroodToastType.info);
+        SroodToast.show(
+          context,
+          isArabic
+              ? 'هذا الإطار متاح لمستوى VIP أعلى'
+              : 'This frame requires a higher VIP level',
+          type: SroodToastType.info,
+        );
       },
       child: Container(
         padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
@@ -3691,9 +3679,7 @@ class _GiftStatItem extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: glowColor.withValues(alpha: 0.12),
-              border: Border.all(
-                color: glowColor.withValues(alpha: 0.35),
-              ),
+              border: Border.all(color: glowColor.withValues(alpha: 0.35)),
               boxShadow: [
                 BoxShadow(
                   color: glowColor.withValues(alpha: 0.22),

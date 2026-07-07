@@ -61,14 +61,17 @@ class _AdminHostAgencyReviewScreenState
     if (_busy.contains(id)) return;
     setState(() => _busy.add(id));
     try {
-      await _service.adminReviewApplication(applicationId: id, approve: approve);
+      await _service.adminReviewApplication(
+        applicationId: id,
+        approve: approve,
+      );
       await _load();
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy.remove(id));
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
     }
   }
 
@@ -83,8 +86,10 @@ class _AdminHostAgencyReviewScreenState
           backgroundColor: profileHubBg,
           elevation: 0,
           iconTheme: const IconThemeData(color: Colors.white),
-          title: Text(ar ? 'طلبات الوكالات (المضيفون)' : 'Host-agency applications',
-              style: const TextStyle(color: Colors.white, fontSize: 17)),
+          title: Text(
+            ar ? 'طلبات الوكالات (المضيفون)' : 'Host-agency applications',
+            style: const TextStyle(color: Colors.white, fontSize: 17),
+          ),
         ),
         body: Column(
           children: [
@@ -99,49 +104,65 @@ class _AdminHostAgencyReviewScreenState
   }
 
   Widget _filterBar(bool ar) => Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-        child: Row(
-          children: _statuses.map((s) {
-            final sel = s == _statusFilter;
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: Text(s),
-                selected: sel,
-                onSelected: (_) {
-                  setState(() => _statusFilter = s);
-                  _load();
-                },
-              ),
-            );
-          }).toList(),
-        ),
-      );
+    padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+    child: Row(
+      children: _statuses.map((s) {
+        final sel = s == _statusFilter;
+        return Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: ChoiceChip(
+            label: Text(s),
+            selected: sel,
+            onSelected: (_) {
+              setState(() => _statusFilter = s);
+              _load();
+            },
+          ),
+        );
+      }).toList(),
+    ),
+  );
 
   Widget _buildList(bool ar) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: profileHubGold));
+      return const Center(
+        child: CircularProgressIndicator(color: profileHubGold),
+      );
     }
     if (_error != null) {
-      return ListView(children: [
-        const SizedBox(height: 120),
-        Center(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text(ar ? 'تعذر التحميل' : 'Failed to load',
-                style: const TextStyle(color: profileHubMuted)),
-            TextButton(onPressed: _load, child: Text(ar ? 'إعادة' : 'Retry')),
-          ]),
-        ),
-      ]);
+      return ListView(
+        children: [
+          const SizedBox(height: 120),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  ar ? 'تعذر التحميل' : 'Failed to load',
+                  style: const TextStyle(color: profileHubMuted),
+                ),
+                TextButton(
+                  onPressed: _load,
+                  child: Text(ar ? 'إعادة' : 'Retry'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
     }
     if (_apps.isEmpty) {
-      return ListView(children: [
-        const SizedBox(height: 120),
-        Center(
-          child: Text(ar ? 'لا توجد طلبات.' : 'No applications.',
-              style: const TextStyle(color: profileHubMuted)),
-        ),
-      ]);
+      return ListView(
+        children: [
+          const SizedBox(height: 120),
+          Center(
+            child: Text(
+              ar ? 'لا توجد طلبات.' : 'No applications.',
+              style: const TextStyle(color: profileHubMuted),
+            ),
+          ),
+        ],
+      );
     }
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
@@ -169,22 +190,26 @@ class _AdminHostAgencyReviewScreenState
           Row(
             children: [
               Expanded(
-                child: Text(app['display_name']?.toString() ?? 'Player',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.w700)),
+                child: Text(
+                  app['display_name']?.toString() ?? 'Player',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: profileHubBorder,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(type,
-                    style: const TextStyle(
-                        color: profileHubGold, fontSize: 11)),
+                child: Text(
+                  type,
+                  style: const TextStyle(color: profileHubGold, fontSize: 11),
+                ),
               ),
             ],
           ),
@@ -194,31 +219,58 @@ class _AdminHostAgencyReviewScreenState
             '${app['agency_code'] != null ? ' (${app['agency_code']})' : ''}',
             style: const TextStyle(color: profileHubMuted, fontSize: 12),
           ),
+          if ((app['requested_agency_name']?.toString() ?? '').isNotEmpty)
+            Text(
+              '${ar ? 'الاسم المطلوب' : 'Requested name'}: '
+              '${app['requested_agency_name']}',
+              style: const TextStyle(color: profileHubGold, fontSize: 12),
+            ),
+          if ((app['country']?.toString() ?? '').isNotEmpty)
+            Text(
+              '${ar ? 'الدولة' : 'Country'}: ${app['country']}',
+              style: const TextStyle(color: profileHubMuted, fontSize: 12),
+            ),
+          if ((app['experience']?.toString() ?? '').isNotEmpty)
+            Text(
+              '${ar ? 'الخبرة' : 'Experience'}: ${app['experience']}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: profileHubMuted, fontSize: 12),
+            ),
           if ((app['message']?.toString() ?? '').isNotEmpty) ...[
             const SizedBox(height: 4),
-            Text(app['message'].toString(),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white70, fontSize: 12)),
+            Text(
+              app['message'].toString(),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
           ],
           if (status == 'pending') ...[
             const SizedBox(height: 8),
             if (busy)
               const Center(
-                  child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2)))
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
             else
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton.icon(
                     onPressed: () => _review(id, false),
-                    icon: const Icon(Icons.close_rounded,
-                        color: Color(0xFFEF4444), size: 18),
-                    label: Text(ar ? 'رفض' : 'Reject',
-                        style: const TextStyle(color: Color(0xFFEF4444))),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: Color(0xFFEF4444),
+                      size: 18,
+                    ),
+                    label: Text(
+                      ar ? 'رفض' : 'Reject',
+                      style: const TextStyle(color: Color(0xFFEF4444)),
+                    ),
                   ),
                   const SizedBox(width: 8),
                   FilledButton.icon(
@@ -231,13 +283,16 @@ class _AdminHostAgencyReviewScreenState
           ] else
             Padding(
               padding: const EdgeInsets.only(top: 6),
-              child: Text(status,
-                  style: TextStyle(
-                      color: status == 'approved'
-                          ? const Color(0xFF22C55E)
-                          : const Color(0xFFEF4444),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700)),
+              child: Text(
+                status,
+                style: TextStyle(
+                  color: status == 'approved'
+                      ? const Color(0xFF22C55E)
+                      : const Color(0xFFEF4444),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
         ],
       ),

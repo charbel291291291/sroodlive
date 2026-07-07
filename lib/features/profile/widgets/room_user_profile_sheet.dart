@@ -18,6 +18,7 @@ import 'package:srood_live/core/extensions/locale_extension.dart';
 import '../../wealth/widgets/wealth_badge_widget.dart';
 import '../../wealth/models/wealth_models.dart';
 import '../../profile_hub/widgets/level_frame_badge.dart';
+import '../../rooms/widgets/agent_identity_badge.dart';
 
 // ── Public entry point ────────────────────────────────────────────────────────
 
@@ -776,6 +777,14 @@ class _SheetBody extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
+        if (profile.isOfficialAgent) ...[
+          AgentIdentityCard(
+            isArabic: isArabic,
+            agencyName: profile.agencyName,
+            country: profile.agencyCountry ?? profile.country,
+          ),
+          const SizedBox(height: 12),
+        ],
 
         // ── Stat grid (VIP | Wealth / Charm | Followers) ─────────────────────
         Row(
@@ -1047,6 +1056,12 @@ class _HeaderContent extends StatelessWidget {
                       color: Colors.white, size: 11),
                 ),
               ),
+            if (profile.isOfficialAgent)
+              const Positioned(
+                top: 0,
+                right: 0,
+                child: AgentAvatarMarker(size: 18),
+              ),
           ],
         ),
         const SizedBox(width: 14),
@@ -1085,6 +1100,10 @@ class _HeaderContent extends StatelessWidget {
                         ),
                       ),
                     ),
+                  if (profile.isOfficialAgent) ...[
+                    const SizedBox(width: 6),
+                    const AgentBadge(compact: true),
+                  ],
                 ],
               ),
               const SizedBox(height: 4),

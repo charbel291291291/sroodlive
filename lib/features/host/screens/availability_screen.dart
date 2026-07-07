@@ -32,6 +32,7 @@ class _DaySlot {
 class _AvailabilityScreenState extends State<AvailabilityScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _notApproved = false;
 
   static const List<String> _dayKeysEn = [
     'Monday',
@@ -71,20 +72,12 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   Future<void> _loadSchedule() async {
     setState(() => _isLoading = true);
     try {
-      final user = SupabaseService.requiredClient.auth.currentUser;
-      if (user == null) {
-        setState(() => _isLoading = false);
-        return;
-      }
+      final data = await SupabaseService.requiredClient.rpc(
+        'get_my_host_availability',
+      );
 
-      final data = await SupabaseService.requiredClient
-          .from('host_availability')
-          .select('schedule')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-      if (data != null && data['schedule'] is List) {
-        final schedule = data['schedule'] as List;
+      if (data is List) {
+        final schedule = data;
         for (var i = 0; i < schedule.length && i < _slots.length; i++) {
           final row = schedule[i] as Map?;
           if (row == null) continue;
@@ -99,6 +92,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       }
     } catch (e, st) {
       debugError('AvailabilityScreen._load', e, st);
+      if (e.toString().contains('host_not_approved')) {
+        _notApproved = true;
+      }
     }
 
     if (!mounted) return;
@@ -116,17 +112,17 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   Future<void> _save() async {
     setState(() => _isSaving = true);
     try {
-      final user = SupabaseService.requiredClient.auth.currentUser;
-      if (user == null) throw Exception('Not logged in');
-
-      await SupabaseService.requiredClient.from('host_availability').upsert({
-        'user_id': user.id,
-        'schedule': _slots.map((s) => s.toJson()).toList(),
-        'updated_at': DateTime.now().toIso8601String(),
-      });
+      await SupabaseService.requiredClient.rpc(
+        'save_my_host_availability',
+        params: {'p_schedule': _slots.map((s) => s.toJson()).toList()},
+      );
 
       if (!mounted) return;
-      SroodToast.show(context, context.isArabic ? 'تم حفظ الجدول' : 'Schedule saved', type: SroodToastType.success);
+      SroodToast.show(
+        context,
+        context.isArabic ? 'تم حفظ الجدول' : 'Schedule saved',
+        type: SroodToastType.success,
+      );
     } catch (e) {
       if (!mounted) return;
       SroodToast.show(context, 'Error: $e', type: SroodToastType.error);
@@ -187,6 +183,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                           color: Color(0xFF8B26D9),
                         ),
                       )
+                    : _notApproved
+                    ? _buildNotApproved(isArabic)
                     : ListView.separated(
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
                         itemCount: 7,
@@ -198,29 +196,74 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
           ),
         ),
       ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: SizedBox(
-          height: 52,
-          child: FloatingActionButton.extended(
-            onPressed: _isSaving ? null : _save,
-            backgroundColor: const Color(0xFF8B26D9),
-            foregroundColor: Colors.white,
-            icon: _isSaving
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
+      floatingActionButton: _notApproved
+          ? null
+          : Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: SizedBox(
+                height: 52,
+                child: FloatingActionButton.extended(
+                  onPressed: _isSaving ? null : _save,
+                  backgroundColor: const Color(0xFF8B26D9),
+                  foregroundColor: Colors.white,
+                  icon: _isSaving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Icon(Icons.save_rounded),
+                  label: Text(
+                    isArabic ? 'حفظ الجدول' : 'Save schedule',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
                     ),
-                  )
-                : const Icon(Icons.save_rounded),
-            label: Text(
-              isArabic ? 'حفظ الجدول' : 'Save schedule',
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                  ),
+                ),
+              ),
             ),
-          ),
+    );
+  }
+
+  Widget _buildNotApproved(bool isArabic) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.lock_clock_rounded,
+              color: Color(0xFFF0C15A),
+              size: 58,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              isArabic ? 'يتطلب اعتماد المضيف' : 'Host approval required',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isArabic
+                  ? 'يمكنك إعداد جدول الإتاحة بعد الموافقة على طلب الاستضافة.'
+                  : 'You can set an availability schedule after your host application is approved.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF9E91B8),
+                height: 1.45,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -256,8 +299,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                 ),
                 Text(
                   isArabic
-                      ? 'حدد أوقات بثك المباشر'
-                      : 'Set your live streaming hours',
+                      ? 'حدد أوقات استضافة غرفك'
+                      : 'Set your room hosting hours',
                   style: const TextStyle(
                     color: Color(0xFF9E91B8),
                     fontSize: 13,

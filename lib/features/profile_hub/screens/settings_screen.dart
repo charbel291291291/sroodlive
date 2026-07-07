@@ -4,7 +4,6 @@ import '../../../core/auth/safe_logout.dart';
 import '../../../core/update/app_update_dialog.dart';
 import '../../../core/update/app_update_service.dart';
 import '../../../main.dart';
-import '../../calls/screens/call_history_screen.dart';
 import '../../discovery/screens/discovery_screen.dart';
 import '../../gifts/screens/gift_catalog_screen.dart';
 import '../../games/screens/spin_wheel_screen.dart';
@@ -567,8 +566,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ProfileSectionTitle(
                   title: isArabic ? 'الاستكشاف والنشاط' : 'Discover & Activity',
                   subtitle: isArabic
-                      ? 'تصفح، إشعارات، مكالمات'
-                      : 'Browse, notifications, call log',
+                      ? 'تصفح وإشعارات'
+                      : 'Browse and notifications',
                   isArabic: isArabic,
                 ),
                 ProfileMenuItem(
@@ -597,23 +596,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                 ),
-                ProfileMenuItem(
-                  icon: Icons.call_rounded,
-                  title: isArabic ? 'سجل المكالمات' : 'Call history',
-                  subtitle: isArabic
-                      ? 'جميع مكالماتك الصوتية'
-                      : 'All your audio calls',
-                  isArabic: isArabic,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => CallHistoryScreen(isArabic: isArabic),
-                    ),
-                  ),
-                ),
-
                 // ── 2. Rooms & Live ──────────────────────────────────────
                 ProfileSectionTitle(
-                  title: isArabic ? 'الغرف والبث المباشر' : 'Rooms & Live',
+                  title: isArabic ? 'الغرف والاستضافة' : 'Rooms & Hosting',
                   subtitle: isArabic
                       ? 'جدولة الغرف وأوقات التوفر'
                       : 'Room scheduling and availability',
