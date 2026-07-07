@@ -9,12 +9,11 @@ import '../services/room_music_service.dart';
 // action bar. Replaces the old floating draggable bubble.
 //
 // States:
-//   1. Hidden      — non-manager + no music  →  SizedBox.shrink()
-//   2. Idle row    — manager + no music      →  36 px centered "Add music" row
-//   3. Active dock — music playing/paused    →  56 px full dock + 2 px progress
+//   1. Hidden      — no active music         →  SizedBox.shrink()
+//   2. Active dock — music playing/paused    →  compact dock + progress
 //
-// Positioning is handled by the parent (room_details_screen):
-//   Positioned(bottom: kbHeight) → Column([RoomMiniPlayer, _LiveBottomActionBar])
+// Positioning is handled by the parent (room_details_screen) as an overlay
+// above the bottom action bar so chat keeps its vertical space.
 // ─────────────────────────────────────────────────────────────────────────────
 
 class RoomMiniPlayer extends StatefulWidget {
@@ -89,37 +88,45 @@ class _RoomMiniPlayerState extends State<RoomMiniPlayer>
   @override
   Widget build(BuildContext context) {
     if (widget.keyboardOpen) return const SizedBox.shrink();
+    final dockWidth =
+        (MediaQuery.sizeOf(context).width * 0.68).clamp(220.0, 292.0).toDouble();
 
     return ListenableBuilder(
       listenable: widget.musicService,
       builder: (context, _) {
         final svc = widget.musicService;
 
-        return AnimatedSwitcher(
-          duration: const Duration(milliseconds: 280),
-          transitionBuilder: (child, anim) => FadeTransition(
-            opacity: anim,
-            child: SizeTransition(sizeFactor: anim, alignment: Alignment.topCenter, child: child),
-          ),
-          child: svc.isActive
-              ? _ActiveDock(
-                  key: const ValueKey('dock-active'),
-                  svc: svc,
-                  canManage: widget.canManage,
-                  isArabic: widget.isArabic,
-                  eq1: _eq1,
-                  eq2: _eq2,
-                  eq3: _eq3,
-                  onTap: widget.onTap,
-                  onPlayPause: svc.playPause,
-                )
-              : (widget.isManager
-                  ? _IdleRow(
-                      key: const ValueKey('dock-idle'),
+        return Align(
+          alignment: widget.isArabic ? Alignment.centerLeft : Alignment.centerRight,
+          child: SizedBox(
+            width: dockWidth,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              transitionBuilder: (child, anim) => FadeTransition(
+                opacity: anim,
+                child: SizeTransition(
+                  sizeFactor: anim,
+                  axis: Axis.horizontal,
+                  alignment:
+                      widget.isArabic ? Alignment.centerLeft : Alignment.centerRight,
+                  child: child,
+                ),
+              ),
+              child: svc.isActive
+                  ? _ActiveDock(
+                      key: const ValueKey('dock-active'),
+                      svc: svc,
+                      canManage: widget.canManage,
                       isArabic: widget.isArabic,
+                      eq1: _eq1,
+                      eq2: _eq2,
+                      eq3: _eq3,
                       onTap: widget.onTap,
+                      onPlayPause: svc.playPause,
                     )
-                  : const SizedBox.shrink(key: ValueKey('dock-hidden'))),
+                  : const SizedBox.shrink(key: ValueKey('dock-hidden')),
+            ),
+          ),
         );
       },
     );
@@ -172,8 +179,11 @@ class _ActiveDock extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOut,
-        height: 56,
+        height: 38,
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
@@ -182,27 +192,32 @@ class _ActiveDock extends StatelessWidget {
               const Color(0xFF060210).withValues(alpha: 0.96),
             ],
           ),
-          border: Border(
-            top: BorderSide(
-              color: isPlaying
-                  ? _kGold.withValues(alpha: 0.28)
-                  : _kPurple.withValues(alpha: 0.20),
-              width: 0.8,
-            ),
+          border: Border.all(
+            color: isPlaying
+                ? _kGold.withValues(alpha: 0.34)
+                : _kPurple.withValues(alpha: 0.28),
+            width: 0.9,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.30),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Stack(
           children: [
             // ── Main content row ───────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
               child: Row(
                 textDirection: dir,
                 children: [
                   // Album art / loading indicator
                   Container(
-                    width: 36,
-                    height: 36,
+                    width: 28,
+                    height: 28,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
                       gradient: const LinearGradient(
@@ -217,7 +232,7 @@ class _ActiveDock extends StatelessWidget {
                     ),
                     child: svc.isLoading
                         ? Padding(
-                            padding: const EdgeInsets.all(9),
+                            padding: const EdgeInsets.all(7),
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               color: Colors.white.withValues(alpha: 0.65),
@@ -226,10 +241,10 @@ class _ActiveDock extends StatelessWidget {
                         : Icon(
                             Icons.music_note_rounded,
                             color: Colors.white.withValues(alpha: 0.80),
-                            size: 18,
+                            size: 15,
                           ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
 
                   // Title + artist
                   Expanded(
@@ -245,14 +260,16 @@ class _ActiveDock extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 13,
+                            fontSize: 12,
                             fontWeight: FontWeight.w700,
                             decoration: TextDecoration.none,
                             height: 1.1,
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
+                        const SizedBox.shrink(),
+                        Offstage(
+                          offstage: true,
+                          child: Text(
                           song.artist.isNotEmpty
                               ? song.artist
                               : (isArabic ? 'غرفة سرود' : 'Srood Room'),
@@ -265,11 +282,12 @@ class _ActiveDock extends StatelessWidget {
                             decoration: TextDecoration.none,
                             height: 1.1,
                           ),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
 
                   // Animated equalizer bars
                   _EqualizerBars(
@@ -278,7 +296,7 @@ class _ActiveDock extends StatelessWidget {
                     eq2: eq2,
                     eq3: eq3,
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
 
                   // Play / pause — controller only
                   if (canManage) ...[
@@ -289,41 +307,37 @@ class _ActiveDock extends StatelessWidget {
                         onPlayPause?.call();
                       },
                       child: Container(
-                        width: 32,
-                        height: 32,
+                        width: 26,
+                        height: 26,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.black.withValues(alpha: 0.30),
+                          color: Colors.black.withValues(alpha: 0.28),
                           border: Border.all(
                             color: isPlaying
-                                ? _kGold.withValues(alpha: 0.42)
-                                : Colors.white.withValues(alpha: 0.18),
-                            width: 1.0,
+                                ? _kGold.withValues(alpha: 0.38)
+                                : Colors.white.withValues(alpha: 0.16),
+                            width: 0.9,
                           ),
-                          boxShadow: isPlaying
-                              ? [
-                                  BoxShadow(
-                                    color: _kGold.withValues(alpha: 0.14),
-                                    blurRadius: 10,
-                                  )
-                                ]
-                              : const [],
                         ),
                         child: Icon(
-                          isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                          color: isPlaying ? _kGold : Colors.white.withValues(alpha: 0.70),
-                          size: 17,
+                          isPlaying
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
+                          color: isPlaying
+                              ? _kGold
+                              : Colors.white.withValues(alpha: 0.68),
+                          size: 15,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                   ] else ...[
                     Icon(
                       Icons.lock_rounded,
                       size: 11,
                       color: Colors.white.withValues(alpha: 0.22),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                   ],
 
                   // Open panel chevron
@@ -362,56 +376,6 @@ class _ActiveDock extends StatelessWidget {
                     ],
                   ),
                 ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Idle row (manager, no music) ──────────────────────────────────────────────
-
-class _IdleRow extends StatelessWidget {
-  const _IdleRow({super.key, required this.isArabic, this.onTap});
-
-  static const _kPurple = Color(0xFF8B26D9);
-
-  final bool isArabic;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        onTap?.call();
-      },
-      child: Container(
-        height: 36,
-        decoration: BoxDecoration(
-          color: const Color(0xFF0D0520).withValues(alpha: 0.45),
-          border: Border(
-            top: BorderSide(color: _kPurple.withValues(alpha: 0.10), width: 0.5),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.music_note_rounded,
-              size: 12,
-              color: Colors.white.withValues(alpha: 0.26),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              isArabic ? 'لا توجد موسيقى · أضف موسيقى' : 'No music playing · Add Music',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.30),
-                fontSize: 11.5,
-                fontWeight: FontWeight.w500,
-                decoration: TextDecoration.none,
               ),
             ),
           ],

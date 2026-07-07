@@ -63,6 +63,12 @@ class RoomSyncedMusicService {
   bool? _pushedIsPlaying;
   bool _pushedIsActive = false;
   bool _pushedAutoReplay = false;
+  Timer? _reconnectTimer;
+  Timer? _driftTimer;
+  bool _disposed = false;
+  bool _subscribed = false;
+  bool _recovering = false;
+  int _applyGeneration = 0;
 
   RoomMusicState? get lastState => _lastState;
 
@@ -76,13 +82,21 @@ class RoomSyncedMusicService {
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   Future<void> initialize() async {
-    _subscribeRealtime();
+    await _subscribeRealtime();
     await syncNow();
+    _driftTimer ??= Timer.periodic(const Duration(seconds: 30), (_) {
+      unawaited(syncNow());
+    });
   }
 
   Future<void> dispose() async {
-    await _rtChannel?.unsubscribe();
+    _disposed = true;
+    _reconnectTimer?.cancel();
+    _driftTimer?.cancel();
+    final channel = _rtChannel;
     _rtChannel = null;
+    _subscribed = false;
+    if (channel != null) await _client.removeChannel(channel);
   }
 
   // ── Late-join sync ────────────────────────────────────────────────────────
@@ -104,8 +118,12 @@ class RoomSyncedMusicService {
 
   // ── Realtime subscription ─────────────────────────────────────────────────
 
-  void _subscribeRealtime() {
-    _rtChannel?.unsubscribe();
+  Future<void> _subscribeRealtime() async {
+    if (_disposed) return;
+    final oldChannel = _rtChannel;
+    _rtChannel = null;
+    _subscribed = false;
+    if (oldChannel != null) await _client.removeChannel(oldChannel);
     _rtChannel = _client.channel('room_music_sync_$roomId');
 
     _rtChannel!.onPostgresChanges(
@@ -134,12 +152,41 @@ class RoomSyncedMusicService {
 
     _rtChannel!.subscribe((status, [error]) {
       debugPrint('[RoomMusic] RT status=$status error=$error');
+      if (status == RealtimeSubscribeStatus.subscribed) {
+        _subscribed = true;
+        _reconnectTimer?.cancel();
+        unawaited(syncNow());
+      } else if (status == RealtimeSubscribeStatus.channelError ||
+          status == RealtimeSubscribeStatus.closed ||
+          status == RealtimeSubscribeStatus.timedOut) {
+        _subscribed = false;
+        _scheduleRecovery();
+      }
     });
+  }
+
+  void _scheduleRecovery() {
+    if (_disposed || _reconnectTimer?.isActive == true) return;
+    _reconnectTimer = Timer(const Duration(seconds: 2), () {
+      unawaited(recoverIfNeeded(forceReconnect: true));
+    });
+  }
+
+  Future<void> recoverIfNeeded({bool forceReconnect = false}) async {
+    if (_disposed || _recovering) return;
+    _recovering = true;
+    try {
+      if (forceReconnect || !_subscribed) await _subscribeRealtime();
+      await syncNow();
+    } finally {
+      _recovering = false;
+    }
   }
 
   // ── Apply server state → local RoomMusicService ───────────────────────────
 
   Future<void> _applyState(RoomMusicState newState, {required bool fromRealtime}) async {
+    final generation = ++_applyGeneration;
     final prev = _lastState;
     _lastState = newState;
 
@@ -190,7 +237,7 @@ class RoomSyncedMusicService {
 
       if (trackChanged || !musicService.isActive) {
         debugPrint('[RoomMusic] autoPlay new track=${newState.trackId}');
-        await musicService.playSong(idx);
+        await musicService.playSong(idx, advanceOnFailure: false);
         final seekTo = Duration(seconds: newState.livePositionSeconds);
         if (seekTo.inSeconds > 1) await musicService.seek(seekTo);
       } else if (!wasPlaying && newState.isPlaying) {
@@ -198,10 +245,17 @@ class RoomSyncedMusicService {
         final seekTo = Duration(seconds: newState.livePositionSeconds);
         if (seekTo.inSeconds > 1) await musicService.seek(seekTo);
         if (!musicService.isPlaying) await musicService.playPause();
+      } else if (newState.isPlaying && musicService.isPlaying) {
+        final expected = newState.livePositionSeconds;
+        final drift = (musicService.position.inSeconds - expected).abs();
+        if (drift > 3) {
+          debugPrint('[RoomMusic] correcting playback drift=${drift}s');
+          await musicService.seek(Duration(seconds: expected));
+        }
       }
     } finally {
       Future<void>.delayed(const Duration(milliseconds: 80), () {
-        applyingServerState = false;
+        if (generation == _applyGeneration) applyingServerState = false;
       });
     }
   }
@@ -255,23 +309,22 @@ class RoomSyncedMusicService {
 
   /// Called by the room screen when the controller changes song or play state.
   /// Filters out position-only changes so we only write on meaningful changes.
-  Future<void> pushCurrentStateIfChanged({bool? autoReplay}) async {
+  Future<bool> pushCurrentStateIfChanged({
+    bool? autoReplay,
+    bool force = false,
+  }) async {
     final song = musicService.currentSong;
     final isActive = musicService.isActive;
     final isPlaying = musicService.isPlaying;
     final ar = autoReplay ?? _lastState?.autoReplay ?? false;
 
-    if (_pushedSongId == song?.id &&
+    if (!force &&
+        _pushedSongId == song?.id &&
         _pushedIsPlaying == isPlaying &&
         _pushedIsActive == isActive &&
         _pushedAutoReplay == ar) {
-      return;
+      return true;
     }
-
-    _pushedSongId = song?.id;
-    _pushedIsPlaying = isPlaying;
-    _pushedIsActive = isActive;
-    _pushedAutoReplay = ar;
 
     try {
       if (song == null || !isActive) {
@@ -280,32 +333,75 @@ class RoomSyncedMusicService {
           'stop_room_music',
           params: {'p_room_id': roomId},
         );
-        return;
+      } else {
+        debugPrint('[RoomMusic] push playing=$isPlaying track=${song.id} autoReplay=$ar');
+        await _client.rpc(
+          'set_room_music_state',
+          params: {
+            'p_room_id': roomId,
+            'p_track_id': song.id,
+            'p_track_title': song.title,
+            'p_track_artist': song.artist,
+            'p_track_url': song.url,
+            'p_is_playing': isPlaying,
+            'p_position_seconds': musicService.position.inSeconds,
+            'p_auto_replay': ar,
+          },
+        );
       }
-
-      debugPrint('[RoomMusic] push playing=$isPlaying track=${song.id} autoReplay=$ar');
-      await _client.rpc(
-        'set_room_music_state',
-        params: {
-          'p_room_id': roomId,
-          'p_track_id': song.id,
-          'p_track_title': song.title,
-          'p_track_artist': song.artist,
-          'p_track_url': song.url,
-          'p_is_playing': isPlaying,
-          'p_position_seconds': musicService.position.inSeconds,
-          'p_auto_replay': ar,
-        },
-      );
+      _pushedSongId = song?.id;
+      _pushedIsPlaying = isPlaying;
+      _pushedIsActive = isActive;
+      _pushedAutoReplay = ar;
+      return true;
     } catch (e) {
       if (kDebugMode) debugPrint('[RoomMusic] push error: $e');
+      _invalidatePushCache();
+      await syncNow();
+      return false;
     }
+  }
+
+  void _invalidatePushCache() {
+    _pushedSongId = null;
+    _pushedIsPlaying = null;
+    _pushedIsActive = false;
   }
 
   /// Force push — bypasses the "nothing changed" guard. Used for auto replay.
   Future<void> _forcePushCurrentState() async {
-    _pushedSongId = null; // invalidate cache
-    await pushCurrentStateIfChanged();
+    _invalidatePushCache();
+    await pushCurrentStateIfChanged(force: true);
+  }
+
+  Future<bool> playSongForRoom(int index) =>
+      _runControllerAction(() => musicService.playSong(
+            index,
+            userInitiated: true,
+          ));
+
+  Future<bool> playPauseForRoom() =>
+      _runControllerAction(musicService.playPause);
+
+  Future<bool> nextForRoom() => _runControllerAction(musicService.next);
+
+  Future<bool> previousForRoom() =>
+      _runControllerAction(musicService.previous);
+
+  Future<bool> seekForRoom(Duration position) =>
+      _runControllerAction(() => musicService.seek(position), force: true);
+
+  Future<bool> _runControllerAction(
+    Future<void> Function() action, {
+    bool force = false,
+  }) async {
+    applyingServerState = true;
+    try {
+      await action();
+      return await pushCurrentStateIfChanged(force: force);
+    } finally {
+      applyingServerState = false;
+    }
   }
 
   /// Toggle auto replay and push. Only the controller should call this.
@@ -327,8 +423,19 @@ class RoomSyncedMusicService {
         'stop_room_music',
         params: {'p_room_id': roomId},
       );
+      applyingServerState = true;
+      try {
+        await musicService.stop();
+      } finally {
+        applyingServerState = false;
+      }
+      _pushedSongId = null;
+      _pushedIsPlaying = false;
+      _pushedIsActive = false;
     } catch (e) {
       if (kDebugMode) debugPrint('[RoomMusic] stopForRoom error: $e');
+      await syncNow();
+      rethrow;
     }
   }
 }

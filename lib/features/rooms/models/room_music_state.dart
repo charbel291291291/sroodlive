@@ -17,6 +17,8 @@ class RoomMusicState {
     required this.updatedAt,
     this.controllerUserId,
     this.autoReplay = false,
+    this.serverNow,
+    this.receivedAt,
   });
 
   final String roomId;
@@ -42,6 +44,8 @@ class RoomMusicState {
 
   /// When true, the controller's device restarts the same track when it ends.
   final bool autoReplay;
+  final DateTime? serverNow;
+  final DateTime? receivedAt;
 
   bool get hasTrack => trackUrl != null && trackUrl!.isNotEmpty;
 
@@ -51,7 +55,10 @@ class RoomMusicState {
   /// Returns 0 when stopped or paused.
   int get livePositionSeconds {
     if (!isPlaying || startedAt == null) return positionSeconds;
-    final elapsed = DateTime.now().toUtc().difference(startedAt!.toUtc());
+    final now = serverNow != null && receivedAt != null
+        ? serverNow!.toUtc().add(DateTime.now().difference(receivedAt!))
+        : DateTime.now().toUtc();
+    final elapsed = now.difference(startedAt!.toUtc());
     return (positionSeconds + elapsed.inSeconds).clamp(0, 86400);
   }
 
@@ -68,6 +75,8 @@ class RoomMusicState {
         updatedAt: _dt(j['updated_at']) ?? DateTime.now(),
         controllerUserId: j['controller_user_id'] as String?,
         autoReplay: (j['auto_replay'] as bool?) ?? false,
+        serverNow: _dt(j['server_now']),
+        receivedAt: DateTime.now(),
       );
 
   RoomMusicState copyWith({
@@ -82,6 +91,8 @@ class RoomMusicState {
     DateTime? updatedAt,
     String? controllerUserId,
     bool? autoReplay,
+    DateTime? serverNow,
+    DateTime? receivedAt,
   }) =>
       RoomMusicState(
         roomId: roomId,
@@ -96,6 +107,8 @@ class RoomMusicState {
         updatedAt: updatedAt ?? this.updatedAt,
         controllerUserId: controllerUserId ?? this.controllerUserId,
         autoReplay: autoReplay ?? this.autoReplay,
+        serverNow: serverNow ?? this.serverNow,
+        receivedAt: receivedAt ?? this.receivedAt,
       );
 
   static DateTime? _dt(dynamic v) {

@@ -49,24 +49,21 @@ import 'package:srood_live/shared/widgets/srood_toast.dart';
 import '../models/room_reaction.dart';
 import '../widgets/reaction_picker_sheet.dart';
 import '../widgets/seat_reaction_overlay.dart';
+import '../widgets/agent_identity_badge.dart';
 import '../../../core/services/active_room_session.dart';
 import '../../../core/services/voice_room_foreground_service.dart';
 import '../widgets/vault_pin_sheet.dart';
 import 'room_owner_management_screen.dart';
 
-// Seat sizes - host > occupied > empty, never the reverse.
-// Reduced ~17% from previous values to open more background space.
-const double _hostSeatAvatarSize = 46.0;
-const double _hostSeatOuterSize  = 50.0;
-const double _seatAvatarSize     = 40.0;
-const double _seatOuterSize      = 44.0;
-const double _emptySeatSize      = 44.0;
-const double _micSeatIconSize    = 15.0;
+// Stable premium seat scale. Every state uses the same computed diameter.
+const double _seatSize = 80.0;
+const double _minimumSeatSize = 78.0;
+const double _seatAvatarInset = 8.0;
+const double _micSeatIconSize = 30.0;
+const double _compactMicSeatIconSize = 28.0;
+const double _roomSeatBoxWidth = 96.0;
+const double _roomSeatBoxHeight = 116.0;
 const double _micSeatBadgeHorizontalPadding = 4.0;
-const double _micSeatSupportSlotHeight      = 16.0;
-// Fixed height for the avatar zone inside every grid cell.
-// Must be >= _hostSeatOuterSize (58) so the host avatar is never clipped.
-const double _kAvatarAreaHeight = 50.0;
 
 
 class RoomDetailsScreen extends StatefulWidget {
@@ -367,6 +364,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     if (reusingMusic) {
       _musicService = savedMusic;
       _syncedMusic = savedSynced;
+      unawaited(_syncedMusic.recoverIfNeeded());
       _roomLog('[RoomMusic] restore — reused music service roomId=${widget.room.id}');
     } else {
       _musicService = RoomMusicService();
@@ -386,8 +384,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       final replay = _syncedMusic.lastState?.autoReplay ?? false;
       if (replay) {
         unawaited(_syncedMusic.handleSongCompleted());
-      } else {
-        _musicService.next();
+      } else if (_syncedMusic.isController) {
+        unawaited(_syncedMusic.nextForRoom());
       }
     };
     _currentMaxSeats = widget.room.maxSeats <= 0 ? 12 : widget.room.maxSeats;
@@ -577,6 +575,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
           _roomLog('[VoiceLifecycle] audio dropped while backgrounded -- reconnecting');
           unawaited(_reconnectAudio());
         }
+        unawaited(_syncedMusic.recoverIfNeeded());
         break;
       case AppLifecycleState.detached:
       case AppLifecycleState.hidden:
@@ -1638,6 +1637,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                   'username': cached.username,
                   'avatar_url': cached.avatarUrl,
                   'vip_level': cached.vipLevel,
+                  'is_official_agent': cached.isOfficialAgent,
+                  'agency_name': cached.agencyName,
+                  'agency_country': cached.agencyCountry,
                 });
               } else if (senderId != null) {
                 // Cache miss (sender not yet in _members): fall back to DB.
@@ -1844,6 +1846,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         message: text.trim(),
         messageType: 'text',
         createdAt: DateTime.now(),
+        senderIsOfficialAgent: myMember?.isOfficialAgent ?? false,
+        senderAgencyName: myMember?.agencyName,
+        senderAgencyCountry: myMember?.agencyCountry,
       );
       setState(() => _chatMessages.add(optimistic));
     }
@@ -1991,7 +1996,6 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   /// can call this successfully.
   Future<void> _stopMusicForRoom() async {
     await _musicAction(() async {
-      await _musicService.stop();
       try {
         await _syncedMusic.stopForRoom();
       } catch (e, st) {
@@ -2029,7 +2033,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                 _roomLog('[RoomMusic] controller selected id=${song.id} url=${song.url}');
                 _musicService.addToPlaylist(song);
                 final idx = _musicService.playlist.indexWhere((s) => s.id == song.id);
-                if (idx >= 0) unawaited(_musicService.playSong(idx));
+                if (idx >= 0) {
+                  unawaited(_syncedMusic.playSongForRoom(idx));
+                }
               }
             : null,
       ),
@@ -2307,6 +2313,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                         size: 42,
                         selected: false,
                         fallbackIcon: Icons.person_rounded,
+                        isOfficialAgent: member.isOfficialAgent,
                       ),
                       title: VipUsername(
                         name: member.fallbackName(context.isArabic),
@@ -3693,8 +3700,13 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
   @override
   Widget build(BuildContext context) {
-    final bottomPad = MediaQuery.of(context).padding.bottom;
-    final kbHeight = MediaQuery.of(context).viewInsets.bottom;
+    final media = MediaQuery.of(context);
+    final bottomPad = media.padding.bottom;
+    final kbHeight = media.viewInsets.bottom;
+    final keyboardOpen = kbHeight > 0;
+    final chatHeight = (media.size.height * 0.16).clamp(96.0, 142.0);
+    final lowerInteractionReserve =
+        keyboardOpen ? 58.0 : 136.0 + bottomPad;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
@@ -3775,10 +3787,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       body: Stack(
         children: [
           // \u2500\u2500 1. Full-screen immersive background \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-          _FullRoomBackground(
-            key: ValueKey('${_roomBackgroundUrl ?? ''}_${_roomCoverUrl ?? ''}_${_roomUpdatedAt?.millisecondsSinceEpoch ?? 0}'),
-            room: _currentRoom,
-            backgroundUrl: _roomBackgroundUrl,
+          RepaintBoundary(
+            child: _FullRoomBackground(
+              key: ValueKey('${_roomBackgroundUrl ?? ''}_${_roomCoverUrl ?? ''}_${_roomUpdatedAt?.millisecondsSinceEpoch ?? 0}'),
+              room: _currentRoom,
+              backgroundUrl: _roomBackgroundUrl,
+            ),
           ),
 
           // \u2500\u2500 2. Scrollable content + pinned bottom bar \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
@@ -3845,19 +3859,23 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                   ),
                 ),
                 // Mic stage — subtle gradient scrim for readability (no opaque panel)
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.0),
-                        Colors.black.withValues(alpha: 0.22),
-                      ],
-                    ),
-                  ),
-                  child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 8),
+                Expanded(
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.black.withValues(alpha: 0.0),
+                                  Colors.black.withValues(alpha: 0.30),
+                                ],
+                              ),
+                            ),
+                            child: Padding(
+                  padding: const EdgeInsets.fromLTRB(2, 4, 2, 6),
                   child: _LiveRoomStage(
                     members: _members,
                     maxSeats: _currentMaxSeats,
@@ -3890,27 +3908,62 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                 ),
                 ),
                 // Scrollable chat feed — max height prevents covering mic seats
-                Flexible(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 240),
-                    child: _RoomChatFeed(
+                        ),
+                      SizedBox(
+                        height: chatHeight,
+                        child: RepaintBoundary(
+                          child: _RoomChatFeed(
                       chatMessages: _chatMessages,
                       isArabic: context.isArabic,
                       onProfileTap: _openUserProfileSheet,
-                      bottomPad: 172 + bottomPad + kbHeight,
+                      bottomPad: 0,
                       currentUserId: _currentUserId ?? '',
                       onRemoveTap: _canRemoveMessages ? _removeMessage : null,
                       onReportTap: _reportChatMessage,
-                    ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: lowerInteractionReserve),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
 
-          // -- Pinned bottom area: music dock + action bar -----------
-          // Single Positioned so the dock and bar share one layout boundary.
-          // The dock stacks directly above the bar with no gap.
+          // -- Floating music chip ------------------------------------
+          // Keep now-playing visible without stealing a full row from chat.
+          Positioned(
+            bottom: bottomPad + 136,
+            left: 0,
+            right: 0,
+            child: ListenableBuilder(
+              listenable: _musicService,
+              builder: (_, _) {
+                final controllerId =
+                    _syncedMusic.lastState?.controllerUserId;
+                final isController = controllerId == _currentUserId;
+                final isManager =
+                    _iAmRoomOwner || _iAmHost || _isCurrentUserModerator;
+                return RoomMiniPlayer(
+                  musicService: _musicService,
+                  isArabic: context.isArabic,
+                  isManager: isManager,
+                  canManage: isManager && isController,
+                  onTap: _openMusicPanel,
+                  controllerUserId: controllerId,
+                  currentUserId: _currentUserId,
+                  onStop: (isManager && isController)
+                      ? () => unawaited(_stopMusicForRoom())
+                      : null,
+                  onNonControllerAction: () => _musicAction(() async {}),
+                  keyboardOpen: kbHeight > 0,
+                );
+              },
+            ),
+          ),
+
+          // -- Pinned bottom action bar -------------------------------
           Positioned(
             bottom: kbHeight,
             left: 0,
@@ -3918,31 +3971,6 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Music dock — full-width, 56 px when active, 36 px idle, 0 hidden.
-                ListenableBuilder(
-                  listenable: _musicService,
-                  builder: (_, _) {
-                    final controllerId =
-                        _syncedMusic.lastState?.controllerUserId;
-                    final isController = controllerId == _currentUserId;
-                    final isManager =
-                        _iAmRoomOwner || _iAmHost || _isCurrentUserModerator;
-                    return RoomMiniPlayer(
-                      musicService: _musicService,
-                      isArabic: context.isArabic,
-                      isManager: isManager,
-                      canManage: isManager && isController,
-                      onTap: _openMusicPanel,
-                      controllerUserId: controllerId,
-                      currentUserId: _currentUserId,
-                      onStop: (isManager && isController)
-                          ? () => unawaited(_stopMusicForRoom())
-                          : null,
-                      onNonControllerAction: () => _musicAction(() async {}),
-                      keyboardOpen: kbHeight > 0,
-                    );
-                  },
-                ),
                 // Action bar
                 ValueListenableBuilder<({bool connecting, bool connected})>(
                   valueListenable: _audioStateNotifier,
@@ -4115,18 +4143,40 @@ class _CompactRoomHeader extends StatelessWidget {
         children: [
           // \u2500\u2500 Main identity card \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
           // Transparent floating header row — background shows through
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.black.withValues(alpha: 0.64),
+                  const Color(0xFF160B26).withValues(alpha: 0.72),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFFF0C15A).withValues(alpha: 0.18),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.26),
+                  blurRadius: 18,
+                  offset: const Offset(0, 7),
+                ),
+              ],
+            ),
             child: Row(
               children: [
                 // Room avatar
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 38,
+                  height: 38,
                   clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
                     color: const Color(0xFFF0C15A).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(11),
                     border: Border.all(
                       color: const Color(0xFFF0C15A).withValues(alpha: 0.55),
                       width: 1.5,
@@ -4154,7 +4204,7 @@ class _CompactRoomHeader extends StatelessWidget {
                           size: 20,
                         ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
 
                 // Name + ID chip + secondary info
                 Expanded(
@@ -4167,15 +4217,15 @@ class _CompactRoomHeader extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: FontWeight.w900,
                           color: Colors.white,
                           shadows: [Shadow(blurRadius: 6, color: Colors.black54)],
                         ),
                       ),
-                      const SizedBox(height: 3),
+                      const SizedBox(height: 2),
                       _RoomIdChip(shortId: _shortRoomId, isArabic: isArabic),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 3),
                       // Secondary row: coins + host badge (dimmed to reduce clutter)
                       Opacity(
                         opacity: 0.72,
@@ -4203,11 +4253,11 @@ class _CompactRoomHeader extends StatelessWidget {
                   ),
                 ),
 
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
 
                 // Right: level badge + room member/seat stats only
                 ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 100),
+                  constraints: const BoxConstraints(maxWidth: 92),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     mainAxisSize: MainAxisSize.min,
@@ -4219,7 +4269,7 @@ class _CompactRoomHeader extends StatelessWidget {
                             levelColor: _levelColor,
                             label: _levelLabel),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 3),
                       Wrap(
                         direction: Axis.horizontal,
                         alignment: WrapAlignment.end,
@@ -4461,7 +4511,7 @@ class _RoomIdChip extends StatelessWidget {
         }
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
           color: _cyanGlow,
           borderRadius: BorderRadius.circular(6),
@@ -4473,12 +4523,12 @@ class _RoomIdChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.grid_3x3_rounded, size: 9, color: _cyan),
+            const Icon(Icons.grid_3x3_rounded, size: 8, color: _cyan),
             const SizedBox(width: 3),
             Text(
               shortId,
               style: const TextStyle(
-                fontSize: 10,
+                fontSize: 9.5,
                 fontWeight: FontWeight.w800,
                 color: _cyan,
                 letterSpacing: 1.2,
@@ -4512,7 +4562,7 @@ class _RoomLevelBadge extends StatelessWidget {
     final isElite = level >= 9;
     final isRoyal = level >= 7;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: isElite
@@ -4535,14 +4585,14 @@ class _RoomLevelBadge extends StatelessWidget {
         children: [
           Icon(
             isElite ? Icons.star_rounded : isRoyal ? Icons.diamond_rounded : Icons.military_tech_rounded,
-            size: 11,
+            size: 10,
             color: levelColor,
           ),
           const SizedBox(width: 4),
           Text(
             label,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w900,
               color: levelColor,
               letterSpacing: 0.4,
@@ -4569,7 +4619,7 @@ class _MiniRoomStatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: const Color(0xFF241638),
         borderRadius: BorderRadius.circular(999),
@@ -4577,12 +4627,12 @@ class _MiniRoomStatusPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 4),
+          Icon(icon, size: 10, color: color),
+          const SizedBox(width: 3),
           Text(
             label,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: FontWeight.w800,
               color: color,
             ),
@@ -4732,7 +4782,7 @@ class _LiveRoomStage extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 24),
           // -- PK result banner ----------------------------------------------
           if (showPkResult && pkResult != null) ...[
             PkResultBanner(
@@ -4745,64 +4795,66 @@ class _LiveRoomStage extends StatelessWidget {
           // -- Seat grid -----------------------------------------------------
           // When PK active, a subtle red-left/blue-right background split
           // signals the team sides without breaking the seat grid layout.
-          Stack(
-            children: [
-              if (activePk != null)
-                Positioned.fill(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                                colors: [
-                                  kPkRed.withValues(alpha: 0.09),
-                                  Colors.transparent,
-                                ],
+          Expanded(
+            child: Stack(
+              children: [
+                if (activePk != null)
+                  Positioned.fill(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  colors: [
+                                    kPkRed.withValues(alpha: 0.09),
+                                    Colors.transparent,
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                                colors: [
-                                  Colors.transparent,
-                                  kPkBlue.withValues(alpha: 0.09),
-                                ],
+                          Expanded(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  colors: [
+                                    Colors.transparent,
+                                    kPkBlue.withValues(alpha: 0.09),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
+                _SeatGrid(
+                  seats: seats,
+                  cols: _colsForSeatCount(seats.length),
+                  isArabic: isArabic,
+                  isHost: isHost,
+                  onEmptySeatTap: onEmptySeatTap,
+                  onOccupiedSeatTap: onOccupiedSeatTap,
+                  onOccupiedSeatLongPress: onOccupiedSeatLongPress,
+                  onProfileTap: onProfileTap,
+                  selectedMoveUserId: selectedMoveUserId,
+                  speakingUserIds: speakingUserIds,
+                  moderatorUserIds: moderatorUserIds,
+                  onSeatClosedToggle: onSeatClosedToggle,
+                  roomLevel: roomLevel,
+                  activePk: activePk,
+                  seatReactions: seatReactions,
                 ),
-              _SeatGrid(
-                seats: seats,
-                cols: _colsForSeatCount(seats.length),
-                isArabic: isArabic,
-                isHost: isHost,
-                onEmptySeatTap: onEmptySeatTap,
-                onOccupiedSeatTap: onOccupiedSeatTap,
-                onOccupiedSeatLongPress: onOccupiedSeatLongPress,
-                onProfileTap: onProfileTap,
-                selectedMoveUserId: selectedMoveUserId,
-                speakingUserIds: speakingUserIds,
-                moderatorUserIds: moderatorUserIds,
-                onSeatClosedToggle: onSeatClosedToggle,
-                roomLevel: roomLevel,
-                activePk: activePk,
-                seatReactions: seatReactions,
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -4902,29 +4954,67 @@ class _SeatGrid extends StatelessWidget {
     return LayoutBuilder(builder: (context, constraints) {
       // Use a single stable aspect ratio and fixed gaps so tile positions
       // never shift regardless of content state, screen size, or animations.
-      const colGap = 8.0;
-      const rowGap = 6.0;
-      const aspectRatio = 0.95;
-      // Minimum height = sum of all fixed zones in _LiveSeatBubble so the
-      // tile never clips its content on high-density small screens.
-      const minBubbleHeight =
-          _kAvatarAreaHeight + 2 + 14 + _micSeatSupportSlotHeight + 12 + 10; // 104 px
-      final tileWidth = (constraints.maxWidth - colGap * (cols - 1)) / cols;
-      final tileHeight =
-          math.max(tileWidth / aspectRatio, minBubbleHeight);
-
       final rows = <List<_StageSeat>>[];
       for (var i = 0; i < seats.length; i += cols) {
         final end = (i + cols).clamp(0, seats.length);
         rows.add(seats.sublist(i, end));
       }
 
+      final rowCount = rows.isEmpty ? 1 : rows.length;
+      final preferredGap = cols >= 4 ? 2.0 : 18.0;
+      final preferredRowGap = rowCount >= 4 ? 4.0 : 10.0;
+      final availableSeatWidth =
+          (constraints.maxWidth - preferredGap * (cols - 1)) / cols;
+      final minSeatBoxWidth = seats.length > 12 ? 54.0 : _minimumSeatSize;
+      final availableSeatHeight =
+          constraints.maxHeight.isFinite
+              ? (constraints.maxHeight - preferredRowGap * (rowCount - 1)) /
+                  rowCount
+              : _roomSeatBoxHeight;
+      final seatBoxWidth =
+          math.min(availableSeatWidth, _roomSeatBoxWidth)
+              .clamp(minSeatBoxWidth, _roomSeatBoxWidth);
+      final tileHeight = math.min(availableSeatHeight, _roomSeatBoxHeight)
+          .clamp(78.0, _roomSeatBoxHeight);
+      final labelReserve = seats.length <= 6 ? 42.0 : 34.0;
+      final seatSize = math
+          .min(_seatSize, math.min(seatBoxWidth, tileHeight - labelReserve))
+          .clamp(52.0, _seatSize);
+      final colGap = cols <= 1
+          ? 0.0
+          : math.max(
+              0.0,
+              math.min(
+                preferredGap,
+                (constraints.maxWidth - seatBoxWidth * cols) / (cols - 1),
+              ),
+            );
+      final rowGap = rowCount <= 1
+          ? 0.0
+          : math.max(
+              0.0,
+              math.min(
+                preferredRowGap,
+                (constraints.maxHeight - tileHeight * rowCount) /
+                    (rowCount - 1),
+              ),
+            );
+      final avatarAreaHeight = seatSize + 4;
+      final tileWidth = seatBoxWidth;
+
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           for (var r = 0; r < rows.length; r++) ...[
-            if (r > 0) const SizedBox(height: rowGap),
-            _buildRow(rows[r], tileWidth, tileHeight, colGap),
+            if (r > 0) SizedBox(height: rowGap),
+            _buildRow(
+              rows[r],
+              tileWidth,
+              tileHeight,
+              colGap,
+              seatSize,
+              avatarAreaHeight,
+            ),
           ],
         ],
       );
@@ -4936,6 +5026,8 @@ class _SeatGrid extends StatelessWidget {
     double tileWidth,
     double tileHeight,
     double gap,
+    double seatSize,
+    double avatarAreaHeight,
   ) {
     final isFull = row.length == cols;
     return Row(
@@ -4965,6 +5057,9 @@ class _SeatGrid extends StatelessWidget {
                     row[c].member?.userId == selectedMoveUserId,
                 onSeatClosedToggle: onSeatClosedToggle,
                 roomLevel: roomLevel,
+                seatSize: seatSize,
+                avatarAreaHeight: avatarAreaHeight,
+                tileHeight: tileHeight,
                 pkTeam: pkSeatTeam(
                     row[c].member?.userId ?? '', activePk),
                 activeReaction: seatReactions[row[c].number],
@@ -5235,6 +5330,7 @@ class _CompactParticipantRow extends StatelessWidget {
               vipLevel: vipLevel,
               size: 42,
               selected: false,
+              isOfficialAgent: member.isOfficialAgent,
               fallbackIcon: member.isMuted
                   ? Icons.mic_off_rounded
                   : Icons.person_rounded,
@@ -5272,6 +5368,10 @@ class _CompactParticipantRow extends StatelessWidget {
                         _MiniPill(
                           label: isArabic ? '\u0623\u0646\u062a' : 'You',
                         ),
+                      ],
+                      if (member.isOfficialAgent) ...[
+                        const SizedBox(width: 6),
+                        const AgentBadge(compact: true),
                       ],
                     ],
                   ),
@@ -5728,6 +5828,9 @@ class _LiveSeatBubble extends StatelessWidget {
     required this.selectedForMove,
     required this.onSeatClosedToggle,
     required this.roomLevel,
+    required this.seatSize,
+    required this.avatarAreaHeight,
+    required this.tileHeight,
     this.pkTeam,
     this.activeReaction,
   });
@@ -5745,6 +5848,9 @@ class _LiveSeatBubble extends StatelessWidget {
   final bool selectedForMove;
   final ValueChanged<int> onSeatClosedToggle;
   final int roomLevel;
+  final double seatSize;
+  final double avatarAreaHeight;
+  final double tileHeight;
   // 'a', 'b', or null - non-null only when PK is active and seat is assigned.
   final String? pkTeam;
   final RoomReaction? activeReaction;
@@ -5758,17 +5864,10 @@ class _LiveSeatBubble extends StatelessWidget {
     final theme = RoomSeatTheme.forLevel(roomLevel);
 
     // Size hierarchy: host > occupied > empty
-    final outerSize = occupiedByHost
-        ? _hostSeatOuterSize
-        : seat.isEmpty
-            ? _emptySeatSize
-            : _seatOuterSize;
-    final avatarRadius =
-        (occupiedByHost ? _hostSeatAvatarSize : _seatAvatarSize) / 2;
+    final outerSize = seatSize;
+    final avatarRadius = (seatSize - _seatAvatarInset) / 2;
 
-    final label = seat.isEmpty
-        ? (isArabic ? '\u0645\u0627\u064a\u0643 ${seat.number}' : 'Mic ${seat.number}')
-        : seat.name;
+    final label = seat.isEmpty ? '' : seat.name;
     // Team color derived from pkTeam ('a'=red, 'b'=blue, null=no PK).
     final Color? pkColor = pkTeam == 'a'
         ? kPkRed
@@ -5788,6 +5887,28 @@ class _LiveSeatBubble extends StatelessWidget {
                     : pkTeam == 'b'
                         ? 'B'
                         : '';
+    final compactSeat = seatSize < 70;
+    final hasSupport = seat.supportAmount > 0;
+    final hasBadge = badge.isNotEmpty;
+    final remainingHeight = math.max(0.0, tileHeight - avatarAreaHeight);
+    final labelGap = remainingHeight >= 30 ? 2.0 : 1.0;
+    final bottomSpacer = remainingHeight >= 34 ? 3.0 : 1.0;
+    final supportSlotHeight = hasSupport
+        ? (remainingHeight >= 38 ? 12.0 : 10.0)
+        : 0.0;
+    final badgeSlotHeight = hasBadge
+        ? (remainingHeight >= 34 ? 11.0 : 9.0)
+        : 0.0;
+    final nameSlotHeight = seat.isEmpty
+        ? 0.0
+        : math.max(
+            9.0,
+            remainingHeight -
+                labelGap -
+                supportSlotHeight -
+                badgeSlotHeight -
+                bottomSpacer,
+          ).clamp(9.0, compactSeat ? 12.0 : 14.0);
 
     final Color borderColor = selectedForMove
         ? const Color(0xFF67E8A5)
@@ -5881,14 +6002,16 @@ class _LiveSeatBubble extends StatelessWidget {
           ? () => onOccupiedSeatLongPress(seat.member!, seat.number)
           : null,
       child: SizedBox(
-        height: _kAvatarAreaHeight,
+        height: avatarAreaHeight,
         child: Center(
           child: seat.isEmpty
               ? _LuxuryEmptySeat(
                   seat: seat,
                   outerSize: outerSize,
                   roomLevel: roomLevel,
-                  micSeatIconSize: _micSeatIconSize,
+                  micSeatIconSize: seatSize < _seatSize
+                      ? _compactMicSeatIconSize
+                      : _micSeatIconSize,
                 )
               : SizedBox(
                   width: outerSize,
@@ -5969,6 +6092,13 @@ class _LiveSeatBubble extends StatelessWidget {
                         ),
                       ),
 
+                      if (seat.member?.isOfficialAgent == true)
+                        const Positioned(
+                          top: -2,
+                          right: -2,
+                          child: AgentAvatarMarker(size: 17),
+                        ),
+
                       // 4. Mic-muted badge -- only shown when muted, small premium dot.
                       if (seat.isMuted)
                         Positioned(
@@ -6024,77 +6154,83 @@ class _LiveSeatBubble extends StatelessWidget {
         // -- Zone 2: name + inline mod capsule = 14 px ----------------------
         // Shield capsule sits right of the username in the same row.
         // Zone 5 is 10 px so total stays 104 px (50+2+14+16+12+10).
-        const SizedBox(height: 2),
-        SizedBox(
-          height: 14,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: seat.isEmpty
-                        ? Colors.white.withValues(alpha: 0.38)
-                        : effectiveVipLevel > 0
-                            ? VipVisualStyle.nameColor(effectiveVipLevel, context)
-                            : Colors.white.withValues(alpha: 0.88),
-                    shadows: [
-                      const Shadow(
-                          blurRadius: 5,
-                          color: Colors.black87,
-                          offset: Offset(0, 1)),
-                      Shadow(
-                          blurRadius: 10,
-                          color: Colors.black.withValues(alpha: 0.50)),
-                    ],
+        if (nameSlotHeight > 0) ...[
+          SizedBox(height: labelGap),
+          SizedBox(
+            height: nameSlotHeight,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: compactSeat ? 8.5 : 9.5,
+                      height: 1.0,
+                      fontWeight: FontWeight.w700,
+                      color: seat.isEmpty
+                          ? Colors.white.withValues(alpha: 0.38)
+                          : effectiveVipLevel > 0
+                              ? VipVisualStyle.nameColor(
+                                  effectiveVipLevel,
+                                  context,
+                                )
+                              : Colors.white.withValues(alpha: 0.88),
+                      shadows: [
+                        const Shadow(
+                            blurRadius: 5,
+                            color: Colors.black87,
+                            offset: Offset(0, 1)),
+                        Shadow(
+                            blurRadius: 10,
+                            color: Colors.black.withValues(alpha: 0.50)),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              if (isModerator && !occupiedByHost) ...[
-                const SizedBox(width: 3),
-                Container(
-                  width: 18,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF25063F), Color(0xFF0F041C)],
-                    ),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: Color.fromRGBO(232, 192, 80, 0.65),
-                      width: 0.8,
-                    ),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color.fromRGBO(232, 192, 80, 0.25),
-                        blurRadius: 4,
+                if (isModerator && !occupiedByHost && nameSlotHeight >= 12) ...[
+                  const SizedBox(width: 3),
+                  Container(
+                    width: 16,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF25063F), Color(0xFF0F041C)],
                       ),
-                    ],
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: Color.fromRGBO(232, 192, 80, 0.65),
+                        width: 0.8,
+                      ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color.fromRGBO(232, 192, 80, 0.25),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.shield_rounded,
+                      size: 10,
+                      color: Color(0xFFFFD86B),
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.shield_rounded,
-                    size: 11,
-                    color: Color(0xFFFFD86B),
-                  ),
-                ),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
+        ],
 
         // -- Zone 3: support pill - always _micSeatSupportSlotHeight -------
         // Space is always reserved; content shown only when needed.
         SizedBox(
-          height: _micSeatSupportSlotHeight,
+          height: supportSlotHeight,
           child: seat.supportAmount > 0
               ? Center(
                   child: _SupportPill(
@@ -6105,13 +6241,13 @@ class _LiveSeatBubble extends StatelessWidget {
 
         // -- Zone 4: role badge - 18 px, hidden when badge is empty ------
         SizedBox(
-          height: 12,
+          height: badgeSlotHeight,
           child: badge.isEmpty
               ? null
               : Center(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: _micSeatBadgeHorizontalPadding,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: compactSeat ? 4 : _micSeatBadgeHorizontalPadding,
                       vertical: 1,
                     ),
                     decoration: BoxDecoration(
@@ -6140,7 +6276,8 @@ class _LiveSeatBubble extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 8,
+                        fontSize: compactSeat ? 6.5 : 7.5,
+                        height: 1.0,
                         fontWeight: FontWeight.w900,
                         color: selectedForMove
                             ? const Color(0xFF67E8A5)
@@ -6157,7 +6294,7 @@ class _LiveSeatBubble extends StatelessWidget {
         ),
 
         // -- Zone 5: 10 px bottom spacer (mod badge moved inline with name) --
-        const SizedBox(height: 10),
+        SizedBox(height: bottomSpacer),
       ],
     );
   }
@@ -6306,7 +6443,7 @@ class _LuxuryEmptySeatState extends State<_LuxuryEmptySeat>
                 '${widget.seat.number}',
                 style: TextStyle(
                   color: theme.iconColor.withValues(alpha: isLocked ? 0.50 : 0.65),
-                  fontSize: 8,
+                  fontSize: 11,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -6656,6 +6793,7 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
   Widget build(BuildContext context) {
     final msg = widget.message;
     final isArabic = context.isArabic;
+    final isAgent = msg.senderIsOfficialAgent;
 
     if (msg.isRemoved) {
       return Padding(
@@ -6719,24 +6857,47 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
 
     final bubble = Padding(
       padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-        children: [
-          GestureDetector(
-            onTap: widget.onProfileTap,
-            child: _buildAvatar(prestige, msg, vipLevel),
-          ),
-          const SizedBox(width: 6),
-          Flexible(
-            child: AnimatedBuilder(
-              animation: _pulse,
-              builder: (ctx, _) => _buildBubble(
-                ctx, prestige, msg, nameColor, isHost, isArabic, vipLevel,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: isAgent
+              ? Border(
+                  left: BorderSide(
+                    color: const Color(0xFFE7B85C).withValues(
+                      alpha: isArabic ? 0.0 : 0.72,
+                    ),
+                    width: isArabic ? 0 : 2,
+                  ),
+                  right: BorderSide(
+                    color: const Color(0xFFE7B85C).withValues(
+                      alpha: isArabic ? 0.72 : 0.0,
+                    ),
+                    width: isArabic ? 2 : 0,
+                  ),
+                )
+              : null,
+        ),
+        child: Padding(
+          padding: EdgeInsetsDirectional.only(start: isAgent ? 5 : 0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+            children: [
+              GestureDetector(
+                onTap: widget.onProfileTap,
+                child: _buildAvatar(prestige, msg, vipLevel),
               ),
-            ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: AnimatedBuilder(
+                  animation: _pulse,
+                  builder: (ctx, _) => _buildBubble(
+                    ctx, prestige, msg, nameColor, isHost, isArabic, vipLevel,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
     final hasRemove = widget.onRemoveTap != null;
@@ -6810,6 +6971,7 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
       size: 26,
       selected: false,
       fallbackIcon: Icons.person_rounded,
+      isOfficialAgent: msg.senderIsOfficialAgent,
     );
     if (!hasRing) return avatar;
 
@@ -6919,6 +7081,10 @@ class _ChatBubbleRowState extends State<_ChatBubbleRow>
                   const Color(0x30F0C15A),
                   borderColor: const Color(0xFFF0C15A).withValues(alpha: 0.40),
                 ),
+              ],
+              if (msg.senderIsOfficialAgent) ...[
+                const SizedBox(width: 4),
+                const AgentBadge(compact: true),
               ],
               if (vipLevel > 0) ...[
                 const SizedBox(width: 3),
@@ -7179,6 +7345,7 @@ class _VipEntryRoomBannerState extends State<_VipEntryRoomBanner>
               size: prestige.isElite ? 42 : 38,
               selected: false,
               fallbackIcon: Icons.person_rounded,
+              isOfficialAgent: widget.member.isOfficialAgent,
             ),
           ),
           const SizedBox(width: 10),
@@ -8487,6 +8654,7 @@ class _RoomAvatar extends StatelessWidget {
     required this.size,
     required this.selected,
     required this.fallbackIcon,
+    this.isOfficialAgent = false,
     this.onTap,
   });
 
@@ -8496,28 +8664,44 @@ class _RoomAvatar extends StatelessWidget {
   final double size;
   final bool selected;
   final IconData fallbackIcon;
+  final bool isOfficialAgent;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final avatar = Container(
+    final avatar = SizedBox(
       width: size,
       height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: selected ? const Color(0xFFF0C15A) : Colors.transparent,
-          width: 2,
-        ),
-      ),
-      child: AvatarWithFrame(
-        imageUrl: avatarUrl,
-        radius: (size - 4) / 2,
-        frameKey: frameKey,
-        vipLevel: vipLevel,
-        showVipBadge: vipLevel > 0 && size >= 42,
-        fallbackIcon: fallbackIcon,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: size,
+            height: size,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: selected ? const Color(0xFFF0C15A) : Colors.transparent,
+                width: 2,
+              ),
+            ),
+            child: AvatarWithFrame(
+              imageUrl: avatarUrl,
+              radius: (size - 4) / 2,
+              frameKey: frameKey,
+              vipLevel: vipLevel,
+              showVipBadge: vipLevel > 0 && size >= 42,
+              fallbackIcon: fallbackIcon,
+            ),
+          ),
+          if (isOfficialAgent)
+            Positioned(
+              top: -1,
+              right: -1,
+              child: AgentAvatarMarker(size: size >= 40 ? 16 : 12),
+            ),
+        ],
       ),
     );
 
@@ -8574,6 +8758,7 @@ class _GiftReceiverBubble extends StatelessWidget {
               fallbackIcon: receiver.role == 'listener'
                   ? Icons.person_rounded
                   : Icons.mic_rounded,
+              isOfficialAgent: receiver.isOfficialAgent,
             ),
             const SizedBox(height: 3),
             Text(
@@ -9248,7 +9433,7 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
               ),
             ),
           Padding(
-            padding: EdgeInsets.fromLTRB(10, 6, 10, 6 + widget.bottomPad),
+            padding: EdgeInsets.fromLTRB(10, 4, 10, 5 + widget.bottomPad),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -9262,13 +9447,13 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
                     curve: Curves.easeOut,
-                    constraints: const BoxConstraints(minHeight: 36),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    constraints: const BoxConstraints(minHeight: 40),
+                    padding: const EdgeInsetsDirectional.only(start: 12),
                     decoration: BoxDecoration(
                       color: _isFocused
                           ? const Color(0xFF160B26).withValues(alpha: 0.92)
                           : const Color(0xFF1C0E38).withValues(alpha: 0.68),
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: pillBorder, width: 1.0),
                       boxShadow: _isFocused
                           ? [
@@ -9299,12 +9484,12 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
                                 : TextDirection.ltr,
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 13.5,
+                              fontSize: 13,
                               height: 1.3,
                             ),
                             maxLength: 300,
                             minLines: 1,
-                            maxLines: 4,
+                            maxLines: 2,
                             textInputAction: TextInputAction.send,
                             buildCounter: (_, {required currentLength,
                                 required isFocused, maxLength}) => null,
@@ -9315,9 +9500,11 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
                               filled: false,
                               isDense: true,
                               contentPadding: EdgeInsets.zero,
-                              hintText: 'Say something...',
+                              hintText: isArabic
+                                  ? '\u0627\u0643\u062a\u0628 \u0634\u064a\u0626\u0627\u064b...'
+                                  : 'Say something...',
                               hintStyle: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.26),
+                                color: Colors.white.withValues(alpha: 0.46),
                                 fontSize: 13,
                               ),
                             ),
@@ -9327,35 +9514,41 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
                         ),
                         // Image picker — locked below VIP7
                         const SizedBox(width: 4),
-                        GestureDetector(
-                          onTap: widget.myVipLevel >= 7
-                              ? (widget.isUploadingImage ? null : widget.onSendImage)
-                              : widget.onSendImage,
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              if (widget.isUploadingImage && widget.myVipLevel >= 7)
-                                const SizedBox(
-                                  width: 17, height: 17,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 1.6,
-                                    color: Color(0x8DFFFFFF),
-                                  ),
-                                )
-                              else
-                                Icon(
-                                  Icons.image_outlined,
-                                  size: 17,
-                                  color: Colors.white.withValues(
-                                    alpha: widget.myVipLevel >= 7 ? 0.50 : 0.20),
-                                ),
-                              if (widget.myVipLevel < 7)
-                                Positioned(
-                                  right: -3, bottom: -3,
-                                  child: Icon(Icons.lock, size: 8,
-                                    color: Colors.white.withValues(alpha: 0.40)),
-                                ),
-                            ],
+                        SizedBox.square(
+                          dimension: 40,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: widget.myVipLevel >= 7
+                                ? (widget.isUploadingImage ? null : widget.onSendImage)
+                                : widget.onSendImage,
+                            child: Center(
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  if (widget.isUploadingImage && widget.myVipLevel >= 7)
+                                    const SizedBox(
+                                      width: 17, height: 17,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 1.6,
+                                        color: Color(0x8DFFFFFF),
+                                      ),
+                                    )
+                                  else
+                                    Icon(
+                                      Icons.image_outlined,
+                                      size: 17,
+                                      color: Colors.white.withValues(
+                                        alpha: widget.myVipLevel >= 7 ? 0.50 : 0.20),
+                                    ),
+                                  if (widget.myVipLevel < 7)
+                                    Positioned(
+                                      right: -3, bottom: -3,
+                                      child: Icon(Icons.lock, size: 8,
+                                        color: Colors.white.withValues(alpha: 0.40)),
+                                    ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -9369,8 +9562,8 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
                     curve: Curves.easeOut,
-                    width: 36,
-                    height: 36,
+                    width: 40,
+                    height: 40,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: LinearGradient(
@@ -9401,7 +9594,7 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
                     ),
                     child: widget.isSendingMessage
                         ? Padding(
-                            padding: const EdgeInsets.all(11),
+                            padding: const EdgeInsets.all(9),
                             child: CircularProgressIndicator(
                               strokeWidth: 1.8,
                               color: _isTyping
@@ -9414,7 +9607,7 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
                             color: _isTyping
                                 ? Colors.white
                                 : Colors.white.withValues(alpha: 0.25),
-                            size: 17,
+                            size: 18,
                           ),
                   ),
                 ),
@@ -9503,8 +9696,8 @@ class _QuickActionBtn extends StatelessWidget {
       child: Opacity(
         opacity: onTap == null ? opacity : 1.0,
         child: Container(
-          width: 34,
-          height: 34,
+          width: 40,
+          height: 40,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: highlighted
@@ -9526,7 +9719,7 @@ class _QuickActionBtn extends StatelessWidget {
                         strokeWidth: 1.8, color: color),
                   ),
                 )
-              : Icon(icon, color: color, size: 18),
+              : Icon(icon, color: color, size: 19),
         ),
       ),
     );
@@ -9639,6 +9832,7 @@ class _RoomChatFeedState extends State<_RoomChatFeed> {
   void initState() {
     super.initState();
     _ctrl.addListener(_onScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToLatest());
   }
 
   @override
@@ -9653,6 +9847,11 @@ class _RoomChatFeedState extends State<_RoomChatFeed> {
     if (atBottom == _userScrolledUp) {
       setState(() => _userScrolledUp = !atBottom);
     }
+  }
+
+  void _scrollToLatest() {
+    if (!_ctrl.hasClients || !mounted) return;
+    _ctrl.jumpTo(_ctrl.position.maxScrollExtent);
   }
 
   @override
@@ -9674,31 +9873,75 @@ class _RoomChatFeedState extends State<_RoomChatFeed> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.chatMessages.isEmpty) return const SizedBox.shrink();
-    return Directionality(
-      textDirection:
-          context.isArabic ? TextDirection.rtl : TextDirection.ltr,
-      child: ListView.builder(
-        controller: _ctrl,
-        padding: EdgeInsets.fromLTRB(10, 8, 10, widget.bottomPad),
-        itemCount: widget.chatMessages.length,
-        itemBuilder: (context, index) {
-          final msg = widget.chatMessages[index];
-          return _ChatBubbleRow(
-            message: msg,
-            isArabic: context.isArabic,
-            onProfileTap:
-                msg.isSystem ? null : () => widget.onProfileTap(msg.senderId),
-            onRemoveTap: (!msg.isSystem && !msg.isRemoved && widget.onRemoveTap != null)
-                ? () => widget.onRemoveTap!(msg)
-                : null,
-            onReportTap: (!msg.isSystem && !msg.isRemoved &&
-                    msg.senderId != widget.currentUserId &&
-                    widget.onReportTap != null)
-                ? () => widget.onReportTap!(msg)
-                : null,
-          );
-        },
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.transparent,
+            Colors.black.withValues(alpha: 0.30),
+            const Color(0xFF07030D).withValues(alpha: 0.62),
+          ],
+          stops: const [0.0, 0.45, 1.0],
+        ),
+      ),
+      child: Directionality(
+        textDirection:
+            context.isArabic ? TextDirection.rtl : TextDirection.ltr,
+        child: widget.chatMessages.isEmpty
+            ? Align(
+                alignment: AlignmentDirectional.bottomStart,
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(14, 0, 14, 10),
+                  child: Text(
+                    context.isArabic
+                        ? '\u0627\u0644\u062f\u0631\u062f\u0634\u0629 \u0647\u0646\u0627'
+                        : 'Chat appears here',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.28),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      shadows: const [
+                        Shadow(color: Colors.black87, blurRadius: 8),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            : ListView.builder(
+                controller: _ctrl,
+                padding: EdgeInsets.fromLTRB(
+                  10,
+                  8,
+                  10,
+                  8 + widget.bottomPad,
+                ),
+                itemCount: widget.chatMessages.length,
+                itemBuilder: (context, index) {
+                  final msg = widget.chatMessages[index];
+                  return _ChatBubbleRow(
+                    message: msg,
+                    isArabic: context.isArabic,
+                    onProfileTap: msg.isSystem
+                        ? null
+                        : () => widget.onProfileTap(msg.senderId),
+                    onRemoveTap:
+                        (!msg.isSystem &&
+                            !msg.isRemoved &&
+                            widget.onRemoveTap != null)
+                        ? () => widget.onRemoveTap!(msg)
+                        : null,
+                    onReportTap:
+                        (!msg.isSystem &&
+                            !msg.isRemoved &&
+                            msg.senderId != widget.currentUserId &&
+                            widget.onReportTap != null)
+                        ? () => widget.onReportTap!(msg)
+                        : null,
+                  );
+                },
+              ),
       ),
     );
   }

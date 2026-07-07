@@ -176,6 +176,7 @@ class RoomMusicService extends ChangeNotifier {
   Future<void> playSong(
     int index, {
     bool userInitiated = false,
+    bool advanceOnFailure = true,
     Set<int>? failedIndexes,
   }) async {
     if (index < 0 || index >= _playlist.length) return;
@@ -197,8 +198,10 @@ class RoomMusicService extends ChangeNotifier {
       _error = _friendlyError(validationError);
       _isLoading = false;
       notifyListeners();
-      skipCycle.add(index);
-      await _advanceToNext(failedIndexes: skipCycle);
+      if (advanceOnFailure) {
+        skipCycle.add(index);
+        await _advanceToNext(failedIndexes: skipCycle);
+      }
       return;
     }
 
@@ -227,8 +230,10 @@ class RoomMusicService extends ChangeNotifier {
       _error = 'هذا الملف الصوتي لا يمكن تشغيله';
       _isLoading = false;
       notifyListeners();
-      skipCycle.add(index);
-      await _advanceToNext(failedIndexes: skipCycle);
+      if (advanceOnFailure) {
+        skipCycle.add(index);
+        await _advanceToNext(failedIndexes: skipCycle);
+      }
     } catch (e, st) {
       debugPrint('[RoomMusic:ERROR] Unexpected error for "${song.title}": $e');
       if (kDebugMode) {
