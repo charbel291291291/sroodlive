@@ -3972,6 +3972,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
     final action = await showModalBottomSheet<_RoomExitAction>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _RoomExitSheet(isOwner: isOwner, isArabic: isArabic),
     );
@@ -4110,24 +4111,6 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                 ),
               ),
               actions: [
-                // Private messages inbox shortcut
-                IconButton(
-                  icon: Badge(
-                    isLabelVisible: _inboxUnreadCount > 0,
-                    label: Text(
-                      _inboxUnreadCount > 99 ? '99+' : '$_inboxUnreadCount',
-                      style: const TextStyle(fontSize: 10),
-                    ),
-                    child: const Icon(Icons.chat_bubble_outline_rounded),
-                  ),
-                  tooltip: context.isArabic
-                      ? '\u0627\u0644\u0631\u0633\u0627\u0626\u0644 \u0627\u0644\u062e\u0627\u0635\u0629'
-                      : 'Messages',
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.black.withValues(alpha: 0.35),
-                  ),
-                  onPressed: _openInbox,
-                ),
                 // Red exit button \u2014 opens Room Options sheet
                 IconButton(
                   icon: _leaving
@@ -4428,6 +4411,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                               onGiftTap: _openGiftSheet,
                               onMoreTap: _openToolsSheet,
                               onReactionTap: _openReactionPicker,
+                              onInboxTap: _openInbox,
+                              inboxUnreadCount: _inboxUnreadCount,
                               onSendMessage: _sendChatMessage,
                               onSendImage: _sendChatImageMessage,
                               members: _members,
@@ -5269,7 +5254,7 @@ class _LiveRoomStage extends StatelessWidget {
                 ),
               ],
             ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 14),
           // -- PK result banner ----------------------------------------------
           if (showPkResult && pkResult != null) ...[
             PkResultBanner(
@@ -9789,6 +9774,8 @@ class _LiveBottomActionBar extends StatefulWidget {
     required this.onGiftTap,
     required this.onMoreTap,
     required this.onReactionTap,
+    required this.onInboxTap,
+    required this.inboxUnreadCount,
     required this.onSendMessage,
     required this.onSendImage,
     this.members = const [],
@@ -9808,6 +9795,8 @@ class _LiveBottomActionBar extends StatefulWidget {
   final VoidCallback onGiftTap;
   final VoidCallback onMoreTap;
   final VoidCallback onReactionTap;
+  final VoidCallback onInboxTap;
+  final int inboxUnreadCount;
   final Future<void> Function(String) onSendMessage;
   final Future<void> Function() onSendImage;
   final List<RoomMember> members;
@@ -10258,7 +10247,14 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
                         color: Colors.white.withValues(alpha: 0.80),
                         onTap: () => widget.onReactionTap(),
                       ),
-                      // 3. Gift (gold accent)
+                      // 3. Private messages
+                      _QuickActionBtn(
+                        icon: Icons.chat_bubble_outline_rounded,
+                        color: Colors.white.withValues(alpha: 0.80),
+                        onTap: widget.onInboxTap,
+                        badgeCount: widget.inboxUnreadCount,
+                      ),
+                      // 4. Gift (gold accent)
                       _QuickActionBtn(
                         icon: Icons.card_giftcard_rounded,
                         color: kGold,
@@ -10266,7 +10262,7 @@ class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
                         highlightColor: kGold,
                         onTap: widget.onGiftTap,
                       ),
-                      // 4. Room tools
+                      // 5. Room tools
                       _QuickActionBtn(
                         icon: Icons.tune_rounded,
                         color: Colors.white.withValues(alpha: 0.80),
@@ -10294,6 +10290,7 @@ class _QuickActionBtn extends StatelessWidget {
     this.highlightColor,
     this.busy = false,
     this.opacity = 1.0,
+    this.badgeCount = 0,
   });
 
   final IconData icon;
@@ -10303,6 +10300,7 @@ class _QuickActionBtn extends StatelessWidget {
   final Color? highlightColor;
   final bool busy;
   final double opacity;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
@@ -10311,33 +10309,40 @@ class _QuickActionBtn extends StatelessWidget {
       onTap: onTap,
       child: Opacity(
         opacity: onTap == null ? opacity : 1.0,
-        child: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: highlighted
-                ? hl.withValues(alpha: 0.15)
-                : Colors.white.withValues(alpha: 0.06),
-            border: Border.all(
-              color: highlighted
-                  ? hl.withValues(alpha: 0.45)
-                  : Colors.white.withValues(alpha: 0.09),
-              width: 0.9,
-            ),
+        child: Badge(
+          isLabelVisible: badgeCount > 0,
+          label: Text(
+            badgeCount > 99 ? '99+' : '$badgeCount',
+            style: const TextStyle(fontSize: 9),
           ),
-          child: busy
-              ? Center(
-                  child: SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 1.8,
-                      color: color,
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: highlighted
+                  ? hl.withValues(alpha: 0.15)
+                  : Colors.white.withValues(alpha: 0.06),
+              border: Border.all(
+                color: highlighted
+                    ? hl.withValues(alpha: 0.45)
+                    : Colors.white.withValues(alpha: 0.09),
+                width: 0.9,
+              ),
+            ),
+            child: busy
+                ? Center(
+                    child: SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.8,
+                        color: color,
+                      ),
                     ),
-                  ),
-                )
-              : Icon(icon, color: color, size: 19),
+                  )
+                : Icon(icon, color: color, size: 19),
+          ),
         ),
       ),
     );
@@ -10930,109 +10935,119 @@ class _RoomExitSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF130828),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        border: Border(top: BorderSide(color: Color(0xFF4A1A8A), width: 1)),
-      ),
-      padding: EdgeInsets.fromLTRB(
-        20,
-        16,
-        20,
-        MediaQuery.of(context).padding.bottom + 20,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Grabber
-          Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.white24,
-              borderRadius: BorderRadius.circular(99),
-            ),
+    final media = MediaQuery.of(context);
+    final compactHeight = media.size.height < 760;
+    return SafeArea(
+      top: false,
+      child: Container(
+        constraints: BoxConstraints(maxHeight: media.size.height * 0.86),
+        decoration: const BoxDecoration(
+          color: Color(0xFF130828),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border(top: BorderSide(color: Color(0xFF4A1A8A), width: 1)),
+        ),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            compactHeight ? 12 : 16,
+            20,
+            media.viewPadding.bottom + 20,
           ),
-          const SizedBox(height: 16),
-          Text(
-            _t('Room Options', 'Room Options'),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Minimize
-          _ExitOption(
-            icon: Icons.picture_in_picture_alt_rounded,
-            iconColor: const Color(0xFF8B26D9),
-            iconBg: const Color(0xFF2A0E50),
-            title: _t('Minimize', 'Minimize'),
-            subtitle: _t(
-              'Return to the app while keeping the room active',
-              'Browse the app while staying in the room',
-            ),
-            onTap: () => Navigator.of(context).pop(_RoomExitAction.minimize),
-          ),
-          const SizedBox(height: 10),
-
-          // Exit room (always available ? even owner can leave without closing)
-          _ExitOption(
-            icon: Icons.logout_rounded,
-            iconColor: const Color(0xFFFF6B6B),
-            iconBg: const Color(0xFF3A1010),
-            title: _t('Exit Room', 'Exit Room'),
-            subtitle: _t(
-              'You will leave the room and it will stay open',
-              'Leave the room. It stays open for others.',
-            ),
-            onTap: () => Navigator.of(context).pop(_RoomExitAction.exit),
-          ),
-
-          // Close room ? owner only
-          if (isOwner) ...[
-            const SizedBox(height: 10),
-            _ExitOption(
-              icon: Icons.cancel_rounded,
-              iconColor: const Color(0xFFFF3B3B),
-              iconBg: const Color(0xFF3A0808),
-              title: _t('Close Room', 'Close Room'),
-              subtitle: _t(
-                'The room will close for all participants',
-                'End the room for all participants',
-              ),
-              onTap: () => Navigator.of(context).pop(_RoomExitAction.closeRoom),
-            ),
-          ],
-
-          const SizedBox(height: 12),
-
-          // Cancel
-          GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white12),
-              ),
-              child: Text(
-                _t('Cancel', 'Cancel'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 15,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Grabber
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(99),
                 ),
               ),
-            ),
+              SizedBox(height: compactHeight ? 10 : 16),
+              Text(
+                _t('Room Options', 'Room Options'),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              SizedBox(height: compactHeight ? 12 : 20),
+
+              // Minimize
+              _ExitOption(
+                icon: Icons.picture_in_picture_alt_rounded,
+                iconColor: const Color(0xFF8B26D9),
+                iconBg: const Color(0xFF2A0E50),
+                title: _t('Minimize', 'Minimize'),
+                subtitle: _t(
+                  'Return to the app while keeping the room active',
+                  'Browse the app while staying in the room',
+                ),
+                onTap: () =>
+                    Navigator.of(context).pop(_RoomExitAction.minimize),
+              ),
+              const SizedBox(height: 10),
+
+              // Exit room (always available ? even owner can leave without closing)
+              _ExitOption(
+                icon: Icons.logout_rounded,
+                iconColor: const Color(0xFFFF6B6B),
+                iconBg: const Color(0xFF3A1010),
+                title: _t('Exit Room', 'Exit Room'),
+                subtitle: _t(
+                  'You will leave the room and it will stay open',
+                  'Leave the room. It stays open for others.',
+                ),
+                onTap: () => Navigator.of(context).pop(_RoomExitAction.exit),
+              ),
+
+              // Close room ? owner only
+              if (isOwner) ...[
+                const SizedBox(height: 10),
+                _ExitOption(
+                  icon: Icons.cancel_rounded,
+                  iconColor: const Color(0xFFFF3B3B),
+                  iconBg: const Color(0xFF3A0808),
+                  title: _t('Close Room', 'Close Room'),
+                  subtitle: _t(
+                    'The room will close for all participants',
+                    'End the room for all participants',
+                  ),
+                  onTap: () =>
+                      Navigator.of(context).pop(_RoomExitAction.closeRoom),
+                ),
+              ],
+
+              SizedBox(height: compactHeight ? 8 : 12),
+
+              // Cancel
+              GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: Text(
+                    _t('Cancel', 'Cancel'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -11083,6 +11098,8 @@ class _ExitOption extends StatelessWidget {
                 children: [
                   Text(
                     title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 14,
@@ -11092,6 +11109,8 @@ class _ExitOption extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.45),
                       fontSize: 11,
