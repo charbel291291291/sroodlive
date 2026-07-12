@@ -204,7 +204,8 @@ class _MusicPanelState extends State<MusicPanel> {
 
     if (confirmed != true) return;
     final url = urlCtrl.text.trim();
-    if (url.isEmpty || !Uri.tryParse(url)!.hasAbsolutePath) {
+    final parsedUrl = Uri.tryParse(url);
+    if (url.isEmpty || parsedUrl == null || !parsedUrl.hasAbsolutePath) {
       _showToast(_t('الرابط غير صالح', 'Invalid URL'));
       return;
     }
@@ -277,13 +278,21 @@ class _MusicPanelState extends State<MusicPanel> {
   Future<void> _deleteTrack(RoomSong track) async {
     final upSvc = widget.uploadService;
     if (upSvc == null) return;
-    await upSvc.deleteTrack(track.id);
-    if (mounted) {
+    final deleted = await upSvc.deleteTrack(track.id);
+    if (mounted && deleted) {
       setState(() => _savedTracks.removeWhere((t) => t.id == track.id));
+    }
+    if (!deleted) {
+      _showToast(_t('تعذر حذف المقطع', 'Could not delete track'));
+      return;
     }
     // If this track was playing, stop it
     if (_svc.currentSong?.id == track.id) {
-      unawaited(_svc.stop());
+      if (widget.syncedMusic != null) {
+        unawaited(widget.syncedMusic!.stopForRoom());
+      } else {
+        unawaited(_svc.stop());
+      }
     }
   }
 
@@ -360,6 +369,7 @@ class _MusicPanelState extends State<MusicPanel> {
                         canManage: widget.canManage,
                         isArabic: _isArabic,
                         autoReplay: widget.syncedMusic?.lastState?.autoReplay ?? false,
+                        syncedMusic: widget.syncedMusic,
                         controllerUserId: widget.controllerUserId,
                         onToggleAutoReplay: widget.canManage && widget.syncedMusic != null
                             ? () => unawaited(
@@ -821,6 +831,7 @@ class _NowPlayingCard extends StatelessWidget {
     required this.canManage,
     required this.isArabic,
     this.autoReplay = false,
+    this.syncedMusic,
     this.controllerUserId,
     this.onToggleAutoReplay,
   });
@@ -829,6 +840,7 @@ class _NowPlayingCard extends StatelessWidget {
   final bool canManage;
   final bool isArabic;
   final bool autoReplay;
+  final RoomSyncedMusicService? syncedMusic;
   final String? controllerUserId;
   final VoidCallback? onToggleAutoReplay;
 
@@ -928,6 +940,18 @@ class _NowPlayingCard extends StatelessWidget {
               onChanged: canManage
                   ? (v) => svc.seek(Duration(milliseconds: (v * total.inMilliseconds).round()))
                   : null,
+              onChangeEnd: canManage && syncedMusic != null
+                  ? (v) => unawaited(
+                        syncedMusic!
+                            .seekForRoom(
+                              Duration(
+                                milliseconds:
+                                    (v * total.inMilliseconds).round(),
+                              ),
+                            )
+                            .then<void>((_) {}),
+                      )
+                  : null,
             ),
           ),
 
@@ -947,12 +971,23 @@ class _NowPlayingCard extends StatelessWidget {
           const SizedBox(height: 10),
 
           // Playback controls (controller only)
-          if (canManage) ...[
+          if (canManage && syncedMusic != null) ...[
             Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              _CtrlBtn(icon: Icons.skip_previous_rounded, size: 28, onTap: svc.previous),
+              _CtrlBtn(
+                icon: Icons.skip_previous_rounded,
+                size: 28,
+                onTap: () => unawaited(
+                  syncedMusic!.previousForRoom().then<void>((_) {}),
+                ),
+              ),
               const SizedBox(width: 12),
               GestureDetector(
-                onTap: () { HapticFeedback.mediumImpact(); svc.playPause(); },
+                onTap: () {
+                  HapticFeedback.mediumImpact();
+                  unawaited(
+                    syncedMusic!.playPauseForRoom().then<void>((_) {}),
+                  );
+                },
                 child: Container(
                   width: 52, height: 52,
                   decoration: BoxDecoration(
@@ -968,11 +1003,20 @@ class _NowPlayingCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              _CtrlBtn(icon: Icons.skip_next_rounded, size: 28, onTap: svc.next),
+              _CtrlBtn(
+                icon: Icons.skip_next_rounded,
+                size: 28,
+                onTap: () => unawaited(
+                  syncedMusic!.nextForRoom().then<void>((_) {}),
+                ),
+              ),
               const SizedBox(width: 16),
               _CtrlBtn(
                 icon: Icons.stop_rounded, size: 22, color: _red,
-                onTap: () { HapticFeedback.mediumImpact(); svc.stop(); },
+                onTap: () {
+                  HapticFeedback.mediumImpact();
+                  unawaited(syncedMusic!.stopForRoom());
+                },
               ),
             ]),
             const SizedBox(height: 10),

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:srood_live/shared/utils/error_utils.dart';
 
 import '../models/startup_promo.dart';
@@ -69,8 +70,12 @@ class _StartupPromoPage extends StatefulWidget {
 }
 
 class _StartupPromoPageState extends State<_StartupPromoPage> {
+  static const _defaultAudioAsset = 'assets/sounds/startup_promo_intro.m4a';
+
   late int _remaining;
   Timer? _timer;
+  AudioPlayer? _audioPlayer;
+  bool _closing = false;
 
   @override
   void initState() {
@@ -84,22 +89,56 @@ class _StartupPromoPageState extends State<_StartupPromoPage> {
         setState(() => _remaining--);
       }
     });
+    unawaited(_startAudio());
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    unawaited(_audioPlayer?.dispose());
     super.dispose();
   }
 
   void _close({bool completed = false}) {
+    if (_closing) return;
+    _closing = true;
     _timer?.cancel();
+    unawaited(_audioPlayer?.stop());
     if (completed) {
       debugPrint('[PerfStartupPromo] completed id=${widget.promo.id}');
     } else {
       debugPrint('[PerfStartupPromo] skipped id=${widget.promo.id}');
     }
     if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _startAudio() async {
+    final source = _promoAudioSource;
+    if (source.isEmpty) return;
+
+    final player = AudioPlayer();
+    _audioPlayer = player;
+
+    try {
+      await player.setVolume(0.75);
+      if (source.startsWith('asset:')) {
+        await player.setAsset(source.substring('asset:'.length));
+      } else {
+        await player.setUrl(source);
+      }
+      await player.play();
+      debugPrint('[PerfStartupPromo] audio started id=${widget.promo.id}');
+    } catch (e, st) {
+      debugError('StartupPromoOverlay._startAudio', e, st);
+      await player.dispose();
+      if (identical(_audioPlayer, player)) _audioPlayer = null;
+    }
+  }
+
+  String get _promoAudioSource {
+    final configured = widget.promo.audioUrl?.trim() ?? '';
+    if (configured.isNotEmpty) return configured;
+    return 'asset:$_defaultAudioAsset';
   }
 
   @override

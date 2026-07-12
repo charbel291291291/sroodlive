@@ -29,6 +29,17 @@ const _kRedRound = Color(0xFFFF2222);
 const _kGreenWin = Color(0xFF3BBB55);
 const _kGreenDark = Color(0xFF2A9940);
 
+const _kFoodArtworkAssets = <String>[
+  'assets/games/hungry_cat/corn.png',
+  'assets/games/hungry_cat/chicken.png',
+  'assets/games/hungry_cat/tomato.png',
+  'assets/games/hungry_cat/shrimp.png',
+  'assets/games/hungry_cat/cow.png',
+  'assets/games/hungry_cat/carrot.png',
+  'assets/games/hungry_cat/fish.png',
+  'assets/games/hungry_cat/green_pepper.png',
+];
+
 // ── Fallback food data ───────────────────────────────────────────────────────
 const _kDefaultFoods = [
   (emoji: '🐔', name: 'Chicken', nameAr: 'دجاج', mult: 45.0),
@@ -96,6 +107,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   late Animation<Offset> _resultSlideAnim;
 
   RealtimeChannel? _channel;
+  int _channelGeneration = 0;
   int _reconnectAttempts = 0;
   Timer? _reconnectTimer;
 
@@ -106,6 +118,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   bool _waitingForResult = false;
   String? _errorMsg;
   bool _reconnecting = false;
+  bool _foodAssetsPrecached = false;
 
   static bool _globalMuted = false;
   bool get _muted => _globalMuted;
@@ -165,6 +178,16 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_foodAssetsPrecached) return;
+    _foodAssetsPrecached = true;
+    for (final asset in _kFoodArtworkAssets) {
+      precacheImage(AssetImage(asset), context);
+    }
+  }
+
+  @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _countdownTimer?.cancel();
@@ -172,6 +195,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     _balanceDebounceTimer?.cancel();
     _reconnectTimer?.cancel();
     _autoAdvanceTimer?.cancel();
+    _channelGeneration++;
     _channel?.unsubscribe();
     _pulseCtrl.dispose();
     _breathCtrl.dispose();
@@ -302,10 +326,13 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
 
   void _subscribeToRound(String roundId) {
     _reconnectTimer?.cancel();
-    _channel?.unsubscribe();
+    final generation = ++_channelGeneration;
+    final previousChannel = _channel;
+    _channel = null;
+    previousChannel?.unsubscribe();
     setState(() => _reconnecting = false);
 
-    _channel = SupabaseService.requiredClient
+    final channel = SupabaseService.requiredClient
         .channel('hcat_global_$roundId')
         .onPostgresChanges(
           event: PostgresChangeEvent.update,
@@ -319,7 +346,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
           callback: _onRoundUpdate,
         )
         .subscribe((status, [err]) {
-          if (!mounted) return;
+          if (!mounted || generation != _channelGeneration) return;
           final unhealthy =
               status == RealtimeSubscribeStatus.channelError ||
               status == RealtimeSubscribeStatus.closed ||
@@ -332,6 +359,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
             _reconnectAttempts = 0;
           }
         });
+    _channel = channel;
   }
 
   void _scheduleReconnect(String roundId) {
@@ -781,6 +809,44 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     return _kDefaultFoods[i % _kDefaultFoods.length].emoji;
   }
 
+  String _artworkForFood({String id = '', String name = '', String icon = ''}) {
+    final key = '$id $name $icon'.toLowerCase();
+    if (key.contains('corn') || key.contains('🌽')) {
+      return 'assets/games/hungry_cat/corn.png';
+    }
+    if (key.contains('chicken') || key.contains('🐔')) {
+      return 'assets/games/hungry_cat/chicken.png';
+    }
+    if (key.contains('tomato') || key.contains('🍅')) {
+      return 'assets/games/hungry_cat/tomato.png';
+    }
+    if (key.contains('shrimp') || key.contains('🍤')) {
+      return 'assets/games/hungry_cat/shrimp.png';
+    }
+    if (key.contains('cow') ||
+        key.contains('goat') ||
+        key.contains('🐄') ||
+        key.contains('🐐')) {
+      return 'assets/games/hungry_cat/cow.png';
+    }
+    if (key.contains('carrot') || key.contains('🥕')) {
+      return 'assets/games/hungry_cat/carrot.png';
+    }
+    if (key.contains('fish') || key.contains('🐟')) {
+      return 'assets/games/hungry_cat/fish.png';
+    }
+    return 'assets/games/hungry_cat/green_pepper.png';
+  }
+
+  String _artworkAt(int i) {
+    if (i < _foods.length) {
+      final food = _foods[i];
+      return _artworkForFood(id: food.foodId, name: food.name, icon: food.icon);
+    }
+    final fallback = _kDefaultFoods[i % _kDefaultFoods.length];
+    return _artworkForFood(name: fallback.name, icon: fallback.emoji);
+  }
+
   String _multLabelAt(int i) {
     final mult = i < _foods.length
         ? _foods[i].multiplier
@@ -932,14 +998,16 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
       child: Row(
         children: [
           // Back button
           GestureDetector(
             onTap: () => Navigator.of(context).maybePop(),
             child: Container(
-              padding: const EdgeInsets.all(6),
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.30),
                 shape: BoxShape.circle,
@@ -948,7 +1016,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
               child: const Icon(
                 Icons.arrow_back_rounded,
                 color: Colors.white,
-                size: 18,
+                size: 20,
               ),
             ),
           ),
@@ -977,8 +1045,8 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
               });
             },
             child: Container(
-              width: 36,
-              height: 36,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.25),
                 shape: BoxShape.circle,
@@ -997,7 +1065,8 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
           const SizedBox(width: 8),
           // RULE button
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            constraints: const BoxConstraints(minHeight: 44),
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
             decoration: BoxDecoration(
               color: _kCream,
               borderRadius: BorderRadius.circular(20),
@@ -1157,7 +1226,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
         label: '${_emojiAt(i)} ${_multLabelAt(i)}',
         button: canTap,
         child: _HungryCatBubble(
-          emoji: _emojiAt(i),
+          artworkPath: _artworkAt(i),
           multLabel: _multLabelAt(i),
           size: bubSize,
           isActive: isActive,
@@ -1193,11 +1262,6 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     final betting = _phase == _Phase.betting;
     final settled = _phase == _Phase.settled;
 
-    final String catEmoji = spinning
-        ? '😸'
-        : settled
-        ? '😻'
-        : '🐱';
     final bool urgent = betting && _secsLeft <= 5;
 
     return AnimatedBuilder(
@@ -1228,7 +1292,12 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(catEmoji, style: TextStyle(fontSize: size * 0.32)),
+            Icon(
+              settled ? Icons.pets_rounded : Icons.catching_pokemon_rounded,
+              size: size * 0.28,
+              color: _kCream,
+              shadows: const [Shadow(color: Colors.black38, blurRadius: 4)],
+            ),
             const SizedBox(height: 2),
             if (betting)
               _CountdownBadge(seconds: _secsLeft, urgent: urgent)
@@ -1250,10 +1319,15 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
             else if (settled && _winFoodId != null)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Text(
-                  _winFoodIcon ?? '',
-                  style: TextStyle(fontSize: size * 0.22),
-                  textAlign: TextAlign.center,
+                child: Image.asset(
+                  _artworkForFood(
+                    id: _winFoodId ?? '',
+                    name: _winFoodName ?? '',
+                    icon: _winFoodIcon ?? '',
+                  ),
+                  width: size * 0.34,
+                  height: size * 0.34,
+                  fit: BoxFit.contain,
                 ),
               ),
           ],
@@ -1263,7 +1337,11 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   }
 
   Widget _buildResultCard() {
-    final icon = _winFoodIcon ?? '🍽️';
+    final artwork = _artworkForFood(
+      id: _winFoodId ?? '',
+      name: _winFoodName ?? '',
+      icon: _winFoodIcon ?? '',
+    );
     final name = _winFoodName ?? '';
     final mult = _winMult != null
         ? (_winMult!.truncateToDouble() == _winMult
@@ -1293,7 +1371,7 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(icon, style: const TextStyle(fontSize: 28)),
+              Image.asset(artwork, width: 34, height: 34, fit: BoxFit.contain),
               const SizedBox(width: 10),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1404,32 +1482,60 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
   Widget _buildHistoryStrip() {
     if (_history.isEmpty) return const SizedBox(height: 4);
     return SizedBox(
-      height: 44,
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        scrollDirection: Axis.horizontal,
-        reverse: true,
-        itemCount: _history.length,
-        itemBuilder: (ctx, i) {
-          final h = _history[i];
-          final big = h.multiplier >= 20;
-          return Container(
-            margin: const EdgeInsets.only(right: 6, top: 2, bottom: 2),
-            width: 38,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: big
-                  ? _kGoldCoin.withValues(alpha: 0.25)
-                  : _kCream.withValues(alpha: 0.5),
-              border: Border.all(
-                color: big ? _kGoldCoin : _kWoodMed.withValues(alpha: 0.5),
+      height: 66,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Text(
+              _ar ? 'النتائج الأخيرة' : 'Last Results',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.9),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
               ),
             ),
-            child: Center(
-              child: Text(h.foodIcon, style: const TextStyle(fontSize: 18)),
+          ),
+          const SizedBox(height: 3),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              scrollDirection: Axis.horizontal,
+              reverse: true,
+              itemCount: _history.length,
+              itemBuilder: (ctx, i) {
+                final h = _history[i];
+                final big = h.multiplier >= 20;
+                return Container(
+                  margin: const EdgeInsets.only(right: 6, top: 2, bottom: 2),
+                  width: 38,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: big
+                        ? _kGoldCoin.withValues(alpha: 0.25)
+                        : _kCream.withValues(alpha: 0.5),
+                    border: Border.all(
+                      color: i == 0
+                          ? _kGoldLight
+                          : big
+                          ? _kGoldCoin
+                          : _kWoodMed.withValues(alpha: 0.5),
+                      width: i == 0 ? 2 : 1,
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(7),
+                    child: Image.asset(
+                      _artworkForFood(name: h.foodName, icon: h.foodIcon),
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                );
+              },
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
@@ -1440,11 +1546,18 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
     final active = _phase == _Phase.betting;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 10),
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFFC8562A),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _kWoodDark, width: 2),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF8D4C25), Color(0xFF633115)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: _kGoldLight.withValues(alpha: 0.65),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.25),
@@ -1527,10 +1640,13 @@ class _HungryCatWebviewScreenState extends State<HungryCatWebviewScreen>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      '${_emojiForFoodId(e.key)} ',
-                      style: const TextStyle(fontSize: 11),
+                    Image.asset(
+                      _artworkForFood(id: e.key, icon: _emojiForFoodId(e.key)),
+                      width: 16,
+                      height: 16,
+                      fit: BoxFit.contain,
                     ),
+                    const SizedBox(width: 3),
                     CoinAmountText(
                       amount: e.value,
                       fontSize: 11,
@@ -1883,7 +1999,7 @@ class _VertDivider extends StatelessWidget {
 
 class _HungryCatBubble extends StatelessWidget {
   const _HungryCatBubble({
-    required this.emoji,
+    required this.artworkPath,
     required this.multLabel,
     required this.size,
     required this.isActive,
@@ -1895,7 +2011,7 @@ class _HungryCatBubble extends StatelessWidget {
     required this.isSpinning,
   });
 
-  final String emoji;
+  final String artworkPath;
   final String multLabel;
   final double size;
   final bool isActive;
@@ -1908,12 +2024,8 @@ class _HungryCatBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final raw = multLabel.endsWith('x')
-        ? multLabel.substring(0, multLabel.length - 1)
-        : multLabel;
-    final label = isArabic ? '$raw مرات' : '$raw times';
+    final label = multLabel.endsWith('x') ? multLabel : '${multLabel}x';
 
-    final double emojiFontSize = (size * 0.34).clamp(14.0, 26.0);
     final double labelFontSize = (size * 0.165).clamp(9.0, 13.0);
 
     // Spotlight effect: very bright gold when spinning-active
@@ -1938,9 +2050,10 @@ class _HungryCatBubble extends StatelessWidget {
       spreadR = 3;
       borderWidth = 3.5;
     } else if (isSelected) {
-      borderColor = _kGreenWin;
-      shadowColor = _kGreenWin.withValues(alpha: 0.4);
-      shadowBlur = 10;
+      borderColor = _kGoldLight;
+      shadowColor = _kGoldCoin.withValues(alpha: 0.55);
+      shadowBlur = 14;
+      spreadR = 1;
       borderWidth = 3;
     } else if (isActive) {
       borderColor = _kGoldCoin;
@@ -1997,15 +2110,33 @@ class _HungryCatBubble extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(emoji, style: TextStyle(fontSize: emojiFontSize)),
-                  Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: isWinner ? _kGreenDark : _kBrown,
-                      fontSize: labelFontSize,
-                      fontWeight: FontWeight.w900,
-                      height: 1.1,
+                  SizedBox.square(
+                    dimension: size * 0.55,
+                    child: Padding(
+                      padding: EdgeInsets.all(size * 0.04),
+                      child: Image.asset(
+                        artworkPath,
+                        fit: BoxFit.contain,
+                        filterQuality: FilterQuality.high,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: size * 0.68,
+                    height: size * 0.18,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: isWinner ? _kGreenDark : _kBrown,
+                          fontSize: labelFontSize,
+                          fontWeight: FontWeight.w900,
+                          height: 1,
+                        ),
+                      ),
                     ),
                   ),
                 ],

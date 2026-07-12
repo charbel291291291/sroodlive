@@ -98,14 +98,20 @@ class AgencyApplication {
     required this.applicationType,
     required this.status,
     this.message,
+    this.agencyName,
+    this.adminReply,
     this.createdAt,
+    this.reviewedAt,
   });
 
   final String id;
   final String applicationType;
   final String status;
   final String? message;
+  final String? agencyName;
+  final String? adminReply;
   final DateTime? createdAt;
+  final DateTime? reviewedAt;
 
   factory AgencyApplication.fromJson(Map<String, dynamic> json) =>
       AgencyApplication(
@@ -113,7 +119,10 @@ class AgencyApplication {
         applicationType: json['application_type']?.toString() ?? '',
         status: json['status']?.toString() ?? 'pending',
         message: json['message']?.toString(),
+        agencyName: json['agency_name']?.toString(),
+        adminReply: json['admin_reply']?.toString(),
         createdAt: _dateValue(json['created_at']),
+        reviewedAt: _dateValue(json['reviewed_at']),
       );
 }
 

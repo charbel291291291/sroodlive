@@ -29,6 +29,9 @@ class RoomUserProfile {
     this.wealthTierNumber = 1,
     this.isFollowedByMe = false,
     this.isBlockedByMe = false,
+    this.isOfficialAgent = false,
+    this.agencyName,
+    this.agencyCountry,
   });
 
   final String userId;
@@ -58,6 +61,9 @@ class RoomUserProfile {
   final int wealthTierNumber;
   final bool isFollowedByMe;
   final bool isBlockedByMe;
+  final bool isOfficialAgent;
+  final String? agencyName;
+  final String? agencyCountry;
 
   int get effectiveVipLevel {
     return VipFeatures.effectiveVipLevel(
@@ -118,6 +124,9 @@ class RoomUserProfile {
       wealthTierNumber: wealthTierNumber,
       isFollowedByMe: isFollowedByMe ?? this.isFollowedByMe,
       isBlockedByMe: isBlockedByMe,
+      isOfficialAgent: isOfficialAgent,
+      agencyName: agencyName,
+      agencyCountry: agencyCountry,
     );
   }
 }

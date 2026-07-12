@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:srood_live/shared/utils/error_utils.dart';
 
 import '../../../shared/widgets/avatar_with_frame.dart';
 import '../models/store_item.dart';
@@ -39,10 +40,11 @@ class _StoreScreenState extends State<StoreScreen> {
         _all = items;
         _loading = false;
       });
-    } catch (e) {
+    } catch (e, st) {
       if (!mounted) return;
+      debugError('StoreScreen._load', e, st);
       setState(() {
-        _error = e.toString();
+        _error = friendlyMessage(e, isArabic: context.isArabic);
         _loading = false;
       });
     }
@@ -63,11 +65,22 @@ class _StoreScreenState extends State<StoreScreen> {
     try {
       await _service.purchaseStoreItem(item.id);
       if (!mounted) return;
-      SroodToast.show(context, context.isArabic ? '\u062a\u0645 \u0627\u0644\u0634\u0631\u0627\u0621 \u0628\u0646\u062c\u0627\u062d!' : 'Purchased!', type: SroodToastType.success);
+      SroodToast.show(
+        context,
+        context.isArabic
+            ? '\u062a\u0645 \u0627\u0644\u0634\u0631\u0627\u0621 \u0628\u0646\u062c\u0627\u062d!'
+            : 'Purchased!',
+        type: SroodToastType.success,
+      );
       await _load();
-    } catch (e) {
+    } catch (e, st) {
       if (!mounted) return;
-      SroodToast.show(context, e.toString(), type: SroodToastType.error);
+      debugError('StoreScreen._buy', e, st);
+      SroodToast.show(
+        context,
+        friendlyMessage(e, isArabic: context.isArabic),
+        type: SroodToastType.error,
+      );
     }
   }
 

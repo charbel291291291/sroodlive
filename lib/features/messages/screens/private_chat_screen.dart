@@ -25,7 +25,7 @@ class PrivateChatScreen extends StatefulWidget {
   });
 
   final String targetUserId;
-  final String targetName;   // initial hint shown while real profile loads
+  final String targetName; // initial hint shown while real profile loads
   final String? targetAvatarUrl;
   final String? targetFrameKey;
   final bool isArabic;
@@ -55,7 +55,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   String? _resolvedFrameKey;
 
   String get _displayName {
-    if (_resolvedName != null && _resolvedName!.isNotEmpty) return _resolvedName!;
+    if (_resolvedName != null && _resolvedName!.isNotEmpty) {
+      return _resolvedName!;
+    }
     if (widget.targetName.isNotEmpty &&
         !widget.targetName.startsWith('User ')) {
       return widget.targetName;
@@ -91,7 +93,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     // Check mutual follow and fetch profile in parallel.
     final results = await Future.wait([
       _service.fetchTargetProfile(widget.targetUserId).catchError((_) => null),
-      _followService.isMutualFollow(widget.targetUserId).catchError((_) => false),
+      _followService
+          .isMutualFollow(widget.targetUserId)
+          .catchError((_) => false),
     ]);
 
     final profile = results[0] as Map<String, dynamic>?;
@@ -108,7 +112,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         });
       }
     } else {
-      debugPrint('[MessagesProfile] fallback reason=profile_null_rls_or_missing');
+      debugPrint(
+        '[MessagesProfile] fallback reason=profile_null_rls_or_missing',
+      );
     }
 
     if (!mutual) {
@@ -135,7 +141,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if (cid == null) {
       if (mounted) {
         setState(() {
-          _error = context.isArabic ? 'تعذّر فتح المحادثة' : 'Could not open conversation';
+          _error = context.isArabic
+              ? 'تعذّر فتح المحادثة'
+              : 'Could not open conversation';
           _loading = false;
         });
       }
@@ -154,10 +162,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       });
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
       _subscribe(cid);
-    } catch (e) {
+    } catch (e, st) {
       if (!mounted) return;
+      debugError('PrivateChatScreen._loadMessages', e, st);
       setState(() {
-        _error = e.toString();
+        _error = friendlyMessage(e, isArabic: context.isArabic);
         _loading = false;
       });
     }
@@ -221,22 +230,28 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if (body.isEmpty || _sending) return;
     setState(() => _sending = true);
     try {
-      await _service.sendMessage(
-          targetUserId: widget.targetUserId, body: body);
+      await _service.sendMessage(targetUserId: widget.targetUserId, body: body);
       _controller.clear();
       final cid = _conversationId;
       if (cid != null) {
         final msgs = await _service.fetchMessages(cid);
         if (mounted) {
           setState(() => _messages = msgs);
-          WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => _scrollToBottom(),
+          );
         }
       } else {
         await _load();
       }
-    } catch (e) {
+    } catch (e, st) {
       if (!mounted) return;
-      SroodToast.show(context, e.toString(), type: SroodToastType.error);
+      debugError('PrivateChatScreen._send', e, st);
+      SroodToast.show(
+        context,
+        friendlyMessage(e, isArabic: context.isArabic),
+        type: SroodToastType.error,
+      );
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -266,18 +281,24 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 ),
               ),
               ListTile(
-                leading: const Icon(Icons.delete_outline_rounded,
-                    color: Color(0xFFFF5C7A)),
+                leading: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: Color(0xFFFF5C7A),
+                ),
                 title: Text(
                   isArabic ? 'حذف الرسالة' : 'Delete message',
                   style: const TextStyle(
-                      color: Color(0xFFFF5C7A), fontWeight: FontWeight.w700),
+                    color: Color(0xFFFF5C7A),
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 onTap: () => Navigator.of(sheetCtx).pop(true),
               ),
               ListTile(
-                leading: const Icon(Icons.close_rounded,
-                    color: Color(0xFF9E91B8)),
+                leading: const Icon(
+                  Icons.close_rounded,
+                  color: Color(0xFF9E91B8),
+                ),
                 title: Text(
                   isArabic ? 'إلغاء' : 'Cancel',
                   style: const TextStyle(color: Color(0xFF9E91B8)),
@@ -312,7 +333,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      SroodToast.show(context, context.isArabic ? 'فشل الحذف' : 'Delete failed', type: SroodToastType.error);
+      SroodToast.show(
+        context,
+        context.isArabic ? 'فشل الحذف' : 'Delete failed',
+        type: SroodToastType.error,
+      );
     }
   }
 
@@ -321,12 +346,14 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
   // ---------------------------------------------------------------------------
 
   void _openTargetProfile() {
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => UserProfileScreen(
-        userId: widget.targetUserId,
-        isArabic: context.isArabic,
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => UserProfileScreen(
+          userId: widget.targetUserId,
+          isArabic: context.isArabic,
+        ),
       ),
-    ));
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -374,9 +401,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
             icon: Icon(
-              isArabic
-                  ? Icons.arrow_forward_rounded
-                  : Icons.arrow_back_rounded,
+              isArabic ? Icons.arrow_forward_rounded : Icons.arrow_back_rounded,
               color: Colors.white,
             ),
           ),
@@ -418,16 +443,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
               ),
             ),
           ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.call_rounded,
-                color: Color(0xFFF0C15A), size: 22),
-          ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.videocam_rounded,
-                color: Color(0xFFF0C15A), size: 22),
-          ),
         ],
       ),
     );
@@ -457,8 +472,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                     color: const Color(0xFF8B26D9).withValues(alpha: 0.35),
                   ),
                 ),
-                child: const Icon(Icons.lock_rounded,
-                    color: Color(0xFF8B26D9), size: 36),
+                child: const Icon(
+                  Icons.lock_rounded,
+                  color: Color(0xFF8B26D9),
+                  size: 36,
+                ),
               ),
               const SizedBox(height: 20),
               Text(
@@ -484,8 +502,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
               const SizedBox(height: 24),
               TextButton.icon(
                 onPressed: _openTargetProfile,
-                icon: const Icon(Icons.person_add_rounded,
-                    color: Color(0xFF8B26D9), size: 18),
+                icon: const Icon(
+                  Icons.person_add_rounded,
+                  color: Color(0xFF8B26D9),
+                  size: 18,
+                ),
                 label: Text(
                   isArabic ? 'عرض الملف الشخصي' : 'View Profile',
                   style: const TextStyle(
@@ -508,8 +529,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
             Text(
               _error!,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                  color: Color(0xFFFF5C7A), fontSize: 13),
+              style: const TextStyle(color: Color(0xFFFF5C7A), fontSize: 13),
             ),
             const SizedBox(height: 12),
             TextButton(
@@ -528,8 +548,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.chat_bubble_outline_rounded,
-                color: Color(0xFF2A1840), size: 56),
+            const Icon(
+              Icons.chat_bubble_outline_rounded,
+              color: Color(0xFF2A1840),
+              size: 56,
+            ),
             const SizedBox(height: 14),
             Text(
               isArabic ? 'ابدأ المحادثة' : 'Start the conversation',
@@ -553,13 +576,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
         itemBuilder: (_, i) {
           final msg = _messages[i];
           final mine = msg.senderId == currentUserId;
-          final showDate = i == 0 ||
-              !_sameDay(_messages[i - 1].createdAt, msg.createdAt);
+          final showDate =
+              i == 0 || !_sameDay(_messages[i - 1].createdAt, msg.createdAt);
 
           return Column(
             children: [
-              if (showDate)
-                _DateDivider(dt: msg.createdAt, isArabic: isArabic),
+              if (showDate) _DateDivider(dt: msg.createdAt, isArabic: isArabic),
               _MessageBubble(
                 message: msg,
                 mine: mine,
@@ -567,8 +589,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                 onDelete: mine && !msg.isDeleted
                     ? () => _confirmDelete(msg)
                     : null,
-                onTapOther:
-                    !mine ? _openTargetProfile : null,
+                onTapOther: !mine ? _openTargetProfile : null,
               ),
             ],
           );
@@ -604,19 +625,24 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
               child: TextField(
                 controller: _controller,
                 focusNode: _focusNode,
-                textDirection:
-                    isArabic ? TextDirection.rtl : TextDirection.ltr,
+                textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
                 minLines: 1,
                 maxLines: 5,
                 style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.w600),
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
                 decoration: InputDecoration(
                   hintText: isArabic ? 'اكتب رسالة...' : 'Write a message...',
                   hintStyle: const TextStyle(
-                      color: Color(0xFF6E5A8A), fontSize: 14),
+                    color: Color(0xFF6E5A8A),
+                    fontSize: 14,
+                  ),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 10),
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                 ),
                 onSubmitted: (_) => _send(),
               ),
@@ -639,10 +665,15 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
                   ? const Padding(
                       padding: EdgeInsets.all(12),
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
-                  : const Icon(Icons.send_rounded,
-                      color: Colors.white, size: 20),
+                  : const Icon(
+                      Icons.send_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
             ),
           ),
         ],
@@ -654,9 +685,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen> {
     if (a == null || b == null) return false;
     final la = a.toLocal();
     final lb = b.toLocal();
-    return la.year == lb.year &&
-        la.month == lb.month &&
-        la.day == lb.day;
+    return la.year == lb.year && la.month == lb.month && la.day == lb.day;
   }
 }
 
@@ -692,8 +721,9 @@ class _MessageBubble extends StatelessWidget {
         ),
         margin: const EdgeInsets.only(bottom: 4),
         child: Column(
-          crossAxisAlignment:
-              mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment: mine
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisSize: MainAxisSize.min,
@@ -715,7 +745,9 @@ class _MessageBubble extends StatelessWidget {
                         color: const Color(0xFF1A0A2E),
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: const Color(0xFFFF5C7A).withValues(alpha: 0.35),
+                          color: const Color(
+                            0xFFFF5C7A,
+                          ).withValues(alpha: 0.35),
                         ),
                       ),
                       child: const Icon(
@@ -727,65 +759,77 @@ class _MessageBubble extends StatelessWidget {
                   ),
                 Flexible(
                   child: GestureDetector(
-              onTap: mine ? null : onTapOther,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: deleted
-                      ? const Color(0xFF1A1030)
-                      : (mine
-                          ? const Color(0xFFF0C15A)
-                          : const Color(0xFF241638)),
-                  borderRadius: BorderRadius.only(
-                    topLeft: const Radius.circular(18),
-                    topRight: const Radius.circular(18),
-                    bottomLeft: mine
-                        ? const Radius.circular(18)
-                        : const Radius.circular(4),
-                    bottomRight: mine
-                        ? const Radius.circular(4)
-                        : const Radius.circular(18),
-                  ),
-                  border: deleted
-                      ? Border.all(
-                          color: const Color(0xFF3A2060).withValues(alpha: 0.4))
-                      : (mine
-                          ? null
-                          : Border.all(
-                              color: const Color(0xFF3A2060)
-                                  .withValues(alpha: 0.5))),
-                ),
-                child: deleted
-                    ? Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.do_not_disturb_alt_rounded,
-                              size: 13, color: Color(0xFF6E5A8A)),
-                          const SizedBox(width: 5),
-                          Text(
-                            isArabic ? 'تم حذف الرسالة' : 'Message deleted',
-                            style: const TextStyle(
-                              color: Color(0xFF6E5A8A),
-                              fontSize: 13,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ],
-                      )
-                    : Text(
-                        message.body,
-                        style: TextStyle(
-                          color: mine
-                              ? const Color(0xFF160B26)
-                              : Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          height: 1.4,
-                        ),
+                    onTap: mine ? null : onTapOther,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
                       ),
-              ),
-            ),
+                      decoration: BoxDecoration(
+                        color: deleted
+                            ? const Color(0xFF1A1030)
+                            : (mine
+                                  ? const Color(0xFFF0C15A)
+                                  : const Color(0xFF241638)),
+                        borderRadius: BorderRadius.only(
+                          topLeft: const Radius.circular(18),
+                          topRight: const Radius.circular(18),
+                          bottomLeft: mine
+                              ? const Radius.circular(18)
+                              : const Radius.circular(4),
+                          bottomRight: mine
+                              ? const Radius.circular(4)
+                              : const Radius.circular(18),
+                        ),
+                        border: deleted
+                            ? Border.all(
+                                color: const Color(
+                                  0xFF3A2060,
+                                ).withValues(alpha: 0.4),
+                              )
+                            : (mine
+                                  ? null
+                                  : Border.all(
+                                      color: const Color(
+                                        0xFF3A2060,
+                                      ).withValues(alpha: 0.5),
+                                    )),
+                      ),
+                      child: deleted
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.do_not_disturb_alt_rounded,
+                                  size: 13,
+                                  color: Color(0xFF6E5A8A),
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  isArabic
+                                      ? 'تم حذف الرسالة'
+                                      : 'Message deleted',
+                                  style: const TextStyle(
+                                    color: Color(0xFF6E5A8A),
+                                    fontSize: 13,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Text(
+                              message.body,
+                              style: TextStyle(
+                                color: mine
+                                    ? const Color(0xFF160B26)
+                                    : Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                height: 1.4,
+                              ),
+                            ),
+                    ),
+                  ),
                 ), // Flexible
               ], // Row
             ),

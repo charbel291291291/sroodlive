@@ -214,26 +214,56 @@ class OwnerGameControlService {
     );
   }
 
-  // ── Crash Rocket ──────────────────────────────────────────────────────────
+  // ── Crash Rocket v2 ───────────────────────────────────────────────────────
+  // The v2 game has NO forced-multiplier capability by design: results are
+  // provably fair and cannot be set by any admin. Admins control availability,
+  // limits, and durations only, and every action is audited server-side.
 
-  Future<GameSettings> fetchCrashConfig() async {
+  Future<Map<String, dynamic>> fetchCrashV2Config() async {
     final data = await SupabaseService.requiredClient
-        .rpc('owner_get_crash_full_config') as Map<String, dynamic>;
-    return GameSettings.fromJson(data);
+        .rpc('crash_v2_admin_get_config') as Map<String, dynamic>;
+    return data;
   }
 
-  Future<Map<String, dynamic>> setCrashForcedMultiplier(
-      double multiplier) async {
+  Future<Map<String, dynamic>> updateCrashV2Config(
+      Map<String, dynamic> patch) async {
     final data = await SupabaseService.requiredClient.rpc(
-      'owner_set_rocket_crash_forced_multiplier',
-      params: {'p_multiplier': multiplier},
+      'crash_v2_admin_update_config',
+      params: {'p_patch': patch},
     ) as Map<String, dynamic>;
     return data;
   }
 
-  Future<void> clearCrashForcedMultiplier() async {
-    await SupabaseService.requiredClient
-        .rpc('owner_clear_rocket_crash_forced_multiplier');
+  Future<Map<String, dynamic>> pauseCrashV2({String? message}) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'crash_v2_admin_pause_game',
+      params: {'p_message': ?message},
+    ) as Map<String, dynamic>;
+    return data;
+  }
+
+  Future<Map<String, dynamic>> resumeCrashV2() async {
+    final data = await SupabaseService.requiredClient
+        .rpc('crash_v2_admin_resume_game') as Map<String, dynamic>;
+    return data;
+  }
+
+  Future<Map<String, dynamic>> fetchCrashV2Overview() async {
+    final data = await SupabaseService.requiredClient
+        .rpc('crash_v2_admin_get_overview') as Map<String, dynamic>;
+    return data;
+  }
+
+  Future<List<Map<String, dynamic>>> fetchCrashV2AuditLog(
+      {int limit = 50}) async {
+    final data = await SupabaseService.requiredClient.rpc(
+      'crash_v2_admin_get_audit_log',
+      params: {'p_limit': limit},
+    );
+    return (data as List)
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
   }
 
   // ── Gold Ladder ───────────────────────────────────────────────────────────

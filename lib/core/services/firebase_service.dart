@@ -23,6 +23,7 @@ class FirebaseService {
   bool _initialized = false;
   FirebaseAnalytics? _analytics;
   FirebaseMessaging? _messaging;
+  StreamSubscription<String>? _tokenRefreshSubscription;
 
   FirebaseAnalytics? get analytics => _analytics;
 
@@ -93,9 +94,33 @@ class FirebaseService {
         await _registerToken(token);
       }
       // Keep the backend in sync if the token rotates.
-      messaging.onTokenRefresh.listen(_registerToken);
+      await _tokenRefreshSubscription?.cancel();
+      _tokenRefreshSubscription = messaging.onTokenRefresh.listen(
+        _registerToken,
+      );
     } catch (e) {
       debugPrint('[Firebase] FCM setup skipped: $e');
+    }
+  }
+
+  /// Deactivates this device token while the Supabase session still exists.
+  /// Best-effort: logout must continue even when Firebase is unavailable.
+  Future<void> onSignedOut() async {
+    await _tokenRefreshSubscription?.cancel();
+    _tokenRefreshSubscription = null;
+    if (!_initialized) return;
+
+    try {
+      _messaging ??= FirebaseMessaging.instance;
+      final token = await _messaging!.getToken();
+      final client = SupabaseService.client;
+      if (token == null || client?.auth.currentUser == null) return;
+      await client!.rpc(
+        'deactivate_my_push_token',
+        params: {'p_token': token},
+      );
+    } catch (e) {
+      debugPrint('[Firebase] token deactivation skipped: $e');
     }
   }
 

@@ -56,7 +56,7 @@ class _OwnerGameControlScreenState extends State<OwnerGameControlScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 4, vsync: this);
+    _tabs = TabController(length: 3, vsync: this);
     _checkOwner();
   }
 
@@ -126,7 +126,6 @@ class _OwnerGameControlScreenState extends State<OwnerGameControlScreen>
                 ),
                 tabs: const [
                   Tab(text: 'Hungry Cat'),
-                  Tab(text: 'Rocket Crash'),
                   Tab(text: 'Gold Ladder'),
                   Tab(text: 'Audit Log'),
                 ],
@@ -150,7 +149,6 @@ class _OwnerGameControlScreenState extends State<OwnerGameControlScreen>
       controller: _tabs,
       children: [
         _HungryCatTab(svc: _svc),
-        _RocketCrashTab(svc: _svc),
         _GoldLadderTab(svc: _svc),
         _AuditLogTab(svc: _svc),
       ],
@@ -917,6 +915,9 @@ class _FoodOddsCard extends StatelessWidget {
 // ROCKET CRASH TAB
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Crash Rocket v2 admin module. Results are provably fair — there is NO
+// forced-multiplier control anywhere in v2, by design. Admins manage
+// availability, limits, and durations; every action is audited server-side.
 class _RocketCrashTab extends StatefulWidget {
   const _RocketCrashTab({required this.svc});
   final OwnerGameControlService svc;
@@ -932,31 +933,40 @@ class _RocketCrashTabState extends State<_RocketCrashTab>
 
   bool _loading = true;
   String? _error;
-  GameSettings? _settings;
+  Map<String, dynamic> _config = const {};
+  Map<String, dynamic> _overview = const {};
 
+  late TextEditingController _minBetCtrl;
   late TextEditingController _maxBetCtrl;
   late TextEditingController _maxPayoutCtrl;
-  late TextEditingController _dailyCapCtrl;
-  late TextEditingController _forcedMultCtrl;
-  String _riskMode = 'normal';
+  late TextEditingController _bettingSecsCtrl;
+  late TextEditingController _waitingSecsCtrl;
+  late TextEditingController _maintenanceCtrl;
   bool _busy = false;
+
+  bool get _isEnabled => _config['is_enabled'] == true;
+  bool get _isPaused => _config['is_paused'] == true;
 
   @override
   void initState() {
     super.initState();
+    _minBetCtrl = TextEditingController();
     _maxBetCtrl = TextEditingController();
     _maxPayoutCtrl = TextEditingController();
-    _dailyCapCtrl = TextEditingController();
-    _forcedMultCtrl = TextEditingController();
+    _bettingSecsCtrl = TextEditingController();
+    _waitingSecsCtrl = TextEditingController();
+    _maintenanceCtrl = TextEditingController();
     _load();
   }
 
   @override
   void dispose() {
+    _minBetCtrl.dispose();
     _maxBetCtrl.dispose();
     _maxPayoutCtrl.dispose();
-    _dailyCapCtrl.dispose();
-    _forcedMultCtrl.dispose();
+    _bettingSecsCtrl.dispose();
+    _waitingSecsCtrl.dispose();
+    _maintenanceCtrl.dispose();
     super.dispose();
   }
 
@@ -966,17 +976,21 @@ class _RocketCrashTabState extends State<_RocketCrashTab>
       _error = null;
     });
     try {
-      final s = await widget.svc.fetchCrashConfig();
+      final config = await widget.svc.fetchCrashV2Config();
+      Map<String, dynamic> overview = const {};
+      try {
+        overview = await widget.svc.fetchCrashV2Overview();
+      } catch (_) {}
       if (!mounted) return;
       setState(() {
-        _settings = s;
-        _maxBetCtrl.text = s.maxBet.toString();
-        _maxPayoutCtrl.text = s.maxPayout.toString();
-        _dailyCapCtrl.text = s.dailyPayoutCap.toString();
-        _riskMode = s.riskMode;
-        if (s.forcedCrashMultiplier != null) {
-          _forcedMultCtrl.text = s.forcedCrashMultiplier!.toStringAsFixed(2);
-        }
+        _config = config;
+        _overview = overview;
+        _minBetCtrl.text = '${config['min_bet'] ?? ''}';
+        _maxBetCtrl.text = '${config['max_bet'] ?? ''}';
+        _maxPayoutCtrl.text = '${config['max_payout'] ?? ''}';
+        _bettingSecsCtrl.text = '${config['betting_seconds'] ?? ''}';
+        _waitingSecsCtrl.text = '${config['waiting_seconds'] ?? ''}';
+        _maintenanceCtrl.text = '${config['maintenance_message'] ?? ''}';
         _loading = false;
       });
     } catch (e) {
@@ -988,21 +1002,13 @@ class _RocketCrashTabState extends State<_RocketCrashTab>
     }
   }
 
-  Future<void> _saveConfig() async {
+  Future<void> _run(Future<void> Function() action, String success) async {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      await widget.svc.updateGameConfig(
-        gameKey: 'crash_rocket',
-        isEnabled: _settings!.isEnabled,
-        testMode: _settings!.testMode,
-        riskMode: _riskMode,
-        maxBet: int.tryParse(_maxBetCtrl.text),
-        maxPayout: int.tryParse(_maxPayoutCtrl.text),
-        dailyPayoutCap: int.tryParse(_dailyCapCtrl.text),
-      );
+      await action();
       if (!mounted) return;
-      _snack(context, 'Crash config saved');
+      _snack(context, success);
       await _load();
     } catch (e) {
       if (!mounted) return;
@@ -1012,47 +1018,59 @@ class _RocketCrashTabState extends State<_RocketCrashTab>
     }
   }
 
-  Future<void> _forceMult() async {
-    final m = double.tryParse(_forcedMultCtrl.text);
-    if (m == null || m < 1.01 || m > 1000) {
-      _snack(context, 'Multiplier must be 1.01–1000', error: true);
-      return;
-    }
+  Future<void> _saveConfig() => _run(() async {
+        final patch = <String, dynamic>{
+          if (int.tryParse(_minBetCtrl.text) != null)
+            'min_bet': int.parse(_minBetCtrl.text),
+          if (int.tryParse(_maxBetCtrl.text) != null)
+            'max_bet': int.parse(_maxBetCtrl.text),
+          if (int.tryParse(_maxPayoutCtrl.text) != null)
+            'max_payout': int.parse(_maxPayoutCtrl.text),
+          if (int.tryParse(_bettingSecsCtrl.text) != null)
+            'betting_seconds': int.parse(_bettingSecsCtrl.text),
+          if (int.tryParse(_waitingSecsCtrl.text) != null)
+            'waiting_seconds': int.parse(_waitingSecsCtrl.text),
+          'maintenance_message': _maintenanceCtrl.text.trim(),
+        };
+        await widget.svc.updateCrashV2Config(patch);
+      }, 'Crash Rocket v2 config saved');
+
+  Future<void> _toggleEnabled(bool enabled) async {
     final ok = await _confirm(
       context,
-      'Force Crash Multiplier?',
-      'The next rocket round will crash at exactly $m×.\n\nTest mode must be ON. Clears after one round.',
+      enabled ? 'Enable Crash Rocket v2?' : 'Disable Crash Rocket v2?',
+      enabled
+          ? 'The game becomes visible and playable for all users.'
+          : 'The game is hidden for all users. Running rounds settle safely first.',
     );
     if (ok != true) return;
-    setState(() => _busy = true);
-    try {
-      await widget.svc.setCrashForcedMultiplier(m);
-      if (!mounted) return;
-      _snack(context, 'Forced multiplier set: $m×');
-      await _load();
-    } catch (e) {
-      if (!mounted) return;
-      _snack(context, 'Error: $e', error: true);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
+    await _run(
+      () => widget.svc.updateCrashV2Config({'is_enabled': enabled}),
+      enabled ? 'Game enabled' : 'Game disabled',
+    );
   }
 
-  Future<void> _clearMult() async {
-    setState(() => _busy = true);
-    try {
-      await widget.svc.clearCrashForcedMultiplier();
-      if (!mounted) return;
-      _forcedMultCtrl.clear();
-      _snack(context, 'Forced multiplier cleared');
-      await _load();
-    } catch (e) {
-      if (!mounted) return;
-      _snack(context, 'Error: $e', error: true);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
+  Future<void> _pause() async {
+    final ok = await _confirm(
+      context,
+      'Pause Crash Rocket v2?',
+      'The current round settles safely; no new round opens until resume.',
+    );
+    if (ok != true) return;
+    await _run(
+      () async => widget.svc.pauseCrashV2(
+        message: _maintenanceCtrl.text.trim().isEmpty
+            ? null
+            : _maintenanceCtrl.text.trim(),
+      ),
+      'Game paused',
+    );
   }
+
+  Future<void> _resume() => _run(
+        () async => widget.svc.resumeCrashV2(),
+        'Game resumed',
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -1063,126 +1081,154 @@ class _RocketCrashTabState extends State<_RocketCrashTab>
     if (_error != null) {
       return _ErrorRetry(error: _error!, onRetry: _load);
     }
-    final s = _settings!;
+    final stuck = (_overview['stuck_rounds'] as List?) ?? const [];
     return ListView(
       padding: const EdgeInsets.only(bottom: 32),
       children: [
-        const _SectionTitle('Global Config'),
+        const _SectionTitle('Live Overview'),
+        _Card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _kvRow('Today wagered', '${_overview['today_wagered'] ?? '—'}'),
+              _kvRow('Today paid out', '${_overview['today_payout'] ?? '—'}'),
+              _kvRow('Open exposure', '${_overview['open_exposure'] ?? '—'}'),
+              _kvRow(
+                'Stuck rounds',
+                '${stuck.length}',
+                valueColor: stuck.isEmpty ? _kGreen : _kRed,
+              ),
+              if (stuck.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    'Settlement alert: ${stuck.length} round(s) stalled — check server logs / cron.',
+                    style: const TextStyle(color: _kRed, fontSize: 11),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const _SectionTitle('Availability'),
         _Card(
           child: Column(
             children: [
               _ToggleRow(
                 label: 'Game Enabled',
-                value: s.isEnabled,
-                onChanged: (v) => setState(
-                    () => _settings = _copyCrash(s, isEnabled: v)),
+                subtitle: 'Master kill switch (server-controlled flag)',
+                value: _isEnabled,
+                onChanged: (v) {
+                  if (!_busy) _toggleEnabled(v);
+                },
               ),
               const Divider(color: _kBorder, height: 20),
-              _ToggleRow(
-                label: 'Test Mode',
-                subtitle: 'Required for forced crash multiplier',
-                value: s.testMode,
-                activeColor: _kAmber,
-                onChanged: (v) =>
-                    setState(() => _settings = _copyCrash(s, testMode: v)),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: (_busy || _isPaused) ? null : _pause,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _kAmber,
+                        side: const BorderSide(color: _kAmber),
+                      ),
+                      icon: const Icon(Icons.pause_rounded, size: 16),
+                      label: const Text('Pause'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: (_busy || !_isPaused) ? null : _resume,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _kGreen,
+                        side: const BorderSide(color: _kGreen),
+                      ),
+                      icon: const Icon(Icons.play_arrow_rounded, size: 16),
+                      label: const Text('Resume'),
+                    ),
+                  ),
+                ],
               ),
-              const Divider(color: _kBorder, height: 20),
+              if (_isPaused)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Game is PAUSED — no new rounds are opening.',
+                    style: TextStyle(color: _kAmber, fontSize: 11),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const _SectionTitle('Limits & Timing'),
+        _Card(
+          child: Column(
+            children: [
               _LabeledField(
-                  label: 'Risk Mode',
-                  child: _RiskDropdown(
-                      value: _riskMode,
-                      onChanged: (v) => setState(() => _riskMode = v!))),
+                  label: 'Min Bet (coins)',
+                  child: _NumField(ctrl: _minBetCtrl, hint: '100')),
               const SizedBox(height: 12),
               _LabeledField(
                   label: 'Max Bet (coins)',
-                  child: _NumField(ctrl: _maxBetCtrl, hint: '100000')),
+                  child: _NumField(ctrl: _maxBetCtrl, hint: '1000000')),
               const SizedBox(height: 12),
               _LabeledField(
                   label: 'Max Payout (coins)',
-                  child: _NumField(ctrl: _maxPayoutCtrl, hint: '1000000')),
+                  child: _NumField(ctrl: _maxPayoutCtrl, hint: '1000000000')),
               const SizedBox(height: 12),
               _LabeledField(
-                  label: 'Daily Payout Cap (coins)',
-                  child: _NumField(ctrl: _dailyCapCtrl, hint: '10000000')),
+                  label: 'Betting Window (seconds)',
+                  child: _NumField(ctrl: _bettingSecsCtrl, hint: '8')),
+              const SizedBox(height: 12),
+              _LabeledField(
+                  label: 'Waiting Between Rounds (seconds)',
+                  child: _NumField(ctrl: _waitingSecsCtrl, hint: '3')),
+              const SizedBox(height: 12),
+              _LabeledField(
+                label: 'Maintenance Message',
+                child: TextFormField(
+                  controller: _maintenanceCtrl,
+                  style: const TextStyle(color: _kTxt, fontSize: 13),
+                  decoration: _inputDeco('Shown while paused/disabled'),
+                ),
+              ),
               const SizedBox(height: 16),
               _saveBtn('Save Config', _busy ? null : _saveConfig),
             ],
           ),
         ),
-
-        const _SectionTitle('Force Crash Multiplier', color: _kAmber),
-        _TestOnlyBanner(
-          s.testMode
-              ? 'Test mode is ON.'
-              : 'Enable test mode to force a crash point.',
-        ),
-        _Card(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (s.forcedCrashMultiplier != null) ...[
-                Row(
-                  children: [
-                    const Icon(Icons.lock_clock, size: 14, color: _kAmber),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Active: ${s.forcedCrashMultiplier}×  '
-                        '(expires ${_fmt(s.forcedCrashMultiplierExpiresAt)})',
-                        style: const TextStyle(color: _kAmber, fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: _busy ? null : _clearMult,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _kRed,
-                    side: const BorderSide(color: _kRed),
-                  ),
-                  icon: const Icon(Icons.clear, size: 14),
-                  label: const Text('Clear'),
-                ),
-                const Divider(color: _kBorder, height: 24),
-              ],
-              TextFormField(
-                controller: _forcedMultCtrl,
-                enabled: s.testMode,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))
-                ],
-                style: const TextStyle(color: _kTxt, fontSize: 13),
-                decoration: _inputDeco('e.g. 2.50'),
-              ),
-              const SizedBox(height: 12),
-              _saveBtn(
-                'Force This Multiplier',
-                (s.testMode && !_busy) ? _forceMult : null,
-              ),
-            ],
+        const _SectionTitle('Fairness'),
+        const _Card(
+          child: Text(
+            'Crash Rocket v2 results are provably fair: each round pre-commits '
+            'a SHA-256 seed hash before betting opens and reveals the seed after '
+            'completion. Nobody — including admins — can set or preview the '
+            'crash multiplier. All admin actions on this page are audited.',
+            style: TextStyle(color: _kMuted, fontSize: 12, height: 1.5),
           ),
         ),
       ],
     );
   }
 
-  GameSettings _copyCrash(GameSettings s,
-          {bool? isEnabled, bool? testMode}) =>
-      GameSettings(
-        gameKey: s.gameKey,
-        isEnabled: isEnabled ?? s.isEnabled,
-        testMode: testMode ?? s.testMode,
-        maxBet: s.maxBet,
-        maxPayout: s.maxPayout,
-        dailyPayoutCap: s.dailyPayoutCap,
-        riskMode: s.riskMode,
-        eventMode: s.eventMode,
-        eventMultiplierBoost: s.eventMultiplierBoost,
-        forcedCrashMultiplier: s.forcedCrashMultiplier,
-        forcedCrashMultiplierExpiresAt: s.forcedCrashMultiplierExpiresAt,
+  Widget _kvRow(String k, String v, {Color? valueColor}) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(k,
+                  style: const TextStyle(color: _kMuted, fontSize: 12)),
+            ),
+            Text(
+              v,
+              style: TextStyle(
+                color: valueColor ?? _kTxt,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
       );
 }
 
@@ -1469,7 +1515,6 @@ class _AuditLogTabState extends State<_AuditLogTab>
                 children: [
                   null,
                   'hungry_cat',
-                  'crash_rocket',
                   'gold_ladder',
                 ].map((g) {
                   final active = _filterGame == g;

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../services/firebase_service.dart';
 import '../supabase/supabase_service.dart';
 
 class SafeLogout {
@@ -17,6 +18,10 @@ class SafeLogout {
     final client = SupabaseService.requiredClient;
 
     debugPrint('[SafeLogout] ① begin — currentUser=${client.auth.currentUser?.id}');
+
+    // Deactivate the current device token while the authenticated RPC can
+    // still identify its owner. Failure is intentionally non-fatal.
+    await FirebaseService.instance.onSignedOut();
 
     // ── Step 1: local sign-out (clears hive/shared_prefs, no network) ─────
     try {

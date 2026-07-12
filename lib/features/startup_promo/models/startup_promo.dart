@@ -3,6 +3,7 @@ class StartupPromo {
     required this.id,
     required this.title,
     required this.imageUrl,
+    this.audioUrl,
     required this.durationSeconds,
     required this.frequency,
     required this.priority,
@@ -12,6 +13,7 @@ class StartupPromo {
   final String id;
   final String title;
   final String imageUrl;
+  final String? audioUrl;
   final int durationSeconds;
   final String frequency;  // every_open | once_per_session | once_per_day | once_only
   final int priority;
@@ -22,6 +24,7 @@ class StartupPromo {
       id: json['id']?.toString() ?? '',
       title: json['title']?.toString() ?? '',
       imageUrl: json['image_url']?.toString() ?? '',
+      audioUrl: _nullableString(json['audio_url']),
       durationSeconds: _int(json['duration_seconds'], 5),
       frequency: json['frequency']?.toString() ?? 'once_per_day',
       priority: _int(json['priority'], 0),
@@ -33,6 +36,11 @@ class StartupPromo {
     if (v is num) return v.toInt();
     return int.tryParse(v?.toString() ?? '') ?? fallback;
   }
+
+  static String? _nullableString(dynamic v) {
+    final s = v?.toString().trim() ?? '';
+    return s.isEmpty ? null : s;
+  }
 }
 
 // Full admin model with all columns
@@ -41,6 +49,7 @@ class AdminStartupPromo {
     required this.id,
     required this.title,
     required this.imageUrl,
+    this.audioUrl,
     this.storagePath,
     required this.isActive,
     this.startsAt,
@@ -55,6 +64,7 @@ class AdminStartupPromo {
   final String id;
   final String title;
   final String imageUrl;
+  final String? audioUrl;
   final String? storagePath;
   final bool isActive;
   final DateTime? startsAt;
@@ -70,6 +80,7 @@ class AdminStartupPromo {
       id: json['id']?.toString() ?? '',
       title: json['title']?.toString() ?? '',
       imageUrl: json['image_url']?.toString() ?? '',
+      audioUrl: _nullableString(json['audio_url']),
       storagePath: json['storage_path']?.toString(),
       isActive: json['is_active'] == true,
       startsAt: DateTime.tryParse(json['starts_at']?.toString() ?? ''),
@@ -85,5 +96,10 @@ class AdminStartupPromo {
   static int _int(dynamic v, int fallback) {
     if (v is num) return v.toInt();
     return int.tryParse(v?.toString() ?? '') ?? fallback;
+  }
+
+  static String? _nullableString(dynamic v) {
+    final s = v?.toString().trim() ?? '';
+    return s.isEmpty ? null : s;
   }
 }

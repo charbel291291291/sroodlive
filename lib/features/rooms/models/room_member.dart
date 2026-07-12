@@ -19,6 +19,9 @@ class RoomMember {
     this.vipLevel = 0,
     this.vipStartedAt,
     this.vipExpiresAt,
+    this.isOfficialAgent = false,
+    this.agencyName,
+    this.agencyCountry,
   });
 
   final String id;
@@ -38,6 +41,9 @@ class RoomMember {
   final int vipLevel;
   final DateTime? vipStartedAt;
   final DateTime? vipExpiresAt;
+  final bool isOfficialAgent;
+  final String? agencyName;
+  final String? agencyCountry;
 
   static DateTime? _parseDate(dynamic value) {
     if (value == null) {
@@ -79,6 +85,26 @@ class RoomMember {
     final resolvedVipExpiresAt = profile is Map<String, dynamic>
         ? _parseDate(profile['vip_expires_at'])
         : _parseDate(json['vip_expires_at']);
+    final isOfficialAgent = _boolFrom(
+      profile,
+      json,
+      const [
+        'is_official_agent',
+        'official_agent',
+        'is_agent',
+        'agent_verified',
+      ],
+    );
+    final agencyName = _stringFrom(
+      profile,
+      json,
+      const ['agency_name', 'agent_agency_name'],
+    );
+    final agencyCountry = _stringFrom(
+      profile,
+      json,
+      const ['agency_country', 'agent_country'],
+    );
 
     return RoomMember(
       id: json['id'].toString(),
@@ -100,7 +126,36 @@ class RoomMember {
       vipLevel: resolvedVipLevel,
       vipStartedAt: resolvedVipStartedAt,
       vipExpiresAt: resolvedVipExpiresAt,
+      isOfficialAgent: isOfficialAgent,
+      agencyName: agencyName,
+      agencyCountry: agencyCountry,
     );
+  }
+
+  static bool _boolFrom(
+    dynamic profile,
+    Map<String, dynamic> json,
+    List<String> keys,
+  ) {
+    for (final key in keys) {
+      final value = profile is Map<String, dynamic> ? profile[key] : json[key];
+      if (value == true) return true;
+      if (value is String && value.toLowerCase() == 'true') return true;
+    }
+    return false;
+  }
+
+  static String? _stringFrom(
+    dynamic profile,
+    Map<String, dynamic> json,
+    List<String> keys,
+  ) {
+    for (final key in keys) {
+      final value = profile is Map<String, dynamic> ? profile[key] : json[key];
+      final text = value?.toString().trim() ?? '';
+      if (text.isNotEmpty) return text;
+    }
+    return null;
   }
 
   int get effectiveVipLevel {

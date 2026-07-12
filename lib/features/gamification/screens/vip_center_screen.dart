@@ -363,7 +363,11 @@ class _VipCenterScreenState extends State<VipCenterScreen> {
   // Phase V1 CTA
   // through a recharge agent / admin, so this points the user there.
   void _onVip2UpgradeTap() {
-    SroodToast.show(context, 'Upgrade your VIP through a recharge agent or admin.', type: SroodToastType.info);
+    SroodToast.show(
+      context,
+      'Upgrade your VIP through a recharge agent or admin.',
+      type: SroodToastType.info,
+    );
   }
 
   // Real per-tier unlock price (coins) from the vip_plans rules. 0 if unknown.
@@ -2113,7 +2117,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
             : 'Granted VIP $_grantLevel to ${user.title} for $days days',
       );
     } catch (e) {
-      _setResult(e.toString(), error: true);
+      _setResult(_friendlyAdminError(e), error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -2140,7 +2144,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
             : 'VIP revoked for ${user.title}',
       );
     } catch (e) {
-      _setResult(e.toString(), error: true);
+      _setResult(_friendlyAdminError(e), error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -2203,7 +2207,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           error: true,
         );
       } else {
-        _setResult(msg, error: true);
+        _setResult(_friendlyAdminError(e), error: true);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -2251,7 +2255,7 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
           error: true,
         );
       } else {
-        _setResult(msg, error: true);
+        _setResult(_friendlyAdminError(e), error: true);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -2264,6 +2268,23 @@ class _AdminVipPanelState extends State<_AdminVipPanel> {
       _result = msg;
       _resultIsError = error;
     });
+  }
+
+  String _friendlyAdminError(Object error) {
+    final message = error.toString().toLowerCase();
+    if (message.contains('permission_denied') ||
+        message.contains('insufficient_permissions') ||
+        message.contains('forbidden')) {
+      return isArabic
+          ? 'لا تملك صلاحية إدارة VIP. حدّث الصفحة أو تواصل مع المدير الرئيسي.'
+          : 'You do not have permission to manage VIP. Refresh or contact the owner admin.';
+    }
+    if (message.contains('user_not_found')) {
+      return isArabic ? 'لم يتم العثور على المستخدم.' : 'User not found.';
+    }
+    return isArabic
+        ? 'تعذّر تنفيذ العملية. حاول مرة أخرى.'
+        : 'The action could not be completed. Please try again.';
   }
 
   void _noUserResult() => _setResult(

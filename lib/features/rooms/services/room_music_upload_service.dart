@@ -18,6 +18,8 @@ import '../models/room_music.dart';
 class RoomMusicUploadService {
   const RoomMusicUploadService();
 
+  static const int maxUploadBytes = 15 * 1024 * 1024;
+
   SupabaseClient get _db => SupabaseService.requiredClient;
 
   // ── Fetch saved tracks for a room ─────────────────────────────────────────
@@ -83,6 +85,7 @@ class RoomMusicUploadService {
 
     final bytes = _getBytes(picked);
     if (bytes == null) return null;
+    if (bytes.length > maxUploadBytes) return null;
 
     // Sanitize file name and build storage path
     final safeName = picked.name
@@ -91,6 +94,7 @@ class RoomMusicUploadService {
     final ts = DateTime.now().millisecondsSinceEpoch;
     final storagePath = '$uid/$roomId/${ts}_$safeName';
 
+    var uploaded = false;
     try {
       onProgress?.call(0.1);
 
@@ -101,6 +105,7 @@ class RoomMusicUploadService {
                 contentType: _mimeType(picked.name),
                 upsert: false,
               ));
+      uploaded = true;
 
       onProgress?.call(0.8);
 
@@ -128,6 +133,15 @@ class RoomMusicUploadService {
       return RoomSong.fromJson(result as Map<String, dynamic>);
     } catch (e) {
       if (kDebugMode) debugPrint('[MusicUpload] uploadAudioFile error: $e');
+      if (uploaded) {
+        try {
+          await _db.storage.from('room_music').remove([storagePath]);
+        } catch (cleanupError) {
+          if (kDebugMode) {
+            debugPrint('[MusicUpload] orphan cleanup failed: $cleanupError');
+          }
+        }
+      }
       return null;
     }
   }
@@ -142,7 +156,7 @@ class RoomMusicUploadService {
     if (trimmed.isEmpty) return 'URL is empty';
     final uri = Uri.tryParse(trimmed);
     if (uri == null || !uri.hasScheme || !uri.hasAuthority) return 'Invalid URL format';
-    if (uri.scheme != 'http' && uri.scheme != 'https') return 'URL must start with http or https';
+    if (uri.scheme != 'https') return 'URL must use https';
     final segments = uri.pathSegments;
     if (segments.isNotEmpty) {
       final last = segments.last;
@@ -190,11 +204,20 @@ class RoomMusicUploadService {
 
   // ── Delete a track ────────────────────────────────────────────────────────
 
-  Future<void> deleteTrack(String trackId) async {
+  Future<bool> deleteTrack(String trackId) async {
     try {
-      await _db.rpc('delete_room_music_track', params: {'p_track_id': trackId});
+      final storagePath = await _db.rpc(
+        'delete_room_music_track',
+        params: {'p_track_id': trackId},
+      );
+      final path = storagePath?.toString();
+      if (path != null && path.isNotEmpty) {
+        await _db.storage.from('room_music').remove([path]);
+      }
+      return true;
     } catch (e) {
       if (kDebugMode) debugPrint('[MusicUpload] deleteTrack error: $e');
+      return false;
     }
   }
 

@@ -328,11 +328,6 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                             onTap: () =>
                                 setState(() => _isCameraOff = !_isCameraOff),
                           ),
-                          _VideoCallButton(
-                            icon: Icons.cameraswitch_rounded,
-                            active: false,
-                            onTap: () {},
-                          ),
                         ],
                       ),
                     ),

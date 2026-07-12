@@ -125,28 +125,34 @@ void main() {
     });
   });
 
-  testWidgets(
-    'empty config shows maintenance state without small-screen overflow',
-    (tester) async {
-      tester.view.physicalSize = const Size(320, 568);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  for (final screen in [
+    const Size(320, 568),
+    const Size(360, 640),
+    const Size(720, 1604),
+  ]) {
+    testWidgets(
+      'empty config shows maintenance state without overflow on ${screen.width.toInt()}x${screen.height.toInt()}',
+      (tester) async {
+        tester.view.physicalSize = screen;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: MagicSroodScreen(
-            isArabic: false,
-            service: _EmptyConfigMagicSroodService(),
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: MagicSroodScreen(
+              isArabic: false,
+              service: _EmptyConfigMagicSroodService(),
+            ),
           ),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Failed to load'), findsOneWidget);
-      expect(find.textContaining('Team configuration'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-  );
+        expect(find.text('Failed to load'), findsOneWidget);
+        expect(find.textContaining('Team configuration'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 }

@@ -75,9 +75,12 @@ class _RoomsScreenState extends State<RoomsScreen> {
         _rooms = rooms;
         _activeCounts = activeCounts;
       });
-    } catch (error) {
+    } catch (error, st) {
       if (!mounted) return;
-      setState(() => _error = error.toString());
+      debugError('RoomsScreen._loadRooms', error, st);
+      setState(
+        () => _error = friendlyMessage(error, isArabic: context.isArabic),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -119,9 +122,12 @@ class _RoomsScreenState extends State<RoomsScreen> {
       );
 
       await _loadRooms();
-    } catch (error) {
+    } catch (error, st) {
       if (!mounted) return;
-      setState(() => _error = error.toString());
+      debugError('RoomsScreen._openMyRoom', error, st);
+      setState(
+        () => _error = friendlyMessage(error, isArabic: context.isArabic),
+      );
     } finally {
       if (mounted) setState(() => _openingMyRoom = false);
     }
@@ -338,15 +344,17 @@ class _RoomsScreenState extends State<RoomsScreen> {
                         if (v == 'schedule') {
                           Navigator.of(context).push(
                             MaterialPageRoute<void>(
-                              builder: (_) =>
-                                  RoomScheduleScreen(isArabic: context.isArabic),
+                              builder: (_) => RoomScheduleScreen(
+                                isArabic: context.isArabic,
+                              ),
                             ),
                           );
                         } else if (v == 'notifications') {
                           Navigator.of(context).push(
                             MaterialPageRoute<void>(
-                              builder: (_) =>
-                                  NotificationsScreen(isArabic: context.isArabic),
+                              builder: (_) => NotificationsScreen(
+                                isArabic: context.isArabic,
+                              ),
                             ),
                           );
                         }
@@ -356,14 +364,21 @@ class _RoomsScreenState extends State<RoomsScreen> {
                           value: 'schedule',
                           child: Row(
                             children: [
-                              const Icon(Icons.calendar_month_rounded,
-                                  color: Color(0xFFBCAED6), size: 18),
+                              const Icon(
+                                Icons.calendar_month_rounded,
+                                color: Color(0xFFBCAED6),
+                                size: 18,
+                              ),
                               const SizedBox(width: 8),
                               Text(
-                                context.isArabic ? '\u0627\u0644\u062c\u062f\u0648\u0644' : 'Schedule',
+                                context.isArabic
+                                    ? '\u0627\u0644\u062c\u062f\u0648\u0644'
+                                    : 'Schedule',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: Color(0xFFE8DFFF)),
+                                style: const TextStyle(
+                                  color: Color(0xFFE8DFFF),
+                                ),
                               ),
                             ],
                           ),
@@ -372,14 +387,21 @@ class _RoomsScreenState extends State<RoomsScreen> {
                           value: 'notifications',
                           child: Row(
                             children: [
-                              const Icon(Icons.notifications_outlined,
-                                  color: Color(0xFFBCAED6), size: 18),
+                              const Icon(
+                                Icons.notifications_outlined,
+                                color: Color(0xFFBCAED6),
+                                size: 18,
+                              ),
                               const SizedBox(width: 8),
                               Text(
-                                context.isArabic ? '\u0627\u0644\u0625\u0634\u0639\u0627\u0631\u0627\u062a' : 'Notifications',
+                                context.isArabic
+                                    ? '\u0627\u0644\u0625\u0634\u0639\u0627\u0631\u0627\u062a'
+                                    : 'Notifications',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: Color(0xFFE8DFFF)),
+                                style: const TextStyle(
+                                  color: Color(0xFFE8DFFF),
+                                ),
                               ),
                             ],
                           ),
@@ -439,13 +461,15 @@ class _RoomsScreenState extends State<RoomsScreen> {
                               ? const Color(0xFF3A1A6A)
                               : const Color(0xFF2A1050),
                           border: Border.all(
-                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.55),
+                            color: const Color(
+                              0xFF8B5CF6,
+                            ).withValues(alpha: 0.55),
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF8B26D9).withValues(
-                                alpha: _openingMyRoom ? 0.45 : 0.22,
-                              ),
+                              color: const Color(
+                                0xFF8B26D9,
+                              ).withValues(alpha: _openingMyRoom ? 0.45 : 0.22),
                               blurRadius: _openingMyRoom ? 18 : 10,
                               spreadRadius: 0,
                             ),
@@ -523,7 +547,8 @@ class _RoomsScreenState extends State<RoomsScreen> {
                         label: context.isArabic
                             ? _kArabCountries[i].ar
                             : _kArabCountries[i].en,
-                        isSelected: _selectedCountryCode == _kArabCountries[i].code,
+                        isSelected:
+                            _selectedCountryCode == _kArabCountries[i].code,
                         isCompact: isCompact,
                         onTap: () {
                           final c = _kArabCountries[i].code;
@@ -536,8 +561,10 @@ class _RoomsScreenState extends State<RoomsScreen> {
                     const SizedBox(width: 8),
                     // Full picker for countries outside the Arab list
                     _CountryFilterChip(
-                      selectedCode: _kArabCountries.any(
-                              (c) => c.code == _selectedCountryCode)
+                      selectedCode:
+                          _kArabCountries.any(
+                            (c) => c.code == _selectedCountryCode,
+                          )
                           ? null
                           : _selectedCountryCode,
                       isArabic: context.isArabic,
@@ -573,18 +600,18 @@ class _RoomsScreenState extends State<RoomsScreen> {
                 _RoomsMessageCard(
                   title: _selectedCountryCode != null
                       ? (context.isArabic
-                          ? '\u0644\u0627 \u062a\u0648\u062c\u062f \u063a\u0631\u0641 \u0645\u0646 \u0647\u0630\u0627 \u0627\u0644\u0628\u0644\u062f'
-                          : 'No rooms from this country')
+                            ? '\u0644\u0627 \u062a\u0648\u062c\u062f \u063a\u0631\u0641 \u0645\u0646 \u0647\u0630\u0627 \u0627\u0644\u0628\u0644\u062f'
+                            : 'No rooms from this country')
                       : (context.isArabic
-                          ? '\u0644\u0627 \u062a\u0648\u062c\u062f \u063a\u0631\u0641 \u0628\u0639\u062f'
-                          : 'No rooms yet'),
+                            ? '\u0644\u0627 \u062a\u0648\u062c\u062f \u063a\u0631\u0641 \u0628\u0639\u062f'
+                            : 'No rooms yet'),
                   message: _selectedCountryCode != null
                       ? (context.isArabic
-                          ? '\u062c\u0631\u0651\u0628 \u0627\u062e\u062a\u064a\u0627\u0631 \u0628\u0644\u062f \u0622\u062e\u0631 \u0623\u0648 \u0639\u0631\u0636 \u0627\u0644\u0643\u0644.'
-                          : 'Try a different country or view all.')
+                            ? '\u062c\u0631\u0651\u0628 \u0627\u062e\u062a\u064a\u0627\u0631 \u0628\u0644\u062f \u0622\u062e\u0631 \u0623\u0648 \u0639\u0631\u0636 \u0627\u0644\u0643\u0644.'
+                            : 'Try a different country or view all.')
                       : (context.isArabic
-                          ? '\u0627\u0636\u063a\u0637 \u0639\u0644\u0649 \u0632\u0631 + \u0644\u0625\u0646\u0634\u0627\u0621 \u0623\u0648\u0644 \u063a\u0631\u0641\u0629.'
-                          : 'Tap + to create the first room.'),
+                            ? '\u0627\u0636\u063a\u0637 \u0639\u0644\u0649 \u0632\u0631 + \u0644\u0625\u0646\u0634\u0627\u0621 \u0623\u0648\u0644 \u063a\u0631\u0641\u0629.'
+                            : 'Tap + to create the first room.'),
                   icon: _selectedCountryCode != null
                       ? Icons.public_off_rounded
                       : Icons.meeting_room_outlined,
@@ -611,35 +638,34 @@ class _RoomsScreenState extends State<RoomsScreen> {
   }
 }
 
-
 // Promotional carousel banner
 
 // All 22 Arab League member states shown as quick-select chips.
 typedef _ArabCountry = ({String code, String flag, String ar, String en});
 
 const List<_ArabCountry> _kArabCountries = [
-  (code: 'SA', flag: '\u{1F1F8}\u{1F1E6}', ar: 'السعودية',   en: 'Saudi Arabia'),
-  (code: 'EG', flag: '\u{1F1EA}\u{1F1EC}', ar: 'مصر',         en: 'Egypt'),
-  (code: 'IQ', flag: '\u{1F1EE}\u{1F1F6}', ar: 'العراق',      en: 'Iraq'),
-  (code: 'SY', flag: '\u{1F1F8}\u{1F1FE}', ar: 'سوريا',       en: 'Syria'),
-  (code: 'JO', flag: '\u{1F1EF}\u{1F1F4}', ar: 'الأردن',      en: 'Jordan'),
-  (code: 'LB', flag: '\u{1F1F1}\u{1F1E7}', ar: 'لبنان',       en: 'Lebanon'),
-  (code: 'KW', flag: '\u{1F1F0}\u{1F1FC}', ar: 'الكويت',      en: 'Kuwait'),
-  (code: 'AE', flag: '\u{1F1E6}\u{1F1EA}', ar: 'الإمارات',    en: 'UAE'),
-  (code: 'QA', flag: '\u{1F1F6}\u{1F1E6}', ar: 'قطر',         en: 'Qatar'),
-  (code: 'BH', flag: '\u{1F1E7}\u{1F1ED}', ar: 'البحرين',     en: 'Bahrain'),
-  (code: 'OM', flag: '\u{1F1F4}\u{1F1F2}', ar: 'عُمان',        en: 'Oman'),
-  (code: 'YE', flag: '\u{1F1FE}\u{1F1EA}', ar: 'اليمن',       en: 'Yemen'),
-  (code: 'LY', flag: '\u{1F1F1}\u{1F1FE}', ar: 'ليبيا',       en: 'Libya'),
-  (code: 'TN', flag: '\u{1F1F9}\u{1F1F3}', ar: 'تونس',        en: 'Tunisia'),
-  (code: 'DZ', flag: '\u{1F1E9}\u{1F1FF}', ar: 'الجزائر',     en: 'Algeria'),
-  (code: 'MA', flag: '\u{1F1F2}\u{1F1E6}', ar: 'المغرب',      en: 'Morocco'),
-  (code: 'SD', flag: '\u{1F1F8}\u{1F1E9}', ar: 'السودان',     en: 'Sudan'),
-  (code: 'SO', flag: '\u{1F1F8}\u{1F1F4}', ar: 'الصومال',     en: 'Somalia'),
-  (code: 'MR', flag: '\u{1F1F2}\u{1F1F7}', ar: 'موريتانيا',   en: 'Mauritania'),
-  (code: 'DJ', flag: '\u{1F1E9}\u{1F1EF}', ar: 'جيبوتي',      en: 'Djibouti'),
-  (code: 'KM', flag: '\u{1F1F0}\u{1F1F2}', ar: 'جزر القمر',   en: 'Comoros'),
-  (code: 'PS', flag: '\u{1F1F5}\u{1F1F8}', ar: 'فلسطين',      en: 'Palestine'),
+  (code: 'SA', flag: '\u{1F1F8}\u{1F1E6}', ar: 'السعودية', en: 'Saudi Arabia'),
+  (code: 'EG', flag: '\u{1F1EA}\u{1F1EC}', ar: 'مصر', en: 'Egypt'),
+  (code: 'IQ', flag: '\u{1F1EE}\u{1F1F6}', ar: 'العراق', en: 'Iraq'),
+  (code: 'SY', flag: '\u{1F1F8}\u{1F1FE}', ar: 'سوريا', en: 'Syria'),
+  (code: 'JO', flag: '\u{1F1EF}\u{1F1F4}', ar: 'الأردن', en: 'Jordan'),
+  (code: 'LB', flag: '\u{1F1F1}\u{1F1E7}', ar: 'لبنان', en: 'Lebanon'),
+  (code: 'KW', flag: '\u{1F1F0}\u{1F1FC}', ar: 'الكويت', en: 'Kuwait'),
+  (code: 'AE', flag: '\u{1F1E6}\u{1F1EA}', ar: 'الإمارات', en: 'UAE'),
+  (code: 'QA', flag: '\u{1F1F6}\u{1F1E6}', ar: 'قطر', en: 'Qatar'),
+  (code: 'BH', flag: '\u{1F1E7}\u{1F1ED}', ar: 'البحرين', en: 'Bahrain'),
+  (code: 'OM', flag: '\u{1F1F4}\u{1F1F2}', ar: 'عُمان', en: 'Oman'),
+  (code: 'YE', flag: '\u{1F1FE}\u{1F1EA}', ar: 'اليمن', en: 'Yemen'),
+  (code: 'LY', flag: '\u{1F1F1}\u{1F1FE}', ar: 'ليبيا', en: 'Libya'),
+  (code: 'TN', flag: '\u{1F1F9}\u{1F1F3}', ar: 'تونس', en: 'Tunisia'),
+  (code: 'DZ', flag: '\u{1F1E9}\u{1F1FF}', ar: 'الجزائر', en: 'Algeria'),
+  (code: 'MA', flag: '\u{1F1F2}\u{1F1E6}', ar: 'المغرب', en: 'Morocco'),
+  (code: 'SD', flag: '\u{1F1F8}\u{1F1E9}', ar: 'السودان', en: 'Sudan'),
+  (code: 'SO', flag: '\u{1F1F8}\u{1F1F4}', ar: 'الصومال', en: 'Somalia'),
+  (code: 'MR', flag: '\u{1F1F2}\u{1F1F7}', ar: 'موريتانيا', en: 'Mauritania'),
+  (code: 'DJ', flag: '\u{1F1E9}\u{1F1EF}', ar: 'جيبوتي', en: 'Djibouti'),
+  (code: 'KM', flag: '\u{1F1F0}\u{1F1F2}', ar: 'جزر القمر', en: 'Comoros'),
+  (code: 'PS', flag: '\u{1F1F5}\u{1F1F8}', ar: 'فلسطين', en: 'Palestine'),
 ];
 
 class _QuickCountryChip extends StatelessWidget {
@@ -788,8 +814,7 @@ class _CountryFilterChip extends StatelessWidget {
                       ? Colors.white
                       : Colors.white.withValues(alpha: 0.55),
                   fontSize: 13,
-                  fontWeight:
-                      hasFilter ? FontWeight.w700 : FontWeight.w500,
+                  fontWeight: hasFilter ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),
               const SizedBox(width: 6),
@@ -854,9 +879,11 @@ class _SlideData {
   final List<Color> gradientColors;
   final Color iconBgColor;
   final String? targetRoute;
+
   /// Optional banner image from Supabase Storage. When non-null it is shown as
   /// a full-cover background replacing the gradient+icon layout.
   final String? imageUrl;
+
   /// Used to build a cache-busting URL so the app re-fetches the image after
   /// an admin edit without needing to clear Flutter's image cache manually.
   final DateTime? updatedAt;
@@ -900,7 +927,9 @@ class _SlideData {
     final icon = iconMap[iconKey] ?? Icons.mic_rounded;
 
     final rawUrl = j['image_url'] as String?;
-    final imageUrl = (rawUrl != null && rawUrl.trim().isNotEmpty) ? rawUrl.trim() : null;
+    final imageUrl = (rawUrl != null && rawUrl.trim().isNotEmpty)
+        ? rawUrl.trim()
+        : null;
 
     DateTime? updatedAt;
     final rawTs = j['updated_at'];
@@ -1248,12 +1277,16 @@ class _BannerSlide extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(22),
           gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: imageUrl != null
-                  ? const [Color(0xFF1A0533), Color(0xFF2D0D5E), Color(0xFF4A1280)]
-                  : slide.gradientColors,
-            ),
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: imageUrl != null
+                ? const [
+                    Color(0xFF1A0533),
+                    Color(0xFF2D0D5E),
+                    Color(0xFF4A1280),
+                  ]
+                : slide.gradientColors,
+          ),
           boxShadow: [
             BoxShadow(
               color: slide.gradientColors.last.withValues(alpha: 0.32),
@@ -1291,7 +1324,7 @@ class _RoomCard extends StatelessWidget {
     final crossAxisAlignment = isArabic
         ? CrossAxisAlignment.end
         : CrossAxisAlignment.start;
-    final hasCover  = room.coverUrl?.isNotEmpty == true;
+    final hasCover = room.coverUrl?.isNotEmpty == true;
     final hasAvatar = room.avatarUrl?.isNotEmpty == true;
 
     return Container(
@@ -1356,8 +1389,9 @@ class _RoomCard extends StatelessWidget {
                 crossAxisAlignment: crossAxisAlignment,
                 children: [
                   Row(
-                    textDirection:
-                        isArabic ? TextDirection.rtl : TextDirection.ltr,
+                    textDirection: isArabic
+                        ? TextDirection.rtl
+                        : TextDirection.ltr,
                     children: [
                       // Room avatar / icon
                       Container(
@@ -1375,8 +1409,9 @@ class _RoomCard extends StatelessWidget {
                                   ],
                                 ),
                           border: Border.all(
-                            color: const Color(0xFFF0C15A)
-                                .withValues(alpha: 0.30),
+                            color: const Color(
+                              0xFFF0C15A,
+                            ).withValues(alpha: 0.30),
                           ),
                           boxShadow: [
                             BoxShadow(
@@ -1391,10 +1426,10 @@ class _RoomCard extends StatelessWidget {
                                 fit: BoxFit.cover,
                                 loadingBuilder: (_, child, progress) =>
                                     progress == null
-                                        ? child
-                                        : const ColoredBox(
-                                            color: Color(0xFF2D2040),
-                                          ),
+                                    ? child
+                                    : const ColoredBox(
+                                        color: Color(0xFF2D2040),
+                                      ),
                                 errorBuilder: (_, e, s) => const Icon(
                                   Icons.mic_rounded,
                                   color: Color(0xFFF0C15A),
@@ -1436,7 +1471,9 @@ class _RoomCard extends StatelessWidget {
                             Text(
                               room.description?.isNotEmpty == true
                                   ? room.description!
-                                  : (isArabic ? '\u0628\u062f\u0648\u0646 \u0648\u0635\u0641' : 'No description'),
+                                  : (isArabic
+                                        ? '\u0628\u062f\u0648\u0646 \u0648\u0635\u0641'
+                                        : 'No description'),
                               textAlign: textAlign,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -1454,16 +1491,18 @@ class _RoomCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 18),
                   Row(
-                    textDirection:
-                        isArabic ? TextDirection.rtl : TextDirection.ltr,
+                    textDirection: isArabic
+                        ? TextDirection.rtl
+                        : TextDirection.ltr,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Flexible(
                         child: Wrap(
                           spacing: 6,
                           runSpacing: 6,
-                          textDirection:
-                              isArabic ? TextDirection.rtl : TextDirection.ltr,
+                          textDirection: isArabic
+                              ? TextDirection.rtl
+                              : TextDirection.ltr,
                           children: [
                             _RoomPill(
                               icon: Icons.language_rounded,
@@ -1478,7 +1517,9 @@ class _RoomCard extends StatelessWidget {
                             if (room.isLocked)
                               _RoomPill(
                                 icon: Icons.lock_rounded,
-                                label: isArabic ? '\u0645\u0642\u0641\u0644\u0629' : 'Locked',
+                                label: isArabic
+                                    ? '\u0645\u0642\u0641\u0644\u0629'
+                                    : 'Locked',
                                 hasCover: hasCover,
                               ),
                           ],
@@ -1490,8 +1531,9 @@ class _RoomCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(999),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFFF0C15A)
-                                  .withValues(alpha: 0.26),
+                              color: const Color(
+                                0xFFF0C15A,
+                              ).withValues(alpha: 0.26),
                               blurRadius: 18,
                               offset: const Offset(0, 8),
                             ),
@@ -1501,12 +1543,16 @@ class _RoomCard extends StatelessWidget {
                           onPressed: onJoin,
                           style: FilledButton.styleFrom(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 10),
+                              horizontal: 14,
+                              vertical: 10,
+                            ),
                             minimumSize: Size.zero,
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
                           icon: const Icon(Icons.login_rounded, size: 16),
-                          label: Text(isArabic ? '\u062f\u062e\u0648\u0644' : 'Join'),
+                          label: Text(
+                            isArabic ? '\u062f\u062e\u0648\u0644' : 'Join',
+                          ),
                         ),
                       ),
                     ],

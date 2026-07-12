@@ -221,23 +221,20 @@ class RoomManagementService {
 
   /// Sends an in-app notification to a user about moderator assignment/removal.
   Future<void> notifyModeratorAssignment({
+    required String roomId,
     required String userId,
-    required String roomName,
     required bool assigned,
   }) async {
     try {
       final type = assigned ? 'moderator_assigned' : 'moderator_removed';
-      final title = assigned ? 'تمت ترقيتك إلى مشرف' : 'تمت إزالتك من المشرفين';
-      final body = assigned
-          ? 'أنت الآن مشرف في غرفة $roomName'
-          : 'تمت إزالتك من مشرفي غرفة $roomName';
-      await SupabaseService.requiredClient.from('notifications').insert({
-        'user_id': userId,
-        'type': type,
-        'title': title,
-        'body': body,
-        'is_read': false,
-      });
+      await SupabaseService.requiredClient.rpc(
+        'notify_room_moderator_change',
+        params: {
+          'p_room_id': roomId,
+          'p_target_user_id': userId,
+          'p_assigned': assigned,
+        },
+      );
       debugPrint('[RoomMods] notification sent type=$type userId=$userId');
     } catch (e) {
       debugPrint('[RoomMods] notification failed (non-fatal): $e');
