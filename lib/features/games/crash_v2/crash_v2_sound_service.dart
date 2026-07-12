@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
-class CrashRocketSoundService {
+/// Crash Rocket v2 sound driver. Uses Srood Live's original rocket sound set
+/// (assets/sounds/rocket_*.wav). Purely cosmetic — never gameplay-relevant.
+class CrashV2SoundService {
   final AudioPlayer _ambient = AudioPlayer();
   final AudioPlayer _flight = AudioPlayer();
   final AudioPlayer _tick = AudioPlayer();
@@ -12,6 +14,8 @@ class CrashRocketSoundService {
   bool _ready = false;
   bool _muted = false;
   bool _disposed = false;
+
+  bool get muted => _muted;
 
   Future<void> initialize() async {
     if (_ready || _disposed) return;
@@ -31,7 +35,7 @@ class CrashRocketSoundService {
       _ready = true;
       if (!_muted) unawaited(_ambient.play());
     } catch (error) {
-      debugPrint('[SroodRocketSound] initialization failed: $error');
+      debugPrint('[CrashV2Sound] initialization failed: $error');
     }
   }
 
@@ -46,14 +50,14 @@ class CrashRocketSoundService {
     ]);
   }
 
-  void playTick() {
+  bool get _canPlay => _ready && !_muted && !_disposed;
+
+  void playCountdownTick() {
     if (!_canPlay) return;
     unawaited(_restart(_tick));
   }
 
-  void playLaunch() {
-    _playEvent('assets/sounds/rocket_launch.wav');
-  }
+  void playLaunch() => _playEvent('assets/sounds/rocket_launch.wav');
 
   void startFlight() {
     if (!_canPlay) return;
@@ -61,64 +65,50 @@ class CrashRocketSoundService {
   }
 
   void stopFlight() {
-    if (!_ready || _disposed) return;
+    if (_disposed) return;
     unawaited(_flight.stop());
   }
 
-  void playCashout() {
-    _playEvent('assets/sounds/rocket_cashout.wav');
-  }
+  void playCashout() => _playEvent('assets/sounds/rocket_cashout.wav');
 
   void playCrash() {
     stopFlight();
     _playEvent('assets/sounds/rocket_crash.wav');
   }
 
-  void playThreshold({required bool premium}) {
-    _playEvent(
-      premium
-          ? 'assets/sounds/rocket_jackpot.wav'
-          : 'assets/sounds/rocket_threshold.wav',
-    );
-  }
+  void playThreshold() => _playEvent('assets/sounds/rocket_threshold.wav');
 
-  void playTap() {
-    _playEvent('assets/sounds/rocket_tap.wav', volume: 0.24);
-  }
+  void playJackpot() => _playEvent('assets/sounds/rocket_jackpot.wav');
 
-  bool get _canPlay => _ready && !_muted && !_disposed;
+  void playTap() => _playEvent('assets/sounds/rocket_tap.wav');
+
+  void _playEvent(String asset) {
+    if (!_canPlay) return;
+    unawaited(() async {
+      try {
+        await _event.setAsset(asset);
+        await _event.seek(Duration.zero);
+        await _event.play();
+      } catch (error) {
+        debugPrint('[CrashV2Sound] event failed: $error');
+      }
+    }());
+  }
 
   Future<void> _restart(AudioPlayer player) async {
     try {
       await player.seek(Duration.zero);
       await player.play();
     } catch (error) {
-      debugPrint('[SroodRocketSound] playback failed: $error');
+      debugPrint('[CrashV2Sound] restart failed: $error');
     }
   }
 
-  void _playEvent(String asset, {double volume = 0.42}) {
-    if (!_canPlay) return;
-    unawaited(() async {
-      try {
-        await _event.stop();
-        await _event.setAsset(asset);
-        await _event.setVolume(volume);
-        await _event.play();
-      } catch (error) {
-        debugPrint('[SroodRocketSound] event failed for $asset: $error');
-      }
-    }());
-  }
-
-  Future<void> dispose() async {
-    if (_disposed) return;
+  void dispose() {
     _disposed = true;
-    await Future.wait([
-      _ambient.dispose(),
-      _flight.dispose(),
-      _tick.dispose(),
-      _event.dispose(),
-    ]);
+    _ambient.dispose();
+    _flight.dispose();
+    _tick.dispose();
+    _event.dispose();
   }
 }

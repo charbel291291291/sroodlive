@@ -10,8 +10,8 @@ import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../games/crash_v2/crash_v2_screen.dart';
 import '../../games/screens/gold_ladder_quiz_screen.dart';
-import '../../games/screens/crash_rocket_screen.dart';
 import '../../games/screens/hungry_cat_webview_screen.dart';
 import '../../games/screens/magic_srood_screen.dart';
 import '../../games/screens/spin_wheel_screen.dart';
@@ -3036,7 +3036,7 @@ class _GameCenterSheet extends StatelessWidget {
         labelAr: 'صاروخ سرود',
         labelEn: 'Srood Rocket',
         accent: const Color(0xFF28C7FA),
-        screen: CrashRocketScreen(isArabic: isArabic, roomId: roomId),
+        screen: CrashRocketV2Screen(isArabic: isArabic, roomId: roomId),
       ),
       _GameEntry(
         icon: Icons.pets_rounded,

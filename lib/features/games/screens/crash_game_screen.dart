@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'crash_rocket_screen.dart';
+import '../crash_v2/crash_v2_screen.dart';
 import 'gold_ladder_quiz_screen.dart';
 import 'hungry_cat_webview_screen.dart';
 import 'magic_srood_screen.dart';
@@ -149,7 +149,7 @@ class GameCenterScreen extends StatelessWidget {
       badge: ar ? 'مباشر' : 'LIVE',
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => CrashRocketScreen(isArabic: ar),
+          builder: (_) => CrashRocketV2Screen(isArabic: ar),
         ),
       ),
     ),
