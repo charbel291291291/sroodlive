@@ -1,0 +1,147 @@
+# =============================================================================
+# DRAFT CI workflow — migrations_next validation gate. NOT installed / not pushed.
+# To activate later: move to .github/workflows/migration-validation.yml on a PR.
+#
+# Gates that FAIL the build (things the squash/transition could regress):
+#   - any migration application error (two clean resets from zero)
+#   - any SECURITY DEFINER function without a fixed search_path
+#   - any broadening of PUBLIC execute on functions
+#   - Agency V3 regression failure
+#   - Flutter analyze / test failure
+#
+# `supabase db lint` runs for VISIBILITY only. It reports plpgsql_check findings
+# that are inherited verbatim from production (e.g. admin_record_audit overload
+# ambiguity, pgcrypto digest/gen_random_bytes resolved via the extensions schema,
+# dead/dynamic column paths). Those are pre-existing prod debt reproduced exactly
+# by the baseline, so lint is compared against a known-count baseline instead of
+# hard-failing on inherited errors.
+# =============================================================================
+name: migration-validation (draft)
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations_next/**'
+      - 'supabase/migrations/**'
+
+jobs:
+  validate-migrations-next:
+    runs-on: ubuntu-latest
+    env:
+      WORKDIR: supabase/_ci_migrations_next_val
+      # Known-inherited plpgsql_check error count carried verbatim from prod.
+      EXPECTED_INHERITED_LINT_ERRORS: '22'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Docker is preinstalled on ubuntu-latest runners; this asserts it is up.
+      - name: Verify Docker
+        run: docker info
+
+      - name: Assemble migrations_next-only workspace
+        run: |
+          mkdir -p "$WORKDIR/supabase/migrations"
+          cp -p supabase/migrations_next/*.sql "$WORKDIR/supabase/migrations/"
+          cat > "$WORKDIR/supabase/config.toml" <<'TOML'
+          project_id = "srood_ci_next"
+          [db]
+          port = 55531
+          major_version = 17
+          [api]
+          port = 55532
+          [studio]
+          enabled = false
+          TOML
+
+      - name: Start stack (applies baseline + post-cut migrations)
+        working-directory: ${{ env.WORKDIR }}
+        run: supabase start
+
+      - name: Clean reset #1 (from zero)
+        working-directory: ${{ env.WORKDIR }}
+        run: supabase db reset
+
+      - name: Clean reset #2 (from zero)
+        working-directory: ${{ env.WORKDIR }}
+        run: supabase db reset
+
+      - name: DB URL
+        id: dburl
+        working-directory: ${{ env.WORKDIR }}
+        run: echo "url=$(supabase status -o env | grep DB_URL | cut -d= -f2- | tr -d '\"')" >> "$GITHUB_OUTPUT"
+
+      # ---- SECURITY GATE 1: every SECURITY DEFINER function has a fixed search_path
+      - name: Fail if any SECDEF function lacks a fixed search_path
+        env:
+          DB_URL: ${{ steps.dburl.outputs.url }}
+        run: |
+          n=$(psql "$DB_URL" -tA -c "
+            select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+            where n.nspname in ('public','agency_finance_v3','private') and p.prosecdef
+              and (p.proconfig is null or not exists (select 1 from unnest(p.proconfig) x where x like 'search_path=%'));")
+          echo "SECDEF without fixed search_path: $n"
+          test "$n" = "0" || { echo '::error::SECURITY DEFINER function(s) missing fixed search_path'; exit 1; }
+
+      # ---- SECURITY GATE 2: no PUBLIC execute broadening on functions
+      - name: Fail if any function grants EXECUTE to PUBLIC
+        env:
+          DB_URL: ${{ steps.dburl.outputs.url }}
+        run: |
+          n=$(psql "$DB_URL" -tA -c "
+            select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+            where n.nspname in ('public','agency_finance_v3','private')
+              and has_function_privilege('public', p.oid, 'EXECUTE')
+              and p.proname not in ('handle_new_user_game_wallet');")  # trigger fns invoked by system
+          echo "functions executable by PUBLIC: $n"
+          test "$n" = "0" || { echo '::error::EXECUTE granted to PUBLIC on function(s)'; exit 1; }
+
+      # ---- Duplicate-object gate (squash must not double-create)
+      - name: Fail on duplicate objects
+        env:
+          DB_URL: ${{ steps.dburl.outputs.url }}
+        run: |
+          dups=$(psql "$DB_URL" -tA -c "
+            select
+              (select count(*) from (select 1 from pg_policies group by schemaname,tablename,policyname having count(*)>1) a)
+            + (select count(*) from (select 1 from pg_indexes group by schemaname,indexname having count(*)>1) b)
+            + (select count(*) from (select 1 from storage.buckets group by id having count(*)>1) c)
+            + (select count(*) from (select 1 from pg_publication_tables where pubname='supabase_realtime' group by schemaname,tablename having count(*)>1) d);")
+          echo "duplicate objects: $dups"
+          test "$dups" = "0" || { echo '::error::duplicate objects detected'; exit 1; }
+
+      # ---- db lint (visibility; compare to known inherited baseline, do not hard-fail on inherited debt)
+      - name: DB lint (compare to inherited baseline)
+        working-directory: ${{ env.WORKDIR }}
+        run: |
+          supabase db lint --local > lint.json || true
+          errs=$(python3 -c "import json,sys;d=json.load(open('lint.json'));print(sum(1 for e in d for i in e.get('issues',[]) if i['level']=='error'))")
+          echo "plpgsql_check error-level findings: $errs (expected inherited: $EXPECTED_INHERITED_LINT_ERRORS)"
+          if [ "$errs" -gt "$EXPECTED_INHERITED_LINT_ERRORS" ]; then
+            echo "::error::db lint introduced NEW errors beyond the inherited-from-prod baseline"; exit 1; fi
+
+      # ---- Agency V3 regression
+      - name: Agency V3 regression (28 checks)
+        env:
+          DB_URL: ${{ steps.dburl.outputs.url }}
+        run: |
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/verification/agency_phase5_local_bootstrap.sql
+          out=$(psql "$DB_URL" -f supabase/verification/agency_phase5_executable_tests.sql 2>&1)
+          echo "$out" | grep -E 'PASS|FAIL' || true
+          fails=$(echo "$out" | grep -c 'FAIL' || true)
+          test "$fails" = "0" || { echo '::error::Agency regression FAILED'; exit 1; }
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Flutter analyze
+        run: flutter analyze
+
+      - name: Flutter test
+        run: flutter test

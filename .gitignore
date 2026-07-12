@@ -61,3 +61,21 @@ add_luxury_gifts.sql
 gift_code_report.txt
 patch_luxury_gifts.py
 .claude/
+
+# Schema-squash baseline temp artifacts (never commit raw/normalized dumps or logs)
+supabase/baseline_candidate/_full_schema_raw.sql
+supabase/baseline_candidate/_full_schema_normalized.sql
+supabase/baseline_candidate/_public_schema_raw.sql
+supabase/baseline_candidate/_*.sql
+supabase/baseline_candidate/*.log
+supabase/baseline_candidate/_tmp*
+# Never commit the isolated validation workspaces (Supabase temp state)
+supabase/baseline_validation_project/
+supabase/migrations_next_val/
+
+# Firebase / Android signing secrets (never commit)
+android/app/google-services.json
+**/google-services.json
+*.keystore
+*.jks
+android/key.properties
