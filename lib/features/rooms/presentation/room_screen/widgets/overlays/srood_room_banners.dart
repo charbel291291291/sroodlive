@@ -303,9 +303,7 @@ class SroodUserEntryRoomBanner extends StatelessWidget {
             const Color(0xFF28133E).withValues(alpha: 0.86),
           ],
         ),
-        border: Border.all(
-          color: SroodRoomColors.gold.withValues(alpha: 0.32),
-        ),
+        border: Border.all(color: SroodRoomColors.gold.withValues(alpha: 0.32)),
         boxShadow: [
           BoxShadow(
             color: SroodRoomColors.gold.withValues(alpha: 0.14),
@@ -368,11 +366,7 @@ class SroodUserEntryRoomBanner extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class SroodGiftMiniImage extends StatelessWidget {
-  const SroodGiftMiniImage({
-    required this.gift,
-    required this.size,
-    super.key,
-  });
+  const SroodGiftMiniImage({required this.gift, required this.size, super.key});
 
   final RoomGift gift;
   final double size;

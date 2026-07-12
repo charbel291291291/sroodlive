@@ -171,8 +171,14 @@ class SroodMicGrid extends StatelessWidget {
           children: [
             for (var r = 0; r < rows.length; r++) ...[
               if (r > 0) SizedBox(height: rowGap),
-              _buildRow(rows[r], cols, seatBoxWidth, tileHeight, colGap,
-                  seatSize),
+              _buildRow(
+                rows[r],
+                cols,
+                seatBoxWidth,
+                tileHeight,
+                colGap,
+                seatSize,
+              ),
             ],
           ],
         );

@@ -231,10 +231,7 @@ class _SroodRedEnvelopeBannerState extends State<SroodRedEnvelopeBanner> {
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: isSuper
-                                  ? const [
-                                      Color(0xFFFF8C00),
-                                      Color(0xFFD4380D),
-                                    ]
+                                  ? const [Color(0xFFFF8C00), Color(0xFFD4380D)]
                                   : const [
                                       Color(0xFFFFE066),
                                       Color(0xFFC8850A),

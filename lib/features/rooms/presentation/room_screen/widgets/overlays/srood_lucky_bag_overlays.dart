@@ -282,10 +282,28 @@ class _SroodLuckyBagWinOverlayState extends State<SroodLuckyBagWinOverlay>
 
   // Pre-computed deterministic coin positions.
   static const _coinXFractions = [
-    0.05, 0.15, 0.25, 0.38, 0.50, 0.62, 0.75, 0.85, 0.92, 0.32,
+    0.05,
+    0.15,
+    0.25,
+    0.38,
+    0.50,
+    0.62,
+    0.75,
+    0.85,
+    0.92,
+    0.32,
   ];
   static const _coinDelayFractions = [
-    0.00, 0.08, 0.04, 0.12, 0.02, 0.10, 0.06, 0.14, 0.03, 0.09,
+    0.00,
+    0.08,
+    0.04,
+    0.12,
+    0.02,
+    0.10,
+    0.06,
+    0.14,
+    0.03,
+    0.09,
   ];
 
   @override

@@ -18,20 +18,26 @@ abstract final class SroodRoomColors {
   // ── Background scale (deep dark purple) ────────────────────────────────────
   /// Deepest layer — behind everything.
   static const bgDeep = Color(0xFF0A0618);
+
   /// Primary room background.
   static const bg = Color(0xFF120A26);
+
   /// Raised background (stage scrim base).
   static const bgRaised = Color(0xFF1A1038);
 
   // ── Accents ────────────────────────────────────────────────────────────────
   /// Soft neon violet — primary accent (active states, focus, speaking).
   static const violet = Color(0xFFA855F7);
+
   /// Muted violet for borders and inactive accents.
   static const violetSoft = Color(0xFF7C3AED);
+
   /// Electric blue — secondary accent (info, links, seat numbers).
   static const electric = Color(0xFF3B82F6);
+
   /// Subtle cyan — tertiary highlight (live indicators, online count).
   static const cyan = Color(0xFF22D3EE);
+
   /// Brand gold — kept for host/VIP/coins continuity with the app shell.
   static const gold = Color(0xFFF0C15A);
 
@@ -59,16 +65,20 @@ abstract final class SroodRoomColors {
   // ── Seat-specific ──────────────────────────────────────────────────────────
   /// Host seat ring.
   static const seatHost = gold;
+
   /// Occupied seat ring.
   static const seatOccupied = violetSoft;
+
   /// Empty seat ring.
   static const seatEmpty = Color(0x3DFFFFFF); // white 24%
   /// Locked seat fill.
   static const seatLocked = Color(0x0FFFFFFF); // white 6%
   /// Seat selected for move.
   static const seatMove = Color(0xFF67E8A5);
+
   /// Speaking ring (matches violet accent, not resizing the seat).
   static const speaking = cyan;
+
   /// Muted-mic badge.
   static const mutedMic = danger;
 
@@ -115,8 +125,10 @@ abstract final class SroodRoomDims {
   static const double radiusMd = 12;
   static const double radiusLg = 16;
   static const double radiusXl = 22;
+
   /// Sheets' top corners.
   static const double radiusSheet = 24;
+
   /// Fully-rounded pill.
   static const double radiusPill = 999;
 
@@ -136,6 +148,7 @@ abstract final class SroodRoomDims {
   // ── Touch targets ──────────────────────────────────────────────────────────
   /// Minimum interactive target (accessibility floor).
   static const double touchTarget = 44;
+
   /// Compact visible control size (hit area padded to [touchTarget]).
   static const double controlVisual = 38;
 
@@ -143,6 +156,7 @@ abstract final class SroodRoomDims {
   static const double borderThin = 1.0;
   static const double borderSeat = 1.8;
   static const double borderSeatHost = 2.4;
+
   /// Single soft glow blur — the only glow strength in the system.
   static const double glowBlur = 14;
   static const double glowSpread = -2;
@@ -150,6 +164,7 @@ abstract final class SroodRoomDims {
   // ── Bottom bar / chat zones ────────────────────────────────────────────────
   static const double bottomBarHeight = 56;
   static const double composerHeight = 44;
+
   /// Chat feed height fraction of screen height, with clamps.
   static const double chatHeightFraction = 0.16;
   static const double chatHeightMin = 96;
@@ -193,22 +208,47 @@ class SroodSeatSpec {
   static SroodSeatSpec forSeatCount(int count) {
     if (count <= 6) {
       return const SroodSeatSpec(
-        preferred: 80, min: 76, max: 84, columns: 3, labelAreaHeight: 42);
+        preferred: 80,
+        min: 76,
+        max: 84,
+        columns: 3,
+        labelAreaHeight: 42,
+      );
     }
     if (count == 8) {
       return const SroodSeatSpec(
-        preferred: 76, min: 72, max: 80, columns: 4, labelAreaHeight: 38);
+        preferred: 76,
+        min: 72,
+        max: 80,
+        columns: 4,
+        labelAreaHeight: 38,
+      );
     }
     if (count <= 9) {
       return const SroodSeatSpec(
-        preferred: 78, min: 72, max: 80, columns: 3, labelAreaHeight: 38);
+        preferred: 78,
+        min: 72,
+        max: 80,
+        columns: 3,
+        labelAreaHeight: 38,
+      );
     }
     if (count <= 12) {
       return const SroodSeatSpec(
-        preferred: 70, min: 68, max: 74, columns: 4, labelAreaHeight: 38);
+        preferred: 70,
+        min: 68,
+        max: 74,
+        columns: 4,
+        labelAreaHeight: 38,
+      );
     }
     return const SroodSeatSpec(
-      preferred: 64, min: 58, max: 68, columns: 4, labelAreaHeight: 36);
+      preferred: 64,
+      min: 58,
+      max: 68,
+      columns: 4,
+      labelAreaHeight: 36,
+    );
   }
 
   /// Max reserved tile width (seat + horizontal breathing room).
@@ -225,10 +265,13 @@ class SroodSeatSpec {
 abstract final class SroodRoomMotion {
   /// Micro state change (button press, badge swap).
   static const fast = Duration(milliseconds: 140);
+
   /// Standard transition (banner swap, sheet content).
   static const normal = Duration(milliseconds: 220);
+
   /// Emphasized entrance (overlays).
   static const slow = Duration(milliseconds: 380);
+
   /// Looping ambient animation period (speaking ring pulse).
   static const pulse = Duration(milliseconds: 1200);
 

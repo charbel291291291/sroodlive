@@ -164,19 +164,23 @@ class SroodRoomHeader extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: SroodRoomDims.space4),
-                          _MiniPill(
-                            icon: Icons.monetization_on_rounded,
-                            label: walletCoins > 999
-                                ? '${(walletCoins / 1000).toStringAsFixed(1)}k'
-                                : walletCoins.toString(),
-                            color: SroodRoomColors.gold,
+                          Flexible(
+                            child: _MiniPill(
+                              icon: Icons.monetization_on_rounded,
+                              label: walletCoins > 999
+                                  ? '${(walletCoins / 1000).toStringAsFixed(1)}k'
+                                  : walletCoins.toString(),
+                              color: SroodRoomColors.gold,
+                            ),
                           ),
                           if (isHost) ...[
                             const SizedBox(width: SroodRoomDims.space4),
-                            _MiniPill(
-                              icon: Icons.admin_panel_settings_rounded,
-                              label: isArabic ? 'مضيف' : 'Host',
-                              color: SroodRoomColors.gold,
+                            Flexible(
+                              child: _MiniPill(
+                                icon: Icons.admin_panel_settings_rounded,
+                                label: isArabic ? 'مضيف' : 'Host',
+                                color: SroodRoomColors.gold,
+                              ),
                             ),
                           ],
                         ],
@@ -211,7 +215,9 @@ class SroodRoomHeader extends StatelessWidget {
                   _HeaderIconButton(
                     icon: Icons.manage_accounts_rounded,
                     color: SroodRoomColors.textSecondary,
-                    semanticLabel: isArabic ? 'إدارة الغرفة' : 'Room management',
+                    semanticLabel: isArabic
+                        ? 'إدارة الغرفة'
+                        : 'Room management',
                     onTap: onManagementTap,
                   ),
                 ],
@@ -342,45 +348,51 @@ class _RoomCodeChip extends StatelessWidget {
           );
         }
       },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(
-          color: SroodRoomColors.cyan.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(SroodRoomDims.radiusSm - 2),
-          border: Border.all(
-            color: SroodRoomColors.cyan.withValues(alpha: 0.20),
-            width: 0.9,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.grid_3x3_rounded,
-              size: 8,
-              color: SroodRoomColors.cyan,
+      // scaleDown keeps the chip intact on very narrow widths instead of
+      // letting its fixed icon/padding widths overflow.
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: AlignmentDirectional.centerStart,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: SroodRoomColors.cyan.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(SroodRoomDims.radiusSm - 2),
+            border: Border.all(
+              color: SroodRoomColors.cyan.withValues(alpha: 0.20),
+              width: 0.9,
             ),
-            const SizedBox(width: 3),
-            Flexible(
-              child: Text(
-                shortId,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w800,
-                  color: SroodRoomColors.cyan,
-                  letterSpacing: 1.2,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.grid_3x3_rounded,
+                size: 8,
+                color: SroodRoomColors.cyan,
+              ),
+              const SizedBox(width: 3),
+              Flexible(
+                child: Text(
+                  shortId,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    color: SroodRoomColors.cyan,
+                    letterSpacing: 1.2,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 4),
-            Icon(
-              Icons.copy_rounded,
-              size: 8,
-              color: SroodRoomColors.cyan.withValues(alpha: 0.55),
-            ),
-          ],
+              const SizedBox(width: 4),
+              Icon(
+                Icons.copy_rounded,
+                size: 8,
+                color: SroodRoomColors.cyan.withValues(alpha: 0.55),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -460,26 +472,34 @@ class _MiniPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: BoxDecoration(
-        color: SroodRoomColors.glassFill,
-        borderRadius: BorderRadius.circular(SroodRoomDims.radiusPill),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 10, color: color),
-          const SizedBox(width: 3),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w800,
-              color: color,
+    // scaleDown keeps the pill intact on very narrow widths instead of
+    // letting its fixed icon/padding widths overflow.
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: AlignmentDirectional.centerStart,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        decoration: BoxDecoration(
+          color: SroodRoomColors.glassFill,
+          borderRadius: BorderRadius.circular(SroodRoomDims.radiusPill),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 10, color: color),
+            const SizedBox(width: 3),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                color: color,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

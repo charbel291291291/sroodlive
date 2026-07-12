@@ -75,9 +75,7 @@ class SroodRoomParticipantsSheet extends StatelessWidget {
                 height: 5,
                 decoration: BoxDecoration(
                   color: const Color(0xFF5A3A86),
-                  borderRadius: BorderRadius.circular(
-                    SroodRoomDims.radiusPill,
-                  ),
+                  borderRadius: BorderRadius.circular(SroodRoomDims.radiusPill),
                 ),
               ),
               const SizedBox(height: 14),
@@ -290,9 +288,7 @@ class _ParticipantRow extends StatelessWidget {
                         ),
                       RoomMiniStatusPill(label: roleLabel),
                       if (member.isMuted)
-                        RoomMiniStatusPill(
-                          label: isArabic ? 'مكتوم' : 'Muted',
-                        ),
+                        RoomMiniStatusPill(label: isArabic ? 'مكتوم' : 'Muted'),
                       SroodSupportPill(amount: supportAmount, compact: true),
                     ],
                   ),

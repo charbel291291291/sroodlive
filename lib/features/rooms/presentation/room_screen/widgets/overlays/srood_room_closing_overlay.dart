@@ -130,9 +130,7 @@ class _SroodRoomClosingOverlayState extends State<SroodRoomClosingOverlay>
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: SroodRoomColors.gold.withValues(
-                              alpha: 0.18,
-                            ),
+                            color: SroodRoomColors.gold.withValues(alpha: 0.18),
                             blurRadius: 40,
                             spreadRadius: 10,
                           ),

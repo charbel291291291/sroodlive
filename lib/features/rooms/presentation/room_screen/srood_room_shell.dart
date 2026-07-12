@@ -136,12 +136,7 @@ class SroodRoomShell extends StatelessWidget {
           ),
 
         // ── 4. Pinned bottom action bar (keyboard-aware) ────────────────────
-        Positioned(
-          bottom: kbHeight,
-          left: 0,
-          right: 0,
-          child: bottomBar,
-        ),
+        Positioned(bottom: kbHeight, left: 0, right: 0, child: bottomBar),
 
         // ── 5. Overlays ─────────────────────────────────────────────────────
         ...overlays,

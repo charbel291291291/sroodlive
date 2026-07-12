@@ -53,9 +53,7 @@ class SroodRoomExitSheet extends StatelessWidget {
                 height: 4,
                 decoration: BoxDecoration(
                   color: Colors.white24,
-                  borderRadius: BorderRadius.circular(
-                    SroodRoomDims.radiusPill,
-                  ),
+                  borderRadius: BorderRadius.circular(SroodRoomDims.radiusPill),
                 ),
               ),
               SizedBox(height: compactHeight ? 10 : SroodRoomDims.space16),
@@ -91,7 +89,8 @@ class SroodRoomExitSheet extends StatelessWidget {
                   'ستغادر الغرفة وستبقى مفتوحة للآخرين',
                   'Leave the room. It stays open for others.',
                 ),
-                onTap: () => Navigator.of(context).pop(SroodRoomExitAction.exit),
+                onTap: () =>
+                    Navigator.of(context).pop(SroodRoomExitAction.exit),
               ),
 
               // Close room — owner only
@@ -179,7 +178,11 @@ class _ExitOption extends StatelessWidget {
                 color: iconBg,
                 borderRadius: BorderRadius.circular(SroodRoomDims.radiusMd),
               ),
-              child: Icon(icon, color: iconColor, size: SroodRoomDims.iconLg - 2),
+              child: Icon(
+                icon,
+                color: iconColor,
+                size: SroodRoomDims.iconLg - 2,
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(

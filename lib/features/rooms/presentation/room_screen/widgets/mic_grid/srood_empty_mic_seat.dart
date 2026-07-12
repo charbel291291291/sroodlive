@@ -61,9 +61,11 @@ class _SroodEmptyMicSeatState extends State<SroodEmptyMicSeat>
     );
     if (!theme.pulseGlow) return;
     // Honor reduced-motion: skip the ambient pulse entirely.
-    final reduceMotion =
-        WidgetsBinding.instance.platformDispatcher.accessibilityFeatures
-            .disableAnimations;
+    final reduceMotion = WidgetsBinding
+        .instance
+        .platformDispatcher
+        .accessibilityFeatures
+        .disableAnimations;
     if (reduceMotion) return;
     _pulseCtrl = AnimationController(
       vsync: this,
@@ -142,12 +144,7 @@ class _SroodEmptyMicSeatState extends State<SroodEmptyMicSeat>
                         center: const Alignment(0, -0.65),
                         radius: 0.55,
                         colors: [
-                          Color.fromRGBO(
-                            255,
-                            255,
-                            255,
-                            theme.highlightOpacity,
-                          ),
+                          Color.fromRGBO(255, 255, 255, theme.highlightOpacity),
                           const Color(0x00FFFFFF),
                         ],
                       ),
