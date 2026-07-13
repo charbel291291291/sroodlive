@@ -502,7 +502,7 @@ class _FinalScore extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Seat glow helper — used by _LiveSeatBubble to tint PK team seats.
+// Seat glow helper — used by the mic seats to tint PK team seats.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Returns the team color for [userId] in [session], or null if not assigned.
