@@ -1,0 +1,6 @@
+-- Baseline 030 — functions/RPCs (385 public fns; 372 SECURITY DEFINER).
+-- SOURCE: pg_dump 'CREATE FUNCTION' section (exact bodies via pg_get_functiondef).
+-- MUST preserve: exact signatures used by Flutter, SECURITY DEFINER, volatility,
+-- and 'SET search_path' on every SECURITY DEFINER fn. See README security gate:
+-- 2 SECURITY DEFINER fns in prod currently lack a fixed search_path -> to be
+-- pinned in the baseline (documented deviation, hardening-only).

@@ -1,0 +1,5 @@
+-- Baseline 010 — foundation tables (159 base tables, 1758 columns).
+-- SOURCE: pg_dump --schema-only section: every 'CREATE TABLE public.*' plus
+-- column defaults and NOT NULL (NO data). Sequences/identity included.
+-- Do NOT hand-write; extract via the pg_dump command in README.md then split.
+-- Foreign keys and indexes are deferred to 020 so all tables exist first.

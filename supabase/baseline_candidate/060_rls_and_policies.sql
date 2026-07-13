@@ -1,0 +1,3 @@
+-- Baseline 060 — RLS enable (159 tables) + policies (259).
+-- SOURCE: pg_dump 'ALTER TABLE ... ENABLE ROW LEVEL SECURITY' + 'CREATE POLICY'.
+-- RLS MUST remain enabled on all 159 tables; all 259 policies reproduced verbatim.

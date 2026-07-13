@@ -1,0 +1,17 @@
+-- =============================================================================
+-- Forward-only drift reconciliation (no applied migration is edited).
+--
+-- 20260606090000_profile_hub_ecosystem.sql (committed) adds
+--   check (required_level is null or required_level >= 1)
+-- on public.badges, but 20260606111500 seeds badges with required_level = 0
+-- (vip_member / agency_member / top_supporter). The committed files are
+-- internally inconsistent, so a from-zero reset fails at the 111500 insert.
+--
+-- READ-ONLY production evidence proves the committed check is DRIFT: prod's
+-- badges table has NO required_level check and legitimately stores
+-- required_level values 0,1,2,3. The `>= 1` check was never applied to prod
+-- (or was later removed). This migration drops that never-in-prod check so the
+-- chain matches production reality. It changes no data and no security policy.
+-- Placed between 090000 and 111500 so the 0-value seed applies.
+-- =============================================================================
+alter table public.badges drop constraint if exists badges_required_level_check;

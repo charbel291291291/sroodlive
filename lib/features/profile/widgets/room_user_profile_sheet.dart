@@ -52,7 +52,7 @@ class RoomUserProfileSheet extends StatefulWidget {
   final String? roomId;
   final bool isViewerOwner;
   final bool isViewerHost;
-  final String? targetRoomRole;   // 'host' | 'speaker' | 'listener' | null
+  final String? targetRoomRole; // 'host' | 'speaker' | 'listener' | null
   final int? targetMicSeat;
   final bool targetIsMuted;
 
@@ -124,9 +124,10 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
           vsync: this,
           duration: Duration(milliseconds: vip == 9 ? 1400 : 2000),
         )..repeat(reverse: true);
-        _glowAnim = Tween<double>(begin: 0.55, end: 1.0).animate(
-          CurvedAnimation(parent: _glowCtrl!, curve: Curves.easeInOut),
-        );
+        _glowAnim = Tween<double>(
+          begin: 0.55,
+          end: 1.0,
+        ).animate(CurvedAnimation(parent: _glowCtrl!, curve: Curves.easeInOut));
       } else {
         _glowAnim = const AlwaysStoppedAnimation(1.0);
       }
@@ -175,8 +176,12 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
         setState(() => _profile = p);
         final isArabic = context.isArabic;
         final msg = e.toString().contains('follow_blocked_by_vip')
-            ? (isArabic ? 'هذا المستخدم لا يقبل المتابعة' : 'This user does not accept followers')
-            : (isArabic ? 'تعذّر تنفيذ العملية' : 'Action failed, please try again');
+            ? (isArabic
+                  ? 'هذا المستخدم لا يقبل المتابعة'
+                  : 'This user does not accept followers')
+            : (isArabic
+                  ? 'تعذّر تنفيذ العملية'
+                  : 'Action failed, please try again');
         _snack(msg, type: SroodToastType.error);
       }
     } finally {
@@ -190,10 +195,16 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
     setState(() => _reminderBusy = true);
     try {
       await _service.createReminder(widget.userId);
-      _snack(isArabic ? 'تم حفظ التذكير' : 'Reminder saved', type: SroodToastType.success);
+      _snack(
+        isArabic ? 'تم حفظ التذكير' : 'Reminder saved',
+        type: SroodToastType.success,
+      );
     } catch (e, st) {
       debugError('RoomUserProfileSheet._createReminder', e, st);
-      _snack(isArabic ? 'تم حفظ التذكير' : 'Reminder saved', type: SroodToastType.success);
+      _snack(
+        isArabic ? 'تم حفظ التذكير' : 'Reminder saved',
+        type: SroodToastType.success,
+      );
     } finally {
       if (mounted) setState(() => _reminderBusy = false);
     }
@@ -205,7 +216,10 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
     setState(() => _sayHiBusy = true);
     try {
       await _msgService.sendHi(widget.userId, isArabic: isArabic);
-      _snack(isArabic ? 'تم إرسال التحية' : 'Hi sent', type: SroodToastType.success);
+      _snack(
+        isArabic ? 'تم إرسال التحية' : 'Hi sent',
+        type: SroodToastType.success,
+      );
     } catch (e) {
       _snack(e.toString(), type: SroodToastType.error);
     } finally {
@@ -238,18 +252,23 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
   }
 
   void _viewFullProfile() {
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => UserProfileScreen(
-        userId: widget.userId,
-        isArabic: context.isArabic,
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => UserProfileScreen(
+          userId: widget.userId,
+          isArabic: context.isArabic,
+        ),
       ),
-    ));
+    );
   }
 
   void _copyId() {
     final id = _profile?.publicUserId ?? widget.userId;
     Clipboard.setData(ClipboardData(text: id));
-    _snack(context.isArabic ? 'تم نسخ ID' : 'ID copied', type: SroodToastType.success);
+    _snack(
+      context.isArabic ? 'تم نسخ ID' : 'ID copied',
+      type: SroodToastType.success,
+    );
   }
 
   Future<void> _doReport() async {
@@ -262,9 +281,12 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
       isArabic: isArabic,
     );
     if (submitted == true && mounted) {
-      _snack(isArabic
-          ? 'تم إرسال البلاغ إلى فريق الإشراف.'
-          : 'Report sent to moderation.', type: SroodToastType.success);
+      _snack(
+        isArabic
+            ? 'تم إرسال البلاغ إلى فريق الإشراف.'
+            : 'Report sent to moderation.',
+        type: SroodToastType.success,
+      );
     }
   }
 
@@ -371,7 +393,10 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
     setState(() => _adminBusy = true);
     try {
       await cb();
-      _snack(isArabic ? 'تم تعيين مشرف' : 'Admin set', type: SroodToastType.success);
+      _snack(
+        isArabic ? 'تم تعيين مشرف' : 'Admin set',
+        type: SroodToastType.success,
+      );
     } catch (e) {
       _snack(e.toString(), type: SroodToastType.error);
     } finally {
@@ -386,7 +411,10 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
     setState(() => _adminBusy = true);
     try {
       await cb();
-      _snack(isArabic ? 'تم إزالة المشرف' : 'Admin removed', type: SroodToastType.success);
+      _snack(
+        isArabic ? 'تم إزالة المشرف' : 'Admin removed',
+        type: SroodToastType.success,
+      );
     } catch (e) {
       _snack(e.toString(), type: SroodToastType.error);
     } finally {
@@ -408,7 +436,10 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
         icon: Icon(icon, color: iconColor, size: 34),
         title: Text(
           title,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w900,
+          ),
           textAlign: TextAlign.center,
         ),
         content: Text(
@@ -428,10 +459,7 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(
               context.isArabic ? 'تأكيد' : 'Confirm',
-              style: TextStyle(
-                color: iconColor,
-                fontWeight: FontWeight.w900,
-              ),
+              style: TextStyle(color: iconColor, fontWeight: FontWeight.w900),
             ),
           ),
         ],
@@ -463,11 +491,17 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
           constraints: BoxConstraints(maxWidth: maxW, maxHeight: maxH),
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(32),
+              ),
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFF1C0D30), Color(0xFF0E0620), Color(0xFF060210)],
+                colors: [
+                  Color(0xFF1C0D30),
+                  Color(0xFF0E0620),
+                  Color(0xFF060210),
+                ],
               ),
               border: Border(
                 top: BorderSide(
@@ -477,7 +511,9 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
               ),
             ),
             child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(32),
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -503,51 +539,53 @@ class _RoomUserProfileSheetState extends State<RoomUserProfileSheet>
                               ),
                             )
                           : _error != null
-                              ? _ErrorBody(isArabic: context.isArabic)
-                              : _SheetBody(
-                                  profile: _profile!,
-                                  giftWall: _giftWall,
-                                  prestige: prestige,
-                                  glowAnim: _glowAnim,
-                                  isArabic: context.isArabic,
-                                  isMe: _isMe,
-                                  canModerate: _canModerate,
-                                  isViewerOwner: widget.isViewerOwner,
-                                  targetRoomRole: widget.targetRoomRole,
-                                  targetMicSeat: widget.targetMicSeat,
-                                  isMuted: _isMuted,
-                                  isOnMic: widget.targetMicSeat != null &&
-                                      (widget.targetRoomRole == 'speaker' ||
-                                          widget.targetRoomRole == 'host'),
-                                  followBusy: _followBusy,
-                                  reminderBusy: _reminderBusy,
-                                  sayHiBusy: _sayHiBusy,
-                                  muteBusy: _muteBusy,
-                                  kickBusy: _kickBusy,
-                                  standBusy: _standBusy,
-                                  banBusy: _banBusy,
-                                  adminBusy: _adminBusy,
-                                  hasMuteAction: widget.onToggleMute != null,
-                                  hasKickAction: widget.onKick != null,
-                                  hasStandAction: widget.onStandUp != null,
-                                  hasBanAction: widget.onBan != null,
-                                  hasSetAdminAction: widget.onSetAdmin != null,
-                                  hasRemoveAdminAction: widget.onRemoveAdmin != null,
-                                  onCopyId: _copyId,
-                                  onSayHi: _sayHi,
-                                  onMessage: _openMessage,
-                                  onFollow: _toggleFollow,
-                                  onReminder: _createReminder,
-                                  onSendGift: _sendGift,
-                                  onViewProfile: _viewFullProfile,
-                                  onMute: _doMute,
-                                  onKick: _doKick,
-                                  onStandUp: _doStandUp,
-                                  onBan: _doBan,
-                                  onSetAdmin: _doSetAdmin,
-                                  onRemoveAdmin: _doRemoveAdmin,
-                                  onReport: _doReport,
-                                ),
+                          ? _ErrorBody(isArabic: context.isArabic)
+                          : _SheetBody(
+                              profile: _profile!,
+                              giftWall: _giftWall,
+                              prestige: prestige,
+                              glowAnim: _glowAnim,
+                              isArabic: context.isArabic,
+                              isMe: _isMe,
+                              canModerate: _canModerate,
+                              isViewerOwner: widget.isViewerOwner,
+                              targetRoomRole: widget.targetRoomRole,
+                              targetMicSeat: widget.targetMicSeat,
+                              isMuted: _isMuted,
+                              isOnMic:
+                                  widget.targetMicSeat != null &&
+                                  (widget.targetRoomRole == 'speaker' ||
+                                      widget.targetRoomRole == 'host'),
+                              followBusy: _followBusy,
+                              reminderBusy: _reminderBusy,
+                              sayHiBusy: _sayHiBusy,
+                              muteBusy: _muteBusy,
+                              kickBusy: _kickBusy,
+                              standBusy: _standBusy,
+                              banBusy: _banBusy,
+                              adminBusy: _adminBusy,
+                              hasMuteAction: widget.onToggleMute != null,
+                              hasKickAction: widget.onKick != null,
+                              hasStandAction: widget.onStandUp != null,
+                              hasBanAction: widget.onBan != null,
+                              hasSetAdminAction: widget.onSetAdmin != null,
+                              hasRemoveAdminAction:
+                                  widget.onRemoveAdmin != null,
+                              onCopyId: _copyId,
+                              onSayHi: _sayHi,
+                              onMessage: _openMessage,
+                              onFollow: _toggleFollow,
+                              onReminder: _createReminder,
+                              onSendGift: _sendGift,
+                              onViewProfile: _viewFullProfile,
+                              onMute: _doMute,
+                              onKick: _doKick,
+                              onStandUp: _doStandUp,
+                              onBan: _doBan,
+                              onSetAdmin: _doSetAdmin,
+                              onRemoveAdmin: _doRemoveAdmin,
+                              onReport: _doReport,
+                            ),
                     ),
                   ),
                 ],
@@ -623,8 +661,11 @@ class _ErrorBody extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.person_off_rounded,
-                color: Color(0xFF5A3A86), size: 48),
+            const Icon(
+              Icons.person_off_rounded,
+              color: Color(0xFF5A3A86),
+              size: 48,
+            ),
             const SizedBox(height: 12),
             Text(
               isArabic ? 'تعذر تحميل الملف الشخصي' : 'Could not load profile',
@@ -730,8 +771,10 @@ class _SheetBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final vip = profile.effectiveVipLevel;
-    final goldenActive =
-        isGoldenIdActive(profile.isGoldenId, profile.goldenIdExpiresAt);
+    final goldenActive = isGoldenIdActive(
+      profile.isGoldenId,
+      profile.goldenIdExpiresAt,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -758,8 +801,7 @@ class _SheetBody extends StatelessWidget {
                 color: prestige.borderColor.withValues(alpha: 0.55),
                 width: prestige.borderWidth,
               ),
-              boxShadow:
-                  prestige.buildGlowShadows(pulseFactor: glowAnim.value),
+              boxShadow: prestige.buildGlowShadows(pulseFactor: glowAnim.value),
             ),
             child: child,
           ),
@@ -796,8 +838,8 @@ class _SheetBody extends StatelessWidget {
                 icon: vip >= 9
                     ? Icons.local_fire_department_rounded
                     : vip >= 7
-                        ? Icons.workspace_premium_rounded
-                        : Icons.diamond_rounded,
+                    ? Icons.workspace_premium_rounded
+                    : Icons.diamond_rounded,
                 prestige: prestige,
               ),
             ),
@@ -826,7 +868,8 @@ class _SheetBody extends StatelessWidget {
             Expanded(
               child: _StatPill(
                 icon: Icons.group_rounded,
-                label: _fmt(profile.followersCount) +
+                label:
+                    _fmt(profile.followersCount) +
                     (isArabic ? ' متابع' : ' followers'),
                 color: const Color(0xFF60A5FA),
               ),
@@ -853,9 +896,7 @@ class _SheetBody extends StatelessWidget {
               children: [
                 if (hasMuteAction)
                   _ActionBtn(
-                    icon: isMuted
-                        ? Icons.mic_rounded
-                        : Icons.mic_off_rounded,
+                    icon: isMuted ? Icons.mic_rounded : Icons.mic_off_rounded,
                     label: isMuted
                         ? (isArabic ? 'فتح الكتم' : 'Unmute')
                         : (isArabic ? 'كتم الصوت' : 'Mute'),
@@ -925,8 +966,7 @@ class _SheetBody extends StatelessWidget {
             children: [
               _ActionBtn(
                 icon: Icons.waving_hand_rounded,
-                label:
-                    sayHiBusy ? '...' : (isArabic ? 'تحية' : 'Say Hi'),
+                label: sayHiBusy ? '...' : (isArabic ? 'تحية' : 'Say Hi'),
                 color: const Color(0xFF9E91B8),
                 busy: sayHiBusy,
                 onTap: onSayHi,
@@ -944,8 +984,8 @@ class _SheetBody extends StatelessWidget {
                 label: followBusy
                     ? '...'
                     : profile.isFollowedByMe
-                        ? (isArabic ? 'متابَع' : 'Following')
-                        : (isArabic ? 'متابعة' : 'Follow'),
+                    ? (isArabic ? 'متابَع' : 'Following')
+                    : (isArabic ? 'متابعة' : 'Follow'),
                 color: profile.isFollowedByMe
                     ? const Color(0xFF22C55E)
                     : const Color(0xFF9E91B8),
@@ -954,9 +994,7 @@ class _SheetBody extends StatelessWidget {
               ),
               _ActionBtn(
                 icon: Icons.notifications_active_rounded,
-                label: reminderBusy
-                    ? '...'
-                    : (isArabic ? 'تذكير' : 'Remind'),
+                label: reminderBusy ? '...' : (isArabic ? 'تذكير' : 'Remind'),
                 color: const Color(0xFF9E91B8),
                 busy: reminderBusy,
                 onTap: onReminder,
@@ -1050,10 +1088,16 @@ class _HeaderContent extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: const Color(0xFFE63946),
                     shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFF060210), width: 1.5),
+                    border: Border.all(
+                      color: const Color(0xFF060210),
+                      width: 1.5,
+                    ),
                   ),
-                  child: const Icon(Icons.mic_off_rounded,
-                      color: Colors.white, size: 11),
+                  child: const Icon(
+                    Icons.mic_off_rounded,
+                    color: Colors.white,
+                    size: 11,
+                  ),
                 ),
               ),
             if (profile.isOfficialAgent)
@@ -1086,7 +1130,9 @@ class _HeaderContent extends StatelessWidget {
                     Container(
                       margin: const EdgeInsets.only(left: 6),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 7, vertical: 3),
+                        horizontal: 7,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(999),
@@ -1158,7 +1204,8 @@ class _HeaderContent extends StatelessWidget {
                             idText: profile.publicUserId,
                             goldenIdStyle: profile.goldenIdStyle,
                             goldenIdFrame: profile.goldenIdFrame,
-                            compact: true)
+                            compact: true,
+                          )
                         : VipBadge(vipLevel: vip, compact: true),
                   // Noble
                   if (profile.nobleLevel > 0)
@@ -1203,18 +1250,22 @@ class _RoomRoleBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final (icon, color, label) = switch (role) {
       'host' => (
-          Icons.star_rounded,
-          const Color(0xFFF0C15A),
-          isArabic ? 'مضيف' : 'Host',
-        ),
+        Icons.star_rounded,
+        const Color(0xFFF0C15A),
+        isArabic ? 'مضيف' : 'Host',
+      ),
       'speaker' => (
-          Icons.mic_rounded,
-          const Color(0xFF8B26D9),
-          isArabic
-              ? (seatNumber != null ? 'مايك $seatNumber' : 'متحدث')
-              : (seatNumber != null ? 'Mic $seatNumber' : 'Speaker'),
-        ),
-      _ => (Icons.hearing_rounded, const Color(0xFF6B7280), isArabic ? 'مستمع' : 'Listener'),
+        Icons.mic_rounded,
+        const Color(0xFF8B26D9),
+        isArabic
+            ? (seatNumber != null ? 'مايك $seatNumber' : 'متحدث')
+            : (seatNumber != null ? 'Mic $seatNumber' : 'Speaker'),
+      ),
+      _ => (
+        Icons.hearing_rounded,
+        const Color(0xFF6B7280),
+        isArabic ? 'مستمع' : 'Listener',
+      ),
     };
 
     return Container(
@@ -1359,7 +1410,9 @@ class _LevelCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: hasGradient
-                                ? prestige.badgeTextColor.withValues(alpha: 0.80)
+                                ? prestige.badgeTextColor.withValues(
+                                    alpha: 0.80,
+                                  )
                                 : const Color(0xFF6B7280),
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
@@ -1412,10 +1465,7 @@ class _LevelCard extends StatelessWidget {
 // ── Wealth level card ─────────────────────────────────────────────────────────
 
 class _WealthLevelCard extends StatelessWidget {
-  const _WealthLevelCard({
-    required this.wealthLevel,
-    required this.isArabic,
-  });
+  const _WealthLevelCard({required this.wealthLevel, required this.isArabic});
   final int wealthLevel;
   final bool isArabic;
 
@@ -1443,7 +1493,9 @@ class _WealthLevelCard extends StatelessWidget {
               : null,
           color: hasLevel ? null : const Color(0xFF1A0D2E),
           border: Border.all(
-            color: hasLevel ? c.withValues(alpha: 0.55) : const Color(0xFF4A3470),
+            color: hasLevel
+                ? c.withValues(alpha: 0.55)
+                : const Color(0xFF4A3470),
           ),
           boxShadow: hasLevel
               ? [
@@ -1492,7 +1544,12 @@ class _WealthLevelCard extends StatelessWidget {
                             fontSize: 16,
                             fontWeight: FontWeight.w900,
                             shadows: hasLevel
-                                ? [Shadow(color: c.withValues(alpha: 0.50), blurRadius: 6)]
+                                ? [
+                                    Shadow(
+                                      color: c.withValues(alpha: 0.50),
+                                      blurRadius: 6,
+                                    ),
+                                  ]
                                 : null,
                           ),
                         ),
@@ -1620,8 +1677,11 @@ class _GiftWall extends StatelessWidget {
                   color: const Color(0xFFF0C15A).withValues(alpha: 0.13),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.card_giftcard_rounded,
-                    size: 12, color: Color(0xFFF0C15A)),
+                child: const Icon(
+                  Icons.card_giftcard_rounded,
+                  size: 12,
+                  color: Color(0xFFF0C15A),
+                ),
               ),
               const SizedBox(width: 8),
               Text(
@@ -1642,7 +1702,9 @@ class _GiftWall extends StatelessWidget {
                 child: Text(
                   isArabic ? 'لا توجد هدايا بعد' : 'No gifts yet',
                   style: const TextStyle(
-                      color: Color(0xFF6B7280), fontSize: 12),
+                    color: Color(0xFF6B7280),
+                    fontSize: 12,
+                  ),
                 ),
               ),
             )
@@ -1655,7 +1717,9 @@ class _GiftWall extends StatelessWidget {
                       child: Container(
                         margin: const EdgeInsets.symmetric(horizontal: 3),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 10),
+                          horizontal: 6,
+                          vertical: 10,
+                        ),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             begin: Alignment.topCenter,
@@ -1664,11 +1728,15 @@ class _GiftWall extends StatelessWidget {
                           ),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: const Color(0xFFF0C15A).withValues(alpha: 0.15),
+                            color: const Color(
+                              0xFFF0C15A,
+                            ).withValues(alpha: 0.15),
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFFF0C15A).withValues(alpha: 0.06),
+                              color: const Color(
+                                0xFFF0C15A,
+                              ).withValues(alpha: 0.06),
                               blurRadius: 8,
                             ),
                           ],
@@ -1679,8 +1747,10 @@ class _GiftWall extends StatelessWidget {
                               width: 38,
                               height: 38,
                               child: g.imageUrl == null
-                                  ? const Icon(Icons.card_giftcard_rounded,
-                                      color: Color(0xFFF0C15A))
+                                  ? const Icon(
+                                      Icons.card_giftcard_rounded,
+                                      color: Color(0xFFF0C15A),
+                                    )
                                   : Image.network(
                                       g.imageUrl!,
                                       fit: BoxFit.contain,
@@ -1705,10 +1775,13 @@ class _GiftWall extends StatelessWidget {
                               const SizedBox(height: 3),
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 5, vertical: 1),
+                                  horizontal: 5,
+                                  vertical: 1,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFF0C15A)
-                                      .withValues(alpha: 0.15),
+                                  color: const Color(
+                                    0xFFF0C15A,
+                                  ).withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(999),
                                 ),
                                 child: Text(
@@ -1766,10 +1839,7 @@ class _SectionLabel extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: Divider(
-            color: color.withValues(alpha: 0.25),
-            thickness: 0.8,
-          ),
+          child: Divider(color: color.withValues(alpha: 0.25), thickness: 0.8),
         ),
       ],
     );
@@ -1805,14 +1875,10 @@ class _ActionBtn extends StatelessWidget {
         margin: const EdgeInsets.only(right: 6, bottom: 2),
         padding: const EdgeInsets.symmetric(horizontal: 4),
         decoration: BoxDecoration(
-          color: highlighted
-              ? color
-              : color.withValues(alpha: 0.10),
+          color: highlighted ? color : color.withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: highlighted
-                ? color
-                : color.withValues(alpha: 0.35),
+            color: highlighted ? color : color.withValues(alpha: 0.35),
           ),
         ),
         child: Column(

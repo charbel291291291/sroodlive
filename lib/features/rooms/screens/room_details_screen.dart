@@ -1,20 +1,13 @@
 import 'dart:async';
 import 'package:srood_live/shared/utils/error_utils.dart';
 import 'package:just_audio/just_audio.dart';
-import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:video_player/video_player.dart';
 
 import '../../../core/supabase/supabase_service.dart';
-import '../../vip/widgets/vip_mic_wave_ring.dart';
-import '../../../core/vip/vip_spec.dart';
-import '../../../shared/widgets/avatar_with_frame.dart';
-import '../../../shared/widgets/vip_badge.dart';
 import '../../../shared/widgets/vip_username.dart';
 import '../../profile/widgets/room_user_profile_sheet.dart';
 import '../models/room.dart';
@@ -33,7 +26,6 @@ import '../models/pk_session.dart';
 import '../services/team_pk_service.dart';
 import '../utils/vip_room_features.dart';
 import '../../vip/services/vip_privilege_service.dart';
-import '../widgets/pk_stage_overlay.dart';
 import '../widgets/room_tools_sheet.dart';
 import '../widgets/music_panel.dart';
 import '../widgets/room_mini_player.dart';
@@ -48,22 +40,33 @@ import 'package:srood_live/core/extensions/locale_extension.dart';
 import 'package:srood_live/shared/widgets/srood_toast.dart';
 import '../models/room_reaction.dart';
 import '../widgets/reaction_picker_sheet.dart';
-import '../widgets/seat_reaction_overlay.dart';
-import '../widgets/agent_identity_badge.dart';
 import '../../../core/services/active_room_session.dart';
 import '../../../core/services/voice_room_foreground_service.dart';
 import '../widgets/vault_pin_sheet.dart';
 import 'room_owner_management_screen.dart';
 
-// Stable premium seat scale. Every state uses the same computed diameter.
-const double _seatSize = 80.0;
-const double _minimumSeatSize = 78.0;
-const double _seatAvatarInset = 8.0;
-const double _micSeatIconSize = 30.0;
-const double _compactMicSeatIconSize = 28.0;
-const double _roomSeatBoxWidth = 96.0;
-const double _roomSeatBoxHeight = 116.0;
-const double _micSeatBadgeHorizontalPadding = 4.0;
+// ── Room UI v2 presentation layer ────────────────────────────────────────────
+import '../presentation/room_screen/models/srood_gift_events.dart';
+import '../presentation/room_screen/models/srood_seat_actions.dart';
+import '../presentation/room_screen/widgets/common/srood_room_avatar.dart';
+import '../presentation/room_screen/srood_room_shell.dart';
+import '../presentation/room_screen/widgets/background/srood_room_background.dart';
+import '../presentation/room_screen/widgets/bottom_actions/srood_room_bottom_actions.dart';
+import '../presentation/room_screen/widgets/chat/srood_room_chat_feed.dart';
+import '../presentation/room_screen/widgets/header/srood_room_header.dart';
+import '../presentation/room_screen/widgets/overlays/srood_gift_event_overlay.dart';
+import '../presentation/room_screen/widgets/overlays/srood_lucky_bag_overlays.dart';
+import '../presentation/room_screen/widgets/overlays/srood_luxury_gift_video_overlay.dart';
+import '../presentation/room_screen/widgets/overlays/srood_red_envelope_banner.dart';
+import '../presentation/room_screen/widgets/overlays/srood_room_banners.dart';
+import '../presentation/room_screen/widgets/overlays/srood_room_closing_overlay.dart';
+import '../presentation/room_screen/widgets/overlays/srood_room_level_up_overlay.dart';
+import '../presentation/room_screen/widgets/sheets/srood_gift_sheet.dart';
+import '../presentation/room_screen/widgets/sheets/srood_room_exit_sheet.dart';
+import '../presentation/room_screen/widgets/sheets/srood_room_level_sheet.dart';
+import '../presentation/room_screen/widgets/sheets/srood_room_participants_sheet.dart';
+import '../presentation/room_screen/widgets/stage/srood_room_stage.dart';
+import '../presentation/theme/srood_room_theme.dart';
 
 class RoomDetailsScreen extends StatefulWidget {
   const RoomDetailsScreen({
@@ -129,7 +132,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   Timer? _heartbeatTimer;
   Timer? _membersRefreshTimer;
   Timer? _membersDebounceTimer;
-  // Debounce timer for post-reconnect resync — prevents duplicate
+  // Debounce timer for post-reconnect resync â€” prevents duplicate
   // _syncMicConnectionWithSeat calls when RoomConnectedEvent and
   // RoomReconnectedEvent fire in quick succession.
   Timer? _reconnectDebounce;
@@ -137,7 +140,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   Timer? _giftFeedCleanupTimer;
   Timer? _vipEntryBannerTimer;
   Timer? _entryBannerTimer;
-  final List<_RoomGiftEvent> _giftEvents = [];
+  final List<SroodRoomGiftEvent> _giftEvents = [];
   final List<Timer> _giftEventTimers = [];
   final Map<String, int> _giftSupportByUserId = {};
   List<RoomGiftTransaction> _roomGifts = const [];
@@ -147,7 +150,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   );
   final ValueNotifier<RoomMember?> _vipBannerNotifier = ValueNotifier(null);
   final ValueNotifier<RoomMember?> _entryBannerNotifier = ValueNotifier(null);
-  _ActiveLuxuryGiftVideo? _activeLuxuryGiftVideo;
+  SroodActiveLuxuryGiftVideo? _activeLuxuryGiftVideo;
   Timer? _luxuryGiftVideoTimer;
   bool _soundEnabled = true;
   bool _visualEnabled = true;
@@ -159,7 +162,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   final Set<String> _openedLuckyBagIds = {};
   Timer? _bannerAutoHideTimer;
 
-  // Session-level sets — static so they survive screen re-entry within the app session.
+  // Session-level sets â€” static so they survive screen re-entry within the app session.
   static final Set<String> _sessionDismissedEnvelopeIds = {};
   static final Set<String> _sessionClaimedEnvelopeIds = {};
   // _loadingGifts removed - gift loading state is not displayed in the overlay
@@ -209,7 +212,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
   bool _memberIsOnMic(RoomMember? member) {
     if (member == null) return false;
-    // Host is always on mic regardless of seat_number — the DB may not have
+    // Host is always on mic regardless of seat_number â€” the DB may not have
     // assigned a seat yet when the member record first loads.
     if (member.role == 'host') return true;
     return member.role == 'speaker' && member.seatNumber != null;
@@ -259,7 +262,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   String? _roomBackgroundUrl;
   String? _roomAvatarUrl;
   String? _roomCoverUrl;
-  // Mutable room metadata — kept in sync via _subscribeToRoom() realtime.
+  // Mutable room metadata â€” kept in sync via _subscribeToRoom() realtime.
   String _roomName = '';
   String? _roomDescription;
   String? _roomLanguage;
@@ -304,9 +307,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
   bool get _iAmSuperAdmin => false;
 
-  // ── Audio state helpers ────────────────────────────────────────────────────
+  // â”€â”€ Audio state helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  /// Updates the audio bool fields AND pushes to the notifier — no setState.
+  /// Updates the audio bool fields AND pushes to the notifier â€” no setState.
   /// Callers that previously did setState just for audio now call this instead.
   void _setAudioState({bool? connecting, bool? connected}) {
     if (connecting != null) _connectingAudio = connecting;
@@ -317,7 +320,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     );
   }
 
-  // ── Member debounce ────────────────────────────────────────────────────────
+  // â”€â”€ Member debounce â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /// Buffers rapid member change events and fires a single reload after 500 ms.
   /// Also refreshes moderator state so badge changes appear immediately.
@@ -336,7 +339,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     _audioStateNotifier = ValueNotifier((connecting: false, connected: false));
     WidgetsBinding.instance.addObserver(this);
 
-    // ── Reuse existing LiveKit session when returning from minimize ──────────
+    // â”€â”€ Reuse existing LiveKit session when returning from minimize â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     final session = ActiveRoomSession.instance;
     final existingService = session.liveKitService;
     final sameRoom = session.room?.id == widget.room.id;
@@ -344,7 +347,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       _liveKitRoomService = existingService;
       _isRestoring = true;
       _roomLog(
-        '[RoomMinimize] restore — reusing existing LiveKit session roomId=${widget.room.id}',
+        '[RoomMinimize] restore â€” reusing existing LiveKit session roomId=${widget.room.id}',
       );
       _roomLog('[RoomMinimize] savedMic=${session.savedMicEnabled}');
     } else {
@@ -352,13 +355,13 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       _isRestoring = false;
       if (existingService != null) {
         _roomLog(
-          '[RoomMinimize] restore — existing service found but not reusable (sameRoom=$sameRoom connected=${existingService.isConnected})',
+          '[RoomMinimize] restore â€” existing service found but not reusable (sameRoom=$sameRoom connected=${existingService.isConnected})',
         );
       }
     }
     // Screen takes ownership; clear session reference (prevents double-use).
     session.clear();
-    // ────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     _roomLog(
       '[PerfRoom] open id=${widget.room.id} ts=${DateTime.now().millisecondsSinceEpoch}',
@@ -368,7 +371,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     );
     unawaited(RoomReadService.instance.setActiveRoom(widget.room.id));
 
-    // ── Reuse music services when returning from minimize (same room) ─────────
+    // â”€â”€ Reuse music services when returning from minimize (same room) â”€â”€â”€â”€â”€â”€â”€â”€â”€
     final savedMusic = session.musicService;
     final savedSynced = session.syncedMusicService;
     final reusingMusic =
@@ -378,7 +381,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       _syncedMusic = savedSynced;
       unawaited(_syncedMusic.recoverIfNeeded());
       _roomLog(
-        '[RoomMusic] restore — reused music service roomId=${widget.room.id}',
+        '[RoomMusic] restore â€” reused music service roomId=${widget.room.id}',
       );
     } else {
       _musicService = RoomMusicService();
@@ -444,7 +447,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     };
 
     if (_isRestoring) {
-      // Already in a live session — foreground service already running.
+      // Already in a live session â€” foreground service already running.
       // Only mark audio as connected when the socket is actually in the
       // connected state.  If it is mid-reconnect, leave _connectedAudio false
       // so _syncMicConnectionWithSeat does not fire against a broken socket;
@@ -459,15 +462,15 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         connected: restoredConnected,
       );
       if (restoredConnected) {
-        _roomLog('[RoomMinimize] restore — socket confirmed connected');
+        _roomLog('[RoomMinimize] restore â€” socket confirmed connected');
       } else {
         _roomLog(
-          '[RoomMinimize] restore — socket reconnecting, '
+          '[RoomMinimize] restore â€” socket reconnecting, '
           'waiting for onConnected before mic sync',
         );
       }
     } else {
-      // Fresh entry — start foreground service and connect LiveKit.
+      // Fresh entry â€” start foreground service and connect LiveKit.
       unawaited(VoiceRoomForegroundService.start());
       unawaited(_connectAudioEarly());
     }
@@ -503,7 +506,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       _loadAnnouncement();
       _loadWalletBalance();
       _subscribeWalletBalance();
-      // Always fetch authoritative XP/level from server — widget.room may carry
+      // Always fetch authoritative XP/level from server â€” widget.room may carry
       // a stale snapshot from the rooms list (minimize/restore or cached nav).
       unawaited(_refreshRoomXpStats());
       _loadMessages();
@@ -523,7 +526,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
     final uid = _currentUserId;
     if (uid == null) {
-      _roomLog('[RoomMusic] denied — no user id');
+      _roomLog('[RoomMusic] denied â€” no user id');
       return;
     }
 
@@ -536,13 +539,13 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
     if (hasController && !isController) {
       _roomLog(
-        '[RoomMusic] denied — not controller uid=$uid controller=$controllerId',
+        '[RoomMusic] denied â€” not controller uid=$uid controller=$controllerId',
       );
       return;
     }
 
     if (!isManager && !isController) {
-      _roomLog('[RoomMusic] denied — not manager uid=$uid');
+      _roomLog('[RoomMusic] denied â€” not manager uid=$uid');
       return;
     }
 
@@ -565,13 +568,13 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
     if (hasController && controllerId != uid) {
       _roomLog(
-        '[RoomMusic] action blocked — not controller uid=$uid controller=$controllerId',
+        '[RoomMusic] action blocked â€” not controller uid=$uid controller=$controllerId',
       );
       if (!mounted) return;
       SroodToast.show(
         context,
         context.isArabic
-            ? 'الشخص الذي شغّل الموسيقى فقط يمكنه التحكم بها.'
+            ? 'Ø§Ù„Ø´Ø®Øµ Ø§Ù„Ø°ÙŠ Ø´ØºÙ‘Ù„ Ø§Ù„Ù…ÙˆØ³ÙŠÙ‚Ù‰ ÙÙ‚Ø· ÙŠÙ…ÙƒÙ†Ù‡ Ø§Ù„ØªØ­ÙƒÙ… Ø¨Ù‡Ø§.'
             : 'Only the person who started the music can control it.',
         type: SroodToastType.info,
       );
@@ -630,11 +633,11 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         await _syncMicConnectionWithSeat();
       } else {
         _roomLog(
-          '[Room] reconnect completed but socket not yet connected — '
+          '[Room] reconnect completed but socket not yet connected â€” '
           'skipping mic sync (onConnected will fire when ready)',
         );
       }
-      // Re-sync XP/level after reconnect — Realtime may have missed events.
+      // Re-sync XP/level after reconnect â€” Realtime may have missed events.
       unawaited(_refreshRoomXpStats());
     } catch (e) {
       _roomLog('[Room] reconnect failed: $e');
@@ -653,7 +656,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   Future<void> _connectAudioEarly() async {
     // Skip if already connected (e.g. returning from minimize with reused session).
     if (_liveKitRoomService.isConnected) {
-      _roomLog('[RoomMinimize] _connectAudioEarly skipped — already connected');
+      _roomLog(
+        '[RoomMinimize] _connectAudioEarly skipped â€” already connected',
+      );
       _connectedAudio = true;
       _setAudioState(connecting: false, connected: true);
       _liveKitRoomService.onSpeakersChanged = (ids) {
@@ -704,7 +709,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   void dispose() {
     RoomReadService.instance.clearActiveRoom(widget.room.id);
     _musicService.removeListener(_onLocalMusicChanged);
-    // On minimize: music services are handed to ActiveRoomSession — do NOT dispose.
+    // On minimize: music services are handed to ActiveRoomSession â€” do NOT dispose.
     // On true leave: dispose everything.
     if (!_minimizing) {
       unawaited(_syncedMusic.dispose());
@@ -755,13 +760,13 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
     _pkSub?.cancel();
     // If the user minimized, ownership of the LiveKit service was transferred
-    // to ActiveRoomSession — do NOT disconnect or stop the foreground service.
+    // to ActiveRoomSession â€” do NOT disconnect or stop the foreground service.
     if (_minimizing) {
       _roomLog(
-        '[RoomMinimize] dispose skipping disconnect — session is minimized',
+        '[RoomMinimize] dispose skipping disconnect â€” session is minimized',
       );
     } else {
-      _roomLog('[RoomMinimize] dispose disconnecting — true leave/close');
+      _roomLog('[RoomMinimize] dispose disconnecting â€” true leave/close');
       _liveKitRoomService.disconnect();
       unawaited(VoiceRoomForegroundService.stop());
     }
@@ -987,7 +992,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       unawaited(_loadWalletBalance());
       SroodToast.show(
         context,
-        context.isArabic ? 'حصلت على $coins عملة!' : 'You got $coins coins!',
+        context.isArabic
+            ? 'Ø­ØµÙ„Øª Ø¹Ù„Ù‰ $coins Ø¹Ù…Ù„Ø©!'
+            : 'You got $coins coins!',
         type: SroodToastType.success,
       );
     } catch (e, st) {
@@ -997,7 +1004,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       final msg = e.toString();
       String friendly;
       if (msg.contains('already_claimed')) {
-        friendly = context.isArabic ? 'تم الفتح مسبقاً' : 'Already opened';
+        friendly = context.isArabic
+            ? 'ØªÙ… Ø§Ù„ÙØªØ­ Ù…Ø³Ø¨Ù‚Ø§Ù‹'
+            : 'Already opened';
         _bannerAutoHideTimer?.cancel();
         setState(() {
           _openedLuckyBagIds.add(envelopeId);
@@ -1006,16 +1015,16 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         });
       } else if (msg.contains('envelope_full')) {
         friendly = context.isArabic
-            ? 'تم استلام جميع الأكياس'
+            ? 'ØªÙ… Ø§Ø³ØªÙ„Ø§Ù… Ø¬Ù…ÙŠØ¹ Ø§Ù„Ø£ÙƒÙŠØ§Ø³'
             : 'All bags claimed';
         setState(() => _activeRedEnvelope = null);
       } else if (msg.contains('envelope_expired')) {
         friendly = context.isArabic
-            ? 'انتهت صلاحية الكيس'
+            ? 'Ø§Ù†ØªÙ‡Øª ØµÙ„Ø§Ø­ÙŠØ© Ø§Ù„ÙƒÙŠØ³'
             : 'Lucky Bag expired';
         setState(() => _activeRedEnvelope = null);
       } else {
-        friendly = context.isArabic ? 'حدث خطأ' : 'An error occurred';
+        friendly = context.isArabic ? 'Ø­Ø¯Ø« Ø®Ø·Ø£' : 'An error occurred';
       }
       SroodToast.show(context, friendly, type: SroodToastType.error);
     } finally {
@@ -1195,7 +1204,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
               if (newName != null &&
                   newName.isNotEmpty &&
                   newName != _roomName) {
-                _roomLog('[RT-ROOM] name → $newName');
+                _roomLog('[RT-ROOM] name â†’ $newName');
                 _roomName = newName;
               }
 
@@ -1274,7 +1283,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
               if (rec.containsKey('background_url') &&
                   newBg != _roomBackgroundUrl) {
                 _roomLog(
-                  '[RT-ROOM] background_url $_roomBackgroundUrl → $newBg',
+                  '[RT-ROOM] background_url $_roomBackgroundUrl â†’ $newBg',
                 );
                 if (_roomBackgroundUrl != null) {
                   imageCache.evict(NetworkImage(_roomBackgroundUrl!));
@@ -1284,7 +1293,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
               final newCover = rec['cover_url'] as String?;
               if (rec.containsKey('cover_url') && newCover != _roomCoverUrl) {
-                _roomLog('[RT-ROOM] cover_url → $newCover');
+                _roomLog('[RT-ROOM] cover_url â†’ $newCover');
                 if (_roomCoverUrl != null) {
                   imageCache.evict(NetworkImage(_roomCoverUrl!));
                 }
@@ -1294,7 +1303,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
               final newAvatar = rec['room_avatar_url'] as String?;
               if (rec.containsKey('room_avatar_url') &&
                   newAvatar != _roomAvatarUrl) {
-                _roomLog('[RT-ROOM] room_avatar_url → $newAvatar');
+                _roomLog('[RT-ROOM] room_avatar_url â†’ $newAvatar');
                 if (_roomAvatarUrl != null) {
                   imageCache.evict(NetworkImage(_roomAvatarUrl!));
                 }
@@ -1371,7 +1380,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
               final giftName = record['gift_name'] as String? ?? '';
               final receiverId = record['receiver_id'] as String? ?? '';
 
-              final config = _LuxuryGiftVideoConfig.fromCode(giftCode);
+              final config = SroodLuxuryGiftVideoConfig.fromCode(giftCode);
               if (config != null &&
                   _activeLuxuryGiftVideo == null &&
                   _visualEnabled) {
@@ -1414,7 +1423,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             SroodToast.show(
               context,
               context.isArabic
-                  ? 'فشل اتصال الهدايا المباشرة. قد لا تظهر الهدايا فوراً.'
+                  ? 'ÙØ´Ù„ Ø§ØªØµØ§Ù„ Ø§Ù„Ù‡Ø¯Ø§ÙŠØ§ Ø§Ù„Ù…Ø¨Ø§Ø´Ø±Ø©. Ù‚Ø¯ Ù„Ø§ ØªØ¸Ù‡Ø± Ø§Ù„Ù‡Ø¯Ø§ÙŠØ§ ÙÙˆØ±Ø§Ù‹.'
                   : 'Live gift connection failed. Gifts may not appear instantly.',
               type: SroodToastType.warning,
             );
@@ -1500,7 +1509,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
             SroodToast.show(
               context,
               context.isArabic
-                  ? 'تمت إزالتك من الغرفة'
+                  ? 'ØªÙ…Øª Ø¥Ø²Ø§Ù„ØªÙƒ Ù…Ù† Ø§Ù„ØºØ±ÙØ©'
                   : 'You were removed from the room',
               type: SroodToastType.info,
             );
@@ -1508,10 +1517,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
           }
           return;
         }
-        // First miss only — wait for the next load cycle before deciding.
+        // First miss only â€” wait for the next load cycle before deciding.
         return;
       }
-      // User confirmed present — reset the miss counter.
+      // User confirmed present â€” reset the miss counter.
       _missedHeartbeatCount = 0;
 
       setState(() {
@@ -1669,7 +1678,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   void _redirectToWallet() {
     if (_rechargeRedirecting || !mounted) return;
     _rechargeRedirecting = true;
-    _roomLog('[GiftRecharge] redirect start → WalletScreen');
+    _roomLog('[GiftRecharge] redirect start â†’ WalletScreen');
 
     final isArabic = context.isArabic;
 
@@ -1685,7 +1694,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       );
       if (mounted) unawaited(_loadWalletBalance());
       _rechargeRedirecting = false;
-      _roomLog('[GiftRecharge] redirect done — balance refreshed');
+      _roomLog('[GiftRecharge] redirect done â€” balance refreshed');
     });
   }
 
@@ -1743,7 +1752,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                 });
               }
 
-              // Use local member cache first — avoids a DB round-trip per
+              // Use local member cache first â€” avoids a DB round-trip per
               // message, which on active chats was causing N serial queries.
               final cached = senderId != null
                   ? _members.where((m) => m.userId == senderId).firstOrNull
@@ -1843,7 +1852,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
               ),
               const SizedBox(height: 16),
               Text(
-                isArabic ? 'حذف الرسالة' : 'Remove message',
+                isArabic ? 'Ø­Ø°Ù Ø§Ù„Ø±Ø³Ø§Ù„Ø©' : 'Remove message',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 16,
@@ -1853,7 +1862,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
               const SizedBox(height: 6),
               Text(
                 isArabic
-                    ? 'هذه الرسالة ستُخفى عن جميع المستخدمين.'
+                    ? 'Ù‡Ø°Ù‡ Ø§Ù„Ø±Ø³Ø§Ù„Ø© Ø³ØªÙØ®ÙÙ‰ Ø¹Ù† Ø¬Ù…ÙŠØ¹ Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…ÙŠÙ†.'
                     : 'This message will be hidden from all users.',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.55),
@@ -1875,7 +1884,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: Text(isArabic ? 'إلغاء' : 'Cancel'),
+                      child: Text(isArabic ? 'Ø¥Ù„ØºØ§Ø¡' : 'Cancel'),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -1888,7 +1897,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: Text(isArabic ? 'حذف' : 'Remove'),
+                      child: Text(isArabic ? 'Ø­Ø°Ù' : 'Remove'),
                     ),
                   ),
                 ],
@@ -1905,7 +1914,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       if (mounted) {
         SroodToast.show(
           context,
-          context.isArabic ? 'تعذّر حذف الرسالة' : 'Could not remove message',
+          context.isArabic
+              ? 'ØªØ¹Ø°Ù‘Ø± Ø­Ø°Ù Ø§Ù„Ø±Ø³Ø§Ù„Ø©'
+              : 'Could not remove message',
           type: SroodToastType.error,
         );
       }
@@ -1925,7 +1936,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       SroodToast.show(
         context,
         isArabic
-            ? 'تم إرسال البلاغ إلى فريق الإشراف.'
+            ? 'ØªÙ… Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„Ø¨Ù„Ø§Øº Ø¥Ù„Ù‰ ÙØ±ÙŠÙ‚ Ø§Ù„Ø¥Ø´Ø±Ø§Ù.'
             : 'Report sent to moderation.',
         type: SroodToastType.success,
       );
@@ -1937,15 +1948,15 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     if (text.trim().isEmpty) return;
     setState(() => _isSendingMessage = true);
 
-    // ── Client-side text moderation ──────────────────────────────────────────
+    // â”€â”€ Client-side text moderation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     final modResult = const ModerationService().checkMessage(text);
     if (!modResult.passed) {
       if (modResult.action == ModerationAction.warn) {
-        // Severity 1: show warning but still allow send — log in background.
+        // Severity 1: show warning but still allow send â€” log in background.
         SroodToast.show(
           context,
           context.isArabic
-              ? 'تحذير: يرجى التحدث باحترام.'
+              ? 'ØªØ­Ø°ÙŠØ±: ÙŠØ±Ø¬Ù‰ Ø§Ù„ØªØ­Ø¯Ø« Ø¨Ø§Ø­ØªØ±Ø§Ù….'
               : 'Warning: please be respectful.',
           type: SroodToastType.warning,
         );
@@ -1968,7 +1979,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         SroodToast.show(
           context,
           context.isArabic
-              ? 'تم حظر رسالتك بسبب انتهاك قواعد السلامة.'
+              ? 'ØªÙ… Ø­Ø¸Ø± Ø±Ø³Ø§Ù„ØªÙƒ Ø¨Ø³Ø¨Ø¨ Ø§Ù†ØªÙ‡Ø§Ùƒ Ù‚ÙˆØ§Ø¹Ø¯ Ø§Ù„Ø³Ù„Ø§Ù…Ø©.'
               : 'Message blocked by safety rules.',
           type: SroodToastType.error,
         );
@@ -2046,7 +2057,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       SroodToast.show(
         context,
         context.isArabic
-            ? 'إرسال الصور معطّل في هذه الغرفة'
+            ? 'Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„ØµÙˆØ± Ù…Ø¹Ø·Ù‘Ù„ ÙÙŠ Ù‡Ø°Ù‡ Ø§Ù„ØºØ±ÙØ©'
             : 'Sending images is disabled in this room',
         type: SroodToastType.info,
       );
@@ -2078,7 +2089,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       SroodToast.show(
         context,
         context.isArabic
-            ? 'رسائل الصور تُفتح من VIP 7'
+            ? 'Ø±Ø³Ø§Ø¦Ù„ Ø§Ù„ØµÙˆØ± ØªÙÙØªØ­ Ù…Ù† VIP 7'
             : 'Image messages unlock at VIP 7',
         type: SroodToastType.info,
       );
@@ -2115,18 +2126,20 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         msg = e.message.toString();
       } else if (raw.contains('user_muted')) {
         msg = isArabic
-            ? 'أنت مكتوم ولا يمكنك إرسال الصور.'
+            ? 'Ø£Ù†Øª Ù…ÙƒØªÙˆÙ… ÙˆÙ„Ø§ ÙŠÙ…ÙƒÙ†Ùƒ Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„ØµÙˆØ±.'
             : 'You are muted and cannot send images.';
       } else if (raw.contains('image_messages_unlock_at_vip_7') ||
           raw.contains('vip7')) {
         msg = isArabic
-            ? 'رسائل الصور تُفتح من VIP 7'
+            ? 'Ø±Ø³Ø§Ø¦Ù„ Ø§Ù„ØµÙˆØ± ØªÙÙØªØ­ Ù…Ù† VIP 7'
             : 'Image messages unlock at VIP 7';
       } else if (raw.contains('room_not_found')) {
-        msg = isArabic ? 'الغرفة غير متاحة.' : 'Room not available.';
+        msg = isArabic
+            ? 'Ø§Ù„ØºØ±ÙØ© ØºÙŠØ± Ù…ØªØ§Ø­Ø©.'
+            : 'Room not available.';
       } else {
         msg = isArabic
-            ? 'تعذّر إرسال الصورة. حاول مرة أخرى.'
+            ? 'ØªØ¹Ø°Ù‘Ø± Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„ØµÙˆØ±Ø©. Ø­Ø§ÙˆÙ„ Ù…Ø±Ø© Ø£Ø®Ø±Ù‰.'
             : 'Failed to send image. Please try again.';
       }
       SroodToast.show(context, msg, type: SroodToastType.error);
@@ -2144,7 +2157,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         RoomMessage.local(
           roomId: widget.room.id,
           message: context.isArabic
-              ? 'قام المضيف بمسح الدردشة.'
+              ? 'Ù‚Ø§Ù… Ø§Ù„Ù…Ø¶ÙŠÙ Ø¨Ù…Ø³Ø­ Ø§Ù„Ø¯Ø±Ø¯Ø´Ø©.'
               : 'The room owner has cleaned the chat.',
         ),
       );
@@ -2169,7 +2182,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   }
 
   /// Stops music locally and propagates the stop to all room participants.
-  /// Guarded by [_musicAction] — only the controller (or a manager after stop)
+  /// Guarded by [_musicAction] â€” only the controller (or a manager after stop)
   /// can call this successfully.
   Future<void> _stopMusicForRoom() async {
     await _musicAction(() async {
@@ -2181,7 +2194,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         SroodToast.show(
           context,
           context.isArabic
-              ? 'تعذّر إيقاف الموسيقى. حاول مجدداً.'
+              ? 'ØªØ¹Ø°Ù‘Ø± Ø¥ÙŠÙ‚Ø§Ù Ø§Ù„Ù…ÙˆØ³ÙŠÙ‚Ù‰. Ø­Ø§ÙˆÙ„ Ù…Ø¬Ø¯Ø¯Ø§Ù‹.'
               : 'Could not stop music. Please try again.',
           type: SroodToastType.error,
         );
@@ -2371,7 +2384,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                 children: [
                   Text(
                     isArabic
-                        ? 'ميك $seatNumber مغلق'
+                        ? 'Ù…ÙŠÙƒ $seatNumber Ù…ØºÙ„Ù‚'
                         : 'Mic $seatNumber is closed',
                     textAlign: isArabic ? TextAlign.right : TextAlign.left,
                     style: const TextStyle(
@@ -2388,7 +2401,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                       ),
                       onPressed: () => Navigator.of(sheetContext).pop(true),
                       icon: const Icon(Icons.lock_open_rounded),
-                      label: Text(isArabic ? 'فتح الميكروفون' : 'Open mic'),
+                      label: Text(
+                        isArabic ? 'ÙØªØ­ Ø§Ù„Ù…ÙŠÙƒØ±ÙˆÙÙˆÙ†' : 'Open mic',
+                      ),
                     ),
                   ),
                 ],
@@ -2426,7 +2441,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         ? _members.where((member) => member.role != 'host').toList()
         : <RoomMember>[];
 
-    final selected = await showModalBottomSheet<_EmptySeatAction>(
+    final selected = await showModalBottomSheet<SroodEmptySeatAction>(
       context: context,
       backgroundColor: const Color(0xFF12091D),
       shape: const RoundedRectangleBorder(
@@ -2461,7 +2476,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                     onPressed: () {
                       Navigator.of(
                         sheetContext,
-                      ).pop(const _EmptySeatAction.moveSelf());
+                      ).pop(const SroodEmptySeatAction.moveSelf());
                     },
                     icon: const Icon(Icons.event_seat_rounded),
                     label: Text(
@@ -2514,7 +2529,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                   ...availableMembers.map(
                     (member) => ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: _RoomAvatar(
+                      leading: SroodRoomAvatar(
                         avatarUrl: member.avatarUrl,
                         frameKey: member.selectedAvatarFrameKey,
                         vipLevel: member.effectiveVipLevel,
@@ -2541,7 +2556,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                       onTap: () {
                         Navigator.of(
                           sheetContext,
-                        ).pop(_EmptySeatAction.moveMember(member));
+                        ).pop(SroodEmptySeatAction.moveMember(member));
                       },
                     ),
                   ),
@@ -2587,7 +2602,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       SroodToast.show(
         context,
         context.isArabic
-            ? 'فشل تغيير حالة الميكروفون'
+            ? 'ÙØ´Ù„ ØªØºÙŠÙŠØ± Ø­Ø§Ù„Ø© Ø§Ù„Ù…ÙŠÙƒØ±ÙˆÙÙˆÙ†'
             : 'Failed to toggle mic seat',
         type: SroodToastType.error,
       );
@@ -2655,7 +2670,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         seatNumber: seatNumber,
       );
 
-      // Start mic publishing immediately from local state — don't wait for
+      // Start mic publishing immediately from local state â€” don't wait for
       // the member reload round-trip, which saves ~500 ms of perceived latency.
       unawaited(_syncMicConnectionWithSeat());
 
@@ -2717,7 +2732,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
     final emptySeats = _emptySeatNumbers(exceptUserId: member.userId);
 
-    final action = await showModalBottomSheet<_OccupiedSeatAction>(
+    final action = await showModalBottomSheet<SroodOccupiedSeatAction>(
       context: context,
       backgroundColor: const Color(0xFF12091D),
       shape: const RoundedRectangleBorder(
@@ -2761,7 +2776,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                   child: FilledButton.icon(
                     onPressed: () => Navigator.of(
                       sheetContext,
-                    ).pop(const _OccupiedSeatAction.selectForMove()),
+                    ).pop(const SroodOccupiedSeatAction.selectForMove()),
                     icon: const Icon(Icons.touch_app_rounded),
                     label: Text(
                       context.isArabic
@@ -2796,7 +2811,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                         onPressed: () {
                           Navigator.of(
                             sheetContext,
-                          ).pop(_OccupiedSeatAction.moveToSeat(number));
+                          ).pop(SroodOccupiedSeatAction.moveToSeat(number));
                         },
                       );
                     }).toList(),
@@ -2808,7 +2823,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                   child: FilledButton.icon(
                     onPressed: () => Navigator.of(
                       sheetContext,
-                    ).pop(const _OccupiedSeatAction.moveToListener()),
+                    ).pop(const SroodOccupiedSeatAction.moveToListener()),
                     icon: const Icon(Icons.hearing_rounded),
                     label: Text(
                       context.isArabic
@@ -3238,7 +3253,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
           SroodToast.show(
             context,
             context.isArabic
-                ? 'الغرفة مكتومة حالياً'
+                ? 'Ø§Ù„ØºØ±ÙØ© Ù…ÙƒØªÙˆÙ…Ø© Ø­Ø§Ù„ÙŠØ§Ù‹'
                 : 'Room is muted right now',
             type: SroodToastType.warning,
           );
@@ -3279,7 +3294,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         }
         if (justTookSeat && member?.forceMuted == true) {
           _roomLog(
-            '[MUTE] forced mute applied user=${member?.userId} — seat taken but mute preserved',
+            '[MUTE] forced mute applied user=${member?.userId} â€” seat taken but mute preserved',
           );
         }
 
@@ -3344,12 +3359,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     if (!_isCurrentUserOnMic) return;
     // De-bounce: ignore tap while a toggle is already in flight.
     if (_micToggleBusy) {
-      _roomLog('[MicUX] tap ignored — toggle already in flight');
+      _roomLog('[MicUX] tap ignored â€” toggle already in flight');
       return;
     }
 
     if (!_connectedAudio) {
-      _roomLog('[MicUX] tap — audio not connected, syncing seat');
+      _roomLog('[MicUX] tap â€” audio not connected, syncing seat');
       await _syncMicConnectionWithSeat();
       return;
     }
@@ -3358,17 +3373,19 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     final tapMs = DateTime.now().millisecondsSinceEpoch;
     _roomLog('[MicUX] tap received nextValue=$nextValue');
 
-    // ── Blocked states (check before any UI change) ───────────────────────────
+    // â”€â”€ Blocked states (check before any UI change) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (nextValue &&
         _roomIsMuted &&
         !_iAmRoomOwner &&
         !_iAmHost &&
         !_isCurrentUserModerator) {
-      _roomLog('[MicUX] blocked — room_muted');
+      _roomLog('[MicUX] blocked â€” room_muted');
       if (mounted) {
         SroodToast.show(
           context,
-          context.isArabic ? 'الغرفة مكتومة حالياً' : 'Room is muted right now',
+          context.isArabic
+              ? 'Ø§Ù„ØºØ±ÙØ© Ù…ÙƒØªÙˆÙ…Ø© Ø­Ø§Ù„ÙŠØ§Ù‹'
+              : 'Room is muted right now',
           type: SroodToastType.warning,
         );
       }
@@ -3376,12 +3393,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     }
 
     if (nextValue && _myMember?.forceMuted == true) {
-      _roomLog('[MicUX] blocked — forced_mute');
+      _roomLog('[MicUX] blocked â€” forced_mute');
       if (mounted) {
         SroodToast.show(
           context,
           context.isArabic
-              ? 'لقد تم كتمك من قبل المضيف.'
+              ? 'Ù„Ù‚Ø¯ ØªÙ… ÙƒØªÙ…Ùƒ Ù…Ù† Ù‚Ø¨Ù„ Ø§Ù„Ù…Ø¶ÙŠÙ.'
               : 'You have been muted by the room owner.',
           type: SroodToastType.warning,
         );
@@ -3389,7 +3406,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       return;
     }
 
-    // ── Optimistic UI — react in the same frame as the tap ────────────────────
+    // â”€â”€ Optimistic UI â€” react in the same frame as the tap â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Button shows busy spinner immediately; icon flips to target state.
     setState(() {
       _micEnabled = nextValue;
@@ -3399,11 +3416,11 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       '[MicUX] UI updated optimistically +${DateTime.now().millisecondsSinceEpoch - tapMs}ms',
     );
 
-    // ── Permission check (only for unmute; cached after first grant) ──────────
+    // â”€â”€ Permission check (only for unmute; cached after first grant) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (nextValue) {
       final hasPerm = await _ensureMicrophonePermission();
       if (!hasPerm) {
-        _roomLog('[MicUX] permission denied — reverting');
+        _roomLog('[MicUX] permission denied â€” reverting');
         if (mounted) {
           setState(() {
             _micEnabled = !nextValue;
@@ -3417,9 +3434,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       );
     }
 
-    // ── LiveKit + RPC ─────────────────────────────────────────────────────────
+    // â”€â”€ LiveKit + RPC â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // RPC always runs so Supabase mute state stays authoritative.
-    // LiveKit setMicrophoneEnabled is internally guarded — if the socket is not
+    // LiveKit setMicrophoneEnabled is internally guarded â€” if the socket is not
     // connected it saves a pending state and applies it automatically on the
     // next RoomConnectedEvent / RoomReconnectedEvent.
     try {
@@ -3441,7 +3458,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         _roomLog('[MicUX] slow toggle detected: ms');
       }
     } catch (e) {
-      _roomLog('[MicUX] error — reverting: $e');
+      _roomLog('[MicUX] error â€” reverting: $e');
       if (mounted) setState(() => _micEnabled = !nextValue);
     } finally {
       if (mounted) setState(() => _micToggleBusy = false);
@@ -3695,7 +3712,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
     if (!mounted) return;
 
-    final result = await showModalBottomSheet<_GiftSendResult>(
+    final result = await showModalBottomSheet<SroodGiftSendResult>(
       context: context,
       backgroundColor: const Color(0xFF12091D),
       isScrollControlled: true,
@@ -3703,7 +3720,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (sheetContext) {
-        return _GiftSheet(
+        return SroodGiftSheet(
           isArabic: context.isArabic,
           receivers: receivers,
           gifts: gifts,
@@ -3789,8 +3806,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     );
   }
 
-  void _showGiftEvent(_GiftSendResult result) {
-    final event = _RoomGiftEvent(
+  void _showGiftEvent(SroodGiftSendResult result) {
+    final event = SroodRoomGiftEvent(
       id: _giftEventSeed++,
       gift: result.gift,
       receiverName: result.receiverName,
@@ -3823,7 +3840,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
   void _showLuxuryGiftFromTransaction(RoomGiftTransaction transaction) {
     if (!_visualEnabled) return;
-    final config = _LuxuryGiftVideoConfig.fromCode(transaction.giftCode);
+    final config = SroodLuxuryGiftVideoConfig.fromCode(transaction.giftCode);
 
     if (config == null) {
       return;
@@ -3839,12 +3856,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
   void _playLuxuryGiftVideo({
     required String giftName,
     required String receiverName,
-    required _LuxuryGiftVideoConfig config,
+    required SroodLuxuryGiftVideoConfig config,
   }) {
     _luxuryGiftVideoTimer?.cancel();
 
     setState(() {
-      _activeLuxuryGiftVideo = _ActiveLuxuryGiftVideo(
+      _activeLuxuryGiftVideo = SroodActiveLuxuryGiftVideo(
         key: UniqueKey(),
         giftName: giftName,
         receiverName: receiverName,
@@ -3890,8 +3907,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     final overlay = Overlay.of(context, rootOverlay: true);
     late OverlayEntry entry;
     entry = OverlayEntry(
-      builder: (_) =>
-          _RoomLevelUpOverlay(newLevel: newLevel, onDone: () => entry.remove()),
+      builder: (_) => SroodRoomLevelUpOverlay(
+        newLevel: newLevel,
+        onDone: () => entry.remove(),
+      ),
     );
     overlay.insert(entry);
   }
@@ -3902,7 +3921,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       barrierColor: Colors.black.withValues(alpha: 0.65),
-      builder: (_) => _RoomLevelProgressSheet(
+      builder: (_) => SroodRoomLevelSheet(
         roomId: widget.room.id,
         level: _roomLevel,
         roomXp: _roomXp,
@@ -3941,7 +3960,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
               });
             }
 
-            return _RoomParticipantsSheet(
+            return SroodRoomParticipantsSheet(
               members: _participantsForDisplay,
               currentUserId: _currentUserId,
               isArabic: context.isArabic,
@@ -3969,20 +3988,22 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
     final isOwner = _iAmRoomOwner;
     final isArabic = context.isArabic;
 
-    final action = await showModalBottomSheet<_RoomExitAction>(
+    final action = await showModalBottomSheet<SroodRoomExitAction>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _RoomExitSheet(isOwner: isOwner, isArabic: isArabic),
+      builder: (ctx) =>
+          SroodRoomExitSheet(isOwner: isOwner, isArabic: isArabic),
     );
 
     if (action == null || !mounted) return false;
 
-    if (action == _RoomExitAction.minimize) {
+    if (action == SroodRoomExitAction.minimize) {
       _minimizeRoom();
       return false;
     }
 
-    if (action == _RoomExitAction.exit) {
+    if (action == SroodRoomExitAction.exit) {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (_) => AlertDialog(
@@ -4060,12 +4081,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final bottomPad = media.padding.bottom;
-    final kbHeight = media.viewInsets.bottom;
-    final keyboardOpen = kbHeight > 0;
-    final chatHeight = (media.size.height * 0.16).clamp(96.0, 142.0);
-    final lowerInteractionReserve = keyboardOpen ? 58.0 : 136.0 + bottomPad;
+    final isArabic = context.isArabic;
+    final bottomPad = MediaQuery.of(context).padding.bottom;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
@@ -4076,380 +4093,220 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
       child: Stack(
         children: [
           Scaffold(
-            extendBodyBehindAppBar: true,
             resizeToAvoidBottomInset: false,
-            backgroundColor: Colors.black,
-            appBar: AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-              foregroundColor: Colors.white,
-              automaticallyImplyLeading: false,
-              // Management icon \u2014 visible only to owner/host; opens Room Management screen.
-              leading: (_iAmRoomOwner || _iAmHost)
-                  ? IconButton(
-                      icon: const Icon(Icons.manage_accounts_rounded),
-                      tooltip: context.isArabic
-                          ? '\u0625\u062f\u0627\u0631\u0629 \u0627\u0644\u063a\u0631\u0641\u0629'
-                          : 'Room Management',
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.black.withValues(alpha: 0.35),
-                      ),
-                      onPressed: _openRoomManagement,
-                    )
-                  : null,
-              title: Text(
-                context.isArabic
-                    ? '\u0627\u0644\u063a\u0631\u0641\u0629'
-                    : 'Room',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  shadows: [Shadow(blurRadius: 8, color: Colors.black54)],
+            backgroundColor: SroodRoomColors.bgDeep,
+            body: SroodRoomShell(
+              // â”€â”€ Immersive background â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+              background: SroodRoomBackground(
+                key: ValueKey(
+                  '${_roomBackgroundUrl ?? ''}_${_roomCoverUrl ?? ''}_${_roomUpdatedAt?.millisecondsSinceEpoch ?? 0}',
                 ),
+                room: _currentRoom,
+                backgroundUrl: _roomBackgroundUrl,
               ),
-              actions: [
-                // Private messages inbox shortcut
-                IconButton(
-                  icon: Badge(
-                    isLabelVisible: _inboxUnreadCount > 0,
-                    label: Text(
-                      _inboxUnreadCount > 99 ? '99+' : '$_inboxUnreadCount',
-                      style: const TextStyle(fontSize: 10),
-                    ),
-                    child: const Icon(Icons.chat_bubble_outline_rounded),
-                  ),
-                  tooltip: context.isArabic
-                      ? '\u0627\u0644\u0631\u0633\u0627\u0626\u0644 \u0627\u0644\u062e\u0627\u0635\u0629'
-                      : 'Messages',
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.black.withValues(alpha: 0.35),
-                  ),
-                  onPressed: _openInbox,
-                ),
-                // Red exit button \u2014 opens Room Options sheet
-                IconButton(
-                  icon: _leaving
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.logout_rounded),
-                  tooltip: context.isArabic
-                      ? '\u0645\u063a\u0627\u062f\u0631\u0629 \u0627\u0644\u063a\u0631\u0641\u0629'
-                      : 'Leave Room',
-                  style: IconButton.styleFrom(
-                    backgroundColor: const Color(
-                      0xFFFF5C7A,
-                    ).withValues(alpha: 0.85),
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: _leaving ? null : () => _confirmLeave(),
-                ),
-                const SizedBox(width: 8),
-              ],
-            ),
-            body: Stack(
-              children: [
-                // \u2500\u2500 1. Full-screen immersive background \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-                RepaintBoundary(
-                  child: _FullRoomBackground(
-                    key: ValueKey(
-                      '${_roomBackgroundUrl ?? ''}_${_roomCoverUrl ?? ''}_${_roomUpdatedAt?.millisecondsSinceEpoch ?? 0}',
-                    ),
-                    room: _currentRoom,
-                    backgroundUrl: _roomBackgroundUrl,
-                  ),
-                ),
 
-                // \u2500\u2500 2. Scrollable content + pinned bottom bar \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-                // -- 2. Fixed column: header + mic stage + scrollable chat --
-                SafeArea(
-                  bottom: false,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Room info card (fixed - never scrolls)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(14, 0, 14, 0),
-                        child: _CompactRoomHeader(
-                          room: _currentRoom,
-                          activeSpeakerCount: _activeSpeakerCount,
-                          memberCount: _members.length,
-                          walletCoins: _walletCoins,
-                          isHost: _iAmHost,
-                          isArabic: context.isArabic,
-                          announcement: _activeAnnouncementText,
-                          roomXp: _roomXp,
-                          xpToday: _xpToday,
-                          xpWeek: _xpWeek,
-                          dailyStreak: _dailyStreak,
-                          streakMultiplier: _streakMultiplier,
-                          onLevelBadgeTap: () => _showRoomLevelSheet(context),
-                        ),
-                      ),
-                      // Gift / VIP entry banners — rebuilt only when banner changes.
+              // â”€â”€ Top zone â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+              header: SroodRoomHeader(
+                room: _currentRoom,
+                roomName: _roomName,
+                roomLevel: _roomLevel,
+                avatarUrl: _roomAvatarUrl,
+                memberCount: _members.length,
+                walletCoins: _walletCoins,
+                isHost: _iAmHost,
+                isOwner: _iAmRoomOwner,
+                isArabic: isArabic,
+                leaving: _leaving,
+                onExitTap: () => _confirmLeave(),
+                onLevelTap: () => _showRoomLevelSheet(context),
+                onManagementTap: (_iAmRoomOwner || _iAmHost)
+                    ? _openRoomManagement
+                    : null,
+                announcement: _activeAnnouncementText,
+              ),
+
+              // â”€â”€ Event banners (gift > VIP entry > user entry) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+              banners: [
+                ValueListenableBuilder<RoomGiftTransaction?>(
+                  valueListenable: _giftBannerNotifier,
+                  builder: (ctx, giftBanner, child) => AnimatedSwitcher(
+                    duration: SroodRoomMotion.normal,
+                    child: giftBanner == null
+                        ? const SizedBox.shrink()
+                        : Padding(
+                            key: ValueKey(giftBanner.id),
+                            padding: const EdgeInsets.fromLTRB(14, 6, 14, 0),
+                            child: SroodGiftRoomBanner(
+                              gift: giftBanner,
+                              isArabic: isArabic,
+                              onProfileTap: _openUserProfileSheet,
+                            ),
+                          ),
+                  ),
+                ),
+                ValueListenableBuilder<RoomMember?>(
+                  valueListenable: _vipBannerNotifier,
+                  builder: (ctx, vipMember, child) =>
                       ValueListenableBuilder<RoomGiftTransaction?>(
                         valueListenable: _giftBannerNotifier,
-                        builder: (ctx, giftBanner, child) => AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 220),
-                          child: giftBanner == null
+                        builder: (ctx2, giftBanner, child2) => AnimatedSwitcher(
+                          duration: SroodRoomMotion.normal,
+                          child: giftBanner != null || vipMember == null
                               ? const SizedBox.shrink()
                               : Padding(
-                                  key: ValueKey(giftBanner.id),
+                                  key: ValueKey(vipMember.userId),
                                   padding: const EdgeInsets.fromLTRB(
                                     14,
                                     6,
                                     14,
                                     0,
                                   ),
-                                  child: _GiftRoomBanner(
-                                    gift: giftBanner,
-                                    isArabic: ctx.isArabic,
-                                    onProfileTap: _openUserProfileSheet,
+                                  child: SroodVipEntryRoomBanner(
+                                    member: vipMember,
+                                    isArabic: isArabic,
                                   ),
                                 ),
                         ),
                       ),
-                      ValueListenableBuilder<RoomMember?>(
-                        valueListenable: _vipBannerNotifier,
-                        builder: (ctx, vipMember, child) =>
-                            ValueListenableBuilder<RoomGiftTransaction?>(
-                              valueListenable: _giftBannerNotifier,
-                              builder: (ctx2, giftBanner, child2) =>
+                ),
+                ValueListenableBuilder<RoomMember?>(
+                  valueListenable: _entryBannerNotifier,
+                  builder: (ctx, entryMember, child) =>
+                      ValueListenableBuilder<RoomGiftTransaction?>(
+                        valueListenable: _giftBannerNotifier,
+                        builder: (ctx2, giftBanner, child2) =>
+                            ValueListenableBuilder<RoomMember?>(
+                              valueListenable: _vipBannerNotifier,
+                              builder: (ctx3, vipMember, child3) =>
                                   AnimatedSwitcher(
-                                    duration: const Duration(milliseconds: 220),
+                                    duration: SroodRoomMotion.normal,
                                     child:
-                                        giftBanner != null || vipMember == null
+                                        giftBanner != null ||
+                                            vipMember != null ||
+                                            entryMember == null
                                         ? const SizedBox.shrink()
                                         : Padding(
-                                            key: ValueKey(vipMember.userId),
+                                            key: ValueKey(entryMember.userId),
                                             padding: const EdgeInsets.fromLTRB(
                                               14,
                                               6,
                                               14,
                                               0,
                                             ),
-                                            child: _VipEntryRoomBanner(
-                                              member: vipMember,
-                                              isArabic: ctx2.isArabic,
+                                            child: SroodUserEntryRoomBanner(
+                                              member: entryMember,
+                                              isArabic: isArabic,
                                             ),
                                           ),
                                   ),
                             ),
                       ),
-                      ValueListenableBuilder<RoomMember?>(
-                        valueListenable: _entryBannerNotifier,
-                        builder: (ctx, entryMember, child) =>
-                            ValueListenableBuilder<RoomGiftTransaction?>(
-                              valueListenable: _giftBannerNotifier,
-                              builder: (ctx2, giftBanner, child2) =>
-                                  ValueListenableBuilder<RoomMember?>(
-                                    valueListenable: _vipBannerNotifier,
-                                    builder: (ctx3, vipMember, child3) =>
-                                        AnimatedSwitcher(
-                                          duration: const Duration(
-                                            milliseconds: 220,
-                                          ),
-                                          child:
-                                              giftBanner != null ||
-                                                  vipMember != null ||
-                                                  entryMember == null
-                                              ? const SizedBox.shrink()
-                                              : Padding(
-                                                  key: ValueKey(
-                                                    entryMember.userId,
-                                                  ),
-                                                  padding:
-                                                      const EdgeInsets.fromLTRB(
-                                                        14,
-                                                        6,
-                                                        14,
-                                                        0,
-                                                      ),
-                                                  child: _UserEntryRoomBanner(
-                                                    member: entryMember,
-                                                    isArabic: ctx3.isArabic,
-                                                  ),
-                                                ),
-                                        ),
-                                  ),
-                            ),
-                      ),
-                      // Mic stage — subtle gradient scrim for readability (no opaque panel)
-                      Expanded(
-                        child: Column(
-                          children: [
-                            Expanded(
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      Colors.black.withValues(alpha: 0.0),
-                                      Colors.black.withValues(alpha: 0.30),
-                                    ],
-                                  ),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    2,
-                                    4,
-                                    2,
-                                    6,
-                                  ),
-                                  child: _LiveRoomStage(
-                                    members: _members,
-                                    maxSeats: _currentMaxSeats,
-                                    isArabic: context.isArabic,
-                                    activeSpeakerCount: _activeSpeakerCount,
-                                    isHost: _iAmHost,
-                                    onEmptySeatTap: _pickListenerForSeat,
-                                    onOccupiedSeatTap: _handleOccupiedSeatTap,
-                                    onOccupiedSeatLongPress:
-                                        _showMemberSeatActions,
-                                    onProfileTap: _openUserProfileSheet,
-                                    memberCount: _members.length,
-                                    onParticipantsTap: _showParticipantsSheet,
-                                    supportByUserId: _giftSupportByUserId,
-                                    selectedMoveUserId:
-                                        _selectedMicMoveMember?.userId,
-                                    speakingUserIds: _speakingUserIds,
-                                    moderatorUserIds: _moderatorUserIds,
-                                    closedSeats: _closedSeats,
-                                    onSeatClosedToggle: _toggleSeatClosed,
-                                    roomLevel: _roomLevel,
-                                    activePk: _activePk?.isActive == true
-                                        ? _activePk
-                                        : null,
-                                    showPkResult: _showPkResult,
-                                    pkResult:
-                                        _showPkResult &&
-                                            _activePk?.isFinished == true
-                                        ? _activePk
-                                        : null,
-                                    onPkFinish: _handlePkAutoFinish,
-                                    onPkResultClose: () =>
-                                        setState(() => _showPkResult = false),
-                                    seatReactions: _seatReactions,
-                                  ),
-                                ),
-                              ),
-                              // Scrollable chat feed — max height prevents covering mic seats
-                            ),
-                            SizedBox(
-                              height: chatHeight,
-                              child: RepaintBoundary(
-                                child: _RoomChatFeed(
-                                  chatMessages: _chatMessages,
-                                  isArabic: context.isArabic,
-                                  onProfileTap: _openUserProfileSheet,
-                                  bottomPad: 0,
-                                  currentUserId: _currentUserId ?? '',
-                                  onRemoveTap: _canRemoveMessages
-                                      ? _removeMessage
-                                      : null,
-                                  onReportTap: _reportChatMessage,
-                                ),
-                              ),
-                            ),
-                            SizedBox(height: lowerInteractionReserve),
-                          ],
+                ),
+              ],
+
+              // â”€â”€ Main stage: mic grid + PK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+              stage: SroodRoomStage(
+                members: _members,
+                maxSeats: _currentMaxSeats,
+                isArabic: isArabic,
+                activeSpeakerCount: _activeSpeakerCount,
+                isHost: _iAmHost,
+                onEmptySeatTap: _pickListenerForSeat,
+                onOccupiedSeatTap: _handleOccupiedSeatTap,
+                onOccupiedSeatLongPress: _showMemberSeatActions,
+                onProfileTap: _openUserProfileSheet,
+                memberCount: _members.length,
+                onParticipantsTap: _showParticipantsSheet,
+                supportByUserId: _giftSupportByUserId,
+                selectedMoveUserId: _selectedMicMoveMember?.userId,
+                speakingUserIds: _speakingUserIds,
+                moderatorUserIds: _moderatorUserIds,
+                closedSeats: _closedSeats,
+                roomLevel: _roomLevel,
+                activePk: _activePk?.isActive == true ? _activePk : null,
+                showPkResult: _showPkResult,
+                pkResult: _showPkResult && _activePk?.isFinished == true
+                    ? _activePk
+                    : null,
+                onPkFinish: _handlePkAutoFinish,
+                onPkResultClose: () => setState(() => _showPkResult = false),
+                seatReactions: _seatReactions,
+              ),
+
+              // â”€â”€ Chat zone â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+              chatFeed: SroodRoomChatFeed(
+                chatMessages: _chatMessages,
+                isArabic: isArabic,
+                onProfileTap: _openUserProfileSheet,
+                bottomPad: 0,
+                currentUserId: _currentUserId ?? '',
+                onRemoveTap: _canRemoveMessages ? _removeMessage : null,
+                onReportTap: _reportChatMessage,
+              ),
+
+              // â”€â”€ Floating now-playing chip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+              musicChip: ListenableBuilder(
+                listenable: _musicService,
+                builder: (_, _) {
+                  final controllerId = _syncedMusic.lastState?.controllerUserId;
+                  final isController = controllerId == _currentUserId;
+                  final isManager =
+                      _iAmRoomOwner || _iAmHost || _isCurrentUserModerator;
+                  return RoomMiniPlayer(
+                    musicService: _musicService,
+                    isArabic: isArabic,
+                    isManager: isManager,
+                    canManage: isManager && isController,
+                    onTap: _openMusicPanel,
+                    controllerUserId: controllerId,
+                    currentUserId: _currentUserId,
+                    onStop: (isManager && isController)
+                        ? () => unawaited(_stopMusicForRoom())
+                        : null,
+                    onNonControllerAction: () => _musicAction(() async {}),
+                    keyboardOpen: MediaQuery.of(context).viewInsets.bottom > 0,
+                  );
+                },
+              ),
+
+              // â”€â”€ Bottom control zone â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+              bottomBar:
+                  ValueListenableBuilder<({bool connecting, bool connected})>(
+                    valueListenable: _audioStateNotifier,
+                    builder: (context2, audioState, child2) =>
+                        SroodRoomBottomActions(
+                          isArabic: isArabic,
+                          connectingAudio:
+                              audioState.connecting || _micToggleBusy,
+                          micEnabled: _micEnabled,
+                          isOnMic: _isCurrentUserOnMic,
+                          leaving: _leaving,
+                          isSendingMessage: _isSendingMessage,
+                          myVipLevel: _myMember?.effectiveVipLevel ?? 0,
+                          isUploadingImage: _uploadingChatImage,
+                          onToggleMic: _toggleMic,
+                          onGiftTap: _openGiftSheet,
+                          onMoreTap: _openToolsSheet,
+                          onReactionTap: _openReactionPicker,
+                          onInboxTap: _openInbox,
+                          inboxUnreadCount: _inboxUnreadCount,
+                          onSendMessage: _sendChatMessage,
+                          onSendImage: _sendChatImageMessage,
+                          members: _members,
+                          bottomPad: bottomPad,
                         ),
-                      ),
-                    ],
                   ),
-                ),
 
-                // -- Floating music chip ------------------------------------
-                // Keep now-playing visible without stealing a full row from chat.
-                Positioned(
-                  bottom: bottomPad + 136,
-                  left: 0,
-                  right: 0,
-                  child: ListenableBuilder(
-                    listenable: _musicService,
-                    builder: (_, _) {
-                      final controllerId =
-                          _syncedMusic.lastState?.controllerUserId;
-                      final isController = controllerId == _currentUserId;
-                      final isManager =
-                          _iAmRoomOwner || _iAmHost || _isCurrentUserModerator;
-                      return RoomMiniPlayer(
-                        musicService: _musicService,
-                        isArabic: context.isArabic,
-                        isManager: isManager,
-                        canManage: isManager && isController,
-                        onTap: _openMusicPanel,
-                        controllerUserId: controllerId,
-                        currentUserId: _currentUserId,
-                        onStop: (isManager && isController)
-                            ? () => unawaited(_stopMusicForRoom())
-                            : null,
-                        onNonControllerAction: () => _musicAction(() async {}),
-                        keyboardOpen: kbHeight > 0,
-                      );
-                    },
-                  ),
-                ),
+              // â”€â”€ Full-screen overlays â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+              overlays: [
+                SroodGiftEventOverlay(events: _giftEvents, isArabic: isArabic),
 
-                // -- Pinned bottom action bar -------------------------------
-                Positioned(
-                  bottom: kbHeight,
-                  left: 0,
-                  right: 0,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Action bar
-                      ValueListenableBuilder<
-                        ({bool connecting, bool connected})
-                      >(
-                        valueListenable: _audioStateNotifier,
-                        builder: (context2, audioState, child2) =>
-                            _LiveBottomActionBar(
-                              isArabic: context.isArabic,
-                              connectingAudio:
-                                  audioState.connecting || _micToggleBusy,
-                              micEnabled: _micEnabled,
-                              isOnMic: _isCurrentUserOnMic,
-                              leaving: _leaving,
-                              isSendingMessage: _isSendingMessage,
-                              myVipLevel: _myMember?.effectiveVipLevel ?? 0,
-                              isUploadingImage: _uploadingChatImage,
-                              onToggleMic: _toggleMic,
-                              onLeaveRoom: _leaveRoom,
-                              onGiftTap: _openGiftSheet,
-                              onMoreTap: _openToolsSheet,
-                              onReactionTap: _openReactionPicker,
-                              onSendMessage: _sendChatMessage,
-                              onSendImage: _sendChatImageMessage,
-                              members: _members,
-                              bottomPad: bottomPad,
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // \u2500\u2500 3. Gift floating event overlay \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-                _GiftEventOverlay(
-                  events: _giftEvents,
-                  isArabic: context.isArabic,
-                ),
-
-                // \u2500\u2500 4. Full-screen luxury gift video \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
                 if (_activeLuxuryGiftVideo != null)
-                  _LuxuryGiftVideoOverlay(
+                  SroodLuxuryGiftVideoOverlay(
                     playback: _activeLuxuryGiftVideo!,
                     onDone: _clearLuxuryGiftVideo,
-                    // Mute gift video audio while room music is playing so the music
-                    // player is never interrupted by the video's audio track.
+                    // Mute gift video audio while room music is playing so
+                    // the music player is never interrupted.
                     soundEnabled: _soundEnabled && !_musicService.isActive,
                   ),
 
@@ -4476,9 +4333,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                         top: 80 + MediaQuery.of(context).padding.top,
                         left: 16,
                         right: 16,
-                        child: _RedEnvelopeBanner(
+                        child: SroodRedEnvelopeBanner(
                           envelope: envelope,
-                          isArabic: context.isArabic,
+                          isArabic: isArabic,
                           loading: _claimingEnvelope,
                           isSender: isSender,
                           onClaim: _claimRedEnvelope,
@@ -4488,10 +4345,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                     },
                   ),
 
-                // -- 6. Lucky Bag entrance overlay (receivers see this on Realtime INSERT) --
                 if (_showLuckyBagEntrance)
                   Positioned.fill(
-                    child: _LuckyBagEntranceOverlay(
+                    child: SroodLuckyBagEntranceOverlay(
                       key: const ValueKey('lucky-bag-entrance-overlay'),
                       soundEnabled: _soundEnabled,
                       onDone: () {
@@ -4502,10 +4358,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                     ),
                   ),
 
-                // -- 7. Lucky Bag win overlay (claimer sees this) --
                 if (_luckyBagWinCoins != null)
                   Positioned.fill(
-                    child: _LuckyBagWinOverlay(
+                    child: SroodLuckyBagWinOverlay(
                       key: ValueKey('lucky-bag-win-overlay-$_luckyBagWinCoins'),
                       coins: _luckyBagWinCoins!,
                       soundEnabled: _soundEnabled,
@@ -4514,3799 +4369,19 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
                       },
                     ),
                   ),
-
-                // -- 6. Srood Loto side shortcut removed from room UI --
               ],
             ),
           ), // Scaffold
-          // Vault closing overlay - rendered above everything, owner-only style
+          // Vault closing overlay â€” rendered above everything.
           if (_isClosingRoom)
-            _RoomClosingOverlay(
+            SroodRoomClosingOverlay(
               key: ValueKey('room-closing-overlay-${widget.room.id}'),
               isOwnerClosing: _iAmRoomOwner,
-              isArabic: context.isArabic,
+              isArabic: isArabic,
             ),
         ],
       ),
     ); // PopScope
-  }
-}
-
-class _CompactRoomHeader extends StatelessWidget {
-  const _CompactRoomHeader({
-    required this.room,
-    required this.activeSpeakerCount,
-    required this.memberCount,
-    required this.walletCoins,
-    required this.isHost,
-    required this.isArabic,
-    required this.roomXp,
-    required this.xpToday,
-    required this.xpWeek,
-    required this.dailyStreak,
-    required this.streakMultiplier,
-    this.announcement,
-    this.onLevelBadgeTap,
-  });
-
-  final Room room;
-  final int activeSpeakerCount;
-  final int memberCount;
-  final int walletCoins;
-  final bool isHost;
-  final bool isArabic;
-  final int roomXp;
-  final int xpToday;
-  final int xpWeek;
-  final int dailyStreak;
-  final double streakMultiplier;
-  final String? announcement;
-  final VoidCallback? onLevelBadgeTap;
-
-  // 5-digit public code, or last 6 chars of UUID for legacy rooms.
-  String get _shortRoomId {
-    if (room.roomCode != null && room.roomCode!.isNotEmpty) {
-      return room.roomCode!;
-    }
-    final id = room.id.replaceAll('-', '');
-    return id.length > 6
-        ? id.substring(id.length - 6).toUpperCase()
-        : id.toUpperCase();
-  }
-
-  Color get _levelColor {
-    final lvl = room.roomLevel;
-    if (lvl >= 9) return const Color(0xFFFFD700);
-    if (lvl >= 7) return const Color(0xFFF0C15A);
-    if (lvl >= 5) return const Color(0xFFE8A83A);
-    if (lvl >= 3) return const Color(0xFFB48EE0);
-    return const Color(0xFF9B72CF);
-  }
-
-  String get _levelLabel {
-    final lvl = room.roomLevel;
-    if (isArabic) return 'LV $lvl';
-    return 'LV $lvl';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final textDir = isArabic ? TextDirection.rtl : TextDirection.ltr;
-
-    return Directionality(
-      textDirection: textDir,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // \u2500\u2500 Main identity card \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-          // Transparent floating header row — background shows through
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.black.withValues(alpha: 0.64),
-                  const Color(0xFF160B26).withValues(alpha: 0.72),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: const Color(0xFFF0C15A).withValues(alpha: 0.18),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.26),
-                  blurRadius: 18,
-                  offset: const Offset(0, 7),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                // Room avatar
-                Container(
-                  width: 38,
-                  height: 38,
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0C15A).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(11),
-                    border: Border.all(
-                      color: const Color(0xFFF0C15A).withValues(alpha: 0.55),
-                      width: 1.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFF0C15A).withValues(alpha: 0.20),
-                        blurRadius: 10,
-                      ),
-                    ],
-                  ),
-                  child: room.avatarUrl?.isNotEmpty == true
-                      ? Image.network(
-                          room.avatarUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, e, s) => const Icon(
-                            Icons.mic_rounded,
-                            color: Color(0xFFF0C15A),
-                            size: 20,
-                          ),
-                        )
-                      : const Icon(
-                          Icons.mic_rounded,
-                          color: Color(0xFFF0C15A),
-                          size: 20,
-                        ),
-                ),
-                const SizedBox(width: 8),
-
-                // Name + ID chip + secondary info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        room.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          shadows: [
-                            Shadow(blurRadius: 6, color: Colors.black54),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      _RoomIdChip(shortId: _shortRoomId, isArabic: isArabic),
-                      const SizedBox(height: 3),
-                      // Secondary row: coins + host badge (dimmed to reduce clutter)
-                      Opacity(
-                        opacity: 0.72,
-                        child: Wrap(
-                          spacing: 4,
-                          runSpacing: 3,
-                          children: [
-                            _MiniRoomStatusPill(
-                              icon: Icons.monetization_on_rounded,
-                              label: walletCoins > 999
-                                  ? '${(walletCoins / 1000).toStringAsFixed(1)}k'
-                                  : walletCoins.toString(),
-                              color: const Color(0xFFF0C15A),
-                            ),
-                            if (isHost)
-                              _MiniRoomStatusPill(
-                                icon: Icons.admin_panel_settings_rounded,
-                                label: isArabic ? 'مضيف' : 'Host',
-                                color: const Color(0xFFF0C15A),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(width: 6),
-
-                // Right: level badge + room member/seat stats only
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 92),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      GestureDetector(
-                        onTap: onLevelBadgeTap,
-                        child: _RoomLevelBadge(
-                          level: room.roomLevel,
-                          levelColor: _levelColor,
-                          label: _levelLabel,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Wrap(
-                        direction: Axis.horizontal,
-                        alignment: WrapAlignment.end,
-                        spacing: 4,
-                        runSpacing: 4,
-                        children: [
-                          _MiniRoomStatusPill(
-                            icon: Icons.people_alt_rounded,
-                            label: memberCount.toString(),
-                            color: const Color(0xFF4ADE80),
-                          ),
-                          _MiniRoomStatusPill(
-                            icon: Icons.event_seat_rounded,
-                            label: '$activeSpeakerCount/${room.maxSeats}',
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // \u2500\u2500 Announcement strip \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-          if (announcement != null && announcement!.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E0E38),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: const Color(0xFF8B26D9).withValues(alpha: 0.35),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.campaign_rounded,
-                      color: Color(0xFFF0C15A),
-                      size: 16,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        announcement!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontWeight: FontWeight.w500,
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Full-screen immersive background for the live room.
-/// Shows cover image (if set) with a dark readability overlay,
-/// or a premium decorative gradient when no cover exists.
-class _FullRoomBackground extends StatelessWidget {
-  const _FullRoomBackground({
-    super.key,
-    required this.room,
-    this.backgroundUrl,
-  });
-  final Room room;
-  final String? backgroundUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    // Custom uploaded background takes priority over room cover
-    final imageUrl = backgroundUrl ?? room.coverUrl;
-    return SizedBox.expand(
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Base image or gradient
-          if (imageUrl != null)
-            Image.network(
-              imageUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (ctx, err, stack) => const _RoomGradientBg(),
-            )
-          else
-            const _RoomGradientBg(),
-
-          // Layered cinematic overlay - header dark, center reveals background,
-          // bottom darker for chat/controls readability.
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.black.withValues(alpha: imageUrl != null ? 0.78 : 0.0),
-                  Colors.black.withValues(alpha: imageUrl != null ? 0.52 : 0.0),
-                  Colors.black.withValues(alpha: imageUrl != null ? 0.62 : 0.0),
-                  Colors.black.withValues(alpha: 0.92),
-                ],
-                stops: const [0.0, 0.28, 0.55, 1.0],
-              ),
-            ),
-          ),
-          // Subtle purple vignette sides
-          if (imageUrl != null)
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: [
-                    const Color(0xFF1A0633).withValues(alpha: 0.35),
-                    Colors.transparent,
-                    Colors.transparent,
-                    const Color(0xFF1A0633).withValues(alpha: 0.35),
-                  ],
-                  stops: const [0.0, 0.25, 0.75, 1.0],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Rich purple/gold gradient used when no cover image is set.
-class _RoomGradientBg extends StatelessWidget {
-  const _RoomGradientBg();
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        // Base deep purple gradient
-        Container(
-          decoration: const BoxDecoration(
-            gradient: RadialGradient(
-              center: Alignment(0, -0.3),
-              radius: 1.4,
-              colors: [Color(0xFF3D1260), Color(0xFF1A0633), Color(0xFF080314)],
-            ),
-          ),
-        ),
-        // Gold glow - top center
-        Positioned(
-          top: -80,
-          left: 0,
-          right: 0,
-          child: Center(
-            child: Container(
-              width: 280,
-              height: 280,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    const Color(0xFFF0C15A).withValues(alpha: 0.12),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        // Purple glow - bottom right
-        Positioned(
-          bottom: 50,
-          right: -40,
-          child: Container(
-            width: 200,
-            height: 200,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  const Color(0xFF8B26D9).withValues(alpha: 0.22),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        ),
-        // Blue glow - bottom left
-        Positioned(
-          bottom: 120,
-          left: -30,
-          child: Container(
-            width: 160,
-            height: 160,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  const Color(0xFF1A6FFF).withValues(alpha: 0.14),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// Room ID chip — compact display with tap-to-copy using the app-wide pattern.
-// -----------------------------------------------------------------------------
-class _RoomIdChip extends StatelessWidget {
-  const _RoomIdChip({required this.shortId, required this.isArabic});
-
-  final String shortId;
-  final bool isArabic;
-
-  static const _cyan = Color(0xFF22D3EE);
-  static const _cyanDim = Color(0x3322D3EE);
-  static const _cyanGlow = Color(0x1A22D3EE);
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () async {
-        await Clipboard.setData(ClipboardData(text: shortId));
-        if (context.mounted) {
-          SroodToast.show(
-            context,
-            isArabic ? 'تم نسخ كود الغرفة' : 'Room code copied',
-            type: SroodToastType.success,
-          );
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(
-          color: _cyanGlow,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: _cyanDim, width: 0.9),
-          boxShadow: const [
-            BoxShadow(color: Color(0x0A22D3EE), blurRadius: 6, spreadRadius: 0),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.grid_3x3_rounded, size: 8, color: _cyan),
-            const SizedBox(width: 3),
-            Text(
-              shortId,
-              style: const TextStyle(
-                fontSize: 9.5,
-                fontWeight: FontWeight.w800,
-                color: _cyan,
-                letterSpacing: 1.2,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Icon(
-              Icons.copy_rounded,
-              size: 8,
-              color: _cyan.withValues(alpha: 0.55),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// Room Level badge — premium pill shown in header top-right.
-// -----------------------------------------------------------------------------
-class _RoomLevelBadge extends StatelessWidget {
-  const _RoomLevelBadge({
-    required this.level,
-    required this.levelColor,
-    required this.label,
-  });
-
-  final int level;
-  final Color levelColor;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final isElite = level >= 9;
-    final isRoyal = level >= 7;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isElite
-              ? [const Color(0xFF3D2000), const Color(0xFF1A0840)]
-              : isRoyal
-              ? [const Color(0xFF2D1254), const Color(0xFF160830)]
-              : [const Color(0xFF1E0E38), const Color(0xFF0E0620)],
-        ),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: levelColor.withValues(alpha: 0.7),
-          width: 1.0,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: levelColor.withValues(alpha: isElite ? 0.40 : 0.22),
-            blurRadius: isElite ? 10 : 6,
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            isElite
-                ? Icons.star_rounded
-                : isRoyal
-                ? Icons.diamond_rounded
-                : Icons.military_tech_rounded,
-            size: 10,
-            color: levelColor,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w900,
-              color: levelColor,
-              letterSpacing: 0.4,
-              shadows: [
-                Shadow(blurRadius: 6, color: levelColor.withValues(alpha: 0.6)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MiniRoomStatusPill extends StatelessWidget {
-  const _MiniRoomStatusPill({
-    required this.icon,
-    required this.label,
-    this.color = const Color(0xFFF0C15A),
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: BoxDecoration(
-        color: const Color(0xFF241638),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 10, color: color),
-          const SizedBox(width: 3),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w800,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LiveRoomStage extends StatelessWidget {
-  const _LiveRoomStage({
-    required this.members,
-    required this.maxSeats,
-    required this.isArabic,
-    required this.activeSpeakerCount,
-    required this.isHost,
-    required this.onEmptySeatTap,
-    required this.onOccupiedSeatTap,
-    required this.onOccupiedSeatLongPress,
-    required this.onProfileTap,
-    required this.memberCount,
-    required this.onParticipantsTap,
-    required this.supportByUserId,
-    required this.selectedMoveUserId,
-    required this.speakingUserIds,
-    required this.moderatorUserIds,
-    required this.closedSeats,
-    required this.onSeatClosedToggle,
-    required this.roomLevel,
-    this.activePk,
-    this.showPkResult = false,
-    this.pkResult,
-    this.onPkFinish,
-    this.onPkResultClose,
-    this.seatReactions = const {},
-  });
-
-  final List<RoomMember> members;
-  final int maxSeats;
-  final bool isArabic;
-  final int activeSpeakerCount;
-  final bool isHost;
-  final ValueChanged<int> onEmptySeatTap;
-  final void Function(RoomMember member, int seatNumber) onOccupiedSeatTap;
-  final void Function(RoomMember member, int seatNumber)
-  onOccupiedSeatLongPress;
-  final ValueChanged<String> onProfileTap;
-  final int memberCount;
-  final VoidCallback onParticipantsTap;
-  final Map<String, int> supportByUserId;
-  final String? selectedMoveUserId;
-  final Set<String> speakingUserIds;
-  final Set<String> moderatorUserIds;
-  final Set<int> closedSeats;
-  final ValueChanged<int> onSeatClosedToggle;
-  final int roomLevel;
-  final PkSession? activePk;
-  final bool showPkResult;
-  final PkSession? pkResult;
-  final VoidCallback? onPkFinish;
-  final VoidCallback? onPkResultClose;
-  final Map<int, RoomReaction> seatReactions;
-
-  @override
-  Widget build(BuildContext context) {
-    final seats = _buildSeats();
-    final crossAxisAlignment = isArabic
-        ? CrossAxisAlignment.end
-        : CrossAxisAlignment.start;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(2, 4, 2, 6),
-      child: Column(
-        crossAxisAlignment: crossAxisAlignment,
-        children: [
-          // \u2500\u2500 Header: PK banner OR normal Voice Stage row \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-          if (activePk != null)
-            PkBanner(
-              session: activePk!,
-              isArabic: isArabic,
-              isHost: isHost,
-              onFinish: onPkFinish ?? () {},
-            )
-          else
-            // Stage header row (compact single line)
-            Row(
-              textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-              children: [
-                // Left: title + live dot + count + participants chip on one row
-                Expanded(
-                  child: Row(
-                    textDirection: isArabic
-                        ? TextDirection.rtl
-                        : TextDirection.ltr,
-                    children: [
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Color(0xFF4ADE80),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          isArabic
-                              ? '$activeSpeakerCount/$maxSeats'
-                              : '$activeSpeakerCount/$maxSeats',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.65),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      _ParticipantsChip(
-                        count: memberCount,
-                        isArabic: isArabic,
-                        onTap: onParticipantsTap,
-                      ),
-                    ],
-                  ),
-                ),
-                // Right: animated EQ icon
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFFD978), Color(0xFFD99A2B)],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFF0C15A).withValues(alpha: 0.35),
-                        blurRadius: 12,
-                        spreadRadius: -2,
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.graphic_eq_rounded,
-                    color: Color(0xFF160B26),
-                    size: 18,
-                  ),
-                ),
-              ],
-            ),
-          const SizedBox(height: 24),
-          // -- PK result banner ----------------------------------------------
-          if (showPkResult && pkResult != null) ...[
-            PkResultBanner(
-              session: pkResult!,
-              isArabic: isArabic,
-              onClose: onPkResultClose ?? () {},
-            ),
-            const SizedBox(height: 14),
-          ],
-          // -- Seat grid -----------------------------------------------------
-          // When PK active, a subtle red-left/blue-right background split
-          // signals the team sides without breaking the seat grid layout.
-          Expanded(
-            child: Stack(
-              children: [
-                if (activePk != null)
-                  Positioned.fill(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.centerLeft,
-                                  end: Alignment.centerRight,
-                                  colors: [
-                                    kPkRed.withValues(alpha: 0.09),
-                                    Colors.transparent,
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.centerLeft,
-                                  end: Alignment.centerRight,
-                                  colors: [
-                                    Colors.transparent,
-                                    kPkBlue.withValues(alpha: 0.09),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                _SeatGrid(
-                  seats: seats,
-                  cols: _colsForSeatCount(seats.length),
-                  isArabic: isArabic,
-                  isHost: isHost,
-                  onEmptySeatTap: onEmptySeatTap,
-                  onOccupiedSeatTap: onOccupiedSeatTap,
-                  onOccupiedSeatLongPress: onOccupiedSeatLongPress,
-                  onProfileTap: onProfileTap,
-                  selectedMoveUserId: selectedMoveUserId,
-                  speakingUserIds: speakingUserIds,
-                  moderatorUserIds: moderatorUserIds,
-                  onSeatClosedToggle: onSeatClosedToggle,
-                  roomLevel: roomLevel,
-                  activePk: activePk,
-                  seatReactions: seatReactions,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  List<_StageSeat> _buildSeats() {
-    final safeMaxSeats = maxSeats <= 0 ? 12 : maxSeats;
-    final seats = List<_StageSeat>.generate(
-      safeMaxSeats,
-      (index) => _StageSeat.empty(
-        index + 1,
-        isLocked: closedSeats.contains(index + 1),
-      ),
-    );
-
-    final stageMembers = members
-        .where((member) => member.role == 'host' || member.role == 'speaker')
-        .toList();
-
-    for (final member in stageMembers) {
-      final preferredSeat = member.seatNumber;
-
-      if (preferredSeat != null &&
-          preferredSeat >= 1 &&
-          preferredSeat <= safeMaxSeats &&
-          seats[preferredSeat - 1].isEmpty) {
-        seats[preferredSeat - 1] = _StageSeat.fromMember(
-          number: preferredSeat,
-          member: member,
-          isArabic: isArabic,
-          supportAmount: supportByUserId[member.userId] ?? 0,
-          isLocked: closedSeats.contains(preferredSeat),
-        );
-        continue;
-      }
-
-      final emptyIndex = seats.indexWhere((seat) => seat.isEmpty);
-      if (emptyIndex != -1) {
-        seats[emptyIndex] = _StageSeat.fromMember(
-          number: emptyIndex + 1,
-          member: member,
-          isArabic: isArabic,
-          supportAmount: supportByUserId[member.userId] ?? 0,
-          isLocked: closedSeats.contains(emptyIndex + 1),
-        );
-      }
-    }
-
-    return seats;
-  }
-
-  // 6 seats -> 3 cols (2×3), 9 seats -> 3 cols (3×3), 12 seats -> 4 cols (3×4).
-  static int _colsForSeatCount(int count) => count <= 9 ? 3 : 4;
-}
-
-// -----------------------------------------------------------------------------
-// Custom seat grid - cols determined by seat count so every mode is balanced.
-// Full rows use spaceBetween so tile edges align with container edges.
-// Partial rows (e.g. 9th seat) use center so lone seats don't hug the left.
-// -----------------------------------------------------------------------------
-
-class _SeatGrid extends StatelessWidget {
-  const _SeatGrid({
-    required this.seats,
-    required this.cols,
-    required this.isArabic,
-    required this.isHost,
-    required this.onEmptySeatTap,
-    required this.onOccupiedSeatTap,
-    required this.onOccupiedSeatLongPress,
-    required this.onProfileTap,
-    required this.selectedMoveUserId,
-    required this.speakingUserIds,
-    required this.moderatorUserIds,
-    required this.onSeatClosedToggle,
-    required this.roomLevel,
-    this.activePk,
-    this.seatReactions = const {},
-  });
-
-  final List<_StageSeat> seats;
-  final int cols;
-  final bool isArabic;
-  final bool isHost;
-  final ValueChanged<int> onEmptySeatTap;
-  final void Function(RoomMember, int) onOccupiedSeatTap;
-  final void Function(RoomMember, int) onOccupiedSeatLongPress;
-  final ValueChanged<String> onProfileTap;
-  final String? selectedMoveUserId;
-  final Set<String> speakingUserIds;
-  final Set<String> moderatorUserIds;
-  final ValueChanged<int> onSeatClosedToggle;
-  final int roomLevel;
-  final PkSession? activePk;
-  final Map<int, RoomReaction> seatReactions;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Use a single stable aspect ratio and fixed gaps so tile positions
-        // never shift regardless of content state, screen size, or animations.
-        final rows = <List<_StageSeat>>[];
-        for (var i = 0; i < seats.length; i += cols) {
-          final end = (i + cols).clamp(0, seats.length);
-          rows.add(seats.sublist(i, end));
-        }
-
-        final rowCount = rows.isEmpty ? 1 : rows.length;
-        final preferredGap = cols >= 4 ? 2.0 : 18.0;
-        final preferredRowGap = rowCount >= 4 ? 4.0 : 10.0;
-        final availableSeatWidth =
-            (constraints.maxWidth - preferredGap * (cols - 1)) / cols;
-        final minSeatBoxWidth = seats.length > 12 ? 54.0 : _minimumSeatSize;
-        final availableSeatHeight = constraints.maxHeight.isFinite
-            ? (constraints.maxHeight - preferredRowGap * (rowCount - 1)) /
-                  rowCount
-            : _roomSeatBoxHeight;
-        final seatBoxWidth = math
-            .min(availableSeatWidth, _roomSeatBoxWidth)
-            .clamp(minSeatBoxWidth, _roomSeatBoxWidth);
-        final tileHeight = math
-            .min(availableSeatHeight, _roomSeatBoxHeight)
-            .clamp(78.0, _roomSeatBoxHeight);
-        final labelReserve = seats.length <= 6 ? 42.0 : 34.0;
-        final seatSize = math
-            .min(_seatSize, math.min(seatBoxWidth, tileHeight - labelReserve))
-            .clamp(52.0, _seatSize);
-        final colGap = cols <= 1
-            ? 0.0
-            : math.max(
-                0.0,
-                math.min(
-                  preferredGap,
-                  (constraints.maxWidth - seatBoxWidth * cols) / (cols - 1),
-                ),
-              );
-        final rowGap = rowCount <= 1
-            ? 0.0
-            : math.max(
-                0.0,
-                math.min(
-                  preferredRowGap,
-                  (constraints.maxHeight - tileHeight * rowCount) /
-                      (rowCount - 1),
-                ),
-              );
-        final avatarAreaHeight = seatSize + 4;
-        final tileWidth = seatBoxWidth;
-
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (var r = 0; r < rows.length; r++) ...[
-              if (r > 0) SizedBox(height: rowGap),
-              _buildRow(
-                rows[r],
-                tileWidth,
-                tileHeight,
-                colGap,
-                seatSize,
-                avatarAreaHeight,
-              ),
-            ],
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildRow(
-    List<_StageSeat> row,
-    double tileWidth,
-    double tileHeight,
-    double gap,
-    double seatSize,
-    double avatarAreaHeight,
-  ) {
-    final isFull = row.length == cols;
-    return Row(
-      mainAxisAlignment: isFull
-          ? MainAxisAlignment.spaceBetween
-          : MainAxisAlignment.center,
-      children: [
-        for (var c = 0; c < row.length; c++) ...[
-          if (c > 0) SizedBox(width: gap),
-          // RepaintBoundary isolates each seat's animation from its neighbours,
-          // preventing speaking-wave or smiley-accent repaints from propagating
-          // and causing perceived layout instability.
-          RepaintBoundary(
-            child: SizedBox(
-              width: tileWidth,
-              height: tileHeight,
-              child: _LiveSeatBubble(
-                seat: row[c],
-                isArabic: isArabic,
-                isHost: isHost,
-                isSpeaking: speakingUserIds.contains(
-                  row[c].member?.userId ?? '',
-                ),
-                isModerator: moderatorUserIds.contains(
-                  row[c].member?.userId ?? '',
-                ),
-                onEmptySeatTap: onEmptySeatTap,
-                onOccupiedSeatTap: onOccupiedSeatTap,
-                onOccupiedSeatLongPress: onOccupiedSeatLongPress,
-                onProfileTap: onProfileTap,
-                selectedForMove:
-                    selectedMoveUserId != null &&
-                    row[c].member?.userId == selectedMoveUserId,
-                onSeatClosedToggle: onSeatClosedToggle,
-                roomLevel: roomLevel,
-                seatSize: seatSize,
-                avatarAreaHeight: avatarAreaHeight,
-                tileHeight: tileHeight,
-                pkTeam: pkSeatTeam(row[c].member?.userId ?? '', activePk),
-                activeReaction: seatReactions[row[c].number],
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _ParticipantsChip extends StatelessWidget {
-  const _ParticipantsChip({
-    required this.count,
-    required this.isArabic,
-    required this.onTap,
-  });
-
-  final int count;
-  final bool isArabic;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(999),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-        decoration: BoxDecoration(
-          color: const Color(0xFF241638).withValues(alpha: 0.88),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: const Color(0xFF5A3A86)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-          children: [
-            const Icon(
-              Icons.people_alt_rounded,
-              size: 14,
-              color: Color(0xFFF0C15A),
-            ),
-            const SizedBox(width: 5),
-            Text(
-              count.toString(),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Color(0xFFF4EBD8),
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RoomParticipantsSheet extends StatelessWidget {
-  const _RoomParticipantsSheet({
-    required this.members,
-    required this.currentUserId,
-    required this.isArabic,
-    required this.refreshing,
-    required this.supportByUserId,
-    required this.roleBusyUserId,
-    required this.roleLabel,
-    required this.isHost,
-    required this.onRefresh,
-    required this.onProfileTap,
-    required this.onPromote,
-    required this.onMoveToListener,
-    required this.onRemove,
-  });
-
-  final List<RoomMember> members;
-  final String? currentUserId;
-  final bool isArabic;
-  final bool refreshing;
-  final Map<String, int> supportByUserId;
-  final String? roleBusyUserId;
-  final String Function(String role) roleLabel;
-  final bool isHost;
-  final Future<void> Function() onRefresh;
-  final ValueChanged<String> onProfileTap;
-  final ValueChanged<RoomMember> onPromote;
-  final ValueChanged<RoomMember> onMoveToListener;
-  final ValueChanged<RoomMember> onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    final textAlign = isArabic ? TextAlign.right : TextAlign.left;
-
-    return FractionallySizedBox(
-      heightFactor: 0.70,
-      alignment: Alignment.bottomCenter,
-      child: SafeArea(
-        top: false,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(18, 10, 18, 18),
-          decoration: const BoxDecoration(
-            color: Color(0xFF100718),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-            border: Border(
-              top: BorderSide(color: Color(0xFF5A3A86), width: 1.2),
-            ),
-          ),
-          child: Column(
-            children: [
-              Container(
-                width: 82,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF5A3A86),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Row(
-                textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: isArabic
-                          ? CrossAxisAlignment.end
-                          : CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          isArabic
-                              ? '\u0627\u0644\u0645\u0634\u0627\u0631\u0643\u0648\u0646'
-                              : 'Participants',
-                          textAlign: textAlign,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 21,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          isArabic
-                              ? '${members.length} \u0641\u064a \u0627\u0644\u063a\u0631\u0641\u0629'
-                              : '${members.length} in room',
-                          textAlign: textAlign,
-                          style: const TextStyle(
-                            color: Color(0xFFB9A9D4),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: isArabic
-                        ? '\u062a\u062d\u062f\u064a\u062b'
-                        : 'Refresh',
-                    onPressed: refreshing ? null : onRefresh,
-                    icon: refreshing
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.refresh_rounded),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: members.isEmpty
-                    ? Center(
-                        child: Text(
-                          isArabic
-                              ? '\u0644\u0627 \u064a\u0648\u062c\u062f \u0645\u0634\u0627\u0631\u0643\u0648\u0646 \u0646\u0634\u0637\u0648\u0646 \u0628\u0639\u062f.'
-                              : 'No active participants yet.',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Color(0xFFD8CFEA)),
-                        ),
-                      )
-                    : ListView.separated(
-                        itemCount: members.length,
-                        separatorBuilder: (_, index) =>
-                            const SizedBox(height: 8),
-                        itemBuilder: (context, index) {
-                          final member = members[index];
-                          final isSelf = member.userId == currentUserId;
-
-                          return _CompactParticipantRow(
-                            member: member,
-                            isSelf: isSelf,
-                            isArabic: isArabic,
-                            roleLabel: roleLabel(member.role),
-                            supportAmount: supportByUserId[member.userId] ?? 0,
-                            isBusy: roleBusyUserId == member.userId,
-                            showHostActions:
-                                isHost && !isSelf && member.role != 'host',
-                            onProfileTap: () => onProfileTap(member.userId),
-                            onPromote: () => onPromote(member),
-                            onMoveToListener: () => onMoveToListener(member),
-                            onRemove: () => onRemove(member),
-                          );
-                        },
-                      ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CompactParticipantRow extends StatelessWidget {
-  const _CompactParticipantRow({
-    required this.member,
-    required this.isSelf,
-    required this.isArabic,
-    required this.roleLabel,
-    required this.supportAmount,
-    required this.isBusy,
-    required this.showHostActions,
-    required this.onProfileTap,
-    required this.onPromote,
-    required this.onMoveToListener,
-    required this.onRemove,
-  });
-
-  final RoomMember member;
-  final bool isSelf;
-  final bool isArabic;
-  final String roleLabel;
-  final int supportAmount;
-  final bool isBusy;
-  final bool showHostActions;
-  final VoidCallback onProfileTap;
-  final VoidCallback onPromote;
-  final VoidCallback onMoveToListener;
-  final VoidCallback onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    final vipLevel = member.effectiveVipLevel;
-    final isSpeaker = member.role == 'speaker';
-    final isListener = member.role == 'listener';
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: onProfileTap,
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1B102A),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFF3E285E)),
-        ),
-        child: Row(
-          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-          children: [
-            _RoomAvatar(
-              avatarUrl: member.avatarUrl,
-              frameKey: member.selectedAvatarFrameKey,
-              vipLevel: vipLevel,
-              size: 42,
-              selected: false,
-              isOfficialAgent: member.isOfficialAgent,
-              fallbackIcon: member.isMuted
-                  ? Icons.mic_off_rounded
-                  : Icons.person_rounded,
-              onTap: onProfileTap,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: isArabic
-                    ? CrossAxisAlignment.end
-                    : CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    textDirection: isArabic
-                        ? TextDirection.rtl
-                        : TextDirection.ltr,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          member.fallbackName(isArabic),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: vipLevel > 0
-                                ? VipVisualStyle.nameColor(vipLevel, context)
-                                : Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                      if (isSelf) ...[
-                        const SizedBox(width: 6),
-                        _MiniPill(
-                          label: isArabic ? '\u0623\u0646\u062a' : 'You',
-                        ),
-                      ],
-                      if (member.isOfficialAgent) ...[
-                        const SizedBox(width: 6),
-                        const AgentBadge(compact: true),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 5),
-                  Wrap(
-                    spacing: 5,
-                    runSpacing: 5,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Text(
-                        member.displayCode,
-                        style: const TextStyle(
-                          color: Color(0xFF9E91B8),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      if (vipLevel > 0)
-                        VipBadge(vipLevel: vipLevel, compact: true),
-                      if (member.role == 'host')
-                        _MiniPill(
-                          label: isArabic ? '\u0645\u0636\u064a\u0641' : 'Host',
-                          gold: true,
-                        ),
-                      _MiniPill(label: roleLabel),
-                      if (member.isMuted)
-                        _MiniPill(
-                          label: isArabic
-                              ? '\u0645\u0643\u062a\u0648\u0645'
-                              : 'Muted',
-                        ),
-                      _SupportPill(amount: supportAmount, compact: true),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            if (showHostActions) ...[
-              const SizedBox(width: 8),
-              Wrap(
-                spacing: 6,
-                children: [
-                  if (isListener)
-                    _TinyIconButton(
-                      icon: Icons.record_voice_over_rounded,
-                      busy: isBusy,
-                      onTap: onPromote,
-                    ),
-                  if (isSpeaker)
-                    _TinyIconButton(
-                      icon: Icons.hearing_rounded,
-                      busy: isBusy,
-                      onTap: onMoveToListener,
-                    ),
-                  _TinyIconButton(
-                    icon: Icons.person_remove_rounded,
-                    busy: isBusy,
-                    danger: true,
-                    onTap: onRemove,
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MiniPill extends StatelessWidget {
-  const _MiniPill({required this.label, this.gold = false});
-
-  final String label;
-  final bool gold;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: gold
-            ? const Color(0xFFF0C15A).withValues(alpha: 0.18)
-            : const Color(0xFF2A1A3D),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: gold ? const Color(0xFFF0C15A) : const Color(0xFF5A3A86),
-        ),
-      ),
-      child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: gold ? const Color(0xFFF0C15A) : const Color(0xFFD8CFEA),
-          fontSize: 10,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-}
-
-class _TinyIconButton extends StatelessWidget {
-  const _TinyIconButton({
-    required this.icon,
-    required this.busy,
-    required this.onTap,
-    this.danger = false,
-  });
-
-  final IconData icon;
-  final bool busy;
-  final bool danger;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = danger ? const Color(0xFFFF5C7A) : const Color(0xFFF0C15A);
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(999),
-      onTap: busy ? null : onTap,
-      child: Container(
-        width: 32,
-        height: 32,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.13),
-          shape: BoxShape.circle,
-          border: Border.all(color: color.withValues(alpha: 0.72)),
-        ),
-        child: busy
-            ? SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(strokeWidth: 2, color: color),
-              )
-            : Icon(icon, size: 16, color: color),
-      ),
-    );
-  }
-}
-
-class _StageSeat {
-  const _StageSeat({
-    required this.number,
-    required this.name,
-    required this.role,
-    required this.isMuted,
-    required this.isEmpty,
-    required this.supportAmount,
-    this.isLocked = false,
-    this.member,
-  });
-
-  factory _StageSeat.empty(int number, {bool isLocked = false}) {
-    return _StageSeat(
-      number: number,
-      name: '',
-      role: 'empty',
-      isMuted: true,
-      isEmpty: true,
-      supportAmount: 0,
-      isLocked: isLocked,
-    );
-  }
-
-  factory _StageSeat.fromMember({
-    required int number,
-    required RoomMember member,
-    required bool isArabic,
-    required int supportAmount,
-    bool isLocked = false,
-  }) {
-    return _StageSeat(
-      number: number,
-      name: member.fallbackName(isArabic),
-      role: member.role,
-      isMuted: member.isMuted,
-      isEmpty: false,
-      supportAmount: supportAmount,
-      isLocked: isLocked,
-      member: member,
-    );
-  }
-
-  final int number;
-  final String name;
-  final String role;
-  final bool isMuted;
-  final bool isEmpty;
-  final bool isLocked;
-  final int supportAmount;
-  final RoomMember? member;
-}
-
-class _EmptySeatAction {
-  const _EmptySeatAction.moveSelf() : member = null, moveSelf = true;
-
-  const _EmptySeatAction.moveMember(this.member) : moveSelf = false;
-
-  final RoomMember? member;
-  final bool moveSelf;
-}
-
-class _OccupiedSeatAction {
-  const _OccupiedSeatAction.selectForMove()
-    : seatNumber = null,
-      selectForMove = true;
-
-  const _OccupiedSeatAction.moveToListener()
-    : seatNumber = null,
-      selectForMove = false;
-
-  const _OccupiedSeatAction.moveToSeat(this.seatNumber) : selectForMove = false;
-
-  final int? seatNumber;
-  final bool selectForMove;
-}
-
-// -----------------------------------------------------------------------------
-// Luxury seat level styling — 5 tiers mapped to room_level.
-// Returns styling data used to paint the empty-seat circle.
-// -----------------------------------------------------------------------------
-// =============================================================================
-// RoomSeatTheme — 10-level luxury seat identity system.
-// Pass roomLevel (1–10+); values outside range are clamped.
-// Level 0 (locked) has its own dedicated muted style.
-// =============================================================================
-class RoomSeatTheme {
-  const RoomSeatTheme({
-    required this.bgColors,
-    required this.borderColor,
-    required this.glowColor,
-    required this.iconColor,
-    required this.accentColor,
-    required this.borderWidth,
-    required this.glowBlur,
-    required this.innerRingOpacity,
-    required this.occupiedGlowColor,
-    required this.occupiedGlowBlur,
-    this.highlightOpacity = 0.0,
-    this.outerHaloColor = const Color(0x00000000),
-    this.outerHaloBlur = 0.0,
-    this.pulseGlow = false,
-  });
-
-  // Empty seat circle
-  final List<Color> bgColors;
-  final Color borderColor;
-  final Color glowColor;
-  final Color iconColor;
-  final Color accentColor; // inner ring + ornament tint
-  final double borderWidth;
-  final double glowBlur;
-  final double innerRingOpacity; // 0 = no inner ring
-  final double highlightOpacity; // shimmer bright spot at top (0 = none)
-  final Color outerHaloColor; // extra outer ring (transparent = none)
-  final double outerHaloBlur;
-  final bool pulseGlow; // animated aura for L7+
-
-  // Occupied seat
-  final Color occupiedGlowColor;
-  final double occupiedGlowBlur;
-
-  // Compat alias
-  List<Color> get bgGradient => bgColors;
-
-  static RoomSeatTheme forLevel(int level) {
-    if (level <= 0) return _kLocked;
-    return _kThemes[level.clamp(1, 10) - 1];
-  }
-
-  // Locked seat: always the same dark-muted style.
-  static const RoomSeatTheme _kLocked = RoomSeatTheme(
-    bgColors: [Color(0x14050510), Color(0x0A030308)],
-    borderColor: Color(0x1EFFFFFF),
-    glowColor: Color(0x0F8B26D9),
-    iconColor: Color(0x47FFFFFF),
-    accentColor: Color(0x14FFFFFF),
-    borderWidth: 1.2,
-    glowBlur: 6,
-    innerRingOpacity: 0,
-    occupiedGlowColor: Color(0x338B26D9),
-    occupiedGlowBlur: 10,
-  );
-
-  static const List<RoomSeatTheme> _kThemes = [
-    // ── Level 1: Violet Glass Pod — luxury dark capsule with violet glow ───
-    RoomSeatTheme(
-      bgColors: [Color(0xFF1A0D2E), Color(0xFF0E0720)],
-      borderColor: Color(0xCC8B5CF6),
-      glowColor: Color(0x807C3AED),
-      iconColor: Color(0xFFDDD6FE),
-      accentColor: Color(0xFF8B5CF6),
-      borderWidth: 1.8,
-      glowBlur: 18,
-      innerRingOpacity: 0.22,
-      highlightOpacity: 0.12,
-      outerHaloColor: Color.fromRGBO(124, 58, 237, 0.18),
-      outerHaloBlur: 22,
-      occupiedGlowColor: Color(0x808B5CF6),
-      occupiedGlowBlur: 16,
-    ),
-    // ── Level 2: Silver Glass — cool silver tones ──────────────────────────
-    RoomSeatTheme(
-      bgColors: [Color(0x440D1828), Color(0x2A080E18)],
-      borderColor: Color(0x8C9BAABB),
-      glowColor: Color(0x268EB4D0),
-      iconColor: Color(0xB4B4C8D4),
-      accentColor: Color(0x339BAABB),
-      borderWidth: 1.3,
-      glowBlur: 9,
-      innerRingOpacity: 0,
-      occupiedGlowColor: Color(0x4D7BA8C8),
-      occupiedGlowBlur: 13,
-    ),
-    // ── Level 3: Blue Prestige — polished cool-blue ────────────────────────
-    RoomSeatTheme(
-      bgColors: [Color(0xFF0A1428), Color(0xFF060A18)],
-      borderColor: Color(0xFF5BA3D9),
-      glowColor: Color(0x384A90C0),
-      iconColor: Color(0xFF7EC8F0),
-      accentColor: Color(0xFF5BA3D9),
-      borderWidth: 1.4,
-      glowBlur: 11,
-      innerRingOpacity: 0.08,
-      occupiedGlowColor: Color(0x5260B0E0),
-      occupiedGlowBlur: 14,
-    ),
-    // ── Level 4: Gold Warmth — warm amber, starts to feel elite ───────────
-    RoomSeatTheme(
-      bgColors: [Color(0xFF1A1004), Color(0xFF0E0904)],
-      borderColor: Color(0xFFD4A844),
-      glowColor: Color(0x47B8900A),
-      iconColor: Color(0xFFE8C060),
-      accentColor: Color(0xFFD4A844),
-      borderWidth: 1.5,
-      glowBlur: 13,
-      innerRingOpacity: 0.12,
-      occupiedGlowColor: Color(0x59D4A844),
-      occupiedGlowBlur: 16,
-    ),
-    // ── Level 5: Purple Luxury — rich prestige purple ─────────────────────
-    RoomSeatTheme(
-      bgColors: [Color(0xFF160830), Color(0xFF0A051A)],
-      borderColor: Color(0xFFD4A0FF),
-      glowColor: Color(0x4D8B26D9),
-      iconColor: Color(0xFFD4A0FF),
-      accentColor: Color(0xFFBB80EE),
-      borderWidth: 1.6,
-      glowBlur: 15,
-      innerRingOpacity: 0.18,
-      occupiedGlowColor: Color(0x668B26D9),
-      occupiedGlowBlur: 18,
-    ),
-    // ── Level 6: Ruby Royal — red-ruby + gold jewel ────────────────────────
-    RoomSeatTheme(
-      bgColors: [Color(0xFF240814), Color(0xFF140410)],
-      borderColor: Color(0xFFE84060),
-      glowColor: Color(0x4DCC2040),
-      iconColor: Color(0xFFFF8090),
-      accentColor: Color(0xFFFFD700),
-      borderWidth: 1.7,
-      glowBlur: 16,
-      innerRingOpacity: 0.22,
-      occupiedGlowColor: Color(0x59E84060),
-      occupiedGlowBlur: 18,
-      highlightOpacity: 0.12,
-    ),
-    // ── Level 7: Emerald Jewel — green jewel with gold edge + pulse ────────
-    RoomSeatTheme(
-      bgColors: [Color(0xFF041C10), Color(0xFF020E08)],
-      borderColor: Color(0xFF40D090),
-      glowColor: Color(0x5230C080),
-      iconColor: Color(0xFF80F0C0),
-      accentColor: Color(0xFFE8C844),
-      borderWidth: 1.8,
-      glowBlur: 18,
-      innerRingOpacity: 0.25,
-      occupiedGlowColor: Color(0x6640D090),
-      occupiedGlowBlur: 20,
-      highlightOpacity: 0.15,
-      outerHaloColor: Color(0x2640D090),
-      outerHaloBlur: 28,
-      pulseGlow: true,
-    ),
-    // ── Level 8: Diamond Crystal — bright crystal, diamond highlights ──────
-    RoomSeatTheme(
-      bgColors: [Color(0xFF0A1830), Color(0xFF060C1C)],
-      borderColor: Color(0xFF90D0FF),
-      glowColor: Color(0x5960B8F0),
-      iconColor: Color(0xFFD0ECFF),
-      accentColor: Color(0xFFFFFFFF),
-      borderWidth: 1.9,
-      glowBlur: 20,
-      innerRingOpacity: 0.30,
-      occupiedGlowColor: Color(0x6690D0FF),
-      occupiedGlowBlur: 22,
-      highlightOpacity: 0.22,
-      outerHaloColor: Color(0x1A90D0FF),
-      outerHaloBlur: 32,
-      pulseGlow: true,
-    ),
-    // ── Level 9: Black Gold Crown — dramatic gold prestige ─────────────────
-    RoomSeatTheme(
-      bgColors: [Color(0xFF1A0C00), Color(0xFF0E0618)],
-      borderColor: Color(0xFFFFD700),
-      glowColor: Color(0x66FFD700),
-      iconColor: Color(0xFFFFD700),
-      accentColor: Color(0xFFFFD700),
-      borderWidth: 2.0,
-      glowBlur: 22,
-      innerRingOpacity: 0.38,
-      occupiedGlowColor: Color(0x73FFD700),
-      occupiedGlowBlur: 26,
-      highlightOpacity: 0.25,
-      outerHaloColor: Color(0x2DFFD700),
-      outerHaloBlur: 36,
-      pulseGlow: true,
-    ),
-    // ── Level 10: Mythic Elite — black/gold/purple, most luxurious ─────────
-    RoomSeatTheme(
-      bgColors: [Color(0xFF1A0030), Color(0xFF0C0020), Color(0xFF060010)],
-      borderColor: Color(0xFFFFD700),
-      glowColor: Color(0x80FFD700),
-      iconColor: Color(0xFFFFD86B),
-      accentColor: Color(0xFFE040FB),
-      borderWidth: 2.2,
-      glowBlur: 28,
-      innerRingOpacity: 0.45,
-      occupiedGlowColor: Color(0x80FFD700),
-      occupiedGlowBlur: 30,
-      highlightOpacity: 0.30,
-      outerHaloColor: Color(0x40E040FB),
-      outerHaloBlur: 48,
-      pulseGlow: true,
-    ),
-  ];
-}
-
-class _LiveSeatBubble extends StatelessWidget {
-  const _LiveSeatBubble({
-    required this.seat,
-    required this.isArabic,
-    required this.isHost,
-    required this.isSpeaking,
-    required this.isModerator,
-    required this.onEmptySeatTap,
-    required this.onOccupiedSeatTap,
-    required this.onOccupiedSeatLongPress,
-    required this.onProfileTap,
-    required this.selectedForMove,
-    required this.onSeatClosedToggle,
-    required this.roomLevel,
-    required this.seatSize,
-    required this.avatarAreaHeight,
-    required this.tileHeight,
-    this.pkTeam,
-    this.activeReaction,
-  });
-
-  final _StageSeat seat;
-  final bool isArabic;
-  final bool isHost;
-  final bool isSpeaking;
-  final bool isModerator;
-  final ValueChanged<int> onEmptySeatTap;
-  final void Function(RoomMember member, int seatNumber) onOccupiedSeatTap;
-  final void Function(RoomMember member, int seatNumber)
-  onOccupiedSeatLongPress;
-  final ValueChanged<String> onProfileTap;
-  final bool selectedForMove;
-  final ValueChanged<int> onSeatClosedToggle;
-  final int roomLevel;
-  final double seatSize;
-  final double avatarAreaHeight;
-  final double tileHeight;
-  // 'a', 'b', or null - non-null only when PK is active and seat is assigned.
-  final String? pkTeam;
-  final RoomReaction? activeReaction;
-
-  @override
-  Widget build(BuildContext context) {
-    final canAssignSeat = seat.isEmpty;
-    final canManageSeat = !seat.isEmpty && isHost && seat.member != null;
-    final occupiedByHost = seat.role == 'host';
-    final effectiveVipLevel = seat.member?.effectiveVipLevel ?? 0;
-    final theme = RoomSeatTheme.forLevel(roomLevel);
-
-    // Size hierarchy: host > occupied > empty
-    final outerSize = seatSize;
-    final avatarRadius = (seatSize - _seatAvatarInset) / 2;
-
-    final label = seat.isEmpty ? '' : seat.name;
-    // Team color derived from pkTeam ('a'=red, 'b'=blue, null=no PK).
-    final Color? pkColor = pkTeam == 'a'
-        ? kPkRed
-        : pkTeam == 'b'
-        ? kPkBlue
-        : null;
-
-    // Only show badge for important states; suppress "Tap" to reduce noise.
-    final badge = selectedForMove
-        ? (isArabic ? '\u0646\u0642\u0644' : 'Move')
-        : seat.isEmpty
-        ? '' // No badge on empty seats \u2014 seat number in circle is enough
-        : occupiedByHost
-        ? (isArabic ? '\u0645\u0636\u064a\u0641' : 'Host')
-        : pkTeam == 'a'
-        ? 'A'
-        : pkTeam == 'b'
-        ? 'B'
-        : '';
-    final compactSeat = seatSize < 70;
-    final hasSupport = seat.supportAmount > 0;
-    final hasBadge = badge.isNotEmpty;
-    final remainingHeight = math.max(0.0, tileHeight - avatarAreaHeight);
-    final labelGap = remainingHeight >= 30 ? 2.0 : 1.0;
-    final bottomSpacer = remainingHeight >= 34 ? 3.0 : 1.0;
-    final supportSlotHeight = hasSupport
-        ? (remainingHeight >= 38 ? 12.0 : 10.0)
-        : 0.0;
-    final badgeSlotHeight = hasBadge
-        ? (remainingHeight >= 34 ? 11.0 : 9.0)
-        : 0.0;
-    final nameSlotHeight = seat.isEmpty
-        ? 0.0
-        : math
-              .max(
-                9.0,
-                remainingHeight -
-                    labelGap -
-                    supportSlotHeight -
-                    badgeSlotHeight -
-                    bottomSpacer,
-              )
-              .clamp(9.0, compactSeat ? 12.0 : 14.0);
-
-    final Color borderColor = selectedForMove
-        ? const Color(0xFF67E8A5)
-        : occupiedByHost
-        ? const Color(0xFFF0C15A)
-        : seat.isEmpty
-        ? Colors.white.withValues(alpha: 0.26)
-        : pkColor != null
-        ? pkColor.withValues(alpha: 0.85)
-        : const Color(0xFF8B26D9).withValues(alpha: 0.55);
-
-    final double borderWidth = occupiedByHost ? 2.4 : 1.8;
-
-    final List<BoxShadow> glowShadows = [
-      if (selectedForMove) ...[
-        BoxShadow(
-          color: const Color(0xFF67E8A5).withValues(alpha: 0.60),
-          blurRadius: 28,
-          spreadRadius: 3,
-        ),
-        BoxShadow(
-          color: const Color(0xFF67E8A5).withValues(alpha: 0.25),
-          blurRadius: 48,
-          spreadRadius: 6,
-        ),
-      ] else if (occupiedByHost) ...[
-        BoxShadow(
-          color: const Color(0xFFF0C15A).withValues(alpha: 0.70),
-          blurRadius: 18,
-          spreadRadius: 1,
-        ),
-        BoxShadow(
-          color: const Color(0xFFD99A2B).withValues(alpha: 0.35),
-          blurRadius: 34,
-          spreadRadius: 4,
-        ),
-        BoxShadow(
-          color: const Color(0xFFF0C15A).withValues(alpha: 0.15),
-          blurRadius: 52,
-          spreadRadius: 6,
-        ),
-      ] else if (!seat.isEmpty) ...[
-        if (pkColor != null) ...[
-          BoxShadow(
-            color: pkColor.withValues(alpha: 0.55),
-            blurRadius: 18,
-            spreadRadius: 1,
-          ),
-          BoxShadow(
-            color: pkColor.withValues(alpha: 0.25),
-            blurRadius: 32,
-            spreadRadius: 3,
-          ),
-        ] else ...[
-          BoxShadow(
-            color: theme.occupiedGlowColor,
-            blurRadius: theme.occupiedGlowBlur,
-            spreadRadius: 0,
-          ),
-          BoxShadow(
-            color: theme.occupiedGlowColor.withValues(
-              alpha: theme.occupiedGlowColor.a * 0.50,
-            ),
-            blurRadius: theme.occupiedGlowBlur * 2.0,
-            spreadRadius: 3,
-          ),
-          if (theme.outerHaloBlur > 0)
-            BoxShadow(
-              color: theme.outerHaloColor,
-              blurRadius: theme.outerHaloBlur,
-              spreadRadius: 2,
-            ),
-        ],
-      ],
-    ];
-
-    // -- Fixed-height avatar zone ----------------------------------------------
-    // All states (empty / occupied / host / VIP) use the same _kAvatarAreaHeight
-    // so the grid cell measured height never changes on seat transition.
-    // Stack keeps Clip.none so VIP frames render visually larger without
-    // contributing to layout height.
-    final Widget avatarZone = GestureDetector(
-      onTap: seat.isLocked
-          ? (isHost ? () => onEmptySeatTap(seat.number) : null)
-          : canAssignSeat
-          ? () => onEmptySeatTap(seat.number)
-          : canManageSeat
-          ? () => onOccupiedSeatTap(seat.member!, seat.number)
-          : null,
-      onLongPress: canManageSeat
-          ? () => onOccupiedSeatLongPress(seat.member!, seat.number)
-          : null,
-      child: SizedBox(
-        height: avatarAreaHeight,
-        child: Center(
-          child: seat.isEmpty
-              ? _LuxuryEmptySeat(
-                  seat: seat,
-                  outerSize: outerSize,
-                  roomLevel: roomLevel,
-                  micSeatIconSize: seatSize < _seatSize
-                      ? _compactMicSeatIconSize
-                      : _micSeatIconSize,
-                )
-              : SizedBox(
-                  width: outerSize,
-                  height: outerSize,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    alignment: Alignment.center,
-                    children: [
-                      // PK team pulse ring (shown behind avatar during active PK).
-                      if (pkColor != null)
-                        IgnorePointer(
-                          child: PkPulseRing(
-                            color: pkColor,
-                            radius: outerSize / 2 + 4,
-                          ),
-                        ),
-                      // 0. Dark glass backing - keeps avatar readable over custom
-                      //    backgrounds and adds depth to the mic-seat circle.
-                      IgnorePointer(
-                        child: Container(
-                          width: outerSize,
-                          height: outerSize,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: RadialGradient(
-                              colors: [
-                                Colors.black.withValues(alpha: 0.42),
-                                Colors.black.withValues(alpha: 0.22),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // 1. Mic-seat ring + outer glow - anchors the avatar to
-                      //    the seat slot visually (same role as the empty-seat
-                      //    circle). VIP frame suppresses the explicit border
-                      //    because the frame already provides its own ring.
-                      IgnorePointer(
-                        child: Container(
-                          width: outerSize,
-                          height: outerSize,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: effectiveVipLevel == 0
-                                ? Border.all(
-                                    color: borderColor,
-                                    width: borderWidth,
-                                  )
-                                : null,
-                            boxShadow: glowShadows,
-                          ),
-                        ),
-                      ),
-
-                      // 2. VIP mic wave ring - expands outward via Clip.none.
-                      IgnorePointer(
-                        child: VipMicWaveRing(
-                          vipLevel: effectiveVipLevel,
-                          isActive: !seat.isMuted && isSpeaking,
-                          isHost: occupiedByHost,
-                          outerSize: outerSize,
-                        ),
-                      ),
-
-                      // 3. Avatar + frame (centered inside the seat ring).
-                      GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: seat.member == null
-                            ? null
-                            : () => onProfileTap(seat.member!.userId),
-                        child: AvatarWithFrame(
-                          imageUrl: seat.member?.avatarUrl,
-                          radius: avatarRadius,
-                          frameKey: seat.member?.selectedAvatarFrameKey,
-                          vipLevel: effectiveVipLevel,
-                          showVipBadge: false,
-                          compact: !occupiedByHost,
-                          fallbackIcon: Icons.person_rounded,
-                        ),
-                      ),
-
-                      if (seat.member?.isOfficialAgent == true)
-                        const Positioned(
-                          top: -2,
-                          right: -2,
-                          child: AgentAvatarMarker(size: 17),
-                        ),
-
-                      // 4. Mic-muted badge -- only shown when muted, small premium dot.
-                      if (seat.isMuted)
-                        Positioned(
-                          bottom: 1,
-                          right: 1,
-                          child: Container(
-                            width: 18,
-                            height: 18,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: const Color(0xCCB71C1C),
-                              border: Border.all(
-                                color: Colors.black.withValues(alpha: 0.85),
-                                width: 1.4,
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.mic_off_rounded,
-                              color: Colors.white,
-                              size: 11,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-        ),
-      ),
-    );
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        // -- Zone 1: avatar - always _kAvatarAreaHeight --------------------
-        // Zone 1 + reaction overlay
-        Stack(
-          alignment: Alignment.center,
-          clipBehavior: Clip.none,
-          children: [
-            avatarZone,
-            if (activeReaction != null && activeReaction!.isActive)
-              SeatReactionOverlay(
-                key: ValueKey(activeReaction!.expiresAt),
-                emoji: activeReaction!.emoji,
-                onExpired: () {},
-              ),
-          ],
-        ),
-
-        // -- Zone 2: name + inline mod capsule = 14 px ----------------------
-        // Shield capsule sits right of the username in the same row.
-        // Zone 5 is 10 px so total stays 104 px (50+2+14+16+12+10).
-        if (nameSlotHeight > 0) ...[
-          SizedBox(height: labelGap),
-          SizedBox(
-            height: nameSlotHeight,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Flexible(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: compactSeat ? 8.5 : 9.5,
-                      height: 1.0,
-                      fontWeight: FontWeight.w700,
-                      color: seat.isEmpty
-                          ? Colors.white.withValues(alpha: 0.38)
-                          : effectiveVipLevel > 0
-                          ? VipVisualStyle.nameColor(effectiveVipLevel, context)
-                          : Colors.white.withValues(alpha: 0.88),
-                      shadows: [
-                        const Shadow(
-                          blurRadius: 5,
-                          color: Colors.black87,
-                          offset: Offset(0, 1),
-                        ),
-                        Shadow(
-                          blurRadius: 10,
-                          color: Colors.black.withValues(alpha: 0.50),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (isModerator && !occupiedByHost && nameSlotHeight >= 12) ...[
-                  const SizedBox(width: 3),
-                  Container(
-                    width: 16,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [Color(0xFF25063F), Color(0xFF0F041C)],
-                      ),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: Color.fromRGBO(232, 192, 80, 0.65),
-                        width: 0.8,
-                      ),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color.fromRGBO(232, 192, 80, 0.25),
-                          blurRadius: 4,
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.shield_rounded,
-                      size: 10,
-                      color: Color(0xFFFFD86B),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-
-        // -- Zone 3: support pill - always _micSeatSupportSlotHeight -------
-        // Space is always reserved; content shown only when needed.
-        SizedBox(
-          height: supportSlotHeight,
-          child: seat.supportAmount > 0
-              ? Center(
-                  child: _SupportPill(
-                    amount: seat.supportAmount,
-                    compact: true,
-                  ),
-                )
-              : null,
-        ),
-
-        // -- Zone 4: role badge - 18 px, hidden when badge is empty ------
-        SizedBox(
-          height: badgeSlotHeight,
-          child: badge.isEmpty
-              ? null
-              : Center(
-                  child: Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: compactSeat
-                          ? 4
-                          : _micSeatBadgeHorizontalPadding,
-                      vertical: 1,
-                    ),
-                    decoration: BoxDecoration(
-                      color: selectedForMove
-                          ? const Color(0xFF67E8A5).withValues(alpha: 0.20)
-                          : occupiedByHost
-                          ? const Color(0xFFF0C15A).withValues(alpha: 0.18)
-                          : pkColor != null
-                          ? pkColor.withValues(alpha: 0.22)
-                          : const Color(0xFF8B26D9).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: selectedForMove
-                            ? const Color(0xFF67E8A5).withValues(alpha: 0.8)
-                            : occupiedByHost
-                            ? const Color(0xFFF0C15A).withValues(alpha: 0.7)
-                            : pkColor != null
-                            ? pkColor.withValues(alpha: 0.85)
-                            : const Color(0xFF8B26D9).withValues(alpha: 0.4),
-                        width: pkColor != null ? 1.0 : 0.7,
-                      ),
-                    ),
-                    child: Text(
-                      badge,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: compactSeat ? 6.5 : 7.5,
-                        height: 1.0,
-                        fontWeight: FontWeight.w900,
-                        color: selectedForMove
-                            ? const Color(0xFF67E8A5)
-                            : occupiedByHost
-                            ? const Color(0xFFF0C15A)
-                            : pkColor ?? Colors.white.withValues(alpha: 0.75),
-                        shadows: const [
-                          Shadow(blurRadius: 4, color: Colors.black),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-        ),
-
-        // -- Zone 5: 10 px bottom spacer (mod badge moved inline with name) --
-        SizedBox(height: bottomSpacer),
-      ],
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// Luxury empty seat — visual driven by RoomSeatTheme (10 levels).
-// L1-2: glass dark / silver glass     L3-4: blue prestige / gold warmth
-// L5-6: purple luxury / ruby royal    L7-8: emerald jewel + pulse / diamond
-// L9: black-gold crown  L10: mythic elite
-// -----------------------------------------------------------------------------
-class _LuxuryEmptySeat extends StatefulWidget {
-  const _LuxuryEmptySeat({
-    required this.seat,
-    required this.outerSize,
-    required this.roomLevel,
-    required this.micSeatIconSize,
-  });
-
-  final _StageSeat seat;
-  final double outerSize;
-  final int roomLevel;
-  final double micSeatIconSize;
-
-  @override
-  State<_LuxuryEmptySeat> createState() => _LuxuryEmptySeatState();
-}
-
-class _LuxuryEmptySeatState extends State<_LuxuryEmptySeat>
-    with SingleTickerProviderStateMixin {
-  AnimationController? _pulseCtrl;
-  Animation<double>? _pulseAnim;
-
-  @override
-  void initState() {
-    super.initState();
-    _initPulse();
-  }
-
-  @override
-  void didUpdateWidget(_LuxuryEmptySeat old) {
-    super.didUpdateWidget(old);
-    if (old.roomLevel != widget.roomLevel ||
-        old.seat.isLocked != widget.seat.isLocked) {
-      _pulseCtrl?.dispose();
-      _pulseCtrl = null;
-      _pulseAnim = null;
-      _initPulse();
-    }
-  }
-
-  @override
-  void dispose() {
-    _pulseCtrl?.dispose();
-    super.dispose();
-  }
-
-  void _initPulse() {
-    final theme = RoomSeatTheme.forLevel(
-      widget.seat.isLocked ? 0 : widget.roomLevel,
-    );
-    if (!theme.pulseGlow) return;
-    _pulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2400),
-    )..repeat(reverse: true);
-    _pulseAnim = Tween<double>(
-      begin: 0.60,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _pulseCtrl!, curve: Curves.easeInOut));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = RoomSeatTheme.forLevel(
-      widget.seat.isLocked ? 0 : widget.roomLevel,
-    );
-    final outerSize = widget.outerSize;
-    final isLocked = widget.seat.isLocked;
-
-    // Core seat circle
-    final Widget seatCircle = Container(
-      width: outerSize,
-      height: outerSize,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(
-          center: const Alignment(0, -0.3),
-          radius: 1.0,
-          colors: theme.bgColors,
-        ),
-        border: Border.all(color: theme.borderColor, width: theme.borderWidth),
-        boxShadow: [
-          BoxShadow(color: theme.glowColor, blurRadius: theme.glowBlur),
-          if (theme.outerHaloBlur > 0 && _pulseAnim == null)
-            BoxShadow(
-              color: theme.outerHaloColor,
-              blurRadius: theme.outerHaloBlur,
-              spreadRadius: 2,
-            ),
-        ],
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Inner accent ring (L3+, not locked)
-          if (theme.innerRingOpacity > 0 && !isLocked)
-            Container(
-              width: outerSize * 0.72,
-              height: outerSize * 0.72,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: theme.accentColor.withValues(
-                    alpha: theme.innerRingOpacity,
-                  ),
-                  width: 0.8,
-                ),
-              ),
-            ),
-          // Shimmer highlight spot — bright cap at top of circle (L6+)
-          if (theme.highlightOpacity > 0)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      center: const Alignment(0, -0.65),
-                      radius: 0.55,
-                      colors: [
-                        Color.fromRGBO(255, 255, 255, theme.highlightOpacity),
-                        const Color(0x00FFFFFF),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          // Icon + seat number
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                isLocked ? Icons.lock_rounded : Icons.mic_rounded,
-                color: theme.iconColor,
-                size: widget.micSeatIconSize,
-              ),
-              const SizedBox(height: 1),
-              Text(
-                '${widget.seat.number}',
-                style: TextStyle(
-                  color: theme.iconColor.withValues(
-                    alpha: isLocked ? 0.50 : 0.65,
-                  ),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-
-    // For L7+ animated pulse: animated outer ring drives the halo blur.
-    final Animation<double>? pulse = _pulseAnim;
-    if (pulse == null) return seatCircle;
-
-    return AnimatedBuilder(
-      animation: pulse,
-      builder: (_, child) => Stack(
-        alignment: Alignment.center,
-        clipBehavior: Clip.none,
-        children: [
-          IgnorePointer(
-            child: Container(
-              width: outerSize + 8,
-              height: outerSize + 8,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: theme.outerHaloColor,
-                    blurRadius: theme.outerHaloBlur * pulse.value,
-                    spreadRadius: 2.0 * pulse.value,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          child!,
-        ],
-      ),
-      child: seatCircle,
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// Seat smiley accent - cute floating decoration at the top-right of a seat.
-// Each seat gets a different emoji and animation phase so they don't all bob
-// in sync. Wrapped in IgnorePointer at the call site.
-// -----------------------------------------------------------------------------
-
-class _SeatSmileyAccent extends StatefulWidget {
-  const _SeatSmileyAccent({
-    required this.isHost,
-    required this.vipLevel,
-    required this.seatNumber,
-  });
-
-  final bool isHost;
-  final int vipLevel;
-  final int seatNumber;
-
-  @override
-  State<_SeatSmileyAccent> createState() => _SeatSmileyAccentState();
-}
-
-class _SeatSmileyAccentState extends State<_SeatSmileyAccent>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _float;
-
-  @override
-  void initState() {
-    super.initState();
-    // Phase duration by seat number so seats bob at different rates.
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: Duration(milliseconds: 1700 + (widget.seatNumber % 4) * 250),
-    )..repeat(reverse: true);
-    _float = Tween<double>(
-      begin: -2.5,
-      end: 2.5,
-    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final String emoji;
-    final Color glow;
-    final double size;
-
-    if (widget.isHost) {
-      emoji = '?'; // sparks
-      glow = const Color(0xFFF0C15A);
-      size = 22;
-    } else if (widget.vipLevel >= 7) {
-      emoji = String.fromCharCode(0x1F4AB); // dizzy
-      glow = const Color(0xFFCE93D8);
-      size = 20;
-    } else if (widget.vipLevel >= 4) {
-      emoji = String.fromCharCode(0x1F31F); // star
-      glow = const Color(0xFF9C27B0);
-      size = 19;
-    } else if (widget.vipLevel >= 1) {
-      emoji = String.fromCharCode(0x1F338); // cherry
-      glow = const Color(0xFFFF80AB);
-      size = 18;
-    } else {
-      emoji = String.fromCharCode(0x1F60A); // smile
-      glow = const Color(0xFF8B26D9);
-      size = 18;
-    }
-
-    return AnimatedBuilder(
-      animation: _float,
-      builder: (_, _) => Transform.translate(
-        offset: Offset(0, _float.value),
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.black.withValues(alpha: 0.30),
-            boxShadow: [
-              BoxShadow(
-                color: glow.withValues(alpha: 0.50),
-                blurRadius: 10,
-                spreadRadius: 0,
-              ),
-            ],
-          ),
-          child: Center(
-            child: Text(
-              emoji,
-              style: TextStyle(fontSize: size * 0.55, height: 1.0),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// Floating chat overlay - translucent bubbles floating above the bottom bar.
-// Shows the most recent chat messages and gift activity.
-// -----------------------------------------------------------------------------
-
-// ignore: unused_element
-class _LiveChatPanel extends StatelessWidget {
-  const _LiveChatPanel({
-    required this.roomName,
-    required this.isArabic,
-    required this.gifts,
-    required this.loadingGifts,
-    required this.onProfileTap,
-    required this.chatMessages,
-  });
-
-  final String roomName;
-  final bool isArabic;
-  final List<RoomGiftTransaction> gifts;
-  final bool loadingGifts;
-  final ValueChanged<String> onProfileTap;
-  final List<RoomMessage> chatMessages;
-
-  @override
-  Widget build(BuildContext context) {
-    final textDir = isArabic ? TextDirection.rtl : TextDirection.ltr;
-
-    return Directionality(
-      textDirection: textDir,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Section label row
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10, left: 4, right: 4),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0C15A).withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: const Color(0xFFF0C15A).withValues(alpha: 0.35),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.card_giftcard_rounded,
-                        color: Color(0xFFF0C15A),
-                        size: 14,
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        isArabic
-                            ? '\u0627\u0644\u0647\u062f\u0627\u064a\u0627'
-                            : 'Gifts',
-                        style: const TextStyle(
-                          color: Color(0xFFF0C15A),
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (loadingGifts) ...[
-                  const SizedBox(width: 10),
-                  const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 1.5,
-                      color: Color(0xFFF0C15A),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          // Chat bubble list
-          if (gifts.isEmpty && !loadingGifts)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Center(
-                child: Text(
-                  isArabic
-                      ? '\u0644\u0627 \u062a\u0648\u062c\u062f \u0647\u062f\u0627\u064a\u0627 \u0628\u0639\u062f'
-                      : 'No gifts yet',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.35),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            )
-          else
-            ...gifts.map(
-              (gift) => _GiftFeedRow(
-                gift: gift,
-                isArabic: isArabic,
-                onProfileTap: onProfileTap,
-              ),
-            ),
-          // -- Live chat comments ------------------------------------------
-          if (chatMessages.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6, left: 4, right: 4),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.09),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.18),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.chat_bubble_rounded,
-                          color: Colors.white.withValues(alpha: 0.7),
-                          size: 13,
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          isArabic ? '\u062f\u0631\u062f\u0634\u0629' : 'Chat',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.8),
-                            fontWeight: FontWeight.w800,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            ...chatMessages.reversed
-                .take(6)
-                .toList()
-                .reversed
-                .map(
-                  (msg) => _ChatBubbleRow(
-                    message: msg,
-                    isArabic: isArabic,
-                    onProfileTap: msg.isSystem
-                        ? null
-                        : () => onProfileTap(msg.senderId),
-                  ),
-                ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-// -- Live room chat bubble - uses VipVisualResolver from vip_prestige.dart ----
-
-class _ChatBubbleRow extends StatefulWidget {
-  const _ChatBubbleRow({
-    required this.message,
-    required this.isArabic,
-    this.onProfileTap,
-    this.onRemoveTap,
-    this.onReportTap,
-  });
-
-  final RoomMessage message;
-  final bool isArabic;
-  final VoidCallback? onProfileTap;
-  final VoidCallback? onRemoveTap;
-  final VoidCallback? onReportTap;
-
-  @override
-  State<_ChatBubbleRow> createState() => _ChatBubbleRowState();
-}
-
-class _ChatBubbleRowState extends State<_ChatBubbleRow>
-    with SingleTickerProviderStateMixin {
-  AnimationController? _ctrl;
-  late final Animation<double> _pulse;
-
-  @override
-  void initState() {
-    super.initState();
-    final lvl = widget.message.senderVipLevel;
-    if (lvl >= 7) {
-      _ctrl = AnimationController(
-        vsync: this,
-        duration: Duration(milliseconds: lvl == 9 ? 1600 : 2200),
-      )..repeat(reverse: true);
-      _pulse = Tween<double>(
-        begin: 0.60,
-        end: 1.0,
-      ).animate(CurvedAnimation(parent: _ctrl!, curve: Curves.easeInOut));
-    } else {
-      _pulse = const AlwaysStoppedAnimation(1.0);
-    }
-  }
-
-  @override
-  void dispose() {
-    _ctrl?.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final msg = widget.message;
-    final isArabic = context.isArabic;
-    final isAgent = msg.senderIsOfficialAgent;
-
-    if (msg.isRemoved) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
-        child: Row(
-          children: [
-            const SizedBox(width: 44),
-            Flexible(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.08),
-                  ),
-                ),
-                child: Text(
-                  isArabic ? '🚫 تم حذف الرسالة' : '🚫 Message removed',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.38),
-                    fontSize: 12,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (msg.isSystem) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Center(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.45),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-            ),
-            child: Text(
-              msg.message,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.65),
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    final vipLevel = msg.senderVipLevel.clamp(0, 9);
-    final prestige = VipSpecResolver.resolve(vipLevel);
-    final nameColor = vipLevel > 0
-        ? prestige.nameColor
-        : const Color(0xFF9BE8FF);
-    final isHost = msg.senderRole == 'host';
-
-    final bubble = Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: isAgent
-              ? Border(
-                  left: BorderSide(
-                    color: const Color(
-                      0xFFE7B85C,
-                    ).withValues(alpha: isArabic ? 0.0 : 0.72),
-                    width: isArabic ? 0 : 2,
-                  ),
-                  right: BorderSide(
-                    color: const Color(
-                      0xFFE7B85C,
-                    ).withValues(alpha: isArabic ? 0.72 : 0.0),
-                    width: isArabic ? 2 : 0,
-                  ),
-                )
-              : null,
-        ),
-        child: Padding(
-          padding: EdgeInsetsDirectional.only(start: isAgent ? 5 : 0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-            children: [
-              GestureDetector(
-                onTap: widget.onProfileTap,
-                child: _buildAvatar(prestige, msg, vipLevel),
-              ),
-              const SizedBox(width: 6),
-              Flexible(
-                child: AnimatedBuilder(
-                  animation: _pulse,
-                  builder: (ctx, _) => _buildBubble(
-                    ctx,
-                    prestige,
-                    msg,
-                    nameColor,
-                    isHost,
-                    isArabic,
-                    vipLevel,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-    final hasRemove = widget.onRemoveTap != null;
-    final hasReport = widget.onReportTap != null;
-
-    if (!hasRemove && !hasReport) return bubble;
-
-    return GestureDetector(
-      onLongPress: () {
-        if (hasRemove && hasReport) {
-          _showMessageActions(context);
-        } else if (hasRemove) {
-          widget.onRemoveTap!();
-        } else {
-          widget.onReportTap!();
-        }
-      },
-      child: bubble,
-    );
-  }
-
-  void _showMessageActions(BuildContext context) {
-    final isArabic = context.isArabic;
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: const Color(0xFF1A0D2E),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (widget.onRemoveTap != null)
-              ListTile(
-                leading: const Icon(
-                  Icons.delete_rounded,
-                  color: Colors.redAccent,
-                ),
-                title: Text(
-                  isArabic ? 'حذف الرسالة' : 'Remove message',
-                  style: const TextStyle(color: Colors.white),
-                ),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  widget.onRemoveTap!();
-                },
-              ),
-            if (widget.onReportTap != null)
-              ListTile(
-                leading: const Icon(
-                  Icons.flag_rounded,
-                  color: Color(0xFFF59E0B),
-                ),
-                title: Text(
-                  isArabic ? 'إبلاغ عن المستخدم' : 'Report user',
-                  style: const TextStyle(color: Colors.white),
-                ),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  widget.onReportTap!();
-                },
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAvatar(VipSpec prestige, RoomMessage msg, int vipLevel) {
-    final hasRing = prestige.avatarRingWidth > 0;
-    // Compact avatar: 26px for a lighter-feeling chat overlay.
-    final avatar = _RoomAvatar(
-      avatarUrl: msg.senderAvatarUrl,
-      frameKey: null,
-      vipLevel: hasRing ? 0 : vipLevel,
-      size: 26,
-      selected: false,
-      fallbackIcon: Icons.person_rounded,
-      isOfficialAgent: msg.senderIsOfficialAgent,
-    );
-    if (!hasRing) return avatar;
-
-    return SizedBox(
-      width: 28,
-      height: 28,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          IgnorePointer(
-            child: Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: prestige.avatarRingColor,
-                  width: prestige.avatarRingWidth,
-                ),
-                boxShadow: vipLevel >= 4
-                    ? [
-                        BoxShadow(
-                          color: prestige.avatarRingColor.withValues(
-                            alpha: 0.40,
-                          ),
-                          blurRadius: 6,
-                        ),
-                      ]
-                    : null,
-              ),
-            ),
-          ),
-          avatar,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBubble(
-    BuildContext context,
-    VipSpec prestige,
-    RoomMessage msg,
-    Color nameColor,
-    bool isHost,
-    bool isArabic,
-    int vipLevel,
-  ) {
-    final glowFactor = _pulse.value;
-    final isRtl = isArabic;
-    final crossAxis = isRtl ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-    final cr = prestige.cardCornerRadius;
-    final tailR = vipLevel >= 3 ? cr : 4.0;
-
-    final radius = BorderRadius.only(
-      topLeft: Radius.circular(isRtl ? tailR : cr),
-      topRight: Radius.circular(isRtl ? cr : tailR),
-      bottomLeft: Radius.circular(cr),
-      bottomRight: Radius.circular(cr),
-    );
-
-    final shadows = prestige.buildGlowShadows(pulseFactor: glowFactor);
-
-    final isGradient = prestige.bubbleGradient[0] != prestige.bubbleGradient[1];
-    final deco = isGradient
-        ? BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: prestige.bubbleGradient,
-            ),
-            borderRadius: radius,
-            border: Border.all(
-              color: prestige.borderColor,
-              width: prestige.borderWidth,
-            ),
-            boxShadow: shadows,
-          )
-        : BoxDecoration(
-            color: prestige.surfaceTint,
-            borderRadius: radius,
-            border: Border.all(
-              color: prestige.borderColor,
-              width: prestige.borderWidth,
-            ),
-            boxShadow: shadows,
-          );
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: deco,
-      child: Column(
-        crossAxisAlignment: crossAxis,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
-            children: [
-              Flexible(
-                child: Text(
-                  msg.senderName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: nameColor,
-                    fontSize: 11,
-                    fontWeight: prestige.nameFontWeight,
-                  ),
-                ),
-              ),
-              if (isHost) ...[
-                const SizedBox(width: 4),
-                _buildBadge(
-                  'HOST',
-                  const Color(0xFFF0C15A),
-                  const Color(0x30F0C15A),
-                  borderColor: const Color(0xFFF0C15A).withValues(alpha: 0.40),
-                ),
-              ],
-              if (msg.senderIsOfficialAgent) ...[
-                const SizedBox(width: 4),
-                const AgentBadge(compact: true),
-              ],
-              if (vipLevel > 0) ...[
-                const SizedBox(width: 3),
-                _buildBadge(
-                  'VIP $vipLevel',
-                  prestige.badgeTextColor,
-                  prestige.badgeGradient.first.withValues(alpha: 0.22),
-                  borderColor: prestige.borderColor.withValues(alpha: 0.50),
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 2),
-          if (msg.isImage && msg.imageUrl != null)
-            _ChatImageThumbnail(imageUrl: msg.imageUrl!)
-          else
-            Text(
-              msg.message,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                height: 1.25,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBadge(
-    String label,
-    Color textColor,
-    Color bg, {
-    Color? borderColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(6),
-        border: borderColor != null
-            ? Border.all(color: borderColor, width: 0.6)
-            : null,
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: textColor,
-          fontSize: 8,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 0.5,
-        ),
-      ),
-    );
-  }
-}
-
-class _GiftRoomBanner extends StatelessWidget {
-  const _GiftRoomBanner({
-    required this.gift,
-    required this.isArabic,
-    required this.onProfileTap,
-  });
-
-  final RoomGiftTransaction gift;
-  final bool isArabic;
-  final ValueChanged<String> onProfileTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final senderVip = gift.sender?.effectiveVipLevel ?? 0;
-    final receiverVip = gift.receiver?.effectiveVipLevel ?? 0;
-    final text = isArabic
-        ? '${gift.senderLabel} \u062f\u0639\u0645 ${gift.receiverLabel} \u0628\u0647\u062f\u064a\u0629 ${gift.giftName}'
-        : '${gift.senderLabel} supported ${gift.receiverLabel} with ${gift.giftName}';
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF2B1A45), Color(0xFF18103A), Color(0xFF0F0820)],
-        ),
-        border: Border.all(
-          color: Color(0xFFD4A017).withValues(alpha: 0.72),
-          width: 0.9,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFF0C15A).withValues(alpha: 0.18),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-        children: [
-          _RoomAvatar(
-            avatarUrl: gift.sender?.avatarUrl,
-            frameKey: gift.sender?.selectedAvatarFrameKey,
-            vipLevel: senderVip,
-            size: 38,
-            selected: false,
-            fallbackIcon: Icons.person_rounded,
-            onTap: gift.sender == null
-                ? null
-                : () => onProfileTap(gift.sender!.userId),
-          ),
-          const SizedBox(width: 8),
-          _GiftMiniImage(gift: gift.giftPreview, size: 38),
-          const SizedBox(width: 8),
-          _RoomAvatar(
-            avatarUrl: gift.receiver?.avatarUrl,
-            frameKey: gift.receiver?.selectedAvatarFrameKey,
-            vipLevel: receiverVip,
-            size: 38,
-            selected: true,
-            fallbackIcon: Icons.person_rounded,
-            onTap: gift.receiver == null
-                ? null
-                : () => onProfileTap(gift.receiver!.userId),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: isArabic
-                  ? CrossAxisAlignment.end
-                  : CrossAxisAlignment.start,
-              children: [
-                Text(
-                  text,
-                  textAlign: isArabic ? TextAlign.right : TextAlign.left,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: senderVip > 0
-                        ? VipVisualStyle.nameColor(senderVip, context)
-                        : Colors.white,
-                    fontSize: 12,
-                    height: 1.25,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                if (senderVip > 0 || receiverVip > 0) ...[
-                  const SizedBox(height: 4),
-                  Wrap(
-                    spacing: 4,
-                    children: [
-                      if (senderVip > 0)
-                        VipBadge(vipLevel: senderVip, compact: true),
-                      if (receiverVip > 0)
-                        VipBadge(vipLevel: receiverVip, compact: true),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _VipEntryRoomBanner extends StatefulWidget {
-  const _VipEntryRoomBanner({required this.member, required this.isArabic});
-
-  final RoomMember member;
-  final bool isArabic;
-
-  @override
-  State<_VipEntryRoomBanner> createState() => _VipEntryRoomBannerState();
-}
-
-class _VipEntryRoomBannerState extends State<_VipEntryRoomBanner>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _aura;
-
-  @override
-  void initState() {
-    super.initState();
-    final prestige = VipSpecResolver.resolve(widget.member.effectiveVipLevel);
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    );
-    _aura = Tween<double>(
-      begin: 0.65,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
-    if (prestige.isElite) _ctrl.repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final level = widget.member.effectiveVipLevel;
-    final prestige = VipSpecResolver.resolve(level);
-    final isArabic = context.isArabic;
-
-    final text = isArabic
-        ? '${widget.member.fallbackName(isArabic)} \u062f\u062e\u0644 \u0627\u0644\u063a\u0631\u0641\u0629 \u0643\u0640 VIP $level'
-        : '${widget.member.fallbackName(isArabic)} entered as VIP $level';
-
-    // Tier-based border radius: more rounded for higher VIP
-    final br = BorderRadius.circular(
-      prestige.isElite
-          ? 22
-          : prestige.entryTier.index >= VipEntryTier.glow.index
-          ? 20
-          : 16,
-    );
-
-    return AnimatedBuilder(
-      animation: _aura,
-      builder: (ctx, child) {
-        return Container(
-          width: double.infinity,
-          padding: EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: prestige.isElite ? 12 : 10,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: br,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: prestige.bannerGradient,
-            ),
-            boxShadow: prestige.buildGlowShadows(pulseFactor: _aura.value),
-            border: prestige.isElite
-                ? Border.all(
-                    color: prestige.borderColor.withValues(alpha: 0.60),
-                    width: 1.4,
-                  )
-                : null,
-          ),
-          child: child,
-        );
-      },
-      child: Row(
-        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-        children: [
-          // Avatar with VIP halo ring
-          Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: prestige.buildGlowShadows(pulseFactor: 0.8),
-            ),
-            child: _RoomAvatar(
-              avatarUrl: widget.member.avatarUrl,
-              frameKey: widget.member.selectedAvatarFrameKey,
-              vipLevel: level,
-              size: prestige.isElite ? 42 : 38,
-              selected: false,
-              fallbackIcon: Icons.person_rounded,
-              isOfficialAgent: widget.member.isOfficialAgent,
-            ),
-          ),
-          const SizedBox(width: 10),
-          VipBadge(vipLevel: level, compact: true),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              text,
-              textAlign: isArabic ? TextAlign.right : TextAlign.left,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: prestige.entryTextColor,
-                fontSize: prestige.isElite ? 13 : 12,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-          if (prestige.isLegendary) ...[
-            const SizedBox(width: 6),
-            Icon(
-              Icons.local_fire_department_rounded,
-              color: prestige.entryTextColor.withValues(alpha: 0.85),
-              size: 18,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _UserEntryRoomBanner extends StatelessWidget {
-  const _UserEntryRoomBanner({required this.member, required this.isArabic});
-
-  final RoomMember member;
-  final bool isArabic;
-
-  @override
-  Widget build(BuildContext context) {
-    final name = member.fallbackName(isArabic);
-    final text = isArabic ? '$name دخل الغرفة' : '$name entered the room';
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF1A1028).withValues(alpha: 0.92),
-            const Color(0xFF28133E).withValues(alpha: 0.86),
-          ],
-        ),
-        border: Border.all(
-          color: const Color(0xFFF0C15A).withValues(alpha: 0.32),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFF0C15A).withValues(alpha: 0.14),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-        children: [
-          _RoomAvatar(
-            avatarUrl: member.avatarUrl,
-            frameKey: member.selectedAvatarFrameKey,
-            vipLevel: member.effectiveVipLevel,
-            size: 34,
-            selected: false,
-            fallbackIcon: Icons.person_rounded,
-            isOfficialAgent: member.isOfficialAgent,
-          ),
-          const SizedBox(width: 10),
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFFF0C15A).withValues(alpha: 0.14),
-              border: Border.all(
-                color: const Color(0xFFF0C15A).withValues(alpha: 0.34),
-              ),
-            ),
-            child: const Icon(
-              Icons.login_rounded,
-              color: Color(0xFFF0C15A),
-              size: 16,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              text,
-              textAlign: isArabic ? TextAlign.right : TextAlign.left,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GiftMiniImage extends StatelessWidget {
-  const _GiftMiniImage({required this.gift, required this.size});
-
-  final RoomGift gift;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      padding: EdgeInsets.all(size * 0.14),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: const RadialGradient(
-          colors: [Color(0xFFFFD978), Color(0xFFE0A83A), Color(0xFF8B26D9)],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFF0C15A).withValues(alpha: 0.22),
-            blurRadius: 10,
-          ),
-        ],
-      ),
-      child: Image.network(
-        gift.imageUrl,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) {
-          return Icon(
-            gift.materialIcon,
-            color: const Color(0xFF160B26),
-            size: size * 0.52,
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _GiftFeedRow extends StatelessWidget {
-  const _GiftFeedRow({
-    required this.gift,
-    required this.isArabic,
-    required this.onProfileTap,
-  });
-
-  final RoomGiftTransaction gift;
-  final bool isArabic;
-  final ValueChanged<String> onProfileTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final senderVip = gift.sender?.effectiveVipLevel ?? 0;
-    final receiverVip = gift.receiver?.effectiveVipLevel ?? 0;
-    final text = isArabic
-        ? '\u0623\u0631\u0633\u0644 ${gift.senderLabel} \u0647\u062f\u064a\u0629 ${gift.giftName} \u0625\u0644\u0649 ${gift.receiverLabel}'
-        : '${gift.senderLabel} sent ${gift.giftName} to ${gift.receiverLabel}';
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Sender avatar
-          GestureDetector(
-            onTap: gift.sender == null
-                ? null
-                : () => onProfileTap(gift.sender!.userId),
-            child: _RoomAvatar(
-              avatarUrl: gift.sender?.avatarUrl,
-              frameKey: gift.sender?.selectedAvatarFrameKey,
-              vipLevel: senderVip,
-              size: 32,
-              selected: false,
-              fallbackIcon: Icons.person_rounded,
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Chat bubble
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.35),
-                borderRadius: BorderRadius.only(
-                  topLeft: isArabic
-                      ? const Radius.circular(14)
-                      : const Radius.circular(4),
-                  topRight: isArabic
-                      ? const Radius.circular(4)
-                      : const Radius.circular(14),
-                  bottomLeft: const Radius.circular(14),
-                  bottomRight: const Radius.circular(14),
-                ),
-                border: Border.all(
-                  color: senderVip > 0
-                      ? const Color(0xFFF0C15A).withValues(alpha: 0.30)
-                      : Colors.white.withValues(alpha: 0.10),
-                ),
-              ),
-              child: Row(
-                textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Gift image
-                  _GiftMiniImage(gift: gift.giftPreview, size: 26),
-                  const SizedBox(width: 8),
-                  // Text
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: isArabic
-                          ? CrossAxisAlignment.end
-                          : CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          text,
-                          textAlign: isArabic
-                              ? TextAlign.right
-                              : TextAlign.left,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: senderVip > 0
-                                ? VipVisualStyle.nameColor(senderVip, context)
-                                : Colors.white.withValues(alpha: 0.9),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            height: 1.3,
-                          ),
-                        ),
-                        if (senderVip > 0 || receiverVip > 0) ...[
-                          const SizedBox(height: 4),
-                          Wrap(
-                            spacing: 4,
-                            runSpacing: 3,
-                            children: [
-                              if (senderVip > 0)
-                                VipBadge(vipLevel: senderVip, compact: true),
-                              if (receiverVip > 0)
-                                VipBadge(vipLevel: receiverVip, compact: true),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GiftEventOverlay extends StatelessWidget {
-  const _GiftEventOverlay({required this.events, required this.isArabic});
-
-  final List<_RoomGiftEvent> events;
-  final bool isArabic;
-
-  @override
-  Widget build(BuildContext context) {
-    if (events.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return IgnorePointer(
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 120, 18, 0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: events
-                .map(
-                  (event) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _GiftEventBanner(event: event, isArabic: isArabic),
-                  ),
-                )
-                .toList(),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _GiftEventBanner extends StatelessWidget {
-  const _GiftEventBanner({required this.event, required this.isArabic});
-
-  final _RoomGiftEvent event;
-  final bool isArabic;
-
-  @override
-  Widget build(BuildContext context) {
-    final giftName = isArabic ? event.gift.arabicName : event.gift.name;
-
-    final qty = event.quantity > 1 ? ' \u00d7${event.quantity}' : '';
-
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeOutCubic,
-      builder: (context, value, child) {
-        return Opacity(
-          opacity: value.clamp(0.0, 1.0),
-          child: Transform.translate(
-            offset: Offset(0, (1 - value) * -10),
-            child: child,
-          ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF2B1A45), Color(0xFF160B26)],
-          ),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: Color(0xFFD4A017).withValues(alpha: 0.68),
-            width: 0.9,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFF0C15A).withValues(alpha: 0.22),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-          children: [
-            _GiftArtwork(gift: event.gift, size: 32),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: isArabic
-                    ? CrossAxisAlignment.end
-                    : CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    isArabic ? '\u0647\u062f\u064a\u0629' : 'Gift sent',
-                    style: const TextStyle(
-                      color: Color(0xFFD4A017),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.4,
-                    ),
-                  ),
-                  const SizedBox(height: 1),
-                  Text(
-                    isArabic
-                        ? '$giftName$qty \u0625\u0644\u0649 ${event.receiverName}'
-                        : '$giftName$qty to ${event.receiverName}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: isArabic ? TextAlign.right : TextAlign.left,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 
@@ -8371,4633 +4446,9 @@ const List<RoomGift> _fallbackRoomGifts = [
   ),
 ];
 
-class _GiftSendResult {
-  const _GiftSendResult({
-    required this.gift,
-    required this.receiverUserId,
-    required this.receiverName,
-    required this.quantity,
-  });
-
-  final RoomGift gift;
-  final String receiverUserId;
-  final String receiverName;
-  final int quantity;
-}
-
-class _RoomGiftEvent {
-  const _RoomGiftEvent({
-    required this.id,
-    required this.gift,
-    required this.receiverName,
-    required this.quantity,
-  });
-
-  final int id;
-  final RoomGift gift;
-  final String receiverName;
-  final int quantity;
-}
-
-class _ActiveLuxuryGiftVideo {
-  const _ActiveLuxuryGiftVideo({
-    required this.key,
-    required this.giftName,
-    required this.receiverName,
-    required this.assetPath,
-  });
-
-  final Key key;
-  final String giftName;
-  final String receiverName;
-  final String assetPath;
-}
-
-class _RedEnvelopeBanner extends StatefulWidget {
-  const _RedEnvelopeBanner({
-    required this.envelope,
-    required this.isArabic,
-    required this.loading,
-    required this.isSender,
-    required this.onClaim,
-    required this.onDismiss,
-  });
-
-  final Map<String, dynamic> envelope;
-  final bool isArabic;
-  final bool loading;
-  final bool isSender;
-  final VoidCallback onClaim;
-  final VoidCallback onDismiss;
-
-  @override
-  State<_RedEnvelopeBanner> createState() => _RedEnvelopeBannerState();
-}
-
-class _RedEnvelopeBannerState extends State<_RedEnvelopeBanner> {
-  Timer? _countdownTimer;
-  int _secondsLeft = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _initCountdown();
-  }
-
-  @override
-  void didUpdateWidget(_RedEnvelopeBanner old) {
-    super.didUpdateWidget(old);
-    if (old.envelope['id'] != widget.envelope['id'] ||
-        old.envelope['expires_at'] != widget.envelope['expires_at']) {
-      _initCountdown();
-    }
-  }
-
-  void _initCountdown() {
-    _countdownTimer?.cancel();
-    final expiresAtStr = widget.envelope['expires_at'] as String?;
-    if (expiresAtStr == null) return;
-    final expiresAt = DateTime.tryParse(expiresAtStr);
-    if (expiresAt == null) return;
-    _secondsLeft = expiresAt
-        .difference(DateTime.now().toUtc())
-        .inSeconds
-        .clamp(0, 9999);
-    if (_secondsLeft <= 0) return;
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      setState(() => _secondsLeft = (_secondsLeft - 1).clamp(0, 9999));
-      if (_secondsLeft <= 0) _countdownTimer?.cancel();
-    });
-  }
-
-  @override
-  void dispose() {
-    _countdownTimer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final envelope = widget.envelope;
-    final isArabic = widget.isArabic;
-    final total = envelope['total_coins'] as int? ?? 0;
-    final count = envelope['envelope_count'] as int? ?? 1;
-    final claimed = envelope['claimed_count'] as int? ?? 0;
-    final isSuper = envelope['is_super'] == true;
-    final remaining = count - claimed;
-    final progress = count > 0 ? claimed / count : 0.0;
-
-    final mins = _secondsLeft ~/ 60;
-    final secs = _secondsLeft % 60;
-    final countdownStr = _secondsLeft > 0
-        ? (mins > 0 ? '$mins:${secs.toString().padLeft(2, '0')}' : '${secs}s')
-        : '';
-
-    final titleText = isSuper
-        ? (isArabic ? '🔥 حقيبة الحظ الكبرى!' : '🔥 Super Lucky Bag!')
-        : (isArabic ? '🎁 حقيبة الحظ!' : '🎁 Lucky Bag!');
-
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: isSuper
-                ? const [
-                    Color(0xFF7A0000),
-                    Color(0xFFBF3510),
-                    Color(0xFF7A0000),
-                  ]
-                : const [
-                    Color(0xFF7A0000),
-                    Color(0xFFBF1B0B),
-                    Color(0xFF7A0000),
-                  ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: const Color(
-              0xFFFFD700,
-            ).withValues(alpha: isSuper ? 0.65 : 0.45),
-            width: isSuper ? 2.0 : 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color:
-                  (isSuper ? const Color(0xFFFF6B00) : const Color(0xFFE63946))
-                      .withValues(alpha: 0.5),
-              blurRadius: 24,
-              spreadRadius: -2,
-            ),
-            BoxShadow(
-              color: const Color(0xFFFFD700).withValues(alpha: 0.18),
-              blurRadius: 10,
-              spreadRadius: -4,
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Main row
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                child: Row(
-                  children: [
-                    // Bag icon with pulse glow
-                    _BannerBagIcon(isSuper: isSuper),
-                    const SizedBox(width: 10),
-
-                    // Text block
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: isArabic
-                            ? CrossAxisAlignment.end
-                            : CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            titleText,
-                            style: TextStyle(
-                              color: isSuper
-                                  ? const Color(0xFFFFBB40)
-                                  : const Color(0xFFFFD700),
-                              fontWeight: FontWeight.w900,
-                              fontSize: 13,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                isArabic
-                                    ? '$total عملة · $remaining متبقية'
-                                    : '$total coins · $remaining left',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.7),
-                                  fontSize: 11.5,
-                                ),
-                              ),
-                              if (countdownStr.isNotEmpty) ...[
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 5,
-                                    vertical: 1,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withValues(alpha: 0.3),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    '⏱ $countdownStr',
-                                    style: TextStyle(
-                                      color: _secondsLeft <= 10
-                                          ? const Color(0xFFFF6B6B)
-                                          : Colors.white.withValues(
-                                              alpha: 0.75,
-                                            ),
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-
-                    // Claim button (everyone can tap — including sender)
-                    if (widget.loading)
-                      const SizedBox(
-                        width: 28,
-                        height: 28,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          color: Color(0xFFFFD700),
-                        ),
-                      )
-                    else
-                      GestureDetector(
-                        onTap: widget.onClaim,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 9,
-                          ),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: isSuper
-                                  ? const [Color(0xFFFF8C00), Color(0xFFD4380D)]
-                                  : const [
-                                      Color(0xFFFFE066),
-                                      Color(0xFFC8850A),
-                                    ],
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(
-                                  0xFFFFD700,
-                                ).withValues(alpha: 0.4),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Text(
-                            isArabic ? 'افتح' : 'Open',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                      ),
-
-                    const SizedBox(width: 8),
-                    // Dismiss
-                    GestureDetector(
-                      onTap: widget.onDismiss,
-                      child: Icon(
-                        Icons.close_rounded,
-                        color: Colors.white.withValues(alpha: 0.45),
-                        size: 18,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Progress bar (claims consumed)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: progress.clamp(0.0, 1.0),
-                        minHeight: 4,
-                        backgroundColor: Colors.white.withValues(alpha: 0.12),
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          isSuper
-                              ? const Color(0xFFFF8C00)
-                              : const Color(0xFFFFD700),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      isArabic
-                          ? '$claimed / $count فتحة'
-                          : '$claimed / $count claimed',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.4),
-                        fontSize: 10,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Animated pulsing bag icon for the banner
-class _BannerBagIcon extends StatefulWidget {
-  const _BannerBagIcon({required this.isSuper});
-  final bool isSuper;
-
-  @override
-  State<_BannerBagIcon> createState() => _BannerBagIconState();
-}
-
-class _BannerBagIconState extends State<_BannerBagIcon>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _pulse;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    )..repeat(reverse: true);
-    _pulse = Tween(
-      begin: 0.88,
-      end: 1.0,
-    ).chain(CurveTween(curve: Curves.easeInOut)).animate(_ctrl);
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _pulse,
-      builder: (_, _) => Transform.scale(
-        scale: _pulse.value,
-        child: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: RadialGradient(
-              colors: widget.isSuper
-                  ? const [Color(0xFFFF8C00), Color(0xFF8B2500)]
-                  : const [Color(0xFFFFE066), Color(0xFFC8850A)],
-              radius: 0.72,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color:
-                    (widget.isSuper
-                            ? const Color(0xFFFF6B00)
-                            : const Color(0xFFFFD700))
-                        .withValues(alpha: 0.5 * _pulse.value),
-                blurRadius: 14,
-                spreadRadius: 1,
-              ),
-            ],
-          ),
-          child: const Center(
-            child: Icon(
-              Icons.card_giftcard_rounded,
-              size: 26,
-              color: Colors.white,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LuxuryGiftVideoConfig {
-  const _LuxuryGiftVideoConfig({required this.assetPath});
-
-  final String assetPath;
-
-  static _LuxuryGiftVideoConfig? fromCode(String code) {
-    switch (code) {
-      case 'golden_lion':
-        return const _LuxuryGiftVideoConfig(
-          assetPath: 'assets/gift_effects/videos/golden_lion_roar.mp4',
-        );
-      case 'baalbek_temple':
-        return const _LuxuryGiftVideoConfig(
-          assetPath: 'assets/gift_effects/videos/baalbek_temple_royal.mp4',
-        );
-      case 'odrob':
-        return const _LuxuryGiftVideoConfig(
-          assetPath: 'assets/gift_effects/videos/odrob_royal.mp4',
-        );
-      default:
-        return null;
-    }
-  }
-}
-
-class _LuxuryGiftVideoOverlay extends StatefulWidget {
-  const _LuxuryGiftVideoOverlay({
-    required this.playback,
-    required this.onDone,
-    this.soundEnabled = true,
-  });
-
-  final _ActiveLuxuryGiftVideo playback;
-  final VoidCallback onDone;
-  final bool soundEnabled;
-
-  @override
-  State<_LuxuryGiftVideoOverlay> createState() =>
-      _LuxuryGiftVideoOverlayState();
-}
-
-class _LuxuryGiftVideoOverlayState extends State<_LuxuryGiftVideoOverlay> {
-  late final VideoPlayerController _controller;
-  bool _ready = false;
-  // Guards against the position listener firing onDone repeatedly once the
-  // video reaches its end (the listener ticks every frame). The parent's
-  // 6-second force-clear timer is unchanged and still the hard backstop.
-  bool _completed = false;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _controller = VideoPlayerController.asset(widget.playback.assetPath)
-      ..setVolume(widget.soundEnabled ? 1.0 : 0.0)
-      ..initialize().then((_) {
-        if (!mounted) {
-          return;
-        }
-
-        setState(() {
-          _ready = true;
-        });
-
-        _controller.play();
-      });
-
-    _controller.addListener(_handleVideoState);
-  }
-
-  void _handleVideoState() {
-    if (_completed || !_controller.value.isInitialized) {
-      return;
-    }
-
-    if (_controller.value.position >= _controller.value.duration) {
-      _completed = true;
-      widget.onDone();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.removeListener(_handleVideoState);
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final mq = MediaQuery.of(context);
-    final screenW = mq.size.width;
-
-    // ── Safe bounds ───────────────────────────────────────────────────────────
-    // The body Stack uses extendBodyBehindAppBar: true, so coordinate (0,0)
-    // inside the body is the raw top-left of the screen (behind the status bar).
-    // We start the stage just below the AppBar so room controls stay visible.
-    final double topBound = mq.padding.top + kToolbarHeight;
-
-    // The bottom action bar sits at Positioned(bottom: 0) and is ~80 px tall;
-    // add the system nav inset so we never cover gesture-navigation handles.
-    const double kBottomBarH = 88.0;
-    final double bottomBound = kBottomBarH + mq.padding.bottom;
-
-    // ── Video child ───────────────────────────────────────────────────────────
-    // BoxFit.cover scales the video so its SHORTEST side fills the stage width,
-    // cropping top/bottom if needed. This eliminates the black letterbox bars
-    // that BoxFit.contain creates for portrait-aspect videos like Golden Lion.
-    // ClipRect confines the overflow to the stage bounds.
-    // RepaintBoundary isolates the video texture layer so the ~24-30fps decoder
-    // output does not repaint together with the frequently-rebuilding room UI
-    // Stack (chat, seats, speaking indicators). Visual output is unchanged.
-    final Widget videoChild = _ready
-        ? RepaintBoundary(
-            child: FittedBox(
-              fit: BoxFit.cover,
-              child: SizedBox(
-                width: _controller.value.size.width,
-                height: _controller.value.size.height,
-                child: VideoPlayer(_controller),
-              ),
-            ),
-          )
-        : const Center(child: CircularProgressIndicator());
-
-    // ── Info card width ───────────────────────────────────────────────────────
-    // Card spans ~88 % of screen width, centred, overlaid at the bottom of the
-    // stage so it costs zero video height.
-    final double cardHPad = screenW * 0.06; // 6 % each side → 88 % card width
-
-    return Positioned(
-      key: widget.playback.key,
-      top: topBound,
-      bottom: bottomBound,
-      left: 0,
-      right: 0,
-      child: IgnorePointer(
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Full-stage video: cover-fills width, clips vertical overflow.
-            ClipRect(child: SizedBox.expand(child: videoChild)),
-
-            // Info card overlaid at the bottom of the stage — does NOT reduce
-            // the video area since it is Positioned, not in a Column.
-            Positioned(
-              bottom: 14,
-              left: cardHPad,
-              right: cardHPad,
-              child: _LuxuryGiftInfoCard(
-                giftName: widget.playback.giftName,
-                receiverName: widget.playback.receiverName,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _LuxuryGiftInfoCard extends StatelessWidget {
-  const _LuxuryGiftInfoCard({
-    required this.giftName,
-    required this.receiverName,
-  });
-
-  final String giftName;
-  final String receiverName;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF2B1A45).withValues(alpha: 0.92),
-            const Color(0xFF160B26).withValues(alpha: 0.92),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Color(0xFFD4A017).withValues(alpha: 0.75),
-          width: 1.0,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFF0C15A).withValues(alpha: 0.22),
-            blurRadius: 18,
-            spreadRadius: 0,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            giftName,
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFFFFD700),
-              fontSize: 14,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.4,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.person_rounded,
-                color: Color(0xFFD4A017),
-                size: 13,
-              ),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  receiverName,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.90),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.1,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GiftSheet extends StatefulWidget {
-  const _GiftSheet({
-    required this.isArabic,
-    required this.receivers,
-    required this.gifts,
-    required this.roleLabel,
-    this.initialReceiverUserId,
-  });
-
-  final bool isArabic;
-  final List<RoomMember> receivers;
-  final List<RoomGift> gifts;
-  final String Function(String role) roleLabel;
-  final String? initialReceiverUserId;
-
-  @override
-  State<_GiftSheet> createState() => _GiftSheetState();
-}
-
-class _GiftSheetState extends State<_GiftSheet> {
-  RoomMember? _selectedReceiver;
-  RoomGift? _selectedGift;
-  String _selectedCategoryKey = 'hot';
-  int _quantity = 1;
-  int _userCoinsBalance = 0;
-
-  @override
-  void initState() {
-    super.initState();
-
-    final initialReceiverUserId = widget.initialReceiverUserId;
-    if (initialReceiverUserId != null) {
-      for (final receiver in widget.receivers) {
-        if (receiver.userId == initialReceiverUserId) {
-          _selectedReceiver = receiver;
-          break;
-        }
-      }
-    }
-
-    _loadBalance();
-  }
-
-  Future<void> _loadBalance() async {
-    try {
-      final wallet = await const WalletService().fetchWallet();
-      if (mounted) setState(() => _userCoinsBalance = wallet.coinsBalance);
-    } catch (e, st) {
-      debugError('RoomDetailsScreen._loadBalance', e, st);
-    }
-  }
-
-  void _chooseGift(RoomGift gift) {
-    setState(() {
-      _selectedGift = gift;
-    });
-
-    if (_selectedReceiver == null) {
-      _showReceiverRequiredMessage();
-      return;
-    }
-  }
-
-  void _sendGift() {
-    final receiver = _selectedReceiver;
-    final gift = _selectedGift;
-
-    if (receiver == null) {
-      _showReceiverRequiredMessage();
-      return;
-    }
-
-    if (gift == null) {
-      SroodToast.show(
-        context,
-        context.isArabic
-            ? '\u0627\u062e\u062a\u0631 \u0647\u062f\u064a\u0629 \u0623\u0648\u0644\u0627\u064b.'
-            : 'Choose a gift first.',
-        type: SroodToastType.info,
-      );
-      return;
-    }
-
-    Navigator.of(context).pop(
-      _GiftSendResult(
-        gift: gift,
-        receiverUserId: receiver.userId,
-        receiverName: receiver.fallbackName(context.isArabic),
-        quantity: _quantity,
-      ),
-    );
-  }
-
-  void _showReceiverRequiredMessage() {
-    SroodToast.show(
-      context,
-      context.isArabic
-          ? '\u0627\u062e\u062a\u0631 \u0634\u062e\u0635\u0627\u064b \u0644\u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0647\u062f\u064a\u0629.'
-          : 'Choose someone to receive the gift.',
-      type: SroodToastType.info,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final maxHeight = MediaQuery.sizeOf(context).height * 0.78;
-    final visibleGifts = widget.gifts
-        .where((gift) => gift.categoryKey == _selectedCategoryKey)
-        .toList();
-    final gifts = visibleGifts.isEmpty ? widget.gifts : visibleGifts;
-
-    return SafeArea(
-      top: false,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: maxHeight),
-        child: Container(
-          padding: EdgeInsets.fromLTRB(
-            12,
-            12,
-            12,
-            MediaQuery.of(context).viewInsets.bottom > 0
-                ? MediaQuery.of(context).viewInsets.bottom
-                : 8,
-          ),
-          decoration: const BoxDecoration(
-            color: Color(0xFF06030A),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
-            children: [
-              _GiftSheetGrabber(isArabic: context.isArabic),
-              const SizedBox(height: 10),
-              _GiftReceiverRail(
-                isArabic: context.isArabic,
-                receivers: widget.receivers,
-                selectedReceiver: _selectedReceiver,
-                roleLabel: widget.roleLabel,
-                onSelected: (receiver) {
-                  setState(() {
-                    _selectedReceiver = receiver;
-                  });
-                },
-              ),
-              const SizedBox(height: 12),
-              _GiftCategoryTabs(
-                isArabic: context.isArabic,
-                selectedCategoryKey: _selectedCategoryKey,
-                onSelected: (key) {
-                  setState(() {
-                    _selectedCategoryKey = key;
-                    if (_selectedGift?.categoryKey != key) {
-                      _selectedGift = null;
-                    }
-                  });
-                },
-              ),
-              const SizedBox(height: 10),
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final cols = constraints.maxWidth < 320 ? 3 : 4;
-                    return GridView.builder(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      itemCount: gifts.length,
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: cols,
-                        mainAxisSpacing: 8,
-                        crossAxisSpacing: 6,
-                        childAspectRatio: 0.78,
-                      ),
-                      itemBuilder: (context, index) {
-                        final gift = gifts[index];
-                        return _GiftCard(
-                          gift: gift,
-                          isArabic: context.isArabic,
-                          selected: _selectedGift?.name == gift.name,
-                          onTap: () => _chooseGift(gift),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-              _GiftSendBar(
-                isArabic: context.isArabic,
-                quantity: _quantity,
-                selectedGift: _selectedGift,
-                userCoinsBalance: _userCoinsBalance,
-                onQuantityChanged: (q) {
-                  debugPrint('[GiftQuantity] quantity changed → $q');
-                  setState(() => _quantity = q);
-                },
-                onSend: _sendGift,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _GiftSheetGrabber extends StatelessWidget {
-  const _GiftSheetGrabber({required this.isArabic});
-
-  final bool isArabic;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-      children: [
-        Text(
-          isArabic ? '\u0627\u0644\u0647\u062f\u0627\u064a\u0627' : 'Gifts',
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-        ),
-        const Spacer(),
-        Container(
-          width: 54,
-          height: 5,
-          decoration: BoxDecoration(
-            color: const Color(0xFF332344),
-            borderRadius: BorderRadius.circular(999),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _GiftReceiverRail extends StatelessWidget {
-  const _GiftReceiverRail({
-    required this.isArabic,
-    required this.receivers,
-    required this.selectedReceiver,
-    required this.roleLabel,
-    required this.onSelected,
-  });
-
-  final bool isArabic;
-  final List<RoomMember> receivers;
-  final RoomMember? selectedReceiver;
-  final String Function(String role) roleLabel;
-  final ValueChanged<RoomMember> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    if (receivers.isEmpty) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF12091D),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF4A3470)),
-        ),
-        child: Text(
-          isArabic
-              ? '\u0644\u0627 \u064a\u0648\u062c\u062f \u0645\u0633\u062a\u0644\u0645\u0648\u0646 \u0622\u062e\u0631\u0648\u0646.'
-              : 'No other active users.',
-          textAlign: isArabic ? TextAlign.right : TextAlign.left,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Color(0xFFD8CFEA),
-            fontWeight: FontWeight.w800,
-            fontSize: 13,
-          ),
-        ),
-      );
-    }
-
-    return SizedBox(
-      height: 112,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        reverse: isArabic,
-        itemCount: receivers.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 12),
-        itemBuilder: (context, index) {
-          final receiver = receivers[index];
-          final selected = selectedReceiver?.userId == receiver.userId;
-
-          return _GiftReceiverBubble(
-            receiver: receiver,
-            selected: selected,
-            isArabic: isArabic,
-            publicUserId: receiver.displayCode,
-            avatarUrl: receiver.avatarUrl,
-            roleLabel: roleLabel(receiver.role),
-            onTap: () => onSelected(receiver),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _RoomAvatar extends StatelessWidget {
-  const _RoomAvatar({
-    required this.avatarUrl,
-    required this.frameKey,
-    required this.vipLevel,
-    required this.size,
-    required this.selected,
-    required this.fallbackIcon,
-    this.isOfficialAgent = false,
-    this.onTap,
-  });
-
-  final String? avatarUrl;
-  final String? frameKey;
-  final int vipLevel;
-  final double size;
-  final bool selected;
-  final IconData fallbackIcon;
-  final bool isOfficialAgent;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final avatar = SizedBox(
-      width: size,
-      height: size,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            width: size,
-            height: size,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: selected ? const Color(0xFFF0C15A) : Colors.transparent,
-                width: 2,
-              ),
-            ),
-            child: AvatarWithFrame(
-              imageUrl: avatarUrl,
-              radius: (size - 4) / 2,
-              frameKey: frameKey,
-              vipLevel: vipLevel,
-              showVipBadge: vipLevel > 0 && size >= 42,
-              fallbackIcon: fallbackIcon,
-            ),
-          ),
-          if (isOfficialAgent)
-            Positioned(
-              top: -1,
-              right: -1,
-              child: AgentAvatarMarker(size: size >= 40 ? 16 : 12),
-            ),
-        ],
-      ),
-    );
-
-    if (onTap == null) {
-      return avatar;
-    }
-
-    return InkWell(
-      customBorder: const CircleBorder(),
-      onTap: onTap,
-      child: avatar,
-    );
-  }
-}
-
-class _GiftReceiverBubble extends StatelessWidget {
-  const _GiftReceiverBubble({
-    required this.receiver,
-    required this.selected,
-    required this.isArabic,
-    required this.publicUserId,
-    required this.avatarUrl,
-    required this.roleLabel,
-    required this.onTap,
-  });
-
-  final RoomMember receiver;
-  final bool selected;
-  final bool isArabic;
-  final String publicUserId;
-  final String? avatarUrl;
-  final String roleLabel;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final name = receiver.fallbackName(isArabic);
-    final vipLevel = receiver.effectiveVipLevel;
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(22),
-      onTap: onTap,
-      child: SizedBox(
-        width: 82,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _RoomAvatar(
-              avatarUrl: avatarUrl,
-              frameKey: receiver.selectedAvatarFrameKey,
-              vipLevel: receiver.effectiveVipLevel,
-              size: 52,
-              selected: selected,
-              fallbackIcon: receiver.role == 'listener'
-                  ? Icons.person_rounded
-                  : Icons.mic_rounded,
-              isOfficialAgent: receiver.isOfficialAgent,
-            ),
-            const SizedBox(height: 3),
-            Text(
-              name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: vipLevel > 0
-                    ? VipVisualStyle.nameColor(vipLevel, context)
-                    : selected
-                    ? Colors.white
-                    : const Color(0xFFD8CFEA),
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            if (vipLevel > 0)
-              Padding(
-                padding: const EdgeInsets.only(top: 1),
-                child: VipBadge(vipLevel: vipLevel, compact: true),
-              ),
-            Text(
-              publicUserId,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Color(0xFF9E91B8),
-                fontSize: 9,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _GiftCategoryTabs extends StatelessWidget {
-  const _GiftCategoryTabs({
-    required this.isArabic,
-    required this.selectedCategoryKey,
-    required this.onSelected,
-  });
-
-  final bool isArabic;
-  final String selectedCategoryKey;
-  final ValueChanged<String> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final categories = [
-      _GiftCategoryTabData(
-        key: 'event',
-        label: isArabic ? '\u062d\u062f\u062b' : 'Event',
-      ),
-      _GiftCategoryTabData(
-        key: 'hot',
-        label: isArabic ? '\u0631\u0627\u0626\u062c' : 'Hot',
-      ),
-      _GiftCategoryTabData(
-        key: 'lucky',
-        label: isArabic ? '\u062d\u0638' : 'Lucky',
-      ),
-      const _GiftCategoryTabData(key: 'vip', label: 'VIP'),
-    ];
-
-    return Row(
-      textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-      children: categories.map((category) {
-        final selected = category.key == selectedCategoryKey;
-
-        return Expanded(
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () => onSelected(category.key),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 5),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    category.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: selected ? Colors.white : const Color(0xFF8C819E),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Container(
-                    width: selected ? 22 : 0,
-                    height: 3,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF0C15A),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-}
-
-class _GiftCategoryTabData {
-  const _GiftCategoryTabData({required this.key, required this.label});
-
-  final String key;
-  final String label;
-}
-
-class _GiftArtwork extends StatelessWidget {
-  const _GiftArtwork({required this.gift, required this.size});
-
-  final RoomGift gift;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final localPath = gift.localAssetPath;
-
-    Widget imageWidget;
-    if (localPath != null) {
-      imageWidget = Image.asset(
-        localPath,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) => Icon(
-          gift.materialIcon,
-          color: const Color(0xFFF0C15A),
-          size: size * 0.56,
-        ),
-      );
-    } else {
-      imageWidget = Image.network(
-        gift.imageUrl,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) => Icon(
-          gift.materialIcon,
-          color: const Color(0xFFF0C15A),
-          size: size * 0.56,
-        ),
-      );
-    }
-
-    return Container(
-      width: size,
-      height: size,
-      padding: EdgeInsets.all(size * 0.10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        gradient: const RadialGradient(
-          colors: [Color(0xFF2B0B3E), Color(0xFF12091D), Color(0xFF06030A)],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFD10DFF).withValues(alpha: 0.20),
-            blurRadius: 16,
-          ),
-        ],
-      ),
-      child: imageWidget,
-    );
-  }
-}
-
-class _GiftCard extends StatelessWidget {
-  const _GiftCard({
-    required this.gift,
-    required this.isArabic,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final RoomGift gift;
-  final bool isArabic;
-  final bool selected;
-  final VoidCallback onTap;
-
-  String _fmtPrice(int p) {
-    if (p >= 1000000) return 'M';
-    if (p >= 1000) {
-      return 'K';
-    }
-    return p.toString();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(5, 7, 5, 6),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFF42105C) : Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? const Color(0xFFD10DFF) : Colors.transparent,
-            width: 1.5,
-          ),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFFD10DFF).withValues(alpha: 0.28),
-                    blurRadius: 14,
-                  ),
-                ]
-              : [],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Expanded(
-              child: Center(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final sz = (constraints.maxWidth * 0.82).clamp(32.0, 56.0);
-                    return _GiftArtwork(gift: gift, size: sz);
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              isArabic ? gift.arabicName : gift.name,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: 11,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.monetization_on_rounded,
-                  color: Color(0xFFF0C15A),
-                  size: 11,
-                ),
-                const SizedBox(width: 2),
-                Flexible(
-                  child: Text(
-                    _fmtPrice(gift.priceCoins),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFFD8CFEA),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 10,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _GiftSendBar extends StatelessWidget {
-  const _GiftSendBar({
-    required this.isArabic,
-    required this.quantity,
-    required this.selectedGift,
-    required this.userCoinsBalance,
-    required this.onQuantityChanged,
-    required this.onSend,
-  });
-
-  static const _quantities = [1, 7, 17, 77];
-
-  final bool isArabic;
-  final int quantity;
-  final RoomGift? selectedGift;
-  final int userCoinsBalance;
-  final ValueChanged<int> onQuantityChanged;
-  final VoidCallback onSend;
-
-  String _formatCoins(int c) {
-    if (c >= 1000000) return '${(c / 1000000).toStringAsFixed(1)}M';
-    if (c >= 1000) return '${(c / 1000).toStringAsFixed(1)}K';
-    return c.toString();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final total = (selectedGift?.priceCoins ?? 0) * quantity;
-    final displayValue = selectedGift == null
-        ? _formatCoins(userCoinsBalance)
-        : _formatCoins(total);
-
-    return SafeArea(
-      top: false,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(6, 10, 6, 4),
-        decoration: BoxDecoration(
-          color: const Color(0xFF06030A).withValues(alpha: 0.96),
-          border: Border(
-            top: BorderSide(
-              color: const Color(0xFF4A3470).withValues(alpha: 0.45),
-            ),
-          ),
-        ),
-        child: Row(
-          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-          children: [
-            // \u2500\u2500 coin balance \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-            const Icon(
-              Icons.monetization_on_rounded,
-              color: Color(0xFFF0C15A),
-              size: 20,
-            ),
-            const SizedBox(width: 4),
-            Flexible(
-              flex: 3,
-              child: Text(
-                displayValue,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-            const SizedBox(width: 3),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: Color(0xFF8C819E),
-              size: 18,
-            ),
-            const Spacer(),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: _quantities
-                  .map(
-                    (q) => Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: _QuantityChip(
-                        value: q,
-                        selected: quantity == q,
-                        onTap: () => onQuantityChanged(q),
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
-            const SizedBox(width: 8),
-            // \u2500\u2500 send button \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-            Flexible(
-              flex: 4,
-              child: SizedBox(
-                height: 44,
-                child: FilledButton(
-                  onPressed: onSend,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFB000FF),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                  child: Text(
-                    isArabic ? '\u0625\u0631\u0633\u0627\u0644' : 'Send',
-                    maxLines: 1,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 15,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _QuantityChip extends StatelessWidget {
-  const _QuantityChip({
-    required this.value,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final int value;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        height: 36,
-        constraints: const BoxConstraints(minWidth: 40),
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          gradient: selected
-              ? const LinearGradient(
-                  colors: [Color(0xFF8B26D9), Color(0xFFB56DFF)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          color: selected ? null : const Color(0xFF1D1A20),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: selected ? const Color(0xFFB56DFF) : const Color(0xFF3A2F4A),
-            width: 1.2,
-          ),
-        ),
-        child: Center(
-          child: Text(
-            value.toString(),
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              color: selected ? Colors.white : const Color(0xFF8C819E),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LiveBottomActionBar extends StatefulWidget {
-  const _LiveBottomActionBar({
-    required this.isArabic,
-    required this.connectingAudio,
-    required this.micEnabled,
-    required this.isOnMic,
-    required this.leaving,
-    required this.isSendingMessage,
-    required this.myVipLevel,
-    required this.isUploadingImage,
-    required this.onToggleMic,
-    required this.onLeaveRoom,
-    required this.onGiftTap,
-    required this.onMoreTap,
-    required this.onReactionTap,
-    required this.onSendMessage,
-    required this.onSendImage,
-    this.members = const [],
-    this.bottomPad = 0,
-  });
-
-  final bool isArabic;
-  final bool connectingAudio;
-  final bool micEnabled;
-  final bool isOnMic;
-  final bool leaving;
-  final bool isSendingMessage;
-  final int myVipLevel;
-  final bool isUploadingImage;
-  final VoidCallback onToggleMic;
-  final VoidCallback onLeaveRoom;
-  final VoidCallback onGiftTap;
-  final VoidCallback onMoreTap;
-  final VoidCallback onReactionTap;
-  final Future<void> Function(String) onSendMessage;
-  final Future<void> Function() onSendImage;
-  final List<RoomMember> members;
-  final double bottomPad;
-
-  @override
-  State<_LiveBottomActionBar> createState() => _LiveBottomActionBarState();
-}
-
-class _LiveBottomActionBarState extends State<_LiveBottomActionBar> {
-  final _ctrl = TextEditingController();
-  final _focus = FocusNode();
-  bool _isTyping = false;
-  bool _isFocused = false;
-  List<RoomMember> _mentionSuggestions = const [];
-
-  @override
-  void initState() {
-    super.initState();
-    _focus.addListener(_onFocusChange);
-  }
-
-  void _onFocusChange() {
-    if (mounted) setState(() => _isFocused = _focus.hasFocus);
-  }
-
-  @override
-  void dispose() {
-    _focus.removeListener(_onFocusChange);
-    _ctrl.dispose();
-    _focus.dispose();
-    super.dispose();
-  }
-
-  void _onTextChanged(String v) {
-    final isTyping = v.trim().isNotEmpty;
-    // Detect @mention: find last @ before cursor, extract query after it.
-    final cursor = _ctrl.selection.baseOffset;
-    final text = cursor >= 0 ? v.substring(0, cursor) : v;
-    final atIdx = text.lastIndexOf('@');
-    List<RoomMember> suggestions = const [];
-    if (atIdx >= 0) {
-      final query = text.substring(atIdx + 1).toLowerCase();
-      // Only suggest when there's no space after @.
-      if (!query.contains(' ')) {
-        suggestions = widget.members
-            .where((m) {
-              final name = (m.displayName ?? m.username ?? '').toLowerCase();
-              return name.isNotEmpty && (query.isEmpty || name.contains(query));
-            })
-            .take(5)
-            .toList();
-      }
-    }
-    setState(() {
-      _isTyping = isTyping;
-      _mentionSuggestions = suggestions;
-    });
-  }
-
-  void _insertMention(RoomMember member) {
-    final name =
-        member.displayName ?? member.username ?? member.userId.substring(0, 8);
-    final text = _ctrl.text;
-    final cursor = _ctrl.selection.baseOffset >= 0
-        ? _ctrl.selection.baseOffset
-        : text.length;
-    final before = text.substring(0, cursor);
-    final after = text.substring(cursor);
-    final atIdx = before.lastIndexOf('@');
-    final newText = atIdx >= 0
-        ? '${before.substring(0, atIdx)}@$name $after'
-        : '@$name $after';
-    _ctrl.value = TextEditingValue(
-      text: newText,
-      selection: TextSelection.collapsed(
-        offset: atIdx >= 0 ? atIdx + name.length + 2 : name.length + 2,
-      ),
-    );
-    setState(() {
-      _isTyping = newText.trim().isNotEmpty;
-      _mentionSuggestions = const [];
-    });
-    _focus.requestFocus();
-  }
-
-  Future<void> _submit() async {
-    final text = _ctrl.text.trim();
-    if (text.isEmpty || widget.isSendingMessage) return;
-
-    FocusManager.instance.primaryFocus?.unfocus();
-    _ctrl.clear();
-    setState(() {
-      _isTyping = false;
-      _mentionSuggestions = const [];
-    });
-    _focus.requestFocus();
-    try {
-      await widget.onSendMessage(text);
-    } catch (e, st) {
-      debugError('RoomChatInputBar._send', e, st);
-      if (mounted) {
-        _ctrl.text = text;
-        _ctrl.selection = TextSelection.collapsed(offset: text.length);
-        setState(() => _isTyping = true);
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    const kPurple = Color(0xFF8B26D9);
-    const kGold = Color(0xFFF0C15A);
-    final isArabic = context.isArabic;
-    final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 50;
-
-    final micColor = widget.isOnMic
-        ? (widget.micEnabled ? kGold : const Color(0xFFE63946))
-        : Colors.white.withValues(alpha: 0.35);
-
-    final pillBorder = _isFocused
-        ? kPurple.withValues(alpha: 0.75)
-        : Colors.white.withValues(alpha: 0.10);
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            const Color(0xFF0D0520).withValues(alpha: 0.55),
-            const Color(0xFF060210).withValues(alpha: 0.96),
-          ],
-        ),
-        border: Border(
-          top: BorderSide(
-            color: _isFocused
-                ? kPurple.withValues(alpha: 0.40)
-                : kPurple.withValues(alpha: 0.10),
-            width: 0.7,
-          ),
-        ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // @mention suggestion panel
-          if (_mentionSuggestions.isNotEmpty)
-            Container(
-              margin: const EdgeInsets.fromLTRB(10, 6, 10, 0),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A0D2E),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF3D2860)),
-              ),
-              child: ListView.separated(
-                shrinkWrap: true,
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                itemCount: _mentionSuggestions.length,
-                separatorBuilder: (_, _) => const Divider(
-                  height: 1,
-                  color: Color(0xFF2A1945),
-                  indent: 44,
-                ),
-                itemBuilder: (_, i) {
-                  final m = _mentionSuggestions[i];
-                  final name =
-                      m.displayName ?? m.username ?? m.userId.substring(0, 8);
-                  return InkWell(
-                    onTap: () => _insertMention(m),
-                    borderRadius: BorderRadius.circular(10),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 14,
-                            backgroundImage: m.avatarUrl != null
-                                ? NetworkImage(m.avatarUrl!)
-                                : null,
-                            backgroundColor: const Color(0xFF3D2860),
-                            child: m.avatarUrl == null
-                                ? const Icon(
-                                    Icons.person,
-                                    size: 14,
-                                    color: Colors.white54,
-                                  )
-                                : null,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              '@$name',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(10, 4, 10, 5 + widget.bottomPad),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Row 1: pill input + send button
-                Row(
-                  textDirection: isArabic
-                      ? TextDirection.rtl
-                      : TextDirection.ltr,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Pill input
-                    Expanded(
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        curve: Curves.easeOut,
-                        constraints: const BoxConstraints(minHeight: 40),
-                        padding: const EdgeInsetsDirectional.only(start: 12),
-                        decoration: BoxDecoration(
-                          color: _isFocused
-                              ? const Color(0xFF160B26).withValues(alpha: 0.92)
-                              : const Color(0xFF1C0E38).withValues(alpha: 0.68),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: pillBorder, width: 1.0),
-                          boxShadow: _isFocused
-                              ? [
-                                  BoxShadow(
-                                    color: kPurple.withValues(alpha: 0.20),
-                                    blurRadius: 12,
-                                    spreadRadius: 0,
-                                  ),
-                                ]
-                              : const [],
-                        ),
-                        child: Row(
-                          textDirection: isArabic
-                              ? TextDirection.rtl
-                              : TextDirection.ltr,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.chat_bubble_outline_rounded,
-                              size: 13,
-                              color: kPurple.withValues(alpha: 0.50),
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: TextField(
-                                controller: _ctrl,
-                                focusNode: _focus,
-                                textDirection: context.isArabic
-                                    ? TextDirection.rtl
-                                    : TextDirection.ltr,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  height: 1.3,
-                                ),
-                                maxLength: 300,
-                                minLines: 1,
-                                maxLines: 2,
-                                textInputAction: TextInputAction.send,
-                                buildCounter:
-                                    (
-                                      _, {
-                                      required currentLength,
-                                      required isFocused,
-                                      maxLength,
-                                    }) => null,
-                                decoration: InputDecoration(
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                  filled: false,
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.zero,
-                                  hintText: isArabic
-                                      ? '\u0627\u0643\u062a\u0628 \u0634\u064a\u0626\u0627\u064b...'
-                                      : 'Say something...',
-                                  hintStyle: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.46),
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                onChanged: _onTextChanged,
-                                onSubmitted: (_) => _submit(),
-                              ),
-                            ),
-                            // Image picker — locked below VIP7
-                            const SizedBox(width: 4),
-                            SizedBox.square(
-                              dimension: 40,
-                              child: GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTap: widget.myVipLevel >= 7
-                                    ? (widget.isUploadingImage
-                                          ? null
-                                          : widget.onSendImage)
-                                    : widget.onSendImage,
-                                child: Center(
-                                  child: Stack(
-                                    clipBehavior: Clip.none,
-                                    children: [
-                                      if (widget.isUploadingImage &&
-                                          widget.myVipLevel >= 7)
-                                        const SizedBox(
-                                          width: 17,
-                                          height: 17,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 1.6,
-                                            color: Color(0x8DFFFFFF),
-                                          ),
-                                        )
-                                      else
-                                        Icon(
-                                          Icons.image_outlined,
-                                          size: 17,
-                                          color: Colors.white.withValues(
-                                            alpha: widget.myVipLevel >= 7
-                                                ? 0.50
-                                                : 0.20,
-                                          ),
-                                        ),
-                                      if (widget.myVipLevel < 7)
-                                        Positioned(
-                                          right: -3,
-                                          bottom: -3,
-                                          child: Icon(
-                                            Icons.lock,
-                                            size: 8,
-                                            color: Colors.white.withValues(
-                                              alpha: 0.40,
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 7),
-                    // Send button — compact circle, glows when active
-                    GestureDetector(
-                      onTap: (_isTyping && !widget.isSendingMessage)
-                          ? _submit
-                          : null,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        curve: Curves.easeOut,
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: _isTyping
-                                ? [
-                                    const Color(0xFFA044F0),
-                                    const Color(0xFF6A1CB0),
-                                  ]
-                                : [
-                                    Colors.white.withValues(alpha: 0.08),
-                                    Colors.white.withValues(alpha: 0.04),
-                                  ],
-                          ),
-                          border: Border.all(
-                            color: _isTyping
-                                ? kPurple.withValues(alpha: 0.55)
-                                : Colors.white.withValues(alpha: 0.10),
-                            width: 1.0,
-                          ),
-                          boxShadow: _isTyping
-                              ? [
-                                  BoxShadow(
-                                    color: kPurple.withValues(alpha: 0.35),
-                                    blurRadius: 12,
-                                    spreadRadius: 0,
-                                  ),
-                                ]
-                              : const [],
-                        ),
-                        child: widget.isSendingMessage
-                            ? Padding(
-                                padding: const EdgeInsets.all(9),
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 1.8,
-                                  color: _isTyping
-                                      ? Colors.white
-                                      : Colors.white.withValues(alpha: 0.30),
-                                ),
-                              )
-                            : Icon(
-                                Icons.send_rounded,
-                                color: _isTyping
-                                    ? Colors.white
-                                    : Colors.white.withValues(alpha: 0.25),
-                                size: 18,
-                              ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                // Row 2: quick action icons (hidden when keyboard open)
-                if (!keyboardOpen) ...[
-                  const SizedBox(height: 4),
-                  Row(
-                    textDirection: isArabic
-                        ? TextDirection.rtl
-                        : TextDirection.ltr,
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      // 1. Mic
-                      _QuickActionBtn(
-                        icon: widget.isOnMic
-                            ? (widget.micEnabled
-                                  ? Icons.mic_rounded
-                                  : Icons.mic_off_rounded)
-                            : Icons.mic_none_rounded,
-                        color: micColor,
-                        highlighted: widget.isOnMic && widget.micEnabled,
-                        highlightColor: micColor,
-                        busy: widget.connectingAudio,
-                        onTap: widget.isOnMic && !widget.connectingAudio
-                            ? widget.onToggleMic
-                            : null,
-                        opacity: widget.isOnMic ? 1.0 : 0.38,
-                      ),
-                      // 2. Emoji / Reaction
-                      _QuickActionBtn(
-                        icon: Icons.emoji_emotions_outlined,
-                        color: Colors.white.withValues(alpha: 0.80),
-                        onTap: () => widget.onReactionTap(),
-                      ),
-                      // 3. Gift (gold accent)
-                      _QuickActionBtn(
-                        icon: Icons.card_giftcard_rounded,
-                        color: kGold,
-                        highlighted: true,
-                        highlightColor: kGold,
-                        onTap: widget.onGiftTap,
-                      ),
-                      // 4. Room tools
-                      _QuickActionBtn(
-                        icon: Icons.tune_rounded,
-                        color: Colors.white.withValues(alpha: 0.80),
-                        onTap: widget.onMoreTap,
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Compact circular icon button for the quick-actions row.
-class _QuickActionBtn extends StatelessWidget {
-  const _QuickActionBtn({
-    required this.icon,
-    required this.color,
-    required this.onTap,
-    this.highlighted = false,
-    this.highlightColor,
-    this.busy = false,
-    this.opacity = 1.0,
-  });
-
-  final IconData icon;
-  final Color color;
-  final VoidCallback? onTap;
-  final bool highlighted;
-  final Color? highlightColor;
-  final bool busy;
-  final double opacity;
-
-  @override
-  Widget build(BuildContext context) {
-    final hl = highlightColor ?? color;
-    return GestureDetector(
-      onTap: onTap,
-      child: Opacity(
-        opacity: onTap == null ? opacity : 1.0,
-        child: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: highlighted
-                ? hl.withValues(alpha: 0.15)
-                : Colors.white.withValues(alpha: 0.06),
-            border: Border.all(
-              color: highlighted
-                  ? hl.withValues(alpha: 0.45)
-                  : Colors.white.withValues(alpha: 0.09),
-              width: 0.9,
-            ),
-          ),
-          child: busy
-              ? Center(
-                  child: SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 1.8,
-                      color: color,
-                    ),
-                  ),
-                )
-              : Icon(icon, color: color, size: 19),
-        ),
-      ),
-    );
-  }
-}
-
-class _SupportPill extends StatelessWidget {
-  const _SupportPill({required this.amount, required this.compact});
-
-  final int amount;
-  final bool compact;
-
-  String get _label {
-    if (amount >= 1000000) {
-      final v = amount / 1000000;
-      return '${v % 1 == 0 ? v.toInt() : v.toStringAsFixed(1)}M';
-    }
-    if (amount >= 1000) {
-      final v = amount / 1000;
-      return '${v % 1 == 0 ? v.toInt() : v.toStringAsFixed(1)}k';
-    }
-    return amount.toString();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (amount <= 0) return const SizedBox.shrink();
-
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: compact ? 6 : 8,
-        vertical: compact ? 2 : 3,
-      ),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF2B1A45), Color(0xFF160B26)],
-        ),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: Color(0xFFD4A017).withValues(alpha: 0.70),
-          width: 0.8,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFF0C15A).withValues(alpha: 0.32),
-            blurRadius: 8,
-            spreadRadius: 0,
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.monetization_on_rounded,
-            color: const Color(0xFFFFD700),
-            size: compact ? 10 : 12,
-          ),
-          SizedBox(width: compact ? 2 : 3),
-          Text(
-            _label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: const Color(0xFFFFE566),
-              fontWeight: FontWeight.w800,
-              fontSize: compact ? 9 : 10,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// Scrollable chat feed (replaces _FloatingChatOverlay, shows all messages)
-// -----------------------------------------------------------------------------
-
-class _RoomChatFeed extends StatefulWidget {
-  const _RoomChatFeed({
-    required this.chatMessages,
-    required this.isArabic,
-    required this.onProfileTap,
-    required this.bottomPad,
-    required this.currentUserId,
-    this.onRemoveTap,
-    this.onReportTap,
-  });
-
-  final List<RoomMessage> chatMessages;
-  final bool isArabic;
-  final ValueChanged<String> onProfileTap;
-  final double bottomPad;
-  final String currentUserId;
-  final ValueChanged<RoomMessage>? onRemoveTap;
-  final ValueChanged<RoomMessage>? onReportTap;
-
-  @override
-  State<_RoomChatFeed> createState() => _RoomChatFeedState();
-}
-
-class _RoomChatFeedState extends State<_RoomChatFeed> {
-  final ScrollController _ctrl = ScrollController();
-  bool _userScrolledUp = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl.addListener(_onScroll);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToLatest());
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (!_ctrl.hasClients) return;
-    final atBottom = _ctrl.position.maxScrollExtent - _ctrl.offset < 80;
-    if (atBottom == _userScrolledUp) {
-      setState(() => _userScrolledUp = !atBottom);
-    }
-  }
-
-  void _scrollToLatest() {
-    if (!_ctrl.hasClients || !mounted) return;
-    _ctrl.jumpTo(_ctrl.position.maxScrollExtent);
-  }
-
-  @override
-  void didUpdateWidget(_RoomChatFeed old) {
-    super.didUpdateWidget(old);
-    if (widget.chatMessages.length != old.chatMessages.length &&
-        !_userScrolledUp) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_ctrl.hasClients && mounted) {
-          _ctrl.animateTo(
-            _ctrl.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-          );
-        }
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.transparent,
-            Colors.black.withValues(alpha: 0.30),
-            const Color(0xFF07030D).withValues(alpha: 0.62),
-          ],
-          stops: const [0.0, 0.45, 1.0],
-        ),
-      ),
-      child: Directionality(
-        textDirection: context.isArabic ? TextDirection.rtl : TextDirection.ltr,
-        child: widget.chatMessages.isEmpty
-            ? Align(
-                alignment: AlignmentDirectional.bottomStart,
-                child: Padding(
-                  padding: const EdgeInsetsDirectional.fromSTEB(14, 0, 14, 10),
-                  child: Text(
-                    context.isArabic
-                        ? '\u0627\u0644\u062f\u0631\u062f\u0634\u0629 \u0647\u0646\u0627'
-                        : 'Chat appears here',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.28),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      shadows: const [
-                        Shadow(color: Colors.black87, blurRadius: 8),
-                      ],
-                    ),
-                  ),
-                ),
-              )
-            : ListView.builder(
-                controller: _ctrl,
-                padding: EdgeInsets.fromLTRB(10, 8, 10, 8 + widget.bottomPad),
-                itemCount: widget.chatMessages.length,
-                itemBuilder: (context, index) {
-                  final msg = widget.chatMessages[index];
-                  return _ChatBubbleRow(
-                    message: msg,
-                    isArabic: context.isArabic,
-                    onProfileTap: msg.isSystem
-                        ? null
-                        : () => widget.onProfileTap(msg.senderId),
-                    onRemoveTap:
-                        (!msg.isSystem &&
-                            !msg.isRemoved &&
-                            widget.onRemoveTap != null)
-                        ? () => widget.onRemoveTap!(msg)
-                        : null,
-                    onReportTap:
-                        (!msg.isSystem &&
-                            !msg.isRemoved &&
-                            msg.senderId != widget.currentUserId &&
-                            widget.onReportTap != null)
-                        ? () => widget.onReportTap!(msg)
-                        : null,
-                  );
-                },
-              ),
-      ),
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// Premium vault-closing overlay
-// -----------------------------------------------------------------------------
-
-class _RoomClosingOverlay extends StatefulWidget {
-  const _RoomClosingOverlay({
-    super.key,
-    required this.isOwnerClosing,
-    required this.isArabic,
-  });
-
-  final bool isOwnerClosing;
-  final bool isArabic;
-
-  @override
-  State<_RoomClosingOverlay> createState() => _RoomClosingOverlayState();
-}
-
-class _RoomClosingOverlayState extends State<_RoomClosingOverlay>
-    with TickerProviderStateMixin {
-  late final AnimationController _fadeCtrl;
-  late final AnimationController _ringCtrl;
-  late final AnimationController _lockScaleCtrl;
-  late final AnimationController _shimmerCtrl;
-
-  late final Animation<double> _fadeAnim;
-  late final Animation<double> _lockScaleAnim;
-  late final Animation<double> _shimmerAnim;
-
-  bool _disposed = false;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _fadeCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 380),
-    );
-    _ringCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    );
-    _lockScaleCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 520),
-    );
-    _shimmerCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    );
-
-    _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
-    _lockScaleAnim = CurvedAnimation(
-      parent: _lockScaleCtrl,
-      curve: Curves.elasticOut,
-    );
-    _shimmerAnim = CurvedAnimation(
-      parent: _shimmerCtrl,
-      curve: Curves.easeInOut,
-    );
-
-    _fadeCtrl.forward();
-    Future<void>.delayed(const Duration(milliseconds: 180), () {
-      if (!mounted || _disposed) return;
-      if (!_lockScaleCtrl.isAnimating &&
-          _lockScaleCtrl.status == AnimationStatus.dismissed) {
-        _lockScaleCtrl.forward();
-      }
-      if (!_ringCtrl.isAnimating) _ringCtrl.repeat();
-    });
-    Future<void>.delayed(const Duration(milliseconds: 400), () {
-      if (!mounted || _disposed) return;
-      if (!_shimmerCtrl.isAnimating) _shimmerCtrl.repeat(reverse: true);
-    });
-  }
-
-  @override
-  void dispose() {
-    _disposed = true;
-    _fadeCtrl.stop();
-    _ringCtrl.stop();
-    _lockScaleCtrl.stop();
-    _shimmerCtrl.stop();
-    _fadeCtrl.dispose();
-    _ringCtrl.dispose();
-    _lockScaleCtrl.dispose();
-    _shimmerCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isAr = context.isArabic;
-    final isOwner = widget.isOwnerClosing;
-
-    final titleText = isOwner
-        ? (isAr ? 'Closing Room...' : 'Closing Room...')
-        : (isAr ? 'Leaving Room...' : 'Leaving Room...');
-    final subtitleText = isOwner
-        ? (isAr ? 'Securing the room' : 'Securing the room')
-        : (isAr ? 'See you around' : 'See you around');
-
-    return FadeTransition(
-      opacity: _fadeAnim,
-      child: Container(
-        color: Colors.black.withValues(alpha: 0.88),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Vault ring + lock
-              SizedBox(
-                width: 140,
-                height: 140,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Outer glow
-                    Container(
-                      width: 140,
-                      height: 140,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(
-                              0xFFF0C15A,
-                            ).withValues(alpha: 0.18),
-                            blurRadius: 40,
-                            spreadRadius: 10,
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Rotating vault ring
-                    AnimatedBuilder(
-                      animation: _ringCtrl,
-                      builder: (_, _) => CustomPaint(
-                        size: const Size(130, 130),
-                        painter: _VaultRingPainter(progress: _ringCtrl.value),
-                      ),
-                    ),
-                    // Lock icon with scale-in + shimmer
-                    ScaleTransition(
-                      scale: _lockScaleAnim,
-                      child: AnimatedBuilder(
-                        animation: _shimmerAnim,
-                        builder: (_, _) {
-                          final shimmerColor = Color.lerp(
-                            const Color(0xFFF0C15A),
-                            const Color(0xFFFFFFAA),
-                            _shimmerAnim.value,
-                          )!;
-                          return Container(
-                            width: 72,
-                            height: 72,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: RadialGradient(
-                                colors: [
-                                  shimmerColor.withValues(alpha: 0.22),
-                                  const Color(
-                                    0xFF2A0A50,
-                                  ).withValues(alpha: 0.9),
-                                ],
-                              ),
-                              border: Border.all(
-                                color: shimmerColor.withValues(alpha: 0.50),
-                                width: 1.5,
-                              ),
-                            ),
-                            child: Icon(
-                              isOwner
-                                  ? Icons.lock_rounded
-                                  : Icons.logout_rounded,
-                              color: shimmerColor,
-                              size: 32,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 28),
-
-              // Title
-              Text(
-                titleText,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // Subtitle
-              Text(
-                subtitleText,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFFBCAED6),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              // Subtle loading dots
-              _PulsingDots(),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Vault ring: rotating arc segments like a combination lock.
-class _VaultRingPainter extends CustomPainter {
-  const _VaultRingPainter({required this.progress});
-
-  final double progress;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 4;
-
-    // Background track
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()
-        ..color = const Color(0xFF2A1050).withValues(alpha: 0.7)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 8,
-    );
-
-    // Animated arc segments
-    const segmentCount = 8;
-    const gapFraction = 0.08;
-    final segmentSweep = (1.0 - gapFraction * segmentCount) / segmentCount;
-    final goldPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 6
-      ..strokeCap = StrokeCap.round;
-
-    for (int i = 0; i < segmentCount; i++) {
-      final startFraction = i / segmentCount + gapFraction / 2;
-      final startAngle = (startFraction + progress) * 2 * math.pi;
-      final sweepAngle = segmentSweep * 2 * math.pi;
-
-      final relPos = ((startFraction + progress) % 1.0);
-      final opacity = relPos < 0.5 ? relPos * 2 : (1.0 - relPos) * 2;
-      goldPaint.color = Color.lerp(
-        const Color(0xFF4A2A80),
-        const Color(0xFFF0C15A),
-        opacity.clamp(0.15, 1.0),
-      )!;
-
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        startAngle,
-        sweepAngle,
-        false,
-        goldPaint,
-      );
-    }
-
-    // Notch markers (vault dial ticks)
-    final notchPaint = Paint()
-      ..color = const Color(0xFFF0C15A).withValues(alpha: 0.35)
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round;
-    for (int i = 0; i < 12; i++) {
-      final angle = (i / 12 + progress * 0.3) * 2 * math.pi;
-      final inner = radius + 6;
-      final outer = radius + 10;
-      canvas.drawLine(
-        Offset(
-          center.dx + inner * math.cos(angle),
-          center.dy + inner * math.sin(angle),
-        ),
-        Offset(
-          center.dx + outer * math.cos(angle),
-          center.dy + outer * math.sin(angle),
-        ),
-        notchPaint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_VaultRingPainter old) => old.progress != progress;
-}
-
-// Three pulsing dots indicating loading.
-class _PulsingDots extends StatefulWidget {
-  @override
-  State<_PulsingDots> createState() => _PulsingDotsState();
-}
-
-class _PulsingDotsState extends State<_PulsingDots>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (_, _) {
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: List.generate(3, (i) {
-            final phase = (_ctrl.value - i * 0.2).clamp(0.0, 1.0);
-            final scale =
-                0.6 + 0.4 * (phase < 0.5 ? phase * 2 : (1 - phase) * 2);
-            return Container(
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              width: 8 * scale,
-              height: 8 * scale,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(
-                  0xFFF0C15A,
-                ).withValues(alpha: 0.5 + 0.5 * scale),
-              ),
-            );
-          }),
-        );
-      },
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// Room exit action sheet
-// -----------------------------------------------------------------------------
-
-enum _RoomExitAction { minimize, exit, closeRoom }
-
-class _RoomExitSheet extends StatelessWidget {
-  const _RoomExitSheet({required this.isOwner, required this.isArabic});
-  final bool isOwner;
-  final bool isArabic;
-
-  String _t(String ar, String en) => isArabic ? ar : en;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF130828),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        border: Border(top: BorderSide(color: Color(0xFF4A1A8A), width: 1)),
-      ),
-      padding: EdgeInsets.fromLTRB(
-        20,
-        16,
-        20,
-        MediaQuery.of(context).padding.bottom + 20,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Grabber
-          Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.white24,
-              borderRadius: BorderRadius.circular(99),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            _t('Room Options', 'Room Options'),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Minimize
-          _ExitOption(
-            icon: Icons.picture_in_picture_alt_rounded,
-            iconColor: const Color(0xFF8B26D9),
-            iconBg: const Color(0xFF2A0E50),
-            title: _t('Minimize', 'Minimize'),
-            subtitle: _t(
-              'Return to the app while keeping the room active',
-              'Browse the app while staying in the room',
-            ),
-            onTap: () => Navigator.of(context).pop(_RoomExitAction.minimize),
-          ),
-          const SizedBox(height: 10),
-
-          // Exit room (always available ? even owner can leave without closing)
-          _ExitOption(
-            icon: Icons.logout_rounded,
-            iconColor: const Color(0xFFFF6B6B),
-            iconBg: const Color(0xFF3A1010),
-            title: _t('Exit Room', 'Exit Room'),
-            subtitle: _t(
-              'You will leave the room and it will stay open',
-              'Leave the room. It stays open for others.',
-            ),
-            onTap: () => Navigator.of(context).pop(_RoomExitAction.exit),
-          ),
-
-          // Close room ? owner only
-          if (isOwner) ...[
-            const SizedBox(height: 10),
-            _ExitOption(
-              icon: Icons.cancel_rounded,
-              iconColor: const Color(0xFFFF3B3B),
-              iconBg: const Color(0xFF3A0808),
-              title: _t('Close Room', 'Close Room'),
-              subtitle: _t(
-                'The room will close for all participants',
-                'End the room for all participants',
-              ),
-              onTap: () => Navigator.of(context).pop(_RoomExitAction.closeRoom),
-            ),
-          ],
-
-          const SizedBox(height: 12),
-
-          // Cancel
-          GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white12),
-              ),
-              child: Text(
-                _t('Cancel', 'Cancel'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 15,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ExitOption extends StatelessWidget {
-  const _ExitOption({
-    required this.icon,
-    required this.iconColor,
-    required this.iconBg,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-  final IconData icon;
-  final Color iconColor;
-  final Color iconBg;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: iconBg,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: iconColor, size: 22),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.45),
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: Colors.white.withValues(alpha: 0.25),
-              size: 20,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// =============================================================================
-// Lucky Bag Entrance Overlay
-// Shown full-screen when a Lucky Bag is sent. Auto-dismisses after ~2s.
-// =============================================================================
-
-class _LuckyBagEntranceOverlay extends StatefulWidget {
-  const _LuckyBagEntranceOverlay({
-    super.key,
-    required this.onDone,
-    required this.soundEnabled,
-  });
-
-  final VoidCallback onDone;
-  final bool soundEnabled;
-
-  @override
-  State<_LuckyBagEntranceOverlay> createState() =>
-      _LuckyBagEntranceOverlayState();
-}
-
-class _LuckyBagEntranceOverlayState extends State<_LuckyBagEntranceOverlay>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _scale;
-  late final Animation<double> _masterFade;
-  late final Animation<double> _sparkle;
-  AudioPlayer? _sfxPlayer;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2000),
-    );
-
-    _scale = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween(
-          begin: 0.2,
-          end: 1.18,
-        ).chain(CurveTween(curve: Curves.easeOutBack)),
-        weight: 28,
-      ),
-      TweenSequenceItem(
-        tween: Tween(
-          begin: 1.18,
-          end: 1.0,
-        ).chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 22,
-      ),
-      TweenSequenceItem(tween: ConstantTween(1.0), weight: 25),
-      TweenSequenceItem(
-        tween: Tween(
-          begin: 1.0,
-          end: 0.7,
-        ).chain(CurveTween(curve: Curves.easeIn)),
-        weight: 25,
-      ),
-    ]).animate(_ctrl);
-
-    _masterFade = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.0), weight: 20),
-      TweenSequenceItem(tween: ConstantTween(1.0), weight: 55),
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 25),
-    ]).animate(_ctrl);
-
-    _sparkle = CurvedAnimation(
-      parent: _ctrl,
-      curve: const Interval(0.15, 0.85, curve: Curves.easeInOut),
-    );
-
-    _ctrl.forward().whenComplete(() {
-      if (mounted) widget.onDone();
-    });
-
-    unawaited(_tryPlaySound());
-  }
-
-  Future<void> _tryPlaySound() async {
-    if (!widget.soundEnabled) return;
-    _roomLog(
-      '[GIFT-AUDIO] play overlay sound without pausing music (lucky_bag_open)',
-    );
-    try {
-      _sfxPlayer ??= AudioPlayer(handleInterruptions: false);
-      debugPrint('[LuckyBagEntrance] sfxPlayer: setAsset lucky_bag_open');
-      await _sfxPlayer!.setAsset('assets/sounds/lucky_bag_open.mp3');
-      debugPrint('[LuckyBagEntrance] sfxPlayer: play');
-      unawaited(_sfxPlayer!.play());
-    } catch (e, st) {
-      debugError('RoomDetailsScreen._playLuckyBagOpenSound', e, st);
-    }
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    _sfxPlayer?.dispose();
-    debugPrint('[LuckyBagEntrance] sfxPlayer disposed');
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: AnimatedBuilder(
-        animation: _ctrl,
-        builder: (context, _) {
-          final fade = _masterFade.value;
-          return Opacity(
-            opacity: fade.clamp(0.0, 1.0),
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  colors: [
-                    const Color(0xFF6B0000).withValues(alpha: 0.85 * fade),
-                    Colors.black.withValues(alpha: 0.75 * fade),
-                  ],
-                  radius: 1.2,
-                ),
-              ),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Glowing bag icon with sparkle coins around it
-                    SizedBox(
-                      width: 200,
-                      height: 200,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          // Outer glow ring
-                          Opacity(
-                            opacity: _sparkle.value,
-                            child: Container(
-                              width: 160,
-                              height: 160,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(
-                                      0xFFFFD700,
-                                    ).withValues(alpha: 0.55),
-                                    blurRadius: 60,
-                                    spreadRadius: 20,
-                                  ),
-                                  BoxShadow(
-                                    color: const Color(
-                                      0xFFE63946,
-                                    ).withValues(alpha: 0.3),
-                                    blurRadius: 40,
-                                    spreadRadius: 5,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          // Main bag icon
-                          Transform.scale(
-                            scale: _scale.value,
-                            child: const Icon(
-                              Icons.card_giftcard_rounded,
-                              size: 110,
-                              color: Color(0xFFFFD700),
-                            ),
-                          ),
-                          // Orbiting coin sparkles
-                          ..._buildSparkles(_sparkle.value),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    // Title
-                    Transform.scale(
-                      scale: (_scale.value).clamp(0.5, 1.0),
-                      child: Column(
-                        children: [
-                          Text(
-                            'Lucky Bag!',
-                            style: TextStyle(
-                              color: const Color(0xFFFFD700),
-                              fontSize: 34,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.5,
-                              shadows: [
-                                Shadow(
-                                  color: const Color(
-                                    0xFFE63946,
-                                  ).withValues(alpha: 0.8),
-                                  blurRadius: 16,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Tap to win coins!',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.65),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  List<Widget> _buildSparkles(double t) {
-    // 8 coin icons in a circle, fading/drifting outward
-    const count = 8;
-    const radius = 72.0;
-    return List.generate(count, (i) {
-      final angle = (i / count) * 2 * math.pi;
-      final drift = t * 14;
-      final x = math.cos(angle) * (radius + drift);
-      final y = math.sin(angle) * (radius + drift);
-      final opacity = (math.sin(t * math.pi)).clamp(0.0, 1.0);
-      return Positioned(
-        left: 100 + x - 10,
-        top: 100 + y - 10,
-        child: Opacity(
-          opacity: opacity,
-          child: const Icon(
-            Icons.monetization_on_rounded,
-            size: 20,
-            color: Color(0xFFFFD700),
-          ),
-        ),
-      );
-    });
-  }
-}
-
-// =============================================================================
-// Lucky Bag Win Overlay
-// Shown when a claim succeeds. Shows coin rain + animated win text.
-// =============================================================================
-
-class _LuckyBagWinOverlay extends StatefulWidget {
-  const _LuckyBagWinOverlay({
-    super.key,
-    required this.coins,
-    required this.onDone,
-    required this.soundEnabled,
-  });
-
-  final int coins;
-  final VoidCallback onDone;
-  final bool soundEnabled;
-
-  @override
-  State<_LuckyBagWinOverlay> createState() => _LuckyBagWinOverlayState();
-}
-
-class _LuckyBagWinOverlayState extends State<_LuckyBagWinOverlay>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _masterFade;
-  late final Animation<double> _textScale;
-  late final Animation<double> _textBounce;
-  late final Animation<int> _countUp;
-  AudioPlayer? _sfxPlayer;
-
-  // Pre-computed random-ish coin positions (deterministic, no dart:math Random seed needed)
-  static const _coinXFractions = [
-    0.05,
-    0.15,
-    0.25,
-    0.38,
-    0.50,
-    0.62,
-    0.75,
-    0.85,
-    0.92,
-    0.32,
-  ];
-  static const _coinDelayFractions = [
-    0.00,
-    0.08,
-    0.04,
-    0.12,
-    0.02,
-    0.10,
-    0.06,
-    0.14,
-    0.03,
-    0.09,
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2600),
-    );
-
-    _masterFade = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.0), weight: 12),
-      TweenSequenceItem(tween: ConstantTween(1.0), weight: 63),
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 25),
-    ]).animate(_ctrl);
-
-    _textScale = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween(
-          begin: 0.0,
-          end: 1.12,
-        ).chain(CurveTween(curve: Curves.easeOutBack)),
-        weight: 20,
-      ),
-      TweenSequenceItem(
-        tween: Tween(
-          begin: 1.12,
-          end: 1.0,
-        ).chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 10,
-      ),
-      TweenSequenceItem(tween: ConstantTween(1.0), weight: 70),
-    ]).animate(_ctrl);
-
-    _textBounce = TweenSequence<double>([
-      TweenSequenceItem(tween: ConstantTween(0.0), weight: 20),
-      TweenSequenceItem(
-        tween: Tween(
-          begin: 0.0,
-          end: -12.0,
-        ).chain(CurveTween(curve: Curves.easeOut)),
-        weight: 10,
-      ),
-      TweenSequenceItem(
-        tween: Tween(
-          begin: -12.0,
-          end: 0.0,
-        ).chain(CurveTween(curve: Curves.bounceOut)),
-        weight: 20,
-      ),
-      TweenSequenceItem(tween: ConstantTween(0.0), weight: 50),
-    ]).animate(_ctrl);
-
-    _countUp = IntTween(begin: 0, end: widget.coins).animate(
-      CurvedAnimation(
-        parent: _ctrl,
-        curve: const Interval(0.15, 0.65, curve: Curves.easeOut),
-      ),
-    );
-
-    _ctrl.forward().whenComplete(() {
-      if (mounted) widget.onDone();
-    });
-
-    unawaited(_tryPlayWinSound());
-  }
-
-  Future<void> _tryPlayWinSound() async {
-    if (!widget.soundEnabled) return;
-    _roomLog(
-      '[GIFT-AUDIO] play overlay sound without pausing music (lucky_bag_win)',
-    );
-    try {
-      _sfxPlayer ??= AudioPlayer(handleInterruptions: false);
-      debugPrint('[LuckyBagWin] sfxPlayer: setAsset lucky_bag_win');
-      await _sfxPlayer!.setAsset('assets/sounds/lucky_bag_win.wav');
-      debugPrint('[LuckyBagWin] sfxPlayer: play');
-      unawaited(_sfxPlayer!.play());
-    } catch (e, st) {
-      debugError('RoomDetailsScreen._playLuckyBagWinSound', e, st);
-    }
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    _sfxPlayer?.dispose();
-    debugPrint('[LuckyBagWin] sfxPlayer disposed');
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
-
-    return IgnorePointer(
-      child: AnimatedBuilder(
-        animation: _ctrl,
-        builder: (context, _) {
-          final fade = _masterFade.value.clamp(0.0, 1.0);
-          return Opacity(
-            opacity: fade,
-            child: Stack(
-              children: [
-                // Subtle dark overlay
-                Container(color: Colors.black.withValues(alpha: 0.35 * fade)),
-
-                // Falling coins
-                ..._buildRain(screenWidth, screenHeight),
-
-                // Win text card in center
-                Center(
-                  child: Transform.translate(
-                    offset: Offset(0, _textBounce.value),
-                    child: Transform.scale(
-                      scale: _textScale.value,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 36,
-                          vertical: 24,
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [
-                              Color(0xFF8B0000),
-                              Color(0xFFBF1B0B),
-                              Color(0xFF8B0000),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(28),
-                          border: Border.all(
-                            color: const Color(
-                              0xFFFFD700,
-                            ).withValues(alpha: 0.6),
-                            width: 2,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(
-                                0xFFFFD700,
-                              ).withValues(alpha: 0.35),
-                              blurRadius: 30,
-                              spreadRadius: 2,
-                            ),
-                            BoxShadow(
-                              color: const Color(
-                                0xFFE63946,
-                              ).withValues(alpha: 0.4),
-                              blurRadius: 20,
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.card_giftcard_rounded,
-                              size: 52,
-                              color: Color(0xFFFFD700),
-                            ),
-                            const SizedBox(height: 10),
-                            const Text(
-                              'You got',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.monetization_on_rounded,
-                                  color: Color(0xFFFFD700),
-                                  size: 32,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '${_countUp.value}',
-                                  style: const TextStyle(
-                                    color: Color(0xFFFFD700),
-                                    fontSize: 48,
-                                    fontWeight: FontWeight.w900,
-                                    height: 1.0,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'coins!',
-                              style: TextStyle(
-                                color: Color(0xFFFFD700),
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  double _coinProgressFor(double t, double delay) {
-    final end = math.min(1.0, delay + 0.55);
-    if (t <= delay) return 0.0;
-    if (t >= end) return 1.0;
-    final x = (t - delay) / (end - delay);
-    return Curves.easeIn.transform(x);
-  }
-
-  List<Widget> _buildRain(double w, double h) {
-    final t = _ctrl.value;
-    return List.generate(10, (i) {
-      final xFrac = _coinXFractions[i];
-      final delay = _coinDelayFractions[i];
-      final p = _coinProgressFor(t, delay);
-      final y = -30.0 + p * (h + 40);
-      final opacity = p < 0.85 ? 1.0 : (1.0 - (p - 0.85) / 0.15);
-      return Positioned(
-        left: xFrac * w - 12,
-        top: y,
-        child: Opacity(
-          opacity: opacity.clamp(0.0, 1.0),
-          child: Transform.rotate(
-            angle: p * 2 * math.pi * (i.isEven ? 1 : -1),
-            child: Icon(
-              Icons.monetization_on_rounded,
-              size: 22 + (i % 3) * 4.0,
-              color: const Color(0xFFFFD700),
-            ),
-          ),
-        ),
-      );
-    });
-  }
-}
-
-// =============================================================================
-
-// ── Chat image thumbnail + full-screen preview ────────────────────────────────
-
-class _ChatImageThumbnail extends StatelessWidget {
-  const _ChatImageThumbnail({required this.imageUrl});
-  final String imageUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _showPreview(context),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.network(
-          imageUrl,
-          width: 160,
-          height: 120,
-          fit: BoxFit.cover,
-          loadingBuilder: (_, child, progress) => progress == null
-              ? child
-              : Container(
-                  width: 160,
-                  height: 120,
-                  color: Colors.white.withValues(alpha: 0.08),
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      value: progress.expectedTotalBytes != null
-                          ? progress.cumulativeBytesLoaded /
-                                progress.expectedTotalBytes!
-                          : null,
-                      color: Colors.white54,
-                    ),
-                  ),
-                ),
-          errorBuilder: (ctx, err, stack) => Container(
-            width: 160,
-            height: 120,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.broken_image_rounded,
-              color: Colors.white38,
-              size: 32,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showPreview(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.88),
-      builder: (_) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(16),
-        child: Stack(
-          alignment: Alignment.topRight,
-          children: [
-            InteractiveViewer(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  imageUrl,
-                  fit: BoxFit.contain,
-                  errorBuilder: (ctx, err, stack) => const Icon(
-                    Icons.broken_image_rounded,
-                    color: Colors.white38,
-                    size: 64,
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 8,
-              right: 8,
-              child: GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.55),
-                    shape: BoxShape.circle,
-                  ),
-                  padding: const EdgeInsets.all(6),
-                  child: const Icon(
-                    Icons.close_rounded,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// Gated room logging — interpolation and printing are skipped entirely in
+// Gated room logging â€” interpolation and printing are skipped entirely in
 // release builds so per-timer (member refresh, music tick) and per-event logs
 // add no overhead in production.
 void _roomLog(String message) {
   if (kDebugMode) debugPrint(message);
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// Room Level Progression — static threshold table (mirrors DB)
-// ══════════════════════════════════════════════════════════════════════════════
-
-class _LevelData {
-  const _LevelData(this.level, this.xpRequired, this.tier, this.unlock);
-  final int level;
-  final int xpRequired;
-  final String tier;
-  final String unlock;
-}
-
-class _RoomLevelInfo {
-  _RoomLevelInfo._();
-
-  static const List<_LevelData> thresholds = [
-    _LevelData(1, 0, 'Starter', 'Violet Glass Mic Pods'),
-    _LevelData(2, 2000, 'Starter', 'Stronger Mic Glow'),
-    _LevelData(3, 6000, 'Starter', 'Silver Glass Border'),
-    _LevelData(4, 15000, 'Starter', 'Animated Seat Border Pulse'),
-    _LevelData(5, 35000, 'Starter', 'Blue Prestige Seat Style'),
-    _LevelData(6, 75000, 'Rising', 'Blue Aura Room Glow'),
-    _LevelData(7, 140000, 'Rising', 'Gold Accent Ring'),
-    _LevelData(8, 240000, 'Rising', 'Purple Crown Room'),
-    _LevelData(9, 380000, 'Rising', 'Advanced PK Mode Access'),
-    _LevelData(10, 600000, 'Rising', 'Gold Room Frame'),
-    _LevelData(11, 800000, 'Prestige', 'Premium Entrance Effect'),
-    _LevelData(12, 1065000, 'Prestige', 'Enhanced Room Badge Glow'),
-    _LevelData(13, 1415000, 'Prestige', 'Extended Welcome Message'),
-    _LevelData(14, 1880000, 'Prestige', 'Ruby Seat Theme'),
-    _LevelData(15, 2500000, 'Prestige', 'Premium Room Background'),
-    _LevelData(16, 3155000, 'Elite', 'Animated Room Intro'),
-    _LevelData(17, 3980000, 'Elite', 'Dual-Color Seat Ring'),
-    _LevelData(18, 5020000, 'Elite', 'Enhanced Gift Effects'),
-    _LevelData(19, 6335000, 'Elite', 'Elite Room Banner'),
-    _LevelData(20, 8000000, 'Elite', 'Royal Mic Seats'),
-    _LevelData(21, 9610000, 'Grand', 'Extended Host Controls'),
-    _LevelData(22, 11540000, 'Grand', 'Custom Intro Music Slot'),
-    _LevelData(23, 13860000, 'Grand', 'Premium Seat Numbering'),
-    _LevelData(24, 16640000, 'Grand', 'Diamond Border Effects'),
-    _LevelData(25, 20000000, 'Grand', 'Room Entrance Animation'),
-    _LevelData(26, 23520000, 'Royal', 'Priority Room Discovery'),
-    _LevelData(27, 27660000, 'Royal', 'Custom Room Badge Shape'),
-    _LevelData(28, 32530000, 'Royal', 'Exclusive Gift Reactions'),
-    _LevelData(29, 38260000, 'Royal', 'Extended PK Battle Time'),
-    _LevelData(30, 45000000, 'Royal', 'Crown Room Badge'),
-    _LevelData(31, 51700000, 'Legend', 'Elite Tier Priority Listing'),
-    _LevelData(32, 59400000, 'Legend', 'Sapphire Seat Theme'),
-    _LevelData(33, 68250000, 'Legend', 'Custom Announcement Style'),
-    _LevelData(34, 78420000, 'Legend', 'Golden Room Aura'),
-    _LevelData(35, 90000000, 'Legend', 'Diamond Seat Glow'),
-    _LevelData(36, 102240000, 'Mythic', 'Enhanced Leaderboard Rank'),
-    _LevelData(37, 116140000, 'Mythic', 'Cosmic Seat Pulse'),
-    _LevelData(38, 131935000, 'Mythic', 'Private Room Analytics'),
-    _LevelData(39, 149878000, 'Mythic', 'Platinum Room Frame'),
-    _LevelData(40, 170000000, 'Mythic', 'Palace Room Theme'),
-    _LevelData(41, 190400000, 'Immortal', 'Mythic Room Entrance'),
-    _LevelData(42, 213248000, 'Immortal', 'Galaxy Seat Effects'),
-    _LevelData(43, 238838000, 'Immortal', 'Rainbow Gift Reactions'),
-    _LevelData(44, 267499000, 'Immortal', 'Legendary Room Banner'),
-    _LevelData(45, 300000000, 'Immortal', 'Elite Ranking Priority'),
-    _LevelData(46, 332100000, 'Throne', 'Eternal Aura'),
-    _LevelData(47, 367734000, 'Throne', 'Shadow Throne Effects'),
-    _LevelData(48, 407082000, 'Throne', 'Eclipse Seat Theme'),
-    _LevelData(49, 450638000, 'Throne', 'Immortal Room Badge'),
-    _LevelData(50, 500000000, 'Throne', 'Legend Throne Room Theme'),
-  ];
-
-  static _LevelData dataForLevel(int lvl) => thresholds[(lvl.clamp(1, 50)) - 1];
-
-  static _LevelData? nextLevel(int lvl) =>
-      lvl >= 50 ? null : thresholds[lvl.clamp(1, 49)];
-
-  static Color tierColor(String tier) {
-    switch (tier) {
-      case 'Rising':
-        return const Color(0xFF60A5FA);
-      case 'Prestige':
-        return const Color(0xFFE879F9);
-      case 'Elite':
-        return const Color(0xFFFFD700);
-      case 'Grand':
-        return const Color(0xFF34D399);
-      case 'Royal':
-        return const Color(0xFFFF6B6B);
-      case 'Legend':
-        return const Color(0xFFFF9500);
-      case 'Mythic':
-        return const Color(0xFFE040FB);
-      case 'Immortal':
-        return const Color(0xFF00E5FF);
-      case 'Throne':
-        return const Color(0xFFFFD700);
-      default:
-        return const Color(0xFF8B5CF6);
-    }
-  }
-
-  static String _fmt(int xp) {
-    if (xp >= 1000000) return '${(xp / 1000000).toStringAsFixed(1)}M';
-    if (xp >= 1000) return '${(xp / 1000).toStringAsFixed(1)}K';
-    return xp.toString();
-  }
-
-  static String motivationalText({
-    required int level,
-    required int remainingXp,
-    required int dailyStreak,
-    required double streakMultiplier,
-  }) {
-    final next = nextLevel(level);
-    if (next == null) {
-      return '🏆 Maximum level reached. Your room is legendary.';
-    }
-    final fmtRemaining = _fmt(remainingXp);
-    if (streakMultiplier < 1.25 && dailyStreak < 7) {
-      final daysLeft = 7 - dailyStreak;
-      return 'Keep your streak for $daysLeft more day${daysLeft == 1 ? '' : 's'} to activate ×1.25 XP';
-    }
-    return 'Only $fmtRemaining XP left to unlock ${next.unlock}';
-  }
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// Room Level Progress Sheet
-// ══════════════════════════════════════════════════════════════════════════════
-
-class _RoomLevelProgressSheet extends StatelessWidget {
-  const _RoomLevelProgressSheet({
-    required this.roomId,
-    required this.level,
-    required this.roomXp,
-    required this.xpToday,
-    required this.xpWeek,
-    required this.dailyStreak,
-    required this.streakMultiplier,
-  });
-
-  final String roomId;
-  final int level;
-  final int roomXp;
-  final int xpToday;
-  final int xpWeek;
-  final int dailyStreak;
-  final double streakMultiplier;
-
-  String _fmt(int xp) {
-    if (xp >= 1000000) return '${(xp / 1000000).toStringAsFixed(2)}M';
-    if (xp >= 1000) return '${(xp / 1000).toStringAsFixed(1)}K';
-    return xp.toString();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cur = _RoomLevelInfo.dataForLevel(level);
-    final next = _RoomLevelInfo.nextLevel(level);
-    final tier = cur.tier;
-    final tc = _RoomLevelInfo.tierColor(tier);
-
-    final prevXp = cur.xpRequired;
-    final nextXp = next?.xpRequired ?? prevXp;
-    final span = nextXp - prevXp;
-    final progress = span > 0
-        ? ((roomXp - prevXp) / span).clamp(0.0, 1.0)
-        : 1.0;
-    final remaining = next != null ? (nextXp - roomXp).clamp(0, nextXp) : 0;
-    final pct = (progress * 100).toStringAsFixed(1);
-
-    final motivText = _RoomLevelInfo.motivationalText(
-      level: level,
-      remainingXp: remaining,
-      dailyStreak: dailyStreak,
-      streakMultiplier: streakMultiplier,
-    );
-
-    return DraggableScrollableSheet(
-      initialChildSize: 0.72,
-      minChildSize: 0.5,
-      maxChildSize: 0.95,
-      expand: false,
-      builder: (_, scrollCtrl) => Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color.lerp(
-                const Color(0xFF0D0720),
-                tc.withValues(alpha: 0.18),
-                0.4,
-              )!,
-              const Color(0xFF08040F),
-            ],
-          ),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          border: Border(
-            top: BorderSide(color: tc.withValues(alpha: 0.35), width: 1.2),
-          ),
-        ),
-        child: Column(
-          children: [
-            // drag handle
-            Padding(
-              padding: const EdgeInsets.only(top: 10, bottom: 4),
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                controller: scrollCtrl,
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
-                children: [
-                  // ── Tier badge + level headline ──────────────────────────
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              tc.withValues(alpha: 0.25),
-                              tc.withValues(alpha: 0.10),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: tc.withValues(alpha: 0.55),
-                            width: 1,
-                          ),
-                        ),
-                        child: Text(
-                          tier.toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w900,
-                            color: tc,
-                            letterSpacing: 1.4,
-                          ),
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        'LV $level',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w900,
-                          color: tc,
-                          shadows: [
-                            Shadow(
-                              color: tc.withValues(alpha: 0.6),
-                              blurRadius: 12,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    cur.unlock,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white.withValues(alpha: 0.85),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-
-                  // ── XP progress bar ──────────────────────────────────────
-                  if (next != null) ...[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          '${_fmt(roomXp)} XP',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.white70,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          '$pct%',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: tc,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        Text(
-                          '${_fmt(nextXp)} XP',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.white38,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: Stack(
-                        children: [
-                          Container(
-                            height: 10,
-                            color: Colors.white.withValues(alpha: 0.07),
-                          ),
-                          FractionallySizedBox(
-                            widthFactor: progress,
-                            child: Container(
-                              height: 10,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [tc, tc.withValues(alpha: 0.6)],
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: tc.withValues(alpha: 0.5),
-                                    blurRadius: 8,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${_fmt(remaining)} XP remaining to LV ${level + 1}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Colors.white38,
-                      ),
-                    ),
-                  ] else
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            tc.withValues(alpha: 0.15),
-                            tc.withValues(alpha: 0.05),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: tc.withValues(alpha: 0.4)),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.emoji_events_rounded, color: tc, size: 20),
-                          const SizedBox(width: 10),
-                          Text(
-                            'Maximum Level — Legend Status Achieved',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: tc,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  const SizedBox(height: 20),
-
-                  // ── Stats row ────────────────────────────────────────────
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _XpStatCard(
-                          label: 'Today',
-                          value: _fmt(xpToday),
-                          icon: Icons.today_rounded,
-                          color: tc,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _XpStatCard(
-                          label: 'This Week',
-                          value: _fmt(xpWeek),
-                          icon: Icons.calendar_view_week_rounded,
-                          color: const Color(0xFF60A5FA),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _XpStatCard(
-                          label: 'Streak',
-                          value:
-                              '$dailyStreak day${dailyStreak == 1 ? '' : 's'}',
-                          icon: Icons.local_fire_department_rounded,
-                          color: dailyStreak >= 7
-                              ? const Color(0xFFFF9500)
-                              : const Color(0xFFFF6B6B),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _XpStatCard(
-                          label: 'Multiplier',
-                          value: '×${streakMultiplier.toStringAsFixed(2)}',
-                          icon: Icons.bolt_rounded,
-                          color: streakMultiplier > 1.0
-                              ? const Color(0xFFFFD700)
-                              : Colors.white38,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // ── Motivational challenge ───────────────────────────────
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFF1A0A30),
-                          const Color(0xFF0D0520),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: tc.withValues(alpha: 0.25)),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Icons.emoji_flags_rounded, color: tc, size: 18),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            motivText,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white.withValues(alpha: 0.85),
-                              height: 1.45,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 22),
-
-                  // ── XP Sources guide ─────────────────────────────────────
-                  Text(
-                    'How to earn XP',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white.withValues(alpha: 0.55),
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  ..._xpSources.map(
-                    (s) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        children: [
-                          Icon(s.$1, size: 16, color: s.$3),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              s.$2,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.white60,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 22),
-
-                  // ── Upcoming unlocks ─────────────────────────────────────
-                  Text(
-                    'Upcoming Unlocks',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white.withValues(alpha: 0.55),
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  ...List.generate((level + 5).clamp(0, 50) - level, (i) {
-                    final upcoming = _RoomLevelInfo.nextLevel(level + i);
-                    if (upcoming == null) return const SizedBox.shrink();
-                    final uc = _RoomLevelInfo.tierColor(upcoming.tier);
-                    final isNext = i == 0;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 28,
-                            height: 28,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                colors: [
-                                  uc.withValues(alpha: isNext ? 0.30 : 0.12),
-                                  uc.withValues(alpha: isNext ? 0.12 : 0.04),
-                                ],
-                              ),
-                              border: Border.all(
-                                color: uc.withValues(
-                                  alpha: isNext ? 0.7 : 0.25,
-                                ),
-                                width: isNext ? 1.2 : 0.8,
-                              ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                '${upcoming.level}',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w900,
-                                  color: uc,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  upcoming.unlock,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: isNext
-                                        ? Colors.white.withValues(alpha: 0.9)
-                                        : Colors.white54,
-                                  ),
-                                ),
-                                Text(
-                                  '${_fmt(upcoming.xpRequired)} XP required · ${upcoming.tier}',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: uc.withValues(alpha: 0.6),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (isNext)
-                            Icon(
-                              Icons.arrow_forward_ios_rounded,
-                              size: 12,
-                              color: uc.withValues(alpha: 0.5),
-                            ),
-                        ],
-                      ),
-                    );
-                  }),
-
-                  const SizedBox(height: 22),
-
-                  // ── Previous unlocks ─────────────────────────────────────
-                  if (level > 1) ...[
-                    Text(
-                      'Unlocked',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white.withValues(alpha: 0.55),
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    ...List.generate(level - 1, (i) {
-                      final d = _RoomLevelInfo.thresholds[i];
-                      final uc = _RoomLevelInfo.tierColor(d.tier);
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.check_circle_rounded,
-                              size: 16,
-                              color: uc.withValues(alpha: 0.6),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'LV ${d.level}: ${d.unlock}',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Colors.white38,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static const List<(IconData, String, Color)> _xpSources = [
-    (
-      Icons.card_giftcard_rounded,
-      'Gifts: 1 coin = 1 XP (big gifts get +20–50% bonus)',
-      Color(0xFFFFD700),
-    ),
-    (
-      Icons.people_alt_rounded,
-      'Active listeners: small XP every 5 min (capped daily)',
-      Color(0xFF60A5FA),
-    ),
-    (
-      Icons.access_time_rounded,
-      'Hosting: XP while room is live with real users',
-      Color(0xFF34D399),
-    ),
-    (
-      Icons.sports_kabaddi_rounded,
-      'PK battles: XP bonus for winning or close battles',
-      Color(0xFFFF6B6B),
-    ),
-    (
-      Icons.local_fire_department_rounded,
-      'Daily streak: keeps room active for multiplier rewards',
-      Color(0xFFFF9500),
-    ),
-    (
-      Icons.event_rounded,
-      'Events: admin-created XP boost periods (e.g. ×1.5)',
-      Color(0xFFE879F9),
-    ),
-  ];
-}
-
-class _XpStatCard extends StatelessWidget {
-  const _XpStatCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.22), width: 1),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: color.withValues(alpha: 0.65),
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                    color: color,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// Room Level-Up Overlay  —  Royal Srood Live achievement card
-// ══════════════════════════════════════════════════════════════════════════════
-
-class _RoomLevelUpOverlay extends StatefulWidget {
-  const _RoomLevelUpOverlay({required this.newLevel, required this.onDone});
-  final int newLevel;
-  final VoidCallback onDone;
-
-  @override
-  State<_RoomLevelUpOverlay> createState() => _RoomLevelUpOverlayState();
-}
-
-class _RoomLevelUpOverlayState extends State<_RoomLevelUpOverlay>
-    with TickerProviderStateMixin {
-  // Main lifecycle: fade+scale in → hold → fade out
-  late final AnimationController _main;
-  // Gold border pulse (loops while card is visible)
-  late final AnimationController _glow;
-  // Sparkle particles (fires once on entry)
-  late final AnimationController _spark;
-
-  late final Animation<double> _cardScale;
-  late final Animation<double> _fadeIn;
-  late final Animation<double> _fadeOut;
-
-  static const _kGold = Color(0xFFFFD76B);
-  static const _kPurple = Color(0xFF8B26D9);
-
-  @override
-  void initState() {
-    super.initState();
-
-    _main = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 3200),
-    );
-    _glow = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
-    _spark = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
-
-    // Card: pop in with elastic overshoot, hold, scale down on exit
-    _cardScale = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween(
-          begin: 0.0,
-          end: 1.08,
-        ).chain(CurveTween(curve: Curves.easeOutBack)),
-        weight: 22,
-      ),
-      TweenSequenceItem(tween: Tween(begin: 1.08, end: 1.00), weight: 8),
-      TweenSequenceItem(tween: ConstantTween(1.00), weight: 48),
-      TweenSequenceItem(tween: Tween(begin: 1.00, end: 0.88), weight: 22),
-    ]).animate(_main);
-
-    _fadeIn = CurvedAnimation(
-      parent: _main,
-      curve: const Interval(0.00, 0.18, curve: Curves.easeIn),
-    );
-    _fadeOut = CurvedAnimation(
-      parent: _main,
-      curve: const Interval(0.80, 1.00, curve: Curves.easeOut),
-    );
-
-    // Delay sparkles slightly so they burst right after the card pops
-    Future.delayed(const Duration(milliseconds: 200), () {
-      if (mounted) _spark.forward();
-    });
-
-    _main.forward().whenComplete(widget.onDone);
-  }
-
-  @override
-  void dispose() {
-    _main.dispose();
-    _glow.dispose();
-    _spark.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: Listenable.merge([_main, _glow, _spark]),
-      builder: (context, _) {
-        final bgOpacity = (_fadeIn.value - _fadeOut.value).clamp(0.0, 1.0);
-        final cardOpacity = (_fadeIn.value - _fadeOut.value * 0.85).clamp(
-          0.0,
-          1.0,
-        );
-        final glowAlpha = 0.55 + _glow.value * 0.30;
-
-        return Material(
-          color: Colors.black.withValues(alpha: bgOpacity * 0.60),
-          child: Center(
-            child: Opacity(
-              opacity: cardOpacity,
-              child: Transform.scale(
-                scale: _cardScale.value,
-                child: SizedBox(
-                  width: 280,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    clipBehavior: Clip.none,
-                    children: [
-                      // ── Sparkle particles behind the card ──────────────
-                      CustomPaint(
-                        size: const Size(280, 280),
-                        painter: _SparklePainter(
-                          progress: _spark.value,
-                          goldColor: _kGold,
-                        ),
-                      ),
-
-                      // ── Card ────────────────────────────────────────────
-                      Container(
-                        padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(28),
-                          gradient: const LinearGradient(
-                            colors: [
-                              Color(0xFF1A0540),
-                              Color(0xFF2E0E6E),
-                              Color(0xFF5A18B0),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          border: Border.all(
-                            color: _kGold.withValues(alpha: glowAlpha),
-                            width: 1.8,
-                          ),
-                          boxShadow: [
-                            // Purple aura
-                            BoxShadow(
-                              color: _kPurple.withValues(
-                                alpha: 0.55 + _glow.value * 0.20,
-                              ),
-                              blurRadius: 48,
-                              spreadRadius: 6,
-                            ),
-                            // Gold halo
-                            BoxShadow(
-                              color: _kGold.withValues(
-                                alpha: 0.18 + _glow.value * 0.14,
-                              ),
-                              blurRadius: 28,
-                              spreadRadius: 0,
-                            ),
-                            // Depth
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.55),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: DefaultTextStyle(
-                          style: const TextStyle(
-                            decoration: TextDecoration.none,
-                            fontFamilyFallback: ['NotoSansArabic', 'Arial'],
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // Crown icon with gold glow
-                              _GlowingCrown(glowT: _glow.value),
-                              const SizedBox(height: 20),
-
-                              // Arabic headline — largest, most prominent
-                              Text(
-                                'الغرفة ارتقت!',
-                                textAlign: TextAlign.center,
-                                textDirection: TextDirection.rtl,
-                                style: TextStyle(
-                                  color: _kGold,
-                                  fontSize: 26,
-                                  fontWeight: FontWeight.w900,
-                                  height: 1.2,
-                                  letterSpacing: 0.5,
-                                  shadows: [
-                                    Shadow(
-                                      color: _kGold.withValues(alpha: 0.70),
-                                      blurRadius: 12,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-
-                              // English subtitle — clean white, smaller
-                              const Text(
-                                'Room Leveled Up',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  letterSpacing: 1.4,
-                                ),
-                              ),
-                              const SizedBox(height: 22),
-
-                              // Level pill
-                              _LevelPill(
-                                level: widget.newLevel,
-                                glowT: _glow.value,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-// ── Crown icon with pulsing gold glow ────────────────────────────────────────
-
-class _GlowingCrown extends StatelessWidget {
-  const _GlowingCrown({required this.glowT});
-  final double glowT;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 72,
-      height: 72,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: const RadialGradient(
-          colors: [Color(0xFFFFE87C), Color(0xFFCC8A00), Color(0xFF5A18B0)],
-          stops: [0.0, 0.55, 1.0],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(
-              0xFFFFD76B,
-            ).withValues(alpha: 0.40 + glowT * 0.35),
-            blurRadius: 24 + glowT * 16,
-            spreadRadius: 2,
-          ),
-          BoxShadow(
-            color: const Color(0xFF8B26D9).withValues(alpha: 0.50),
-            blurRadius: 16,
-          ),
-        ],
-      ),
-      child: const Icon(
-        Icons.workspace_premium_rounded,
-        color: Colors.white,
-        size: 38,
-      ),
-    );
-  }
-}
-
-// ── Level number pill ─────────────────────────────────────────────────────────
-
-class _LevelPill extends StatelessWidget {
-  const _LevelPill({required this.level, required this.glowT});
-  final int level;
-  final double glowT;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 11),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF3A1375), Color(0xFF8B26D9)],
-        ),
-        border: Border.all(
-          color: const Color(0xFFFFD76B).withValues(alpha: 0.55 + glowT * 0.30),
-          width: 1.4,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(
-              0xFFFFD76B,
-            ).withValues(alpha: 0.15 + glowT * 0.15),
-            blurRadius: 14,
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'المستوى $level',
-            textDirection: TextDirection.rtl,
-            style: const TextStyle(
-              color: Color(0xFFFFD76B),
-              fontSize: 17,
-              fontWeight: FontWeight.w900,
-              decoration: TextDecoration.none,
-              letterSpacing: 0.3,
-            ),
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 10),
-            child: Text(
-              '·',
-              style: TextStyle(
-                color: Colors.white38,
-                fontSize: 17,
-                decoration: TextDecoration.none,
-              ),
-            ),
-          ),
-          Text(
-            'Level $level',
-            style: const TextStyle(
-              color: Color(0xFFFFD76B),
-              fontSize: 17,
-              fontWeight: FontWeight.w900,
-              decoration: TextDecoration.none,
-              letterSpacing: 0.3,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Sparkle particle painter ───────────────────────────────────────────────────
-// 16 particles at even angles, each traveling outward and fading.
-
-class _SparklePainter extends CustomPainter {
-  _SparklePainter({required this.progress, required this.goldColor});
-  final double progress;
-  final Color goldColor;
-
-  static const int _kCount = 16;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (progress <= 0) return;
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    final maxR = size.width * 0.48;
-
-    final paint = Paint()..style = PaintingStyle.fill;
-
-    for (int i = 0; i < _kCount; i++) {
-      final angle = (i / _kCount) * 2 * 3.141592653589793;
-      // Alternate sizes for visual rhythm
-      final dotSize = (i % 3 == 0)
-          ? 5.0
-          : (i % 2 == 0)
-          ? 3.5
-          : 2.5;
-      final r = maxR * Curves.easeOut.transform(progress);
-      final alpha = (1.0 - progress).clamp(0.0, 1.0);
-
-      // Use gold for large dots, white for small ones
-      final color = i % 3 == 0
-          ? goldColor.withValues(alpha: alpha * 0.95)
-          : Colors.white.withValues(alpha: alpha * 0.70);
-
-      paint.color = color;
-      canvas.drawCircle(
-        Offset(cx + r * math.cos(angle), cy + r * math.sin(angle)),
-        dotSize,
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_SparklePainter old) => old.progress != progress;
 }

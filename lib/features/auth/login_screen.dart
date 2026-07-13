@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/supabase/supabase_service.dart';
 import '../../main.dart';
-import '../../shared/widgets/premium_ui.dart';
 import '../home/home_screen.dart';
 import 'legal_screens.dart';
+import 'presentation/srood_auth_background.dart';
+import 'presentation/srood_auth_buttons.dart';
+import 'presentation/srood_auth_fields.dart';
+import 'presentation/srood_login_header.dart';
 import 'registration_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -17,9 +20,18 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  final _emailFocus = FocusNode();
+  final _passwordFocus = FocusNode();
 
   bool isLoading = false;
+
+  /// Banner message for auth/network/ban errors (never raw backend text).
   String? message;
+
+  // Inline validation presentation for the existing rules.
+  String? _emailError;
+  String? _passwordError;
+  bool _obscurePassword = true;
 
   bool _isArabic(BuildContext context) {
     return AppLanguageController.of(context).locale.languageCode == 'ar';
@@ -29,6 +41,8 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     emailController.dispose();
     passwordController.dispose();
+    _emailFocus.dispose();
+    _passwordFocus.dispose();
     super.dispose();
   }
 
@@ -47,37 +61,82 @@ class _LoginScreenState extends State<LoginScreen> {
     return profile?['is_banned'] == true;
   }
 
+  /// Maps backend auth failures to readable user messages — presentation
+  /// only; the underlying errors and auth behavior are unchanged.
+  String _friendlyAuthMessage(String rawMessage, bool isArabic) {
+    final raw = rawMessage.toLowerCase();
+    if (raw.contains('invalid login credentials') ||
+        raw.contains('invalid_credentials') ||
+        raw.contains('invalid email or password')) {
+      return isArabic
+          ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة.'
+          : 'Incorrect email or password.';
+    }
+    if (raw.contains('email not confirmed')) {
+      return isArabic
+          ? 'يرجى تأكيد بريدك الإلكتروني أولاً.'
+          : 'Please confirm your email first.';
+    }
+    if (raw.contains('network') ||
+        raw.contains('socket') ||
+        raw.contains('connection') ||
+        raw.contains('timed out') ||
+        raw.contains('failed host lookup')) {
+      return isArabic
+          ? 'تعذر الاتصال. تحقق من الإنترنت وحاول مجدداً.'
+          : 'Connection problem. Check your internet and try again.';
+    }
+    return isArabic
+        ? 'فشل تسجيل الدخول. حاول مرة أخرى.'
+        : 'Sign in failed. Please try again.';
+  }
+
   Future<void> _login() async {
+    // Guard against duplicate sign-in requests.
+    if (isLoading) return;
     FocusScope.of(context).unfocus();
     final isArabic = _isArabic(context);
 
     setState(() {
-      isLoading = true;
       message = null;
+      _emailError = null;
+      _passwordError = null;
+    });
+
+    final email = emailController.text.trim();
+    final password = passwordController.text;
+
+    // Same validation rules as before — presented inline per field.
+    if (email.isEmpty || password.isEmpty) {
+      setState(() {
+        if (email.isEmpty) {
+          _emailError = isArabic
+              ? 'اكتب البريد الإلكتروني.'
+              : 'Enter your email.';
+        }
+        if (password.isEmpty) {
+          _passwordError = isArabic
+              ? 'اكتب كلمة المرور.'
+              : 'Enter your password.';
+        }
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      setState(() {
+        _passwordError = isArabic
+            ? 'كلمة المرور يجب أن تكون 6 أحرف أو أكثر.'
+            : 'Password must be 6 characters or more.';
+      });
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
     });
 
     try {
-      final email = emailController.text.trim();
-      final password = passwordController.text;
-
-      if (email.isEmpty || password.isEmpty) {
-        setState(() {
-          message = isArabic
-              ? '\u0627\u0643\u062a\u0628 \u0627\u0644\u0628\u0631\u064a\u062f \u0627\u0644\u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a \u0648\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u0623\u0648\u0644\u0627.'
-              : 'Enter email and password first.';
-        });
-        return;
-      }
-
-      if (password.length < 6) {
-        setState(() {
-          message = isArabic
-              ? '\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u064a\u062c\u0628 \u0623\u0646 \u062a\u0643\u0648\u0646 6 \u0623\u062d\u0631\u0641 \u0623\u0648 \u0623\u0643\u062b\u0631.'
-              : 'Password must be 6 characters or more.';
-        });
-        return;
-      }
-
       await SupabaseService.requiredClient.auth.signInWithPassword(
         email: email,
         password: password,
@@ -91,9 +150,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (!mounted) return;
 
         setState(() {
-          message = isArabic
-              ? '\u062a\u0645 \u062d\u0638\u0631 \u0647\u0630\u0627 \u0627\u0644\u062d\u0633\u0627\u0628.'
-              : 'This account is banned.';
+          message = isArabic ? 'تم حظر هذا الحساب.' : 'This account is banned.';
         });
 
         return;
@@ -105,16 +162,14 @@ class _LoginScreenState extends State<LoginScreen> {
         context,
       ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
     } on AuthException catch (error) {
+      if (!mounted) return;
       setState(() {
-        message = isArabic
-            ? '\u0641\u0634\u0644 \u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644: ${error.message}'
-            : 'Login failed: ${error.message}';
+        message = _friendlyAuthMessage(error.message, isArabic);
       });
     } catch (error) {
+      if (!mounted) return;
       setState(() {
-        message = isArabic
-            ? '\u0641\u0634\u0644 \u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644: $error'
-            : 'Login failed: $error';
+        message = _friendlyAuthMessage(error.toString(), isArabic);
       });
     } finally {
       if (mounted) {
@@ -125,242 +180,194 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _openRegistration() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const RegistrationScreen()));
+  }
+
   @override
   Widget build(BuildContext context) {
     final isArabic = _isArabic(context);
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: Text(
-          isArabic ? '\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644' : 'Login',
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-            fontSize: 17,
-          ),
-        ),
-      ),
-      body: Stack(
-        children: [
-          // Background image
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/login_bg.webp',
-              fit: BoxFit.cover,
-              filterQuality: FilterQuality.high,
-            ),
-          ),
-          // Deeper overlay so form text stays readable
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.42),
-                    Colors.black.withValues(alpha: 0.18),
-                    Colors.black.withValues(alpha: 0.58),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
-                final topSpacing = constraints.maxHeight < 560 ? 20.0 : 56.0;
-                final bottomSpacing = constraints.maxHeight < 560 ? 20.0 : 40.0;
+      resizeToAvoidBottomInset: false,
+      body: GestureDetector(
+        // Close the keyboard when tapping outside the form.
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Stack(
+          children: [
+            const Positioned.fill(child: SroodAuthBackground()),
+            SafeArea(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final shortScreen = constraints.maxHeight < 620;
+                  final brandGap = shortScreen ? 14.0 : 28.0;
 
-                return SingleChildScrollView(
-                  padding: EdgeInsets.fromLTRB(
-                    24,
-                    0,
-                    24,
-                    24 + keyboardInset,
-                  ),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight,
-                    ),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 430),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            SizedBox(height: topSpacing),
+                  return Column(
+                    children: [
+                      SroodLoginHeader(isArabic: isArabic),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: EdgeInsets.fromLTRB(
+                            20,
+                            shortScreen ? 8 : 20,
+                            20,
+                            20 + keyboardInset,
+                          ),
+                          child: Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 430),
+                              child: AutofillGroup(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    SroodLoginBrand(isArabic: isArabic),
+                                    SizedBox(height: brandGap),
 
-                            // Subtitle under the Srood Live watermark \u2014 soft,
-                            // centered, the only header copy on the page.
-                            Text(
-                              isArabic
-                                  ? '\u0627\u062f\u062e\u0644 \u0625\u0644\u0649 \u0639\u0627\u0644\u0645 Srood Live'
-                                  : 'Enter your Srood Live world',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: const Color(0xFFBCAED6)
-                                    .withValues(alpha: 0.82),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                height: 1.5,
-                                letterSpacing: 0.2,
-                              ),
-                            ),
-                            const SizedBox(height: 36),
+                                    // ── Form card ─────────────────────────
+                                    SroodLoginFormCard(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          SroodAuthTextField(
+                                            controller: emailController,
+                                            label: isArabic
+                                                ? 'البريد الإلكتروني'
+                                                : 'Email',
+                                            icon: Icons.email_rounded,
+                                            isArabic: isArabic,
+                                            errorText: _emailError,
+                                            enabled: !isLoading,
+                                            keyboardType:
+                                                TextInputType.emailAddress,
+                                            autofillHints: const [
+                                              AutofillHints.email,
+                                            ],
+                                            textInputAction:
+                                                TextInputAction.next,
+                                            focusNode: _emailFocus,
+                                            onSubmitted: (_) =>
+                                                _passwordFocus.requestFocus(),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          SroodPasswordField(
+                                            controller: passwordController,
+                                            label: isArabic
+                                                ? 'كلمة المرور'
+                                                : 'Password',
+                                            isArabic: isArabic,
+                                            errorText: _passwordError,
+                                            enabled: !isLoading,
+                                            obscured: _obscurePassword,
+                                            onToggleVisibility: () =>
+                                                setState(() {
+                                                  _obscurePassword =
+                                                      !_obscurePassword;
+                                                }),
+                                            focusNode: _passwordFocus,
+                                            onSubmitted: (_) => _login(),
+                                          ),
 
-                            // Email field
-                            _AuthField(
-                              controller: emailController,
-                              label: isArabic ? '\u0627\u0644\u0628\u0631\u064a\u062f \u0627\u0644\u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a' : 'Email',
-                              icon: Icons.email_rounded,
-                              keyboardType: TextInputType.emailAddress,
-                              isArabic: isArabic,
-                            ),
-                            const SizedBox(height: 14),
+                                          // ── Auth error banner ───────────
+                                          if (message != null) ...[
+                                            const SizedBox(height: 12),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 10,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: const Color(
+                                                  0xFFFF7A7A,
+                                                ).withValues(alpha: 0.10),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                border: Border.all(
+                                                  color: const Color(
+                                                    0xFFFF7A7A,
+                                                  ).withValues(alpha: 0.35),
+                                                ),
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  const Icon(
+                                                    Icons.error_outline_rounded,
+                                                    color: Color(0xFFFF9A9A),
+                                                    size: 16,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Text(
+                                                      message!,
+                                                      textAlign: isArabic
+                                                          ? TextAlign.right
+                                                          : TextAlign.left,
+                                                      style: const TextStyle(
+                                                        color: Color(
+                                                          0xFFFFB4B4,
+                                                        ),
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        fontSize: 12.5,
+                                                        height: 1.35,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                          const SizedBox(height: 18),
 
-                            // Password field
-                            _AuthField(
-                              controller: passwordController,
-                              label: isArabic ? '\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631' : 'Password',
-                              icon: Icons.lock_rounded,
-                              obscureText: true,
-                              isArabic: isArabic,
-                            ),
+                                          // ── Sign In ─────────────────────
+                                          SroodPrimaryAuthButton(
+                                            label: isArabic
+                                                ? 'دخول'
+                                                : 'Sign In',
+                                            icon: Icons.login_rounded,
+                                            loading: isLoading,
+                                            onPressed: isLoading
+                                                ? null
+                                                : _login,
+                                          ),
+                                          const SizedBox(height: 14),
 
-                            // Error / info message
-                            if (message != null) ...[
-                              const SizedBox(height: 14),
-                              Text(
-                                message!,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Color(0xFFD6A84F),
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                            const SizedBox(height: 28),
-
-                            // Primary: Sign In \u2014 glossy gold pill.
-                            GlossyButton(
-                              label: isLoading
-                                  ? (isArabic ? '\u0627\u0646\u062a\u0638\u0631...' : 'Loading...')
-                                  : (isArabic ? '\u062f\u062e\u0648\u0644' : 'Sign In'),
-                              icon: Icons.login_rounded,
-                              accent: const Color(0xFFF0C15A),
-                              loading: isLoading,
-                              onPressed: isLoading ? null : _login,
-                            ),
-                            const SizedBox(height: 12),
-
-                            // Secondary: Create Account \u2014 glossy gold outline.
-                            GlossyButton(
-                              label: isArabic ? '\u0625\u0646\u0634\u0627\u0621 \u062d\u0633\u0627\u0628' : 'Create Account',
-                              icon: Icons.person_add_alt_1_rounded,
-                              accent: const Color(0xFFF0C15A),
-                              filled: false,
-                              onPressed: isLoading
-                                  ? null
-                                  : () => Navigator.of(context).push(
-                                      MaterialPageRoute<void>(
-                                        builder: (_) =>
-                                            const RegistrationScreen(),
+                                          // ── Create Account ──────────────
+                                          SroodSecondaryAuthButton(
+                                            label: isArabic
+                                                ? 'إنشاء حساب'
+                                                : 'Create Account',
+                                            icon:
+                                                Icons.person_add_alt_1_rounded,
+                                            onPressed: isLoading
+                                                ? null
+                                                : _openRegistration,
+                                          ),
+                                        ],
                                       ),
                                     ),
+
+                                    // ── Legal footer (existing nav) ───────
+                                    LegalFooter(isArabic: isArabic),
+                                  ],
+                                ),
+                              ),
                             ),
-
-                            // Legal footer — Terms & Privacy, tappable.
-                            LegalFooter(isArabic: isArabic),
-
-                            SizedBox(height: bottomSpacing),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                );
-              },
+                    ],
+                  );
+                },
+              ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Private helpers
-// ---------------------------------------------------------------------------
-
-class _AuthField extends StatelessWidget {
-  const _AuthField({
-    required this.controller,
-    required this.label,
-    required this.icon,
-    required this.isArabic,
-    this.keyboardType,
-    this.obscureText = false,
-  });
-
-  final TextEditingController controller;
-  final String label;
-  final IconData icon;
-  final bool isArabic;
-  final TextInputType? keyboardType;
-  final bool obscureText;
-
-  @override
-  Widget build(BuildContext context) {
-    const borderRadius = 18.0;
-    const gold = Color(0xFFF0C15A);
-    const lavender = Color(0xFFBCAED6);
-    final fillColor = const Color(0xFF160B26).withValues(alpha: 0.72);
-    final borderColor = const Color(0xFF8B5CF6).withValues(alpha: 0.38);
-
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      obscureText: obscureText,
-      textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-      style: const TextStyle(color: Colors.white, fontSize: 15),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(
-          color: lavender,
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-        ),
-        floatingLabelStyle: const TextStyle(
-          color: gold,
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-        ),
-        prefixIcon: Icon(icon, color: gold, size: 20),
-        filled: true,
-        fillColor: fillColor,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 18,
-          vertical: 17,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(borderRadius),
-          borderSide: BorderSide(color: borderColor),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(borderRadius),
-          borderSide: BorderSide(color: borderColor),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(borderRadius),
-          borderSide: const BorderSide(color: gold, width: 1.5),
+          ],
         ),
       ),
     );

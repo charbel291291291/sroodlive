@@ -1,0 +1,5 @@
+-- Baseline 080 — realtime publication membership, storage buckets(8)+policies(27),
+-- cron jobs(5: cleanup-cron-history, fish_hunt_auto_advance, reset-room-streaks,
+-- reset-room-week-xp, roulette_auto_advance).
+-- SOURCE: pg_publication_tables, storage.buckets(+policies), cron.job.
+-- NOTE: storage/realtime/cron are partly platform-managed; apply idempotently.

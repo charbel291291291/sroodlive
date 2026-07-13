@@ -26,6 +26,19 @@
 -- change. spin_wheel is intentionally NOT touched here: its RPC is not present
 -- in any migration (schema drift) and must be captured into version control
 -- and audited separately before we can safely alter it.
+--
+-- REPLAY-SAFETY NOTE (post Fish Hunt/Roulette retirement): the P0-2 Fish Hunt
+-- section that originally followed P0-1 below has been removed from this file.
+-- Fish Hunt's creation migrations were retired out of supabase/migrations/ (see
+-- retired_migrations_removed_games/), so a fresh local/CI replay never creates
+-- fish_hunt_rounds/fish_hunt_fish/fish_hunt_shots and the original section's
+-- `create or replace function` (which declares a `public.fish_hunt_rounds`
+-- typed variable) fails to compile with "type ... does not exist". Production,
+-- where this migration already ran against the live Fish Hunt tables, is
+-- unaffected: Supabase tracks applied migrations by version in
+-- supabase_migrations.schema_migrations and never re-executes this file there.
+-- The original P0-2 text (hit_probability/server_seed hardening rationale and
+-- SQL) remains available via `git log -- <this file>` prior to this edit.
 -- ────────────────────────────────────────────────────────────────────────────
 
 
@@ -66,141 +79,22 @@ revoke all on public.treasure_game_events from anon, authenticated, public;
 
 -- ── P0-2. Fish Hunt — hide hit_probability and server_seed ──────────────────
 --
--- hit_probability is the server secret that decides every shot
--- (`if random() < v_fish.hit_probability`); server_seed is a per-round secret.
--- Both were readable three ways: the table SELECT policies, the get_state RPC
--- payload, and the realtime publication. A modified client could read each
--- fish's true hit chance and only fire at high-probability fish.
---
--- The Flutter client reads Fish Hunt state ONLY through fish_hunt_get_state
--- (verified: no `.from('fish_hunt_*')` and no realtime channel in lib/), and
--- it parses but never uses hit_probability (the UI derives rarity from
--- reward_multiplier). So we can safely (a) stop returning hit_probability from
--- the RPC, (b) revoke direct table SELECT on the two secret-bearing tables,
--- and (c) drop them from the realtime publication — all without any UI change.
-
--- (a) Redefine get_state to omit hit_probability. Body is byte-for-byte the
---     original except the single 'hit_probability' line is removed from the
---     fish JSON. Everything else (round, balance, shots, ordering) is identical.
-create or replace function public.fish_hunt_get_state(
-  p_room_id uuid default null
-)
-returns json
-language plpgsql
-stable
-security definer
-set search_path = ''
-as $$
-declare
-  v_user_id  uuid := auth.uid();
-  v_round    public.fish_hunt_rounds;
-  v_balance  integer;
-  v_fish     json;
-  v_shots    json;
-begin
-  if v_user_id is null then
-    raise exception 'not_authenticated';
-  end if;
-
-  select *
-  into v_round
-  from public.fish_hunt_rounds
-  where status = 'active'
-    and (p_room_id is null or room_id = p_room_id)
-  order by started_at desc
-  limit 1;
-
-  select coalesce(json_agg(
-           json_build_object(
-             'fish_id', f.id,
-             'fish_type', f.fish_type,
-             'reward_multiplier', f.reward_multiplier,
-             -- hit_probability intentionally NOT exposed: it is the server-side
-             -- hit/miss secret. The client never uses it.
-             'spawned_at', f.spawned_at,
-             'expires_at', f.expires_at
-           )
-           order by f.spawned_at
-         ), '[]'::json)
-  into v_fish
-  from public.fish_hunt_fish f
-  where v_round.id is not null
-    and f.round_id = v_round.id
-    and f.status = 'alive'
-    and f.expires_at > now();
-
-  select coins_balance
-  into v_balance
-  from public.wallets
-  where user_id = v_user_id;
-
-  select coalesce(json_agg(
-           json_build_object(
-             'shot_id', s.id,
-             'fish_id', s.fish_id,
-             'bet_amount', s.bet_amount,
-             'result', s.result,
-             'payout_amount', s.payout_amount,
-             'created_at', s.created_at
-           )
-           order by s.created_at desc
-         ), '[]'::json)
-  into v_shots
-  from (
-    select *
-    from public.fish_hunt_shots
-    where user_id = v_user_id
-    order by created_at desc
-    limit 20
-  ) s;
-
-  return json_build_object(
-    'round_id', v_round.id,
-    'room_id', v_round.room_id,
-    'round_status', v_round.status,
-    'fish', v_fish,
-    'balance', coalesce(v_balance, 0),
-    'recent_shots', v_shots,
-    'server_now', now()
-  );
-end;
-$$;
-
--- Re-assert the original grant posture on the redefined function.
-revoke all on function public.fish_hunt_get_state(uuid) from public, anon;
-grant execute on function public.fish_hunt_get_state(uuid) to authenticated;
-
--- (b) Remove direct client SELECT on the secret-bearing tables. The get_state
---     / place_shot / leaderboard RPCs are SECURITY DEFINER and keep reading
---     these as the owner, so gameplay is unchanged.
-revoke select on public.fish_hunt_fish   from authenticated;
-revoke select on public.fish_hunt_rounds from authenticated;
-
-comment on column public.fish_hunt_fish.hit_probability is
-  'SECRET: per-fish hit chance used only inside fish_hunt_place_shot. Never '
-  'exposed to clients (no direct table SELECT, not in get_state, not in the '
-  'realtime publication).';
-comment on column public.fish_hunt_rounds.server_seed is
-  'SECRET: per-round seed. Never client-readable.';
-
--- fish_hunt_shots keeps its own-row SELECT so players still see their own
--- shot history through the RPC-backed state (grant retained).
-
--- (c) Drop the secret-bearing tables from realtime so their full rows (with
---     hit_probability / server_seed) are no longer broadcast. No client
---     subscribes to these channels — state comes from the 3s get_state poll.
+-- Removed for replay-safety (see REPLAY-SAFETY NOTE above). This section
+-- originally hardened public.fish_hunt_rounds / fish_hunt_fish / fish_hunt_shots
+-- (hit_probability + server_seed exposure via table SELECT, the get_state RPC,
+-- and the realtime publication). Fish Hunt has since been retired; guard the
+-- absence explicitly rather than compiling a function against a type that no
+-- longer exists in any environment that replays this file from empty.
 do $$
 begin
-  if exists (select 1 from pg_publication_tables
-             where pubname = 'supabase_realtime'
-               and schemaname = 'public' and tablename = 'fish_hunt_fish') then
-    alter publication supabase_realtime drop table public.fish_hunt_fish;
+  if to_regclass('public.fish_hunt_rounds') is null then
+    return;
   end if;
-  if exists (select 1 from pg_publication_tables
-             where pubname = 'supabase_realtime'
-               and schemaname = 'public' and tablename = 'fish_hunt_rounds') then
-    alter publication supabase_realtime drop table public.fish_hunt_rounds;
-  end if;
+  raise exception
+    'fish_hunt_rounds exists but the P0-2 hardening body was removed from '
+    '20261026000000_game_backend_secret_and_write_hardening.sql during the '
+    'Fish Hunt retirement — restore it from git history before replaying '
+    'against an environment where Fish Hunt is still live.';
 end $$;
 
 

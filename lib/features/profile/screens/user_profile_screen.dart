@@ -78,20 +78,22 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       setState(() {
         _followers = followers as int;
         _following = following as int;
-        _profile = profile ?? {
-          'id': widget.userId,
-          'display_name': widget.isArabic ? 'مستخدم' : 'Unknown user',
-          'username': '',
-          'public_user_id': '',
-          'bio': '',
-          'avatar_url': null,
-          'vip_level': 0,
-          'vip_expires_at': null,
-          'followers_count': 0,
-          'following_count': 0,
-          'gifts_received_count': 0,
-          'visitors_count': 0,
-        };
+        _profile =
+            profile ??
+            {
+              'id': widget.userId,
+              'display_name': widget.isArabic ? 'مستخدم' : 'Unknown user',
+              'username': '',
+              'public_user_id': '',
+              'bio': '',
+              'avatar_url': null,
+              'vip_level': 0,
+              'vip_expires_at': null,
+              'followers_count': 0,
+              'following_count': 0,
+              'gifts_received_count': 0,
+              'visitors_count': 0,
+            };
         _isFollowing = isFollowing as bool;
         _isFollowedBy = isFollowedBy as bool;
         _loading = false;
@@ -175,9 +177,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           TextButton(
             onPressed: _load,
             child: Text(
-              isArabic
-                  ? 'إعادة'
-                  : 'Retry',
+              isArabic ? 'إعادة' : 'Retry',
               style: const TextStyle(color: Color(0xFFF0C15A)),
             ),
           ),
@@ -185,7 +185,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       ),
     );
   }
-
 
   String _safeDisplayName(Map<String, dynamic>? profile, bool isArabic) {
     final displayName = profile?['display_name']?.toString().trim();
@@ -215,7 +214,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final vipExpiresAt = p['vip_expires_at'] != null
         ? DateTime.tryParse(p['vip_expires_at'].toString())
         : null;
-    final vipLevel = (rawVipLevel > 0 &&
+    final vipLevel =
+        (rawVipLevel > 0 &&
             (vipExpiresAt == null || vipExpiresAt.isAfter(DateTime.now())))
         ? rawVipLevel
         : 0;
@@ -372,18 +372,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         onTap: () => _openFollowList('following'),
                       ),
                       _statDivider(),
-                      _stat(
-                        gifts.toString(),
-                        isArabic
-                            ? 'هدايا'
-                            : 'Gifts',
-                      ),
+                      _stat(gifts.toString(), isArabic ? 'هدايا' : 'Gifts'),
                       _statDivider(),
                       _stat(
                         visitors.toString(),
-                        isArabic
-                            ? 'زيارات'
-                            : 'Visits',
+                        isArabic ? 'زيارات' : 'Visits',
                       ),
                     ],
                   ),
@@ -401,24 +394,24 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           label: _isMutual
                               ? (isArabic ? 'أصدقاء' : 'Friends')
                               : (!_isFollowing && _isFollowedBy)
-                                  ? (isArabic ? 'تابع أيضاً' : 'Follow back')
-                                  : _isFollowing
-                                      ? (isArabic ? 'إلغاء المتابعة' : 'Unfollow')
-                                      : (isArabic ? 'متابعة' : 'Follow'),
+                              ? (isArabic ? 'تابع أيضاً' : 'Follow back')
+                              : _isFollowing
+                              ? (isArabic ? 'إلغاء المتابعة' : 'Unfollow')
+                              : (isArabic ? 'متابعة' : 'Follow'),
                           icon: _isMutual
                               ? Icons.people_rounded
                               : (!_isFollowing && _isFollowedBy)
-                                  ? Icons.person_add_rounded
-                                  : _isFollowing
-                                      ? Icons.person_remove_rounded
-                                      : Icons.person_add_rounded,
+                              ? Icons.person_add_rounded
+                              : _isFollowing
+                              ? Icons.person_remove_rounded
+                              : Icons.person_add_rounded,
                           color: _isMutual
                               ? const Color(0xFFD4AF37)
                               : (!_isFollowing && _isFollowedBy)
-                                  ? const Color(0xFF8B26D9)
-                                  : _isFollowing
-                                      ? const Color(0xFF4A3470)
-                                      : const Color(0xFF8B26D9),
+                              ? const Color(0xFF8B26D9)
+                              : _isFollowing
+                              ? const Color(0xFF4A3470)
+                              : const Color(0xFF8B26D9),
                           loading: _followBusy,
                           onTap: _toggleFollow,
                         ),
@@ -427,9 +420,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       // Message
                       Expanded(
                         child: _ActionButton(
-                          label: isArabic
-                              ? 'رسالة'
-                              : 'Message',
+                          label: isArabic ? 'رسالة' : 'Message',
                           icon: Icons.chat_bubble_rounded,
                           color: const Color(0xFF1A3A55),
                           onTap: () => Navigator.of(context).push(
@@ -449,9 +440,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   const SizedBox(height: 10),
                   // Gift button full width
                   _ActionButton(
-                    label: isArabic
-                        ? 'إرسال هدية'
-                        : 'Send a gift',
+                    label: isArabic ? 'إرسال هدية' : 'Send a gift',
                     icon: Icons.card_giftcard_rounded,
                     color: const Color(0xFF3A2A10),
                     textColor: const Color(0xFFF0C15A),
@@ -509,14 +498,19 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             Text(
               label,
               style: TextStyle(
-                color: onTap != null ? const Color(0xFFD4AF37) : const Color(0xFF9E91B8),
+                color: onTap != null
+                    ? const Color(0xFFD4AF37)
+                    : const Color(0xFF9E91B8),
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
             ),
             if (onTap != null)
-              const Icon(Icons.chevron_right_rounded,
-                  size: 13, color: Color(0xFFD4AF37)),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 13,
+                color: Color(0xFFD4AF37),
+              ),
           ],
         ),
       ],

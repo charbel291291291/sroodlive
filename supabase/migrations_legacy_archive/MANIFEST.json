@@ -1,0 +1,2169 @@
+{
+  "generated_utc": "2026-07-12T08:33:59Z",
+  "purpose": "Reversible provenance snapshot of supabase/migrations/ at the baseline-squash cut. Originals are NOT deleted; this archive + BASELINE_MANIFEST.md make the transition reversible.",
+  "baseline_cut_version": "20261106000000",
+  "production_applied_count": 208,
+  "archived_file_count": 216,
+  "migrations": [
+    {
+      "filename": "20260602000000_baseline_manual_foundation.sql",
+      "version": "20260602000000",
+      "sha256": "d2be73870101b7f938d59711e5c8e498197653ee063f94c8bdd3184cc04900c1",
+      "size_bytes": 28618,
+      "classification": "reconstructed_baseline_helper",
+      "included_in_baseline": true,
+      "reason": "Reconstructs manually-created prod objects (tables/views/constraint drift). Not in prod history, but objects exist in prod so the effect is in the baseline.",
+      "original_order": 1
+    },
+    {
+      "filename": "20260602122424_allow_room_owner_to_update_members.sql",
+      "version": "20260602122424",
+      "sha256": "69de8c85c9968257667725159179b07e1877196a6b8fe81e0108f47c0de757f7",
+      "size_bytes": 471,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 2
+    },
+    {
+      "filename": "20260602122450_allow_room_owner_to_update_members.sql",
+      "version": "20260602122450",
+      "sha256": "69de8c85c9968257667725159179b07e1877196a6b8fe81e0108f47c0de757f7",
+      "size_bytes": 471,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 3
+    },
+    {
+      "filename": "20260602203601_add_room_member_last_seen.sql",
+      "version": "20260602203601",
+      "sha256": "5fd3a6852201c5b21e2989b739d15669b52964e679520b5dcd3de372eb08eea6",
+      "size_bytes": 183,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 4
+    },
+    {
+      "filename": "20260603000417_add_locked_room_password.sql",
+      "version": "20260603000417",
+      "sha256": "a3b3aa4f57e446bb9144f8855b9b7c2ef510bf90ded15e39660c9389f5372341",
+      "size_bytes": 2852,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 5
+    },
+    {
+      "filename": "20260603002606_fix_room_password_pgcrypto_schema.sql",
+      "version": "20260603002606",
+      "sha256": "e1235253524bc8f492f3869b451cbc064d3dcb03f8ca99f6cff6f125107970ee",
+      "size_bytes": 2723,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 6
+    },
+    {
+      "filename": "20260603114902_add_room_member_seat_number.sql",
+      "version": "20260603114902",
+      "sha256": "e227c81769eedbdff5203ee05567eac8a987d715c9ae03198425ea9cc4e269ec",
+      "size_bytes": 309,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 7
+    },
+    {
+      "filename": "20260603151101_grant_gift_table_api_access.sql",
+      "version": "20260603151101",
+      "sha256": "e2738c5f19251d359ad80c265dff1950fe8b94713b9a0a2fe0342f5ee897700a",
+      "size_bytes": 127,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 8
+    },
+    {
+      "filename": "20260603155535_seed_more_gifts_with_images.sql",
+      "version": "20260603155535",
+      "sha256": "59ea1ed1f05b408da64935964d31e1645f21718d5a0317cfc98484caa2b080be",
+      "size_bytes": 2428,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 9
+    },
+    {
+      "filename": "20260603160657_add_profile_public_user_id.sql",
+      "version": "20260603160657",
+      "sha256": "bc8f6210420b4bcaa03d6dff5252efc508d3ea7befcb8e85b09be45ddbf42ebe",
+      "size_bytes": 683,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 10
+    },
+    {
+      "filename": "20260603162730_allow_room_members_to_read_profiles.sql",
+      "version": "20260603162730",
+      "sha256": "d4c18825f5dd61597a8b256227a32e76c5f0a46f493b14c97bf0ee46e640e0fb",
+      "size_bytes": 555,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 11
+    },
+    {
+      "filename": "20260603164044_add_avatar_storage_bucket.sql",
+      "version": "20260603164044",
+      "sha256": "88977995cf00e438dfc95dfd6a8550a466b8ff58fc2488707d5ba9bdf913dbd2",
+      "size_bytes": 1486,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 12
+    },
+    {
+      "filename": "20260603170033_add_profile_bio_birthdate.sql",
+      "version": "20260603170033",
+      "sha256": "4622f8ea3480f32c98b6203f6fb6a353e0e49aa07c1126b7774d00341e5def67",
+      "size_bytes": 108,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 13
+    },
+    {
+      "filename": "20260603210207_allow_room_members_to_view_room_gifts.sql",
+      "version": "20260603210207",
+      "sha256": "d8e4af410ce39e649cf85df415979f8a0e93b91ed7b205af4da21b3508027d4c",
+      "size_bytes": 398,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 14
+    },
+    {
+      "filename": "20260604143954_add_avatar_frames.sql",
+      "version": "20260604143954",
+      "sha256": "f4d814082c3401d0c176ca7c2cd8abd68a2857ef7d949ef36e6eb73ab5eef7d4",
+      "size_bytes": 2344,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 15
+    },
+    {
+      "filename": "20260604153925_add_reference_luxury_avatar_frames.sql",
+      "version": "20260604153925",
+      "sha256": "5d8df7d5c1aa1a0f3618ca32657cf855ff91cd3310568366a54a5230c99236a9",
+      "size_bytes": 518,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 16
+    },
+    {
+      "filename": "20260604155118_add_ruby_royal_avatar_frames.sql",
+      "version": "20260604155118",
+      "sha256": "268233f9b867383a5a2e271ec04f3d9f495e9861348a05cf4d7d136b68013290",
+      "size_bytes": 673,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 17
+    },
+    {
+      "filename": "20260604185140_add_vip_phase_9_fields.sql",
+      "version": "20260604185140",
+      "sha256": "b6dda776789212b0e60e4dc76240f9760a63de36b0ee6c9a8b9dbf8c21e57473",
+      "size_bytes": 552,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 18
+    },
+    {
+      "filename": "20260604191858_add_room_profile_social_tables.sql",
+      "version": "20260604191858",
+      "sha256": "10bcaf3baf40b74c7ac9ee55aae8f0c785ebf813882a0a87999c8943537df96d",
+      "size_bytes": 1985,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 19
+    },
+    {
+      "filename": "20260605041848_add_private_messages.sql",
+      "version": "20260605041848",
+      "sha256": "26aad77bd1be9326b74f8220c896a4fc8b4ff6005e8283bad1aeb028506ff4bf",
+      "size_bytes": 3582,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 20
+    },
+    {
+      "filename": "20260605062234_step_10_wallet_manual_recharge.sql",
+      "version": "20260605062234",
+      "sha256": "77b4bb1d95673ac18fa2e63e848d4204d9ae5b9d96460c13fc574b9bf2c2b19d",
+      "size_bytes": 18031,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 21
+    },
+    {
+      "filename": "20260605093310_step_11_admin_finance_dashboard_mvp.sql",
+      "version": "20260605093310",
+      "sha256": "55da891b024ed2e362838f2a2e584a693ece28138c111680c57a0e30bae69e49",
+      "size_bytes": 11454,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 22
+    },
+    {
+      "filename": "20260605111935_step_12_full_admin_panel_roles.sql",
+      "version": "20260605111935",
+      "sha256": "fc104ea6bd38c7209107eea005ecbf13a9754dcff2b343ab5672a3a6b4070b03",
+      "size_bytes": 12494,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 23
+    },
+    {
+      "filename": "20260605134623_step_13_admin_full_operations.sql",
+      "version": "20260605134623",
+      "sha256": "d5e77541456063ac515f437762507880a83fd9f9b8242813042b0de2f5354ed1",
+      "size_bytes": 17005,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 24
+    },
+    {
+      "filename": "20260605201708_step_14_admin_vip_assets_categories_enforcement.sql",
+      "version": "20260605201708",
+      "sha256": "b793e7cc79e0998ae0dff27aee0d8c4af6b0868075c46264be62edb76a9cacef",
+      "size_bytes": 20361,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 25
+    },
+    {
+      "filename": "20260605210414_step_15_admin_functional_room_close.sql",
+      "version": "20260605210414",
+      "sha256": "dd5556d354ee7aadf676020f619656d38f69dd24948e67dc29df2b7fa40d1d3b",
+      "size_bytes": 4999,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 26
+    },
+    {
+      "filename": "20260605234734_add_custom_avatar_frames.sql",
+      "version": "20260605234734",
+      "sha256": "cc1cc1684f4b50b5f4d78c899f1bab2ef0c484c45b2b9e245d385e344794d519",
+      "size_bytes": 1230,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 27
+    },
+    {
+      "filename": "20260606055832_use_srood_live_frame_v2.sql",
+      "version": "20260606055832",
+      "sha256": "6658e42803b445876edeb1e37c4eeeff3687d889e6a3878d89a911f0b90ca627",
+      "size_bytes": 136,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 28
+    },
+    {
+      "filename": "20260606073000_full_social_economy_schema.sql",
+      "version": "20260606073000",
+      "sha256": "e8928f568e71afe249acd98c9c9cdb347912ad167a4fbc44694728563988882f",
+      "size_bytes": 24712,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 29
+    },
+    {
+      "filename": "20260606090000_profile_hub_ecosystem.sql",
+      "version": "20260606090000",
+      "sha256": "4ced96181c0f6b31d24389c987377dd96f7c4f79d5343e4c55c49f2e0346479e",
+      "size_bytes": 21373,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 30
+    },
+    {
+      "filename": "20260606100000_reconcile_badges_required_level_check.sql",
+      "version": "20260606100000",
+      "sha256": "50eece22e88772846361b2d73c1d13639d95d7f6bd89b4e6c64c563e4f5657cb",
+      "size_bytes": 1114,
+      "classification": "reconstructed_baseline_helper",
+      "included_in_baseline": true,
+      "reason": "Reconstructs manually-created prod objects (tables/views/constraint drift). Not in prod history, but objects exist in prod so the effect is in the baseline.",
+      "original_order": 31
+    },
+    {
+      "filename": "20260606102000_update_coin_recharge_rate_to_10000.sql",
+      "version": "20260606102000",
+      "sha256": "cc13c4462b4f7f2fdf0d51fdbabdd07d9a657aa027b01e925cdb1a0932e22310",
+      "size_bytes": 1275,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 32
+    },
+    {
+      "filename": "20260606104500_expand_vip_levels_to_10.sql",
+      "version": "20260606104500",
+      "sha256": "51937fb85c3127232317d22bece97760003e2ff9ac26654b2d7b273fbaf365aa",
+      "size_bytes": 9199,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 33
+    },
+    {
+      "filename": "20260606111500_fix_missing_user_support_feedback_badges_agency_level.sql",
+      "version": "20260606111500",
+      "sha256": "228dac370e2ff42d1ca1299c261c24414ca0f6ebec1c472f4e620b043f3b667f",
+      "size_bytes": 33626,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 34
+    },
+    {
+      "filename": "20260607122737_unify_vip_packages_and_plans.sql",
+      "version": "20260607122737",
+      "sha256": "c27674953575618d2ef128a39cc6604575e5c6ab1c0dd43d4b8eae39395bcef4",
+      "size_bytes": 5017,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 35
+    },
+    {
+      "filename": "20260607150000_add_safe_room_rpc_functions.sql",
+      "version": "20260607150000",
+      "sha256": "1ea61f79b0e7d9f1276380954906d468e275aa81188991270330a75325b11a2f",
+      "size_bytes": 5290,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 36
+    },
+    {
+      "filename": "20260607160000_phase3_financial_validation.sql",
+      "version": "20260607160000",
+      "sha256": "6945eac006faacde85785ac65b335578e8ccd6ff9aa6d8e5d449d947c92ca1d1",
+      "size_bytes": 8422,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 37
+    },
+    {
+      "filename": "20260609120000_fix_recharge_packages_rate_to_500000.sql",
+      "version": "20260609120000",
+      "sha256": "808c1f3f73359b0dc893e71316ef0426f0f279d2d073991a90dc248713967159",
+      "size_bytes": 2024,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 38
+    },
+    {
+      "filename": "20260609150000_grant_vip_plans_read_to_authenticated.sql",
+      "version": "20260609150000",
+      "sha256": "ac56c577264d6968299c8dfe6ad02a042be85a38f9139b32ca4ec2fba924723a",
+      "size_bytes": 847,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 39
+    },
+    {
+      "filename": "20260609231445_fix_payout_requests_insert_rls.sql",
+      "version": "20260609231445",
+      "sha256": "410f429762078a8b884d8b4fdc80ddcd1764accac515e9c9e1e87c76221ee6f3",
+      "size_bytes": 376,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 40
+    },
+    {
+      "filename": "20260611033000_baseline_manual_leaderboard_views.sql",
+      "version": "20260611033000",
+      "sha256": "196f819e97674a3e9acd68179bc974c3f1c69e1fe99b9ecb6e1b8cf98078930a",
+      "size_bytes": 2006,
+      "classification": "reconstructed_baseline_helper",
+      "included_in_baseline": true,
+      "reason": "Reconstructs manually-created prod objects (tables/views/constraint drift). Not in prod history, but objects exist in prod so the effect is in the baseline.",
+      "original_order": 41
+    },
+    {
+      "filename": "20260611033503_fix_leaderboard_view_permissions.sql",
+      "version": "20260611033503",
+      "sha256": "999a68a04b996fa4af66ae61ee9cc1c65b962f0bbbc49c51ffab56d74e24b115",
+      "size_bytes": 190,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 42
+    },
+    {
+      "filename": "20260611035507_add_room_live_status_columns.sql",
+      "version": "20260611035507",
+      "sha256": "e28e7ebd280390fdd3adbd6a02908f7e22daa738201a4f6865ebc93ded37002a",
+      "size_bytes": 310,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 43
+    },
+    {
+      "filename": "20260611040122_add_room_cover_url_column.sql",
+      "version": "20260611040122",
+      "sha256": "bdb0b3f3da8fe1bea9ec20284af949d99edf5ea4d13b5f20df27673350369903",
+      "size_bytes": 65,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 44
+    },
+    {
+      "filename": "20260611040745_add_room_discovery_columns.sql",
+      "version": "20260611040745",
+      "sha256": "3cce1729e8d0b3345a081037cf00b279331d4fe69c43e05cac6f8a0f4f51e65f",
+      "size_bytes": 472,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 45
+    },
+    {
+      "filename": "20260611041358_add_discover_search_compatibility_columns.sql",
+      "version": "20260611041358",
+      "sha256": "e8a1a5b25248b564c80950c7657de81fe629f0a4f5e8b45637e53fe001992907",
+      "size_bytes": 3120,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 46
+    },
+    {
+      "filename": "20260611045017_add_profile_count_alias_columns.sql",
+      "version": "20260611045017",
+      "sha256": "06d6fce7e5938ff0b061a5d6c25ca34775b68e9f6ce43ed1e8df620fbf8b2a76",
+      "size_bytes": 4426,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 47
+    },
+    {
+      "filename": "20260611045648_add_profile_social_stats_compatibility_columns.sql",
+      "version": "20260611045648",
+      "sha256": "a0691f0075303877388a2d0ab261de9bcec91c15d1443629b70b9f0a7234c3c0",
+      "size_bytes": 2823,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 48
+    },
+    {
+      "filename": "20260611090646_add_wallet_transaction_compatibility_columns.sql",
+      "version": "20260611090646",
+      "sha256": "cfa6cd45c47dc97469a4b08bdd9f0e05c59a9c82055efd2f98d831e02cb987bc",
+      "size_bytes": 3154,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 49
+    },
+    {
+      "filename": "20260611100952_add_cover_url_to_room_schedules.sql",
+      "version": "20260611100952",
+      "sha256": "aab10a084774f7929ba6d31f0db42d6135a1e9e3ad93ddbacd7acf4451b4f308",
+      "size_bytes": 76,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 50
+    },
+    {
+      "filename": "20260611105907_add_gift_transactions_profile_foreign_keys.sql",
+      "version": "20260611105907",
+      "sha256": "6115160c39e06edf400198a49f45e49f0a651768d1a89fbb8e5f39cc54498812",
+      "size_bytes": 696,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 51
+    },
+    {
+      "filename": "20260611120000_fix_corrupted_gift_arabic_names.sql",
+      "version": "20260611120000",
+      "sha256": "86ce8fda223b48ffd124952b7cb0bf0c2d8e27bd0b955178fa52a9539cf77107",
+      "size_bytes": 1449,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 52
+    },
+    {
+      "filename": "20260611130000_room_owner_management.sql",
+      "version": "20260611130000",
+      "sha256": "8c740cb479d212c9c2b16c635a3257905c749b23d3b8f2d312abbf417e8e69e1",
+      "size_bytes": 12906,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 53
+    },
+    {
+      "filename": "20260611140000_promo_banners.sql",
+      "version": "20260611140000",
+      "sha256": "e600161f5175450f4abf97ab6b0ff7b936354156ab1ed1765fdf88d558d4ab47",
+      "size_bytes": 3398,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 54
+    },
+    {
+      "filename": "20260611150000_admin_assets_storage_policies.sql",
+      "version": "20260611150000",
+      "sha256": "9c7d1908d44237dd3eca62ff084223fb233209816059b2768045cb5bf4c1e25d",
+      "size_bytes": 1190,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 55
+    },
+    {
+      "filename": "20260612090000_economy_rebase_and_withdrawals.sql",
+      "version": "20260612090000",
+      "sha256": "3cb9f1e0f34ae2ec59774a049e9cf2d1d3c28ef5b7c442237b742b7a890709be",
+      "size_bytes": 17431,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 56
+    },
+    {
+      "filename": "20260612120000_hungry_cat_wheel.sql",
+      "version": "20260612120000",
+      "sha256": "144b1868c0d24a50a6bea6179289558d2ad77ccdd930b7273f6e847d65fe8935",
+      "size_bytes": 11640,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 57
+    },
+    {
+      "filename": "20260613120000_raise_recharge_max_cap.sql",
+      "version": "20260613120000",
+      "sha256": "9f413b2157c8d6d8ec06993383e4668338b841630ae598e5ae1bd322cf34f808",
+      "size_bytes": 2629,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 58
+    },
+    {
+      "filename": "20260613130000_hungry_cat_history.sql",
+      "version": "20260613130000",
+      "sha256": "b4609e2f1a42390d27fc2f4b37bd06072fd32f59356ba0e410b9186876abc75b",
+      "size_bytes": 6759,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 59
+    },
+    {
+      "filename": "20260613140000_gold_ladder_quiz.sql",
+      "version": "20260613140000",
+      "sha256": "27dd98066129ab975a7bec0f212585f802a1dde61960c43c547e27b0d0ebe75a",
+      "size_bytes": 37220,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 60
+    },
+    {
+      "filename": "20260613150000_hungry_cat_rounds.sql",
+      "version": "20260613150000",
+      "sha256": "e6756a3c399d839035a64f019bfe516a95d8a0ed8f1e15a558b95e55f54bb7c2",
+      "size_bytes": 14660,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 61
+    },
+    {
+      "filename": "20260613160000_crash_rocket_rpcs.sql",
+      "version": "20260613160000",
+      "sha256": "13810205fa5670e92f17c087f77744ca27a2d9435cedaa3f2c13bab8371eab15",
+      "size_bytes": 16350,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 62
+    },
+    {
+      "filename": "20260613170000_crash_rocket_schema_reconcile.sql",
+      "version": "20260613170000",
+      "sha256": "852a40105280b3372552d0a3fff405db0ac8487d91d1485a8583ffe8ae99b4e3",
+      "size_bytes": 3913,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 63
+    },
+    {
+      "filename": "20260614120000_enable_room_realtime.sql",
+      "version": "20260614120000",
+      "sha256": "791c576c0eb5f452d4baa4bcaefaacc57cd22fe6efab1c3105cfef654e0392cc",
+      "size_bytes": 847,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 64
+    },
+    {
+      "filename": "20260614173000_add_odrob_gift.sql",
+      "version": "20260614173000",
+      "sha256": "596b2940b36e3f9c743b2c08422a66fdd86c257b4cdbad56ff281cbac7b9d259",
+      "size_bytes": 464,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 65
+    },
+    {
+      "filename": "20260614200000_rocket_crash_local_rpcs.sql",
+      "version": "20260614200000",
+      "sha256": "22296b32b326e1b7637175b23b6485cfd94aef4d2b4ba2e8de148b70aa307738",
+      "size_bytes": 6695,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 66
+    },
+    {
+      "filename": "20260614210000_user_vip_settings.sql",
+      "version": "20260614210000",
+      "sha256": "ad271bb55369c666c3678e999a7e1a843287dadedbc31674e31eaf9ae71ed510",
+      "size_bytes": 1943,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 67
+    },
+    {
+      "filename": "20260614220000_room_messages.sql",
+      "version": "20260614220000",
+      "sha256": "0bf71a795b97949cd22d6ca557494adbf05a494e2cf25235f6fbad29016cf6a2",
+      "size_bytes": 1874,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 68
+    },
+    {
+      "filename": "20260614230000_hungry_cat_admin_tools.sql",
+      "version": "20260614230000",
+      "sha256": "7345310ec71294c7f7a79e04d1f0ea12f6bbc20d7337d65ad31811ce85d3f55a",
+      "size_bytes": 26294,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 69
+    },
+    {
+      "filename": "20260614240000_owner_game_control.sql",
+      "version": "20260614240000",
+      "sha256": "fcaae3eafe995ceddb0256b6f612a1f16649ba04005a03234b84ffa2fdacdffb",
+      "size_bytes": 22013,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 70
+    },
+    {
+      "filename": "20260614260000_rocket_crash_admin_tools.sql",
+      "version": "20260614260000",
+      "sha256": "cff00d1e6d97f8f92bfe06c0010dfae3df46c7614b964e574d8110945b50ca41",
+      "size_bytes": 19505,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 71
+    },
+    {
+      "filename": "20260615100000_srood_loto.sql",
+      "version": "20260615100000",
+      "sha256": "fc8dbe867ec9615020195089d9ae03df2073dd274bf0936ba7f8fa36387ad6f0",
+      "size_bytes": 31508,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 72
+    },
+    {
+      "filename": "20260615110000_room_background_and_seats.sql",
+      "version": "20260615110000",
+      "sha256": "ec96d7e1b3cb3762520b69d67b6b4bc3a88da13b216b2b373cebbe2333013c62",
+      "size_bytes": 1210,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 73
+    },
+    {
+      "filename": "20260615120000_standardize_vip_1_to_9.sql",
+      "version": "20260615120000",
+      "sha256": "d04618c2d44c7c256f8d3f11a84cf889729f9e373a55b7d63c4e6f3b11e59f98",
+      "size_bytes": 6462,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 74
+    },
+    {
+      "filename": "20260615130000_room_team_pk.sql",
+      "version": "20260615130000",
+      "sha256": "489ad716ec45d42eed51095e652381cc627c47c2006c0e3b6331b426076a05af",
+      "size_bytes": 12924,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 75
+    },
+    {
+      "filename": "20260615140000_team_pk_backend.sql",
+      "version": "20260615140000",
+      "sha256": "5b89c6e614496d6f6bba8873ccb1aa845840722690cd2859b1e4152d46821cae",
+      "size_bytes": 31772,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 76
+    },
+    {
+      "filename": "20260615151000_fix_srood_loto_draw_number.sql",
+      "version": "20260615151000",
+      "sha256": "e3dce8ad05316979dc9e65178f4a5d42e22d9177ca633e03af4b1c8efdd1e715",
+      "size_bytes": 842,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 77
+    },
+    {
+      "filename": "20260615200000_one_active_room_per_owner.sql",
+      "version": "20260615200000",
+      "sha256": "235764a827325576b1b07cf55a01c70ccb612d82d00cc979d5787480c9dd78f2",
+      "size_bytes": 6161,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 78
+    },
+    {
+      "filename": "20260615210000_srood_treasure.sql",
+      "version": "20260615210000",
+      "sha256": "40a961fc48640fff8c6ea68bf66e10d7e8cfd5a399cfee1c085c861c69482a51",
+      "size_bytes": 24583,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 79
+    },
+    {
+      "filename": "20260615220000_charisma_challenge.sql",
+      "version": "20260615220000",
+      "sha256": "422e07fb993b034477ff5bcf046bfab53aee09203686a8a51eb0bfc1533c25ca",
+      "size_bytes": 25773,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 80
+    },
+    {
+      "filename": "20260615230000_admin_role_system_rebuild.sql",
+      "version": "20260615230000",
+      "sha256": "40147ae939b0e48adff15b5c39523bb8c6b1eb27cafb96b228837be7730d1348",
+      "size_bytes": 117964,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 81
+    },
+    {
+      "filename": "20260615234500_admin_role_compatibility_helpers.sql",
+      "version": "20260615234500",
+      "sha256": "245f8bdc3c2970bb4de8962202552f4d19a4b6970f33ef7093d89d83b2967aeb",
+      "size_bytes": 3640,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 82
+    },
+    {
+      "filename": "20260616000500_fix_team_pk_room_manager_auth.sql",
+      "version": "20260616000500",
+      "sha256": "ab05b8be26d8d2c0b41ef318e9b25717ddd9901a92025c3eb2aa043209b95abe",
+      "size_bytes": 1439,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 83
+    },
+    {
+      "filename": "20260616100000_room_appearance_images.sql",
+      "version": "20260616100000",
+      "sha256": "08ec0fc4dcae50f78bbac59a56c39299fa168868264e30369a8d720cc69a888e",
+      "size_bytes": 2097,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 84
+    },
+    {
+      "filename": "20260617000000_admin_phase2_extensions.sql",
+      "version": "20260617000000",
+      "sha256": "d3fc61593a20781ce5fa1195281e9bda5cced5b309492294820f8619869ee635",
+      "size_bytes": 14097,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 85
+    },
+    {
+      "filename": "20260617100000_mutual_follow_messaging.sql",
+      "version": "20260617100000",
+      "sha256": "fc89351b144d7e90e573a5a5c2119744d0a465458eec1cfc345043a20470d796",
+      "size_bytes": 1626,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 86
+    },
+    {
+      "filename": "20260617110000_owner_close_room.sql",
+      "version": "20260617110000",
+      "sha256": "6fd1ba2119086d002f36d4758ba04c167da728802bfc0e73f99ed66764c604c9",
+      "size_bytes": 1179,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 87
+    },
+    {
+      "filename": "20260617200000_room_vault_pin.sql",
+      "version": "20260617200000",
+      "sha256": "9290db69638675d7fc0fe7803cf267bd6beaa26ea9b11213c089791ff81bd15d",
+      "size_bytes": 2878,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 88
+    },
+    {
+      "filename": "20260618000000_room_music_state.sql",
+      "version": "20260618000000",
+      "sha256": "135b60a2031c2392b8b77e48a8538431b8f8b7e61ed9f542ae078789408518ab",
+      "size_bytes": 9013,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 89
+    },
+    {
+      "filename": "20260619000000_room_music_tracks.sql",
+      "version": "20260619000000",
+      "sha256": "b48d398d176be83db7da725825bb4624e0dd5c532b26ad035254a53cd91dfd5d",
+      "size_bytes": 7903,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 90
+    },
+    {
+      "filename": "20260620000000_private_messages_soft_delete.sql",
+      "version": "20260620000000",
+      "sha256": "034ec62792e68e06aed8d42a2218e7fc5fb56f8af6cbd380140a382e3e834d5d",
+      "size_bytes": 664,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 91
+    },
+    {
+      "filename": "20260621000000_user_music_library.sql",
+      "version": "20260621000000",
+      "sha256": "4342dbfa1df64caf6150f7789cfd3474658549c0bdcd3eb9c3b7b7d2cac274d0",
+      "size_bytes": 2221,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 92
+    },
+    {
+      "filename": "20260622000000_personal_rooms.sql",
+      "version": "20260622000000",
+      "sha256": "4f2f00ced068b99e2ce345c8fc29be34ef0988425c54b479896bd98e63cdba50",
+      "size_bytes": 6994,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 93
+    },
+    {
+      "filename": "20260623000000_red_envelopes.sql",
+      "version": "20260623000000",
+      "sha256": "2c8556c2ec67fce88e3f6bdeeff85efa8cf04abaf9795532097fbc32e833be61",
+      "size_bytes": 2022,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 94
+    },
+    {
+      "filename": "20260624000000_centralized_vip_system.sql",
+      "version": "20260624000000",
+      "sha256": "ec6d58bf0be01f53ad36e98e20aefadf51a1b4e848804a5c5a476ad51dcf53dd",
+      "size_bytes": 13707,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 95
+    },
+    {
+      "filename": "20260624001000_disable_room_lock_cleanup_retry.sql",
+      "version": "20260624001000",
+      "sha256": "b6d89668d8d4be38e33cf2b2895a0a7b888a434ab385c65995bce287a79e479e",
+      "size_bytes": 1049,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 96
+    },
+    {
+      "filename": "20260625000000_fix_red_envelope_rpcs.sql",
+      "version": "20260625000000",
+      "sha256": "81da04f153ae93df2dfe5757918e45d4dc78f3b51c023e0f7dd2ac02003e59ac",
+      "size_bytes": 6875,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 97
+    },
+    {
+      "filename": "20260627000000_vip_phase4_backend_enforcement.sql",
+      "version": "20260627000000",
+      "sha256": "3650a15550a997260d9d85e7cbd37b19fda5522e7c3c5166240f2c621d196590",
+      "size_bytes": 8046,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 98
+    },
+    {
+      "filename": "20260627141416_remote_hotfix.sql",
+      "version": "20260627141416",
+      "sha256": "3dd0072cd3bb8f21fa6e0f4f6c5750558e4be6a401fdbb0624c93b08d4a6a2c1",
+      "size_bytes": 70,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 99
+    },
+    {
+      "filename": "20260627150607_remote_hotfix.sql",
+      "version": "20260627150607",
+      "sha256": "3dd0072cd3bb8f21fa6e0f4f6c5750558e4be6a401fdbb0624c93b08d4a6a2c1",
+      "size_bytes": 70,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 100
+    },
+    {
+      "filename": "20260628000000_vip_phase6_hardening.sql",
+      "version": "20260628000000",
+      "sha256": "b159a4931ba3a5f9984316f0e31f5aae0e114c9e9adbe202a666aef6458fcd7d",
+      "size_bytes": 9794,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 101
+    },
+    {
+      "filename": "20260629000000_fix_admin_reports_rpc.sql",
+      "version": "20260629000000",
+      "sha256": "55d5afada7270eafde10d29c0c7c45a9897a0add5fa406e39500e8c00f5b206d",
+      "size_bytes": 1892,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 102
+    },
+    {
+      "filename": "20260630000000_room_game_rounds.sql",
+      "version": "20260630000000",
+      "sha256": "495701e394c4f7f6fe8a9cf500dd6b3434797b672cbd50148ae2923c49bcec30",
+      "size_bytes": 50034,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 103
+    },
+    {
+      "filename": "20260701000000_room_chat_images.sql",
+      "version": "20260701000000",
+      "sha256": "c481096b4fdd819b0ee94d730ba7ff342ebdb09ad23fe8bca7eac373352eaf72",
+      "size_bytes": 4751,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 104
+    },
+    {
+      "filename": "20260702000000_vip_recharge_exp_phase_f.sql",
+      "version": "20260702000000",
+      "sha256": "bf8e0f3bc258b6528453ede544258f08291ada1b479cb18de2f14a7f18b7a366",
+      "size_bytes": 6203,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 105
+    },
+    {
+      "filename": "20260703000000_vip_recharge_exp_phase_g.sql",
+      "version": "20260703000000",
+      "sha256": "09b47179cdb557bb925b74cd9a9505df7858d24e0d8c041afd6ddcfc7057229a",
+      "size_bytes": 19240,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 106
+    },
+    {
+      "filename": "20260703000001_user_preferences_and_settings_trigger.sql",
+      "version": "20260703000001",
+      "sha256": "64c137b904b181b48c28d35d3f07101d8929c76ef54e30934fd77f5d42a0f6aa",
+      "size_bytes": 2439,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 107
+    },
+    {
+      "filename": "20260703001000_checkin_rpc_wrappers.sql",
+      "version": "20260703001000",
+      "sha256": "cd309bb1cbddbb82b8b6631d06dc8c99c8c0a516adec3ecabbfa6b51898a3425",
+      "size_bytes": 2602,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 108
+    },
+    {
+      "filename": "20260704000000_vip_recharge_exp_phase_h.sql",
+      "version": "20260704000000",
+      "sha256": "42cfb42a9e87a9f284b38efae4e9dc5a3c30cd2266c8d96309f4de866c433f3b",
+      "size_bytes": 7604,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 109
+    },
+    {
+      "filename": "20260705000000_user_level_phase_l2.sql",
+      "version": "20260705000000",
+      "sha256": "2431cee8b0f2555cb9bf4025f077a4032951a8289e45d6fad9fa117deca3b4f5",
+      "size_bytes": 23154,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 110
+    },
+    {
+      "filename": "20260706000000_user_level_phase_l3_gift_xp.sql",
+      "version": "20260706000000",
+      "sha256": "13344e18b3b0529ffeadc670f226a9c6a053b22724e189c623fdc8b5257c5192",
+      "size_bytes": 10191,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 111
+    },
+    {
+      "filename": "20260706091254_align_vip_admin_permission.sql",
+      "version": "20260706091254",
+      "sha256": "c675a98d30a1056c42de6e274b3bf3ec0bdaa04c6dffd1ad26cc0a7f2af357f2",
+      "size_bytes": 1052,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 112
+    },
+    {
+      "filename": "20260706143040_srood_rocket_server_authoritative.sql",
+      "version": "20260706143040",
+      "sha256": "89f695c271de2e660eb8aa96f1c10965411378cdf6aef11968e490760d53affb",
+      "size_bytes": 27071,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 113
+    },
+    {
+      "filename": "20260706210849_startup_promo_audio.sql",
+      "version": "20260706210849",
+      "sha256": "9d8e703deaf59cda3fb6fa3837df005871f6136416d27ee05a1280c2ffa15469",
+      "size_bytes": 1390,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 114
+    },
+    {
+      "filename": "20260706232756_fix_my_agency_membership_rpc.sql",
+      "version": "20260706232756",
+      "sha256": "ab8807fab042fd042598f9b73fee17f639fca3632c3d41962371da16267b60a4",
+      "size_bytes": 1477,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 115
+    },
+    {
+      "filename": "20260707000000_vip_feature_gates.sql",
+      "version": "20260707000000",
+      "sha256": "9d6f59c2114624dc44a4e2fdc455c58aebe2a814b858c0115806eda1c9c16123",
+      "size_bytes": 5310,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 116
+    },
+    {
+      "filename": "20260708000000_admin_find_user_for_grants.sql",
+      "version": "20260708000000",
+      "sha256": "e1718422558a4625d024113c8156c8566109d41e691f3b61e290cd9afc377a86",
+      "size_bytes": 3936,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 117
+    },
+    {
+      "filename": "20260709000000_fix_grant_vip_starts_ends_columns.sql",
+      "version": "20260709000000",
+      "sha256": "0eb7b22bbf824fb77a4fcf74367958330ff16ced75282f8273240269d00df39f",
+      "size_bytes": 2042,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 118
+    },
+    {
+      "filename": "20260710223941_harden_crash_rocket_multiplier_overflow.sql",
+      "version": "20260710223941",
+      "sha256": "4b1b499fb16326926b56ffce356b3082eb8285ace9301f643412004dc05fde0b",
+      "size_bytes": 1250,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 119
+    },
+    {
+      "filename": "20260711000000_golden_id_styles.sql",
+      "version": "20260711000000",
+      "sha256": "477ac31484484207d8d5fbffab86ec7d96d096371752fcc9459f4387660b32b1",
+      "size_bytes": 8651,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 120
+    },
+    {
+      "filename": "20260711021359_harden_admin_audit_and_vip_privacy.sql",
+      "version": "20260711021359",
+      "sha256": "bcfbdf4d4bee9e4e8264d4a6c0c1c0d8f908cb4f44e1acc0da35d31aa41aca05",
+      "size_bytes": 7748,
+      "classification": "hardening_already_in_prod",
+      "included_in_baseline": true,
+      "reason": "Security hardening whose effect (RLS/fixed search_path/revokes) verified present in production via read-only introspection; already in the baseline.",
+      "original_order": 121
+    },
+    {
+      "filename": "20260711175345_agency_rpc_security_hardening.sql",
+      "version": "20260711175345",
+      "sha256": "daa8973ff2c7a8835fe2c9162f1cae9b49b2f2fde7f6169c55cb0f00d93800f9",
+      "size_bytes": 2909,
+      "classification": "hardening_already_in_prod",
+      "included_in_baseline": true,
+      "reason": "Security hardening whose effect (RLS/fixed search_path/revokes) verified present in production via read-only introspection; already in the baseline.",
+      "original_order": 122
+    },
+    {
+      "filename": "20260711175349_agency_financial_foundation_v3.sql",
+      "version": "20260711175349",
+      "sha256": "fd0fbdb76c58cce9772580636af7bdb6c25c8cb0a3cb9ce63b4ef7985fd8951e",
+      "size_bytes": 12924,
+      "classification": "post_cut_agency_v3",
+      "included_in_baseline": false,
+      "reason": "Agency Finance V3; agency_finance_v3 schema absent from production and not in prod history. Genuinely post-cut; promoted into migrations_next.",
+      "original_order": 123
+    },
+    {
+      "filename": "20260711181410_fix_apply_vip_recharge_exp_v3.sql",
+      "version": "20260711181410",
+      "sha256": "1b5246953a04bdbacc20e121fc997618c17feb2e9d3be9fe933d11e0e701c4d5",
+      "size_bytes": 3145,
+      "classification": "hardening_already_in_prod",
+      "included_in_baseline": true,
+      "reason": "Security hardening whose effect (RLS/fixed search_path/revokes) verified present in production via read-only introspection; already in the baseline.",
+      "original_order": 124
+    },
+    {
+      "filename": "20260711181414_agency_finance_v3_rpc_implementation.sql",
+      "version": "20260711181414",
+      "sha256": "c7a65ede9becd400268be6850f87e234577afa7fd08d113b8f40fd5a88037a58",
+      "size_bytes": 17600,
+      "classification": "post_cut_agency_v3",
+      "included_in_baseline": false,
+      "reason": "Agency Finance V3; agency_finance_v3 schema absent from production and not in prod history. Genuinely post-cut; promoted into migrations_next.",
+      "original_order": 125
+    },
+    {
+      "filename": "20260712000000_country_flag_styles.sql",
+      "version": "20260712000000",
+      "sha256": "c3bd8be5bf1ad5f580e1b8665abcf4db97a911bf19b850b24ceb911f8e8c91a2",
+      "size_bytes": 8550,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 126
+    },
+    {
+      "filename": "20260713000000_fix_room_chat_image_pipeline.sql",
+      "version": "20260713000000",
+      "sha256": "d90d2b39bd0be7cdb9bcb2d3abf4b71398b307c368b1c687d6b0e27f9cf4ed71",
+      "size_bytes": 4120,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 127
+    },
+    {
+      "filename": "20260715000000_fix_room_realtime_publication.sql",
+      "version": "20260715000000",
+      "sha256": "1dcea3bf629090e2d70be54f357fba6e4df5e95f3a587474675cf200e2037417",
+      "size_bytes": 1016,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 128
+    },
+    {
+      "filename": "20260717000000_fix_room_feature_permissions.sql",
+      "version": "20260717000000",
+      "sha256": "a41da80f87de967db31220ab1c88076496d2b0f515a89d73d15eeb514c86f3d6",
+      "size_bytes": 1971,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 129
+    },
+    {
+      "filename": "20260720000000_fix_room_sync_permissions.sql",
+      "version": "20260720000000",
+      "sha256": "bb802ada223cc7613ba6344bdc82c6233262762a744c6cb02ab81c55f6b160ef",
+      "size_bytes": 5366,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 130
+    },
+    {
+      "filename": "20260721000000_fix_rooms_realtime.sql",
+      "version": "20260721000000",
+      "sha256": "0b991d9d653a43d0bebe3a3954ac2266913942cf541ab91a17135416a9caa9e5",
+      "size_bytes": 1290,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 131
+    },
+    {
+      "filename": "20260722000000_add_room_members_updated_at.sql",
+      "version": "20260722000000",
+      "sha256": "81cffdd76712941bab03a2c7b0dab3ff8adb61a8ce00b29e4b0ef259665b794a",
+      "size_bytes": 1548,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 132
+    },
+    {
+      "filename": "20260723000000_add_force_muted.sql",
+      "version": "20260723000000",
+      "sha256": "cb5b2392a7be31fea27491cbc01ef716dbb03363429fa1b14101dd2582d2aa98",
+      "size_bytes": 3137,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 133
+    },
+    {
+      "filename": "20260724000000_app_update_checker.sql",
+      "version": "20260724000000",
+      "sha256": "6a4a34f734fc01566146b9a0cbf3f9a5e1a7bc8f905bc3e4cc3b278bebe4770d",
+      "size_bytes": 1421,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 134
+    },
+    {
+      "filename": "20260724001000_increase_app_releases_bucket_limit.sql",
+      "version": "20260724001000",
+      "sha256": "d3777805a89c523647f155b40bd193480c48f012edad472a6e3b9fb6f26da6fe",
+      "size_bytes": 81,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 135
+    },
+    {
+      "filename": "20260725000000_srood_blocks.sql",
+      "version": "20260725000000",
+      "sha256": "7f34bdceae199a58105ec781d9f9f50f825e0f36efb0818518f64c1af25e8a83",
+      "size_bytes": 14474,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 136
+    },
+    {
+      "filename": "20260726000000_fix_room_image_rpc_columns.sql",
+      "version": "20260726000000",
+      "sha256": "c2207515b5df9103f25a09bfd3036adc4bb145d7f3ddf85c525fc284d82fd041",
+      "size_bytes": 2599,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 137
+    },
+    {
+      "filename": "20260727000000_hungry_cat_global_rounds.sql",
+      "version": "20260727000000",
+      "sha256": "c2622944962ac9aea16394ae21c0de2654b1b1ad673d7f524f7021dc312ab26c",
+      "size_bytes": 14207,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 138
+    },
+    {
+      "filename": "20260728000000_rocket_crash_global_rounds.sql",
+      "version": "20260728000000",
+      "sha256": "fa98c6b7b11794032d987e3607053513951d9a79d8cecb9e9992780720f8f545",
+      "size_bytes": 17990,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 139
+    },
+    {
+      "filename": "20260730000000_moderation_mvp.sql",
+      "version": "20260730000000",
+      "sha256": "68ef5a65ec07437156c731c014bd2e548d3ef64dcf05eefae49322e43fb415b4",
+      "size_bytes": 12566,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 140
+    },
+    {
+      "filename": "20260801000000_startup_promos.sql",
+      "version": "20260801000000",
+      "sha256": "2983eb9fa74746ff07f34a7a19ccc35bfa54d63e7d3f3432010a95cb4fbae6b5",
+      "size_bytes": 6593,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 141
+    },
+    {
+      "filename": "20260820000000_game_fixes.sql",
+      "version": "20260820000000",
+      "sha256": "2566f7892838bb7ccc8f4e72f94ba001bee706d490240fe73e74878174448189",
+      "size_bytes": 4168,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 142
+    },
+    {
+      "filename": "20260820000001_allow_private_chat_participants_to_read_profiles.sql",
+      "version": "20260820000001",
+      "sha256": "696a55a288913b3e809de660e8439ca46cfb17628f0eadee819166f6165dd86a",
+      "size_bytes": 661,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 143
+    },
+    {
+      "filename": "20260821000000_moderation_evidence.sql",
+      "version": "20260821000000",
+      "sha256": "6e60ef8080bc83664a2db7525bb91633df61649ee1e8e1864852db05c050b73b",
+      "size_bytes": 6133,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 144
+    },
+    {
+      "filename": "20260830000000_hungry_cat_global_fixes.sql",
+      "version": "20260830000000",
+      "sha256": "87c4a7bc726b78945faccdb8abc5db85257c07af4c9f8d0033ce406baebceccd",
+      "size_bytes": 12222,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 145
+    },
+    {
+      "filename": "20260901000000_private_conversation_states.sql",
+      "version": "20260901000000",
+      "sha256": "80c319dc66b98c703da72bf0ded07fd9fc263535027c616479f032ed217d70a1",
+      "size_bytes": 1995,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 146
+    },
+    {
+      "filename": "20260901000001_hungry_cat_allow_multi_bet.sql",
+      "version": "20260901000001",
+      "sha256": "524a95713a53ee48815065c065d047779c587bedd9b3a15cc3f5ce8f920c3962",
+      "size_bytes": 3873,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 147
+    },
+    {
+      "filename": "20260901000002_lucky_bag_v2.sql",
+      "version": "20260901000002",
+      "sha256": "18596120ef6bd629270aad5a3ea4ea8e432655145a24c537af0012a98273057c",
+      "size_bytes": 3078,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 148
+    },
+    {
+      "filename": "20260901000003_lucky_bag_expires_at.sql",
+      "version": "20260901000003",
+      "sha256": "4c595854ca4c1ff5f4bc5d1dfcf85c2de6b5d7f26e49f2f30e80171c6bcf4580",
+      "size_bytes": 3430,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 149
+    },
+    {
+      "filename": "20260901000005_message_removal_and_keywords.sql",
+      "version": "20260901000005",
+      "sha256": "933c883ffd8b3fa34933c327523fcf5640f24049b96648736e855ecde58b3cde",
+      "size_bytes": 9296,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 150
+    },
+    {
+      "filename": "20260902000001_admin_panel_security_fixes.sql",
+      "version": "20260902000001",
+      "sha256": "1c151717d7d412784936a500fff34e05e408d54d965f5575168a1c84036c2296",
+      "size_bytes": 3679,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 151
+    },
+    {
+      "filename": "20260902000002_rocket_crash_phase_r1.sql",
+      "version": "20260902000002",
+      "sha256": "d14122db7224497ae942b75535e9a6cd3c94fcacedc56d6589c2958efe446fc9",
+      "size_bytes": 13657,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 152
+    },
+    {
+      "filename": "20260903000001_wealth_level_system.sql",
+      "version": "20260903000001",
+      "sha256": "2b47d3fe2a321bf732a81eae9f4bb5df537686b1c9e6dbc7f954a8cfa3189fb7",
+      "size_bytes": 27182,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 153
+    },
+    {
+      "filename": "20260903000002_wealth_admin_management.sql",
+      "version": "20260903000002",
+      "sha256": "602c2e9ccf5c97540de0266fb5ac75cb27a1f01f4117d3f235bb48ebcf66763f",
+      "size_bytes": 6265,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 154
+    },
+    {
+      "filename": "20260904000000_rocket_crash_realtime_replica_identity.sql",
+      "version": "20260904000000",
+      "sha256": "d08d0490b2ef4b2ec67fd3afee0812142d993b8073075897b4817ca29f75affe",
+      "size_bytes": 1666,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 155
+    },
+    {
+      "filename": "20260905000000_rocket_crash_settlement_cadence.sql",
+      "version": "20260905000000",
+      "sha256": "52311cd6575c4887907cb6852267fbe037a57f875242dc0975ceecf913f699af",
+      "size_bytes": 8207,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 156
+    },
+    {
+      "filename": "20260906000000_wealth_system_fixes.sql",
+      "version": "20260906000000",
+      "sha256": "9dd9e1a5248ca5ee53bbe9c8764e9c2d24b7b0386351ed9263718b8a14adc6a9",
+      "size_bytes": 6460,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 157
+    },
+    {
+      "filename": "20260907000000_secure_withdrawal_request_reads.sql",
+      "version": "20260907000000",
+      "sha256": "342e7533eb1d5432dc0070baac7a4117f3610e43995ecd0954e478c4b8a92c6d",
+      "size_bytes": 4252,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 158
+    },
+    {
+      "filename": "20260908000000_fix_room_image_message_and_moderation.sql",
+      "version": "20260908000000",
+      "sha256": "718c8efe56ad1ae0fa299cdac258d705bf5dbc4776baec36bfabed879a189e72",
+      "size_bytes": 3857,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 159
+    },
+    {
+      "filename": "20260909000000_charm_level_system.sql",
+      "version": "20260909000000",
+      "sha256": "abb82372810fa531c44c21eb212f611b78fa46c5749edc0f1ffbcd83037ca0cc",
+      "size_bytes": 8958,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 160
+    },
+    {
+      "filename": "20260910000000_follow_list_rpc.sql",
+      "version": "20260910000000",
+      "sha256": "1c925d607e78da857b0572054fa5360ee4df865f0fc086e2ef5f65f1501bfd77",
+      "size_bytes": 3541,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 161
+    },
+    {
+      "filename": "20260911000000_follow_list_include_viewer.sql",
+      "version": "20260911000000",
+      "sha256": "2f263cbbad6f1cbee61b5d1eb905d7d3b4b13c9a746b4d91636c384e5bf92919",
+      "size_bytes": 3000,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 162
+    },
+    {
+      "filename": "20260912000000_daily_rewards.sql",
+      "version": "20260912000000",
+      "sha256": "b6f80d939ee6c9800e847b82f24ee2d6a4b42d8194630fae660507eadc0c8b60",
+      "size_bytes": 15834,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 163
+    },
+    {
+      "filename": "20260913000000_profile_one_time_fields.sql",
+      "version": "20260913000000",
+      "sha256": "f6fd78cc1c3d6ce06d279f45e663fa01fbd1072df1bab419498035eaec8b4352",
+      "size_bytes": 4045,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 164
+    },
+    {
+      "filename": "20260914000000_claim_speaker_seat_rpc.sql",
+      "version": "20260914000000",
+      "sha256": "d6ee7f33f8e125fda8fd0a266232709d4c1ec8c9009363ca7b1f594c4b85aa89",
+      "size_bytes": 4844,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 165
+    },
+    {
+      "filename": "20260915000000_get_active_member_counts_rpc.sql",
+      "version": "20260915000000",
+      "sha256": "5f4829423cc0d5b3332d05e828b501bb67fb6c403f77a621e916a4dd9ea499fc",
+      "size_bytes": 2160,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 166
+    },
+    {
+      "filename": "20260916000000_rocket_crash_security_fixes.sql",
+      "version": "20260916000000",
+      "sha256": "98ced45297077422c7a7310b921154781335353eb7cde155c666488d52586317",
+      "size_bytes": 1084,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 167
+    },
+    {
+      "filename": "20260917000000_revoke_local_crash_cashout.sql",
+      "version": "20260917000000",
+      "sha256": "2f4b943d42ae1f5c4d3127530e3d3131d0192b207628ed34f1359190ab402db8",
+      "size_bytes": 905,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 168
+    },
+    {
+      "filename": "20260918000000_request_payout_rpc.sql",
+      "version": "20260918000000",
+      "sha256": "ed551c480f52471ed9689c26c4cf2a0b40cdd8c21995ac1314897b4c1de15c0f",
+      "size_bytes": 2579,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 169
+    },
+    {
+      "filename": "20260919000000_fix_join_room_seat_conflict.sql",
+      "version": "20260919000000",
+      "sha256": "942ac180e9eba35b6e6ba6f151a407cdcaa4beafee499134ca9204610a6cdbcc",
+      "size_bytes": 2339,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 170
+    },
+    {
+      "filename": "20260920000000_revoke_legacy_submit_user_report.sql",
+      "version": "20260920000000",
+      "sha256": "64594d4235060b3fe8016740dd806822e736e8ade073758e3fab5ec2b1d170b3",
+      "size_bytes": 499,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 171
+    },
+    {
+      "filename": "20260921000000_enrich_report_evidence_metadata.sql",
+      "version": "20260921000000",
+      "sha256": "235a379ef0f65502c839708858fa10510cf004696489f8128508141e522e2d7f",
+      "size_bytes": 5377,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 172
+    },
+    {
+      "filename": "20260922000000_admin_payout_request_rpcs.sql",
+      "version": "20260922000000",
+      "sha256": "467cb8be5b396f9a4df4133b1370bfe4b7c4a46d3942f4de87b9fb395e9915ef",
+      "size_bytes": 6222,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 173
+    },
+    {
+      "filename": "20260923000000_fix_host_seat_claim.sql",
+      "version": "20260923000000",
+      "sha256": "d8fa7ab18017dc148b498369122b8abd8c84dddae380932e05d6c0bc9e1f2d30",
+      "size_bytes": 3818,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 174
+    },
+    {
+      "filename": "20260924000000_fix_ghost_seat_eviction.sql",
+      "version": "20260924000000",
+      "sha256": "5fab3c1bb4c5ad1ff87cc5133024a39c49a2249a4aa87c68d37fae4ef31136e4",
+      "size_bytes": 5217,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 175
+    },
+    {
+      "filename": "20260925000000_closed_seats.sql",
+      "version": "20260925000000",
+      "sha256": "96c90b4106be6aa843c367564d7eff59b4babf68bf5bd9a5ed034932d852a3c3",
+      "size_bytes": 3390,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 176
+    },
+    {
+      "filename": "20260926000000_room_level.sql",
+      "version": "20260926000000",
+      "sha256": "6678d0a36ac6a66dadf6e2767b6b275f2d5a8846a7f62f0ac5e08e1103b88dd8",
+      "size_bytes": 388,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 177
+    },
+    {
+      "filename": "20260926010000_room_xp_system.sql",
+      "version": "20260926010000",
+      "sha256": "940e30e52332a873cd994108362b52a7842a7c66c7936da0ed0b06d4a9bf18ab",
+      "size_bytes": 14372,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 178
+    },
+    {
+      "filename": "20260926020000_room_allow_images.sql",
+      "version": "20260926020000",
+      "sha256": "255c75cf95338806cda5226a5e5bfa903a096fd907c30e1ed25f6d587a15139e",
+      "size_bytes": 165,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 179
+    },
+    {
+      "filename": "20260926030000_6digit_public_user_id.sql",
+      "version": "20260926030000",
+      "sha256": "4a510c5652d0e63f38709c758f22663f9eb6d681738e9cb1cf1dc3f6eb745976",
+      "size_bytes": 1855,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 180
+    },
+    {
+      "filename": "20260926040000_room_public_code.sql",
+      "version": "20260926040000",
+      "sha256": "f1b881cfabe121a1e7b8e3ebc2f2171f01518e30c47f570409be774485135eb5",
+      "size_bytes": 2560,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 181
+    },
+    {
+      "filename": "20260926050000_room_mute.sql",
+      "version": "20260926050000",
+      "sha256": "2af83d500de3d98f717ce7298ceff74d46b0822da71c5b2140aba7e3fefe2e1f",
+      "size_bytes": 1494,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 182
+    },
+    {
+      "filename": "20260926060000_admin_edit_gender_country.sql",
+      "version": "20260926060000",
+      "sha256": "387809499298b709a3fd8f42b3dcafff39ee5e7ae6084349a5feb9e17962ad55",
+      "size_bytes": 6270,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 183
+    },
+    {
+      "filename": "20260926070000_rooms_country_code.sql",
+      "version": "20260926070000",
+      "sha256": "f817e2bbe1cf42dda82aabccc8c5d9fd4fc1c15c8b9c9676bfdbcc642f8dcbde",
+      "size_bytes": 1076,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 184
+    },
+    {
+      "filename": "20260926100000_harden_rocket_crash_rpc_grants.sql",
+      "version": "20260926100000",
+      "sha256": "443f182a30d4a7512c6a803463e632a9d06599c6f73a2377453dd9f2503c2847",
+      "size_bytes": 3051,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 185
+    },
+    {
+      "filename": "20260927000000_fix_admin_list_rooms_rm_status.sql",
+      "version": "20260927000000",
+      "sha256": "c6d645d98d2d856a64b1905eb7b4971f51df7910cbd87fab88f8f1c7f885e824",
+      "size_bytes": 1402,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 186
+    },
+    {
+      "filename": "20260929000000_rocket_crash_indexes.sql",
+      "version": "20260929000000",
+      "sha256": "e3b048f6bc35c2d698390984076643a634af164758f1ab7320462f64396f7551",
+      "size_bytes": 2336,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 187
+    },
+    {
+      "filename": "20260929010000_rocket_crash_current_round_rpc.sql",
+      "version": "20260929010000",
+      "sha256": "de44d947fa09065e1a5ced423ec4b88679be1b9f8a52e410555fe8c6071ea4d2",
+      "size_bytes": 2048,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 188
+    },
+    {
+      "filename": "20260930000000_admin_set_room_public_code.sql",
+      "version": "20260930000000",
+      "sha256": "4c9fd136ff5dc54e3680768e7642aa7e15e0da1ab46b52352eb265aa8cb4445b",
+      "size_bytes": 3624,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 189
+    },
+    {
+      "filename": "20260930010000_fix_admin_set_room_public_code_audit_casts.sql",
+      "version": "20260930010000",
+      "sha256": "cbd7f99bbe218bce3abc6c9d0b7af6f0d39c1514389e99c633d08304d0e98a17",
+      "size_bytes": 1114,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 190
+    },
+    {
+      "filename": "20260930020000_fix_admin_set_room_public_code_audit_casts.sql",
+      "version": "20260930020000",
+      "sha256": "6a07d05d2742bc987c0d3aa740f39cf59e24098c666378a97ead91be85678698",
+      "size_bytes": 1136,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 191
+    },
+    {
+      "filename": "20261001000000_admin_room_archive_delete.sql",
+      "version": "20261001000000",
+      "sha256": "45e21aff3abd424ca1b41dc4ceb6f48640dcbc822f5377d6d583e4bea6b119c5",
+      "size_bytes": 5398,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 192
+    },
+    {
+      "filename": "20261001010000_admin_list_rooms_filter_deleted.sql",
+      "version": "20261001010000",
+      "sha256": "86611489a1c3df49d7c2f00228ba062571e548e5a2b577f89e1e8bdcb01092c9",
+      "size_bytes": 2090,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 193
+    },
+    {
+      "filename": "20261001020000_update_my_profile_add_country_code.sql",
+      "version": "20261001020000",
+      "sha256": "59b3860925174ded59c9769c20c7841e0963f84a81a339e873b71604e1ca72a5",
+      "size_bytes": 2986,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 194
+    },
+    {
+      "filename": "20261001030000_fix_public_user_id_constraint.sql",
+      "version": "20261001030000",
+      "sha256": "2c61c6015f375de2e7b46dd37f70e80f70ea037c3831ed25d789b8a76186f5fb",
+      "size_bytes": 487,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 195
+    },
+    {
+      "filename": "20261001040000_fix_public_user_id_format_rules.sql",
+      "version": "20261001040000",
+      "sha256": "311c95652c30d6e519467a4bd8fe2586ab7c6307244d65529b6bbc1e48ca3426",
+      "size_bytes": 889,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 196
+    },
+    {
+      "filename": "20261002000000_room_music_controller.sql",
+      "version": "20261002000000",
+      "sha256": "1a6ddb94a8ebc4e1326005915a885d3051e1beb6bc4075bbd1f86578c2abc308",
+      "size_bytes": 6667,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 197
+    },
+    {
+      "filename": "20261003000000_room_xp_from_gifts.sql",
+      "version": "20261003000000",
+      "sha256": "8741a209ad6761da16312683062a0c4df537cf2d7f4f26bfa57edfe8a9e823ae",
+      "size_bytes": 8174,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 198
+    },
+    {
+      "filename": "20261010000000_room_level_balance.sql",
+      "version": "20261010000000",
+      "sha256": "1e17f0334e0d32c06ee41cd86aa1c2585ab760cb01d5fbe4ca873b0d50db3381",
+      "size_bytes": 1380,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 199
+    },
+    {
+      "filename": "20261015000000_room_reads.sql",
+      "version": "20261015000000",
+      "sha256": "ed600daf6ae9406f0543216af5654c0d282d4ae7d89458eb3a993c1da9486056",
+      "size_bytes": 2959,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 200
+    },
+    {
+      "filename": "20261020000000_admin_rpc_security.sql",
+      "version": "20261020000000",
+      "sha256": "349dc6c9de606fca109c56bc7d59bd8dfaef4e4d14f6fad5f53798b002c2deeb",
+      "size_bytes": 6696,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 201
+    },
+    {
+      "filename": "20261020000001_admin_rpc_fix_table_name.sql",
+      "version": "20261020000001",
+      "sha256": "0e79a4ec60887d061bba9326859b0a7e2dd2ee7f9f215095fa2b9cb8847761eb",
+      "size_bytes": 1453,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 202
+    },
+    {
+      "filename": "20261021000000_magic_srood_backend_contract.sql",
+      "version": "20261021000000",
+      "sha256": "7e025af7945dfd0419069956faaef95f499cb087d0aae60c69bf43b1edaaad7d",
+      "size_bytes": 26431,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 203
+    },
+    {
+      "filename": "20261022000000_room_reads_authenticated_select.sql",
+      "version": "20261022000000",
+      "sha256": "e86566a84adb48492af667d905cceb2c6c110c07333ea6afaba15552da03d08f",
+      "size_bytes": 204,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 204
+    },
+    {
+      "filename": "20261022000001_tighten_room_reads_grants.sql",
+      "version": "20261022000001",
+      "sha256": "7938f817bf513a5402dc7b74a5ee4ac42b89066860b376aec4b1f6f49002e850",
+      "size_bytes": 328,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 205
+    },
+    {
+      "filename": "20261024000000_retire_legacy_crash_direct_rls.sql",
+      "version": "20261024000000",
+      "sha256": "491cd301f301490103c5cb6483983c1784ad33d0f61d675789990f8facf1fc16",
+      "size_bytes": 4714,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 206
+    },
+    {
+      "filename": "20261025000000_rocket_crash_realtime_secrecy.sql",
+      "version": "20261025000000",
+      "sha256": "3eeaa27d79191a60fcf26d1e411d219aa98f7901203ea99904ec07d13e482100",
+      "size_bytes": 13253,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 207
+    },
+    {
+      "filename": "20261026000000_game_backend_secret_and_write_hardening.sql",
+      "version": "20261026000000",
+      "sha256": "7ce96ea09cd69f7f464339e3a7be64ed79d8c4f8fdb075bc49c6de91e6501436",
+      "size_bytes": 11797,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 208
+    },
+    {
+      "filename": "20261027000000_account_deletion_and_push_tokens.sql",
+      "version": "20261027000000",
+      "sha256": "899108cd73130fbb11c570c4e8dc1a1342ba74a53dd85dcfe8113e8bf7fe6d8c",
+      "size_bytes": 10930,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 209
+    },
+    {
+      "filename": "20261030000000_gamification_read_contract.sql",
+      "version": "20261030000000",
+      "sha256": "5603c39795daea160bdda76d7e2b3a5326054bb512dcc294db19dd5c00420511",
+      "size_bytes": 11502,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 210
+    },
+    {
+      "filename": "20261031000000_push_notification_delivery.sql",
+      "version": "20261031000000",
+      "sha256": "c360e2cfe2f0755cd8508d10f85b66747577539b11ff6298412d423e132f60be",
+      "size_bytes": 10405,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 211
+    },
+    {
+      "filename": "20261102000000_agency_hostess_foundation.sql",
+      "version": "20261102000000",
+      "sha256": "f66ec7c460b15abba4b2bc8f939cecec5cbf5ad514a961f1f6636fd9b8008979",
+      "size_bytes": 18690,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 212
+    },
+    {
+      "filename": "20261103000000_agency_phase2_rpcs.sql",
+      "version": "20261103000000",
+      "sha256": "ee8e45a6e5edb2fbccaa6d96272aaf14858c5635c31ac5572361edefb7f5b6d9",
+      "size_bytes": 8654,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 213
+    },
+    {
+      "filename": "20261104000000_withdrawal_commission_split.sql",
+      "version": "20261104000000",
+      "sha256": "0f2524ae92035db3386651f2a6a980d998272d1012b0700e2c91ac142ac042b4",
+      "size_bytes": 10658,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 214
+    },
+    {
+      "filename": "20261105000000_agency_hostess_production_contract.sql",
+      "version": "20261105000000",
+      "sha256": "858a151672b885eb173b22a0878f89f530d4c8b9132b537da8b5ad8fc77c0dcb",
+      "size_bytes": 17197,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 215
+    },
+    {
+      "filename": "20261106000000_room_music_reliability_and_storage_hardening.sql",
+      "version": "20261106000000",
+      "sha256": "b62d3a4b861f73e853c6616d11a4300e47fd27502bd9baf6096df1dfd8e09e2a",
+      "size_bytes": 11966,
+      "classification": "legacy_prod_applied",
+      "included_in_baseline": true,
+      "reason": "Recorded as applied in production migration history; end-state captured by the baseline dump.",
+      "original_order": 216
+    }
+  ]
+}

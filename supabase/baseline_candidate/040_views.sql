@@ -1,0 +1,3 @@
+-- Baseline 040 — views (3: v_leaderboard_earners/_gifters/_followed).
+-- SOURCE: pg_dump 'CREATE VIEW' section (pg_get_viewdef). Already reconstructed
+-- and validated in supabase/migrations/20260611033000_baseline_manual_leaderboard_views.sql.

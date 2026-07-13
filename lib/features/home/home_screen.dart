@@ -87,12 +87,17 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final isArabic =
-        AppLanguageController.of(context).locale.languageCode == 'ar';
+  // Cached tab pages. Reusing the identical widget instances lets Flutter
+  // skip re-building the visible page when only the nav bar state changes
+  // (unread badges, selected tab) — the profile page in particular is not
+  // re-laid-out by badge updates.
+  List<Widget>? _pages;
+  bool? _pagesArabic;
 
-    final pages = [
+  List<Widget> _buildPages(bool isArabic) {
+    if (_pages != null && _pagesArabic == isArabic) return _pages!;
+    _pagesArabic = isArabic;
+    return _pages = [
       RoomsScreen(isArabic: isArabic),
       MessagesScreen(
         isArabic: isArabic,
@@ -106,6 +111,14 @@ class _HomeScreenState extends State<HomeScreen> {
       WalletScreen(isArabic: isArabic),
       ProfileScreen(isArabic: isArabic),
     ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isArabic =
+        AppLanguageController.of(context).locale.languageCode == 'ar';
+
+    final pages = _buildPages(isArabic);
 
     return Scaffold(
       extendBody: true,
@@ -293,18 +306,14 @@ class _NavTile extends StatelessWidget {
                         item.gradBot.withValues(alpha: 0.10),
                       ],
               ),
+              // Single restrained glow — the selected tab reads clearly
+              // without dominating the page content above it.
               boxShadow: selected
                   ? [
                       BoxShadow(
-                        color: item.glow.withValues(alpha: 0.60),
-                        blurRadius: 16,
-                        spreadRadius: 1,
-                        offset: const Offset(0, 5),
-                      ),
-                      BoxShadow(
-                        color: item.glow.withValues(alpha: 0.25),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
+                        color: item.glow.withValues(alpha: 0.38),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
                     ]
                   : [],

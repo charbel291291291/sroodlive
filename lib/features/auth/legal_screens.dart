@@ -167,11 +167,7 @@ class _LegalScaffold extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFF12061F),
-                Color(0xFF07030D),
-                Color(0xFF050208),
-              ],
+              colors: [Color(0xFF12061F), Color(0xFF07030D), Color(0xFF050208)],
             ),
           ),
           child: SafeArea(

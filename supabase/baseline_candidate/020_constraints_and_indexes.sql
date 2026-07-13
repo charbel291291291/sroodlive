@@ -1,0 +1,3 @@
+-- Baseline 020 — PK/UNIQUE/CHECK/FK constraints (231 FKs) + indexes (403).
+-- SOURCE: pg_dump 'ALTER TABLE ... ADD CONSTRAINT' + 'CREATE INDEX' sections.
+-- Placed after 010 so FK targets exist. auth.users references preserved.

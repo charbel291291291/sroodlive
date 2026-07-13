@@ -43,17 +43,17 @@ class VipService {
   /// Call once at app startup (e.g. in main.dart or AppState).
   void init() {
     _authSub?.cancel();
-    _authSub = SupabaseService.requiredClient.auth.onAuthStateChange.listen(
-      (event) {
-        if (event.event == AuthChangeEvent.signedOut) {
-          clearCache();
-          _stopMyVipChannel();
-        } else if (event.event == AuthChangeEvent.signedIn ||
-            event.event == AuthChangeEvent.tokenRefreshed) {
-          unawaited(_refreshMyVipFromServer());
-        }
-      },
-    );
+    _authSub = SupabaseService.requiredClient.auth.onAuthStateChange.listen((
+      event,
+    ) {
+      if (event.event == AuthChangeEvent.signedOut) {
+        clearCache();
+        _stopMyVipChannel();
+      } else if (event.event == AuthChangeEvent.signedIn ||
+          event.event == AuthChangeEvent.tokenRefreshed) {
+        unawaited(_refreshMyVipFromServer());
+      }
+    });
   }
 
   /// Release resources. Usually called only on full app shutdown.
@@ -101,16 +101,17 @@ class VipService {
 
     try {
       final raw = await SupabaseService.requiredClient.rpc(
-        'get_users_with_vip',
+        'get_public_users_vip',
         params: {'p_user_ids': missing},
       );
 
       if (raw is Map) {
         for (final entry in raw.entries) {
           final uid = entry.key as String;
-          final row = entry.value as Map<String, dynamic>?;
-          final vip =
-              row != null ? UserVip.fromJson(row) : UserVip.none(uid);
+          final rawRow = entry.value;
+          final row = rawRow is Map ? Map<String, dynamic>.from(rawRow) : null;
+          row?['user_id'] = uid;
+          final vip = row != null ? UserVip.fromJson(row) : UserVip.none(uid);
           _cache[uid] = vip;
           result[uid] = vip;
         }
@@ -157,15 +158,18 @@ class VipService {
   /// Force-refresh a single user's VIP from Supabase.
   Future<UserVip?> refreshUserVip(String userId) async {
     try {
-      final raw = await SupabaseService.requiredClient
-          .rpc('get_user_vip', params: {'p_user_id': userId});
+      final raw = await SupabaseService.requiredClient.rpc(
+        'get_public_user_vip',
+        params: {'p_user_id': userId},
+      );
       if (raw == null) {
         final vip = UserVip.none(userId);
         _cache[userId] = vip;
         return vip;
       }
-      final vip =
-          UserVip.fromJson(Map<String, dynamic>.from(raw as Map));
+      final row = Map<String, dynamic>.from(raw as Map);
+      row['user_id'] = userId;
+      final vip = UserVip.fromJson(row);
       _cache[userId] = vip;
       return vip;
     } catch (e, st) {
@@ -184,7 +188,9 @@ class VipService {
           .eq('is_active', true)
           .order('level');
       _levelsCache = (rows as List)
-          .map((r) => VipLevelMeta.fromJson(Map<String, dynamic>.from(r as Map)))
+          .map(
+            (r) => VipLevelMeta.fromJson(Map<String, dynamic>.from(r as Map)),
+          )
           .toList();
       return _levelsCache!;
     } catch (e, st) {
@@ -231,10 +237,7 @@ class VipService {
     required bool enabled,
     int? durationDays,
   }) async {
-    final params = <String, dynamic>{
-      'p_user_id': userId,
-      'p_enabled': enabled,
-    };
+    final params = <String, dynamic>{'p_user_id': userId, 'p_enabled': enabled};
     if (durationDays != null) params['p_duration_days'] = durationDays;
 
     final raw = await SupabaseService.requiredClient.rpc(
@@ -258,11 +261,11 @@ class VipService {
     String frame = 'classic',
   }) async {
     final params = <String, dynamic>{
-      'p_user_id':        userId,
+      'p_user_id': userId,
       'p_public_user_id': publicUserId,
-      'p_enabled':        enabled,
-      'p_style':          style,
-      'p_frame':          frame,
+      'p_enabled': enabled,
+      'p_style': style,
+      'p_frame': frame,
     };
     if (durationDays != null) params['p_duration_days'] = durationDays;
 
@@ -333,9 +336,7 @@ class VipService {
   void _stopMyVipChannel() {
     final ch = _myVipChannel;
     if (ch != null) {
-      unawaited(
-        SupabaseService.requiredClient.removeChannel(ch),
-      );
+      unawaited(SupabaseService.requiredClient.removeChannel(ch));
       _myVipChannel = null;
     }
   }

@@ -108,6 +108,9 @@ class AvatarWithFrame extends StatelessWidget {
     // push the visual opening below the geometric centre. Nudge the photo down
     // so it sits inside the opening instead of behind the crown.
     final avatarDy = isVipPngFrame ? frameSize * 0.035 : 0.0;
+    final dpr = MediaQuery.of(context).devicePixelRatio;
+    final avatarCachePx = (avatarSize * dpr).round();
+    final frameCachePx = (frameSize * dpr).round();
 
     final sizedBox = SizedBox(
       width: frameSize,
@@ -129,6 +132,8 @@ class AvatarWithFrame extends StatelessWidget {
                         alignment: imageAlignment,
                         width: avatarSize,
                         height: avatarSize,
+                        memCacheWidth: avatarCachePx,
+                        memCacheHeight: avatarCachePx,
                         errorWidget: (context, error, stackTrace) =>
                             _AvatarFallback(
                               icon: fallbackIcon,
@@ -148,6 +153,8 @@ class AvatarWithFrame extends StatelessWidget {
                     frameAssetPath,
                     fit: BoxFit.contain,
                     filterQuality: FilterQuality.high,
+                    cacheWidth: frameCachePx,
+                    cacheHeight: frameCachePx,
                     errorBuilder: (context, error, stackTrace) =>
                         const SizedBox.shrink(),
                   ),
