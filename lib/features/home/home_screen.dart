@@ -293,18 +293,14 @@ class _NavTile extends StatelessWidget {
                         item.gradBot.withValues(alpha: 0.10),
                       ],
               ),
+              // Single restrained glow — the selected tab reads clearly
+              // without dominating the page content above it.
               boxShadow: selected
                   ? [
                       BoxShadow(
-                        color: item.glow.withValues(alpha: 0.60),
-                        blurRadius: 16,
-                        spreadRadius: 1,
-                        offset: const Offset(0, 5),
-                      ),
-                      BoxShadow(
-                        color: item.glow.withValues(alpha: 0.25),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
+                        color: item.glow.withValues(alpha: 0.38),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
                     ]
                   : [],
