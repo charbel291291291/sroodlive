@@ -130,178 +130,191 @@ class _RechargeRequestSheetState extends State<RechargeRequestSheet> {
   Widget build(BuildContext context) {
     final isArabic = context.isArabic;
     final textDirection = isArabic ? TextDirection.rtl : TextDirection.ltr;
+    final media = MediaQuery.of(context);
+    final compactHeight = media.size.height < 760;
     final packages = widget.packages.isEmpty
         ? RechargePackage.fallbackPackages()
         : widget.packages;
 
     return SafeArea(
-      child: Padding(
+      top: false,
+      child: AnimatedPadding(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
         padding: EdgeInsets.fromLTRB(
           18,
+          compactHeight ? 12 : 18,
           18,
-          18,
-          MediaQuery.viewInsetsOf(context).bottom + 18,
+          media.viewInsets.bottom,
         ),
-        child: SingleChildScrollView(
-          child: Directionality(
-            textDirection: textDirection,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  textDirection: textDirection,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        isArabic
-                            ? '\u0637\u0644\u0628 \u0634\u062d\u0646'
-                            : 'Recharge Request',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      tooltip: '\u0625\u063a\u0644\u0627\u0642',
-                      icon: const Icon(
-                        Icons.close_rounded,
-                        color: Color(0xFF9E91B8),
-                        size: 20,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  isArabic
-                      ? '\u0627\u062f\u0641\u0639 \u0639\u0628\u0631 \u0648\u0643\u064a\u0644 \u0634\u062d\u0646 \u0631\u0633\u0645\u064a \u062b\u0645 \u0623\u0631\u0633\u0644 \u0631\u0642\u0645 \u0627\u0644\u0639\u0645\u0644\u064a\u0629.'
-                      : 'Send payment to an official ${AppConfig.instance.appDisplayName} recharge agent, then submit the reference.',
-                  style: const TextStyle(
-                    color: Color(0xFFD8CFEA),
-                    fontWeight: FontWeight.w700,
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: packages
-                      .map(
-                        (package) => ChoiceChip(
-                          selected: _selectedPackage?.id == package.id,
-                          label: Text(
-                            '${_formatUsd(package.priceUsd)} USD - ${_formatCoins(package.totalCoins)}',
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: media.size.height * 0.86),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.only(bottom: media.viewPadding.bottom + 18),
+            child: Directionality(
+              textDirection: textDirection,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    textDirection: textDirection,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          isArabic
+                              ? '\u0637\u0644\u0628 \u0634\u062d\u0646'
+                              : 'Recharge Request',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
                           ),
-                          onSelected: (_) => _setPackage(package),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      )
-                      .toList(),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  isArabic
-                      ? '\u0627\u0644\u0633\u0639\u0631 \u0627\u0644\u0623\u0633\u0627\u0633\u064a: 1 USD = 20,000 \u0639\u0645\u0644\u0629'
-                      : 'Base rate: 1 USD = 20,000 ${AppConfig.instance.coinsLabel}',
-                  style: const TextStyle(
-                    color: Color(0xFFF0C15A),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        tooltip: '\u0625\u063a\u0644\u0627\u0642',
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: Color(0xFF9E91B8),
+                          size: 20,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 14),
-                _WalletSheetField(
-                  controller: _coinsController,
-                  label: isArabic
-                      ? '\u0627\u0644\u0639\u0645\u0644\u0627\u062a'
-                      : 'Coins',
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<RechargeMethod>(
-                  initialValue: _method,
-                  dropdownColor: const Color(0xFF1B102B),
-                  decoration: InputDecoration(
-                    labelText: isArabic
-                        ? '\u0627\u0644\u0637\u0631\u064a\u0642\u0629'
-                        : 'Method',
+                  const SizedBox(height: 8),
+                  Text(
+                    isArabic
+                        ? '\u0627\u062f\u0641\u0639 \u0639\u0628\u0631 \u0648\u0643\u064a\u0644 \u0634\u062d\u0646 \u0631\u0633\u0645\u064a \u062b\u0645 \u0623\u0631\u0633\u0644 \u0631\u0642\u0645 \u0627\u0644\u0639\u0645\u0644\u064a\u0629.'
+                        : 'Send payment to an official ${AppConfig.instance.appDisplayName} recharge agent, then submit the reference.',
+                    style: const TextStyle(
+                      color: Color(0xFFD8CFEA),
+                      fontWeight: FontWeight.w700,
+                      height: 1.35,
+                    ),
                   ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: RechargeMethod.omt,
-                      child: Text('OMT'),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: packages
+                        .map(
+                          (package) => ChoiceChip(
+                            selected: _selectedPackage?.id == package.id,
+                            label: Text(
+                              '${_formatUsd(package.priceUsd)} USD - ${_formatCoins(package.totalCoins)}',
+                            ),
+                            onSelected: (_) => _setPackage(package),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    isArabic
+                        ? '\u0627\u0644\u0633\u0639\u0631 \u0627\u0644\u0623\u0633\u0627\u0633\u064a: 1 USD = 20,000 \u0639\u0645\u0644\u0629'
+                        : 'Base rate: 1 USD = 20,000 ${AppConfig.instance.coinsLabel}',
+                    style: const TextStyle(
+                      color: Color(0xFFF0C15A),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
                     ),
-                    DropdownMenuItem(
-                      value: RechargeMethod.wish,
-                      child: Text('Wish'),
+                  ),
+                  const SizedBox(height: 14),
+                  _WalletSheetField(
+                    controller: _coinsController,
+                    label: isArabic
+                        ? '\u0627\u0644\u0639\u0645\u0644\u0627\u062a'
+                        : 'Coins',
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<RechargeMethod>(
+                    initialValue: _method,
+                    dropdownColor: const Color(0xFF1B102B),
+                    decoration: InputDecoration(
+                      labelText: isArabic
+                          ? '\u0627\u0644\u0637\u0631\u064a\u0642\u0629'
+                          : 'Method',
                     ),
-                    DropdownMenuItem(
-                      value: RechargeMethod.usdt,
-                      child: Text('USDT'),
+                    items: const [
+                      DropdownMenuItem(
+                        value: RechargeMethod.omt,
+                        child: Text('OMT'),
+                      ),
+                      DropdownMenuItem(
+                        value: RechargeMethod.wish,
+                        child: Text('Wish'),
+                      ),
+                      DropdownMenuItem(
+                        value: RechargeMethod.usdt,
+                        child: Text('USDT'),
+                      ),
+                      DropdownMenuItem(
+                        value: RechargeMethod.agent,
+                        child: Text('Recharge Agent'),
+                      ),
+                      DropdownMenuItem(
+                        value: RechargeMethod.cash,
+                        child: Text('Cash'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() => _method = value);
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  _WalletSheetField(
+                    controller: _amountController,
+                    label: isArabic
+                        ? '\u0627\u0644\u0645\u0628\u0644\u063a USD'
+                        : 'Amount USD',
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
                     ),
-                    DropdownMenuItem(
-                      value: RechargeMethod.agent,
-                      child: Text('Recharge Agent'),
-                    ),
-                    DropdownMenuItem(
-                      value: RechargeMethod.cash,
-                      child: Text('Cash'),
+                  ),
+                  const SizedBox(height: 10),
+                  _WalletSheetField(
+                    controller: _referenceController,
+                    label: isArabic
+                        ? '\u0631\u0642\u0645 \u0627\u0644\u0645\u0631\u062c\u0639'
+                        : 'Reference code',
+                  ),
+                  const SizedBox(height: 10),
+                  _WalletSheetField(
+                    controller: _agentController,
+                    label: isArabic
+                        ? '\u0643\u0648\u062f \u0627\u0644\u0648\u0643\u064a\u0644'
+                        : 'Agent code',
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      _error!,
+                      style: const TextStyle(
+                        color: Color(0xFFFF5C7A),
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ],
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() => _method = value);
-                  },
-                ),
-                const SizedBox(height: 10),
-                _WalletSheetField(
-                  controller: _amountController,
-                  label: isArabic
-                      ? '\u0627\u0644\u0645\u0628\u0644\u063a USD'
-                      : 'Amount USD',
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                _WalletSheetField(
-                  controller: _referenceController,
-                  label: isArabic
-                      ? '\u0631\u0642\u0645 \u0627\u0644\u0645\u0631\u062c\u0639'
-                      : 'Reference code',
-                ),
-                const SizedBox(height: 10),
-                _WalletSheetField(
-                  controller: _agentController,
-                  label: isArabic
-                      ? '\u0643\u0648\u062f \u0627\u0644\u0648\u0643\u064a\u0644'
-                      : 'Agent code',
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    _error!,
-                    style: const TextStyle(
-                      color: Color(0xFFFF5C7A),
-                      fontWeight: FontWeight.w800,
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: _submit,
+                    icon: const Icon(Icons.send_rounded),
+                    label: Text(
+                      isArabic
+                          ? '\u0625\u0631\u0633\u0627\u0644 \u0637\u0644\u0628 \u0627\u0644\u0634\u062d\u0646'
+                          : 'Submit recharge request',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: _submit,
-                  icon: const Icon(Icons.send_rounded),
-                  label: Text(
-                    isArabic
-                        ? '\u0625\u0631\u0633\u0627\u0644 \u0637\u0644\u0628 \u0627\u0644\u0634\u062d\u0646'
-                        : 'Submit recharge request',
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
