@@ -8,7 +8,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:srood_live/features/profile/presentation/srood_profile_avatar.dart';
 import 'package:srood_live/features/profile/presentation/srood_profile_bio_card.dart';
 import 'package:srood_live/features/profile/presentation/srood_profile_header.dart';
+import 'package:srood_live/features/profile/presentation/srood_profile_metrics.dart';
 import 'package:srood_live/features/profile/presentation/srood_profile_stats.dart';
+import 'package:srood_live/features/profile/presentation/srood_profile_theme.dart';
 import 'package:srood_live/features/profile/presentation/srood_progress_card.dart';
 import 'package:srood_live/features/profile/presentation/srood_social_stats_card.dart';
 import 'package:srood_live/features/profile_hub/models/profile_hub_models.dart';
@@ -29,13 +31,30 @@ Widget wrap(Widget child, {double width = 375, bool rtl = false}) {
   );
 }
 
+/// Metrics fixture matching what SroodProfileMetrics.of computes for the
+/// given screen width (test wraps content in a SizedBox of that width).
+SroodProfileMetrics metricsFor(double width) {
+  final contentWidth = width.clamp(0.0, 520.0) - 32;
+  return SroodProfileMetrics(
+    screenWidth: width,
+    contentWidth: contentWidth,
+    horizontalPadding: 16,
+    avatarShell: SroodProfileDims.avatarShell(contentWidth),
+    sectionGap: SroodProfileDims.sectionGap,
+    compact: contentWidth <= 330,
+    bottomPadding: 112,
+  );
+}
+
 SroodProfileHeader header({
   String name = 'Test User',
   int vipLevel = 0,
   bool isArabic = false,
   String country = '',
+  double width = 375,
 }) {
   return SroodProfileHeader(
+    metrics: metricsFor(width),
     displayName: name,
     publicUserId: '12345678',
     avatarUrl: null,
@@ -92,6 +111,7 @@ void main() {
               name: 'A ridiculously long display name that keeps on going',
               vipLevel: 5,
               country: 'Lebanon',
+              width: width,
             ),
             width: width,
           ),
@@ -108,6 +128,7 @@ void main() {
           header(
             name: 'اسم عربي طويل جداً جداً جداً لاختبار القص في الواجهة',
             isArabic: true,
+            width: 320,
           ),
           width: 320,
           rtl: true,

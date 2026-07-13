@@ -14,6 +14,7 @@ class SroodProfileStats extends StatelessWidget {
     required this.gender,
     this.charmLevel,
     this.wealthLevel,
+    this.compact = false,
     super.key,
   });
 
@@ -21,6 +22,9 @@ class SroodProfileStats extends StatelessWidget {
   final String gender;
   final int? charmLevel;
   final int? wealthLevel;
+
+  /// Narrow-phone mode, decided once by the screen's metrics object.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -64,22 +68,20 @@ class SroodProfileStats extends StatelessWidget {
 
     if (items.isEmpty) return const SizedBox.shrink();
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // On very narrow screens shrink internal padding, never stack.
-        final compact = constraints.maxWidth <= 330;
-        return Row(
-          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-          children: [
-            for (var i = 0; i < items.length; i++) ...[
-              if (i > 0) const SizedBox(width: 8),
-              Expanded(
-                child: _StatTile(spec: items[i], compact: compact),
-              ),
-            ],
+    // One fixed-height row of equal tiles — no per-build width probing.
+    return SizedBox(
+      height: compact ? 54 : 62,
+      child: Row(
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        children: [
+          for (var i = 0; i < items.length; i++) ...[
+            if (i > 0) const SizedBox(width: 8),
+            Expanded(
+              child: _StatTile(spec: items[i], compact: compact),
+            ),
           ],
-        );
-      },
+        ],
+      ),
     );
   }
 }
@@ -120,6 +122,7 @@ class _StatTile extends StatelessWidget {
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.center,

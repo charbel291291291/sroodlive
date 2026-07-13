@@ -1,6 +1,8 @@
+import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:srood_live/shared/utils/error_utils.dart';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -36,12 +38,27 @@ import 'widgets/country_picker_sheet.dart';
 import 'widgets/mini_profile_skeleton.dart';
 import 'presentation/srood_profile_bio_card.dart';
 import 'presentation/srood_profile_header.dart';
+import 'presentation/srood_profile_metrics.dart';
 import 'presentation/srood_profile_stats.dart';
 import 'presentation/srood_progress_card.dart';
 import 'presentation/srood_social_stats_card.dart';
 import 'package:srood_live/core/extensions/locale_extension.dart';
 import 'package:srood_live/shared/widgets/srood_toast.dart';
 import 'utils/vip_assets.dart';
+
+/// Debug-only Timeline marker around a profile section's construction —
+/// shows up as named events in DevTools; compiled to a plain call in release.
+Widget _timedProfileSection(String name, Widget Function() build) {
+  if (kDebugMode) {
+    developer.Timeline.startSync(name);
+    try {
+      return build();
+    } finally {
+      developer.Timeline.finishSync();
+    }
+  }
+  return build();
+}
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({required this.isArabic, super.key});
@@ -161,7 +178,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() {
           isLoading = false;
           errorMessage = context.isArabic
-              ? 'Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ù…Ø³ØªØ®Ø¯Ù… Ù…Ø³Ø¬Ù‘Ù„.'
+              ? 'Ã™â€žÃ˜Â§ Ã™Å Ã™Ë†Ã˜Â¬Ã˜Â¯ Ã™â€¦Ã˜Â³Ã˜ÂªÃ˜Â®Ã˜Â¯Ã™â€¦ Ã™â€¦Ã˜Â³Ã˜Â¬Ã™â€˜Ã™â€ž.'
               : 'No logged-in user found.';
         });
         return;
@@ -233,7 +250,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         debugPrint('[LevelSync] failed to load level: $e');
       }
 
-      // Charm and Wealth levels are secondary â€” failures never block the screen.
+      // Charm and Wealth levels are secondary Ã¢â‚¬â€ failures never block the screen.
       int? loadedCharmLevel;
       int? loadedWealthLevel;
       await Future.wait([
@@ -276,7 +293,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         isLoading = false;
         errorMessage = context.isArabic
-            ? 'ÙØ´Ù„ ØªØ­Ù…ÙŠÙ„ Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠ: $error'
+            ? 'Ã™ÂÃ˜Â´Ã™â€ž Ã˜ÂªÃ˜Â­Ã™â€¦Ã™Å Ã™â€ž Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™Â Ã˜Â§Ã™â€žÃ˜Â´Ã˜Â®Ã˜ÂµÃ™Å : $error'
             : 'Failed to load profile: $error';
       });
     }
@@ -356,7 +373,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       SroodToast.show(
         context,
         context.isArabic
-            ? 'ÙØ´Ù„ ÙØªØ­ Ø§Ù„ØºØ±ÙØ©: $e'
+            ? 'Ã™ÂÃ˜Â´Ã™â€ž Ã™ÂÃ˜ÂªÃ˜Â­ Ã˜Â§Ã™â€žÃ˜ÂºÃ˜Â±Ã™ÂÃ˜Â©: $e'
             : 'Failed to open room: $e',
         type: SroodToastType.error,
       );
@@ -454,7 +471,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: const Color(0xFF12091D),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: Text(
-          context.isArabic ? 'ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø®Ø±ÙˆØ¬' : 'Sign Out',
+          context.isArabic
+              ? 'Ã˜ÂªÃ˜Â³Ã˜Â¬Ã™Å Ã™â€ž Ã˜Â§Ã™â€žÃ˜Â®Ã˜Â±Ã™Ë†Ã˜Â¬'
+              : 'Sign Out',
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w900,
@@ -463,7 +482,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         content: Text(
           context.isArabic
-              ? 'Ù‡Ù„ Ø£Ù†Øª Ù…ØªØ£ÙƒØ¯ Ø£Ù†Ùƒ ØªØ±ÙŠØ¯ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø®Ø±ÙˆØ¬ØŸ'
+              ? 'Ã™â€¡Ã™â€ž Ã˜Â£Ã™â€ Ã˜Âª Ã™â€¦Ã˜ÂªÃ˜Â£Ã™Æ’Ã˜Â¯ Ã˜Â£Ã™â€ Ã™Æ’ Ã˜ÂªÃ˜Â±Ã™Å Ã˜Â¯ Ã˜ÂªÃ˜Â³Ã˜Â¬Ã™Å Ã™â€ž Ã˜Â§Ã™â€žÃ˜Â®Ã˜Â±Ã™Ë†Ã˜Â¬Ã˜Å¸'
               : 'Are you sure you want to sign out?',
           style: const TextStyle(color: Color(0xFFBCAED6)),
           textAlign: context.isArabic ? TextAlign.right : TextAlign.left,
@@ -472,7 +491,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(
-              context.isArabic ? 'Ø¥Ù„ØºØ§Ø¡' : 'Cancel',
+              context.isArabic ? 'Ã˜Â¥Ã™â€žÃ˜ÂºÃ˜Â§Ã˜Â¡' : 'Cancel',
               style: const TextStyle(color: Color(0xFFBCAED6)),
             ),
           ),
@@ -485,7 +504,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(
-              context.isArabic ? 'ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø®Ø±ÙˆØ¬' : 'Sign Out',
+              context.isArabic
+                  ? 'Ã˜ÂªÃ˜Â³Ã˜Â¬Ã™Å Ã™â€ž Ã˜Â§Ã™â€žÃ˜Â®Ã˜Â±Ã™Ë†Ã˜Â¬'
+                  : 'Sign Out',
             ),
           ),
         ],
@@ -501,14 +522,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!mounted) return;
     SroodToast.show(
       context,
-      context.isArabic ? 'ØªÙ… Ù†Ø³Ø® Ø§Ù„Ù…Ø¹Ø±Ù‘Ù' : 'ID copied',
+      context.isArabic
+          ? 'Ã˜ÂªÃ™â€¦ Ã™â€ Ã˜Â³Ã˜Â® Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â¹Ã˜Â±Ã™â€˜Ã™Â'
+          : 'ID copied',
       type: SroodToastType.success,
     );
   }
 
   Future<void> _showEditProfileSheet() async {
     const genderOptions = ['male', 'female', 'other'];
-    final genderLabelsAr = ['Ø°ÙƒØ±', 'Ø£Ù†Ø«Ù‰', 'Ø¢Ø®Ø±'];
+    final genderLabelsAr = [
+      'Ã˜Â°Ã™Æ’Ã˜Â±',
+      'Ã˜Â£Ã™â€ Ã˜Â«Ã™â€°',
+      'Ã˜Â¢Ã˜Â®Ã˜Â±',
+    ];
     const genderLabelsEn = ['Male', 'Female', 'Other'];
 
     await showModalBottomSheet<void>(
@@ -550,7 +577,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       Text(
                         context.isArabic
-                            ? 'ØªØ¹Ø¯ÙŠÙ„ Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠ'
+                            ? 'Ã˜ÂªÃ˜Â¹Ã˜Â¯Ã™Å Ã™â€ž Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™Â Ã˜Â§Ã™â€žÃ˜Â´Ã˜Â®Ã˜ÂµÃ™Å '
                             : 'Edit Profile',
                         style: const TextStyle(
                           color: Colors.white,
@@ -561,13 +588,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 16),
                       _ProfileInput(
                         controller: displayNameController,
-                        label: context.isArabic ? 'Ø§Ù„Ù„Ù‚Ø¨' : 'Nickname',
+                        label: context.isArabic
+                            ? 'Ã˜Â§Ã™â€žÃ™â€žÃ™â€šÃ˜Â¨'
+                            : 'Nickname',
                         isArabic: context.isArabic,
                       ),
                       _ProfileInput(
                         controller: birthDateController,
                         label: context.isArabic
-                            ? 'ØªØ§Ø±ÙŠØ® Ø§Ù„Ù…ÙŠÙ„Ø§Ø¯'
+                            ? 'Ã˜ÂªÃ˜Â§Ã˜Â±Ã™Å Ã˜Â® Ã˜Â§Ã™â€žÃ™â€¦Ã™Å Ã™â€žÃ˜Â§Ã˜Â¯'
                             : 'Date of birth',
                         isArabic: context.isArabic,
                         readOnly: true,
@@ -577,7 +606,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Padding(
                         padding: const EdgeInsets.only(bottom: 4),
                         child: Text(
-                          context.isArabic ? 'Ø§Ù„Ø¯ÙˆÙ„Ø©' : 'Country',
+                          context.isArabic
+                              ? 'Ã˜Â§Ã™â€žÃ˜Â¯Ã™Ë†Ã™â€žÃ˜Â©'
+                              : 'Country',
                           textAlign: context.isArabic
                               ? TextAlign.right
                               : TextAlign.left,
@@ -609,10 +640,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: Text(
                           countryLocked
                               ? (context.isArabic
-                                    ? 'Ø§Ù„Ø¯ÙˆÙ„Ø© Ù…Ù‚ÙÙ„Ø©.'
+                                    ? 'Ã˜Â§Ã™â€žÃ˜Â¯Ã™Ë†Ã™â€žÃ˜Â© Ã™â€¦Ã™â€šÃ™ÂÃ™â€žÃ˜Â©.'
                                     : 'Country is locked.')
                               : (context.isArabic
-                                    ? 'ÙŠÙ…ÙƒÙ†Ùƒ ØªØºÙŠÙŠØ± Ø§Ù„Ø¯ÙˆÙ„Ø© Ù…Ø±Ø© ÙˆØ§Ø­Ø¯Ø© ÙÙ‚Ø·.'
+                                    ? 'Ã™Å Ã™â€¦Ã™Æ’Ã™â€ Ã™Æ’ Ã˜ÂªÃ˜ÂºÃ™Å Ã™Å Ã˜Â± Ã˜Â§Ã™â€žÃ˜Â¯Ã™Ë†Ã™â€žÃ˜Â© Ã™â€¦Ã˜Â±Ã˜Â© Ã™Ë†Ã˜Â§Ã˜Â­Ã˜Â¯Ã˜Â© Ã™ÂÃ™â€šÃ˜Â·.'
                                     : 'You can change country only once.'),
                           style: lockHint,
                         ),
@@ -627,7 +658,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             initialValue: selectedGender,
                             decoration: InputDecoration(
                               labelText: context.isArabic
-                                  ? 'Ø§Ù„Ø¬Ù†Ø³'
+                                  ? 'Ã˜Â§Ã™â€žÃ˜Â¬Ã™â€ Ã˜Â³'
                                   : 'Gender',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(18),
@@ -658,17 +689,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: Text(
                           genderLocked
                               ? (context.isArabic
-                                    ? 'Ø§Ù„Ø¬Ù†Ø³ Ù…Ù‚ÙÙ„.'
+                                    ? 'Ã˜Â§Ã™â€žÃ˜Â¬Ã™â€ Ã˜Â³ Ã™â€¦Ã™â€šÃ™ÂÃ™â€ž.'
                                     : 'Gender is locked.')
                               : (context.isArabic
-                                    ? 'ÙŠÙ…ÙƒÙ†Ùƒ ØªØºÙŠÙŠØ± Ø§Ù„Ø¬Ù†Ø³ Ù…Ø±Ø© ÙˆØ§Ø­Ø¯Ø© ÙÙ‚Ø·.'
+                                    ? 'Ã™Å Ã™â€¦Ã™Æ’Ã™â€ Ã™Æ’ Ã˜ÂªÃ˜ÂºÃ™Å Ã™Å Ã˜Â± Ã˜Â§Ã™â€žÃ˜Â¬Ã™â€ Ã˜Â³ Ã™â€¦Ã˜Â±Ã˜Â© Ã™Ë†Ã˜Â§Ã˜Â­Ã˜Â¯Ã˜Â© Ã™ÂÃ™â€šÃ˜Â·.'
                                     : 'You can change gender only once.'),
                           style: lockHint,
                         ),
                       ),
                       _ProfileInput(
                         controller: bioController,
-                        label: context.isArabic ? 'Ø§Ù„Ù†Ø¨Ø°Ø©' : 'Bio',
+                        label: context.isArabic
+                            ? 'Ã˜Â§Ã™â€žÃ™â€ Ã˜Â¨Ã˜Â°Ã˜Â©'
+                            : 'Bio',
                         isArabic: context.isArabic,
                         maxLines: 4,
                       ),
@@ -689,10 +722,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           label: Text(
                             isSaving
                                 ? (context.isArabic
-                                      ? 'Ø¬Ø§Ø± Ø§Ù„Ø­ÙØ¸...'
+                                      ? 'Ã˜Â¬Ã˜Â§Ã˜Â± Ã˜Â§Ã™â€žÃ˜Â­Ã™ÂÃ˜Â¸...'
                                       : 'Saving...')
                                 : (context.isArabic
-                                      ? 'Ø­ÙØ¸ Ø§Ù„ØªØºÙŠÙŠØ±Ø§Øª'
+                                      ? 'Ã˜Â­Ã™ÂÃ˜Â¸ Ã˜Â§Ã™â€žÃ˜ÂªÃ˜ÂºÃ™Å Ã™Å Ã˜Â±Ã˜Â§Ã˜Âª'
                                       : 'Save changes'),
                           ),
                         ),
@@ -771,7 +804,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             setState(() {
               isUploadingAvatar = false;
               errorMessage = isArabic
-                  ? 'ØµÙˆØ± Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠ Ø§Ù„Ù…ØªØ­Ø±ÙƒØ© Ù…ØªØ§Ø­Ø© Ù„Ù€ VIP 8+ Ø£Ùˆ Ø§Ù„Ù…Ø³ØªÙˆÙ‰ 60 ÙØ£Ø¹Ù„Ù‰.'
+                  ? 'Ã˜ÂµÃ™Ë†Ã˜Â± Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™Â Ã˜Â§Ã™â€žÃ˜Â´Ã˜Â®Ã˜ÂµÃ™Å  Ã˜Â§Ã™â€žÃ™â€¦Ã˜ÂªÃ˜Â­Ã˜Â±Ã™Æ’Ã˜Â© Ã™â€¦Ã˜ÂªÃ˜Â§Ã˜Â­Ã˜Â© Ã™â€žÃ™â‚¬ VIP 8+ Ã˜Â£Ã™Ë† Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â³Ã˜ÂªÃ™Ë†Ã™â€° 60 Ã™ÂÃ˜Â£Ã˜Â¹Ã™â€žÃ™â€°.'
                   : 'Animated profile pictures are available for VIP 8+ or Level 60+.';
             });
           }
@@ -789,7 +822,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             setState(() {
               isUploadingAvatar = false;
               errorMessage = isArabic
-                  ? 'Ø­Ø¬Ù… Ù…Ù„Ù GIF ÙƒØ¨ÙŠØ± Ø¬Ø¯Ø§Ù‹. Ø§Ù„Ø­Ø¯ Ø§Ù„Ø£Ù‚ØµÙ‰ 2 Ù…ÙŠØºØ§Ø¨Ø§ÙŠØª.'
+                  ? 'Ã˜Â­Ã˜Â¬Ã™â€¦ Ã™â€¦Ã™â€žÃ™Â GIF Ã™Æ’Ã˜Â¨Ã™Å Ã˜Â± Ã˜Â¬Ã˜Â¯Ã˜Â§Ã™â€¹. Ã˜Â§Ã™â€žÃ˜Â­Ã˜Â¯ Ã˜Â§Ã™â€žÃ˜Â£Ã™â€šÃ˜ÂµÃ™â€° 2 Ã™â€¦Ã™Å Ã˜ÂºÃ˜Â§Ã˜Â¨Ã˜Â§Ã™Å Ã˜Âª.'
                   : 'GIF file is too large. Maximum allowed size is 2 MB.';
             });
           }
@@ -821,7 +854,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (mounted) {
           setState(() {
             successMessage = isArabic
-                ? 'ØªÙ… ØªØ­Ø¯ÙŠØ« Ø§Ù„ØµÙˆØ±Ø©.'
+                ? 'Ã˜ÂªÃ™â€¦ Ã˜ÂªÃ˜Â­Ã˜Â¯Ã™Å Ã˜Â« Ã˜Â§Ã™â€žÃ˜ÂµÃ™Ë†Ã˜Â±Ã˜Â©.'
                 : 'Profile image updated.';
           });
         }
@@ -829,7 +862,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
 
       // Static image path
-      // Crop/adjust step â€” the picked image is NOT uploaded until the user taps
+      // Crop/adjust step Ã¢â‚¬â€ the picked image is NOT uploaded until the user taps
       // Save on the crop screen. Cancel returns null and uploads nothing.
       if (!mounted) return;
       final croppedBytes = await Navigator.of(context).push<Uint8List>(
@@ -875,7 +908,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         setState(() {
           successMessage = isArabic
-              ? 'ØªÙ… ØªØ­Ø¯ÙŠØ« Ø§Ù„ØµÙˆØ±Ø©.'
+              ? 'Ã˜ÂªÃ™â€¦ Ã˜ÂªÃ˜Â­Ã˜Â¯Ã™Å Ã˜Â« Ã˜Â§Ã™â€žÃ˜ÂµÃ™Ë†Ã˜Â±Ã˜Â©.'
               : 'Profile image updated.';
         });
       }
@@ -883,7 +916,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         setState(() {
           errorMessage = isArabic
-              ? 'ÙØ´Ù„ Ø±ÙØ¹ Ø§Ù„ØµÙˆØ±Ø©: $error'
+              ? 'Ã™ÂÃ˜Â´Ã™â€ž Ã˜Â±Ã™ÂÃ˜Â¹ Ã˜Â§Ã™â€žÃ˜ÂµÃ™Ë†Ã˜Â±Ã˜Â©: $error'
               : 'Image upload failed: $error';
         });
       }
@@ -950,13 +983,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await _loadProfile();
       setState(() {
         successMessage = context.isArabic
-            ? 'ØªÙ… Ø­ÙØ¸ Ø¥Ø·Ø§Ø± Ø§Ù„ØµÙˆØ±Ø©.'
+            ? 'Ã˜ÂªÃ™â€¦ Ã˜Â­Ã™ÂÃ˜Â¸ Ã˜Â¥Ã˜Â·Ã˜Â§Ã˜Â± Ã˜Â§Ã™â€žÃ˜ÂµÃ™Ë†Ã˜Â±Ã˜Â©.'
             : 'Avatar frame saved.';
       });
     } catch (error) {
       setState(() {
         errorMessage = context.isArabic
-            ? 'ÙØ´Ù„ Ø­ÙØ¸ Ø§Ù„Ø¥Ø·Ø§Ø±: $error'
+            ? 'Ã™ÂÃ˜Â´Ã™â€ž Ã˜Â­Ã™ÂÃ˜Â¸ Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â·Ã˜Â§Ã˜Â±: $error'
             : 'Frame save failed: $error';
       });
     }
@@ -988,7 +1021,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         successMessage = null;
         errorMessage = isArabic
-            ? 'Ø§Ù„Ù„Ù‚Ø¨ ÙŠØ¬Ø¨ Ø£Ù† ÙŠÙƒÙˆÙ† Ø­Ø±ÙÙŠÙ† Ø£Ùˆ Ø£ÙƒØ«Ø±.'
+            ? 'Ã˜Â§Ã™â€žÃ™â€žÃ™â€šÃ˜Â¨ Ã™Å Ã˜Â¬Ã˜Â¨ Ã˜Â£Ã™â€  Ã™Å Ã™Æ’Ã™Ë†Ã™â€  Ã˜Â­Ã˜Â±Ã™ÂÃ™Å Ã™â€  Ã˜Â£Ã™Ë† Ã˜Â£Ã™Æ’Ã˜Â«Ã˜Â±.'
             : 'Nickname must be 2 characters or more.';
       });
       return;
@@ -1026,7 +1059,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           setState(() {
             isSaving = false;
             errorMessage = isArabic
-                ? 'ÙŠÙ…ÙƒÙ† ØªØºÙŠÙŠØ± Ø§Ù„Ø¬Ù†Ø³ Ù…Ø±Ø© ÙˆØ§Ø­Ø¯Ø© ÙÙ‚Ø·.'
+                ? 'Ã™Å Ã™â€¦Ã™Æ’Ã™â€  Ã˜ÂªÃ˜ÂºÃ™Å Ã™Å Ã˜Â± Ã˜Â§Ã™â€žÃ˜Â¬Ã™â€ Ã˜Â³ Ã™â€¦Ã˜Â±Ã˜Â© Ã™Ë†Ã˜Â§Ã˜Â­Ã˜Â¯Ã˜Â© Ã™ÂÃ™â€šÃ˜Â·.'
                 : 'Gender can only be changed once.';
           });
           return;
@@ -1035,7 +1068,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           setState(() {
             isSaving = false;
             errorMessage = isArabic
-                ? 'ÙŠÙ…ÙƒÙ† ØªØºÙŠÙŠØ± Ø§Ù„Ø¯ÙˆÙ„Ø© Ù…Ø±Ø© ÙˆØ§Ø­Ø¯Ø© ÙÙ‚Ø·.'
+                ? 'Ã™Å Ã™â€¦Ã™Æ’Ã™â€  Ã˜ÂªÃ˜ÂºÃ™Å Ã™Å Ã˜Â± Ã˜Â§Ã™â€žÃ˜Â¯Ã™Ë†Ã™â€žÃ˜Â© Ã™â€¦Ã˜Â±Ã˜Â© Ã™Ë†Ã˜Â§Ã˜Â­Ã˜Â¯Ã˜Â© Ã™ÂÃ™â€šÃ˜Â·.'
                 : 'Country can only be changed once.';
           });
           return;
@@ -1046,13 +1079,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await _loadProfile();
       setState(() {
         successMessage = isArabic
-            ? 'ØªÙ… Ø­ÙØ¸ Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠ.'
+            ? 'Ã˜ÂªÃ™â€¦ Ã˜Â­Ã™ÂÃ˜Â¸ Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™Â Ã˜Â§Ã™â€žÃ˜Â´Ã˜Â®Ã˜ÂµÃ™Å .'
             : 'Profile saved.';
       });
     } catch (error) {
       setState(() {
         errorMessage = isArabic
-            ? 'ÙØ´Ù„ Ø§Ù„Ø­ÙØ¸: $error'
+            ? 'Ã™ÂÃ˜Â´Ã™â€ž Ã˜Â§Ã™â€žÃ˜Â­Ã™ÂÃ˜Â¸: $error'
             : 'Save failed: $error';
       });
     } finally {
@@ -1097,8 +1130,242 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ? displayNameController.text.trim()
         : (usernameController.text.trim().isNotEmpty
               ? usernameController.text.trim()
-              : (isArabic ? 'Ø¹Ø¶Ùˆ Ø³Ø±ÙˆØ¯' : 'SrOOd Member'));
+              : (isArabic ? 'Ã˜Â¹Ã˜Â¶Ã™Ë† Ã˜Â³Ã˜Â±Ã™Ë†Ã˜Â¯' : 'SrOOd Member'));
     final uid = SupabaseService.requiredClient.auth.currentUser?.id;
+
+    // One immutable metrics object per build â€” sections never probe
+    // MediaQuery/LayoutBuilder themselves.
+    final metrics = SroodProfileMetrics.of(context);
+
+    // Section builders for the lazy sliver list. Each closure is invoked by
+    // the sliver delegate only when its item enters (or nears) the viewport,
+    // so below-the-fold sections cost nothing on the first frame.
+    final sections = <Widget Function()>[
+      // 1. Premium profile header â€” centered identity (above the fold).
+      () => _timedProfileSection(
+        'ProfileHeaderBuild',
+        () => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: SroodProfileHeader(
+            metrics: metrics,
+            displayName: displayName,
+            publicUserId: publicUserId,
+            avatarUrl: avatarUrl,
+            frameKey: selectedAvatarFrameKey,
+            vipLevel: effectiveVipLevel,
+            isGoldenId: isGoldenId,
+            goldenIdStyle: goldenIdStyle,
+            goldenIdFrame: goldenIdFrame,
+            country: country,
+            isUploadingAvatar: isUploadingAvatar,
+            isArabic: isArabic,
+            onAvatarTap: _uploadAvatar,
+            onEditTap: _showEditProfileSheet,
+            onFrameTap: _chooseAvatarFrame,
+            onCopyId: () => _copyPublicId(publicUserId),
+            animatedFrame: _isPremiumFrameKey(selectedAvatarFrameKey),
+          ),
+        ),
+      ),
+
+      // 2. Identity badges â€” Charm / Wealth / Gender.
+      () => _timedProfileSection(
+        'ProfileStatsBuild',
+        () => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: SroodProfileStats(
+            isArabic: isArabic,
+            gender: gender,
+            charmLevel: _charmLevel,
+            wealthLevel: _wealthLevel,
+            compact: metrics.compact,
+          ),
+        ),
+      ),
+
+      // 3. Bio card â€” owner can edit; tap expands long bios.
+      () => _timedProfileSection(
+        'ProfileBioBuild',
+        () => Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: SroodProfileBioCard(
+            bio: bio,
+            isArabic: isArabic,
+            onEditTap: _showEditProfileSheet,
+          ),
+        ),
+      ),
+
+      // 4. Social stats (Friends / Following / Followers)
+      () => _timedProfileSection(
+        'ProfileSocialBuild',
+        () => Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: SroodSocialStatsCard(
+            isArabic: isArabic,
+            followers: followersCount,
+            following: followingCount,
+            friends: friendsCount,
+            onFollowersTap: uid == null
+                ? null
+                : () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => FollowListScreen(
+                        userId: uid,
+                        kind: 'followers',
+                        isArabic: isArabic,
+                      ),
+                    ),
+                  ),
+            onFollowingTap: uid == null
+                ? null
+                : () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => FollowListScreen(
+                        userId: uid,
+                        kind: 'following',
+                        isArabic: isArabic,
+                      ),
+                    ),
+                  ),
+            onFriendsTap: uid == null
+                ? null
+                : () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => FollowListScreen(
+                        userId: uid,
+                        kind: 'friends',
+                        isArabic: isArabic,
+                      ),
+                    ),
+                  ),
+          ),
+        ),
+      ),
+
+      // 5. Progress & status â€” typically at the fold; built lazily.
+      () => _timedProfileSection(
+        'ProfileProgressBuild',
+        () => Padding(
+          padding: const EdgeInsets.only(bottom: 24),
+          child: SroodProgressCard(
+            isArabic: isArabic,
+            userLevel: _userLevel,
+            vipLevel: effectiveVipLevel,
+            charmLevel: _charmLevel,
+            wealthLevel: _wealthLevel,
+            onLevelTap: _openLevels,
+            onVipTap: _openVipCenter,
+            onWealthTap: _openWealthCenter,
+          ),
+        ),
+      ),
+
+      // â”€â”€ Below the fold: constructed only when scrolled toward â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      () => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: _MiniProfileSectionTitle(
+          icon: Icons.bolt_rounded,
+          title: isArabic ? 'Ø§Ù„ÙˆØµÙˆÙ„ Ø§Ù„Ø³Ø±ÙŠØ¹' : 'Quick Access',
+          subtitle: isArabic
+              ? 'Ø£Ù‡Ù… Ù…Ø²Ø§ÙŠØ§ Ø­Ø³Ø§Ø¨Ùƒ ÙÙŠ Ù…ÙƒØ§Ù† ÙˆØ§Ø­Ø¯'
+              : 'Your most-used account features',
+        ),
+      ),
+      () => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: _ProfileGiftWallCard(
+          giftsReceived: giftsReceivedCount,
+          isArabic: isArabic,
+        ),
+      ),
+      () => Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: _WalletCards(
+          coins: coins,
+          diamonds: diamonds,
+          isArabic: isArabic,
+          isLoading: isLoading,
+          onCoinsTap: _openWalletScreen,
+          onDiamondsTap: _openWalletScreen,
+        ),
+      ),
+      () => Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: _VipUpgradeBanner(
+          vipLevel: effectiveVipLevel,
+          isArabic: isArabic,
+          onTap: _openVipCenter,
+        ),
+      ),
+      () => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: _MiniProfileSectionTitle(
+          icon: Icons.grid_view_rounded,
+          title: isArabic
+              ? 'Ø§Ù„Ù…Ø²Ø§ÙŠØ§ ÙˆØ§Ù„Ø£Ø¯ÙˆØ§Øª'
+              : 'Features & Tools',
+          subtitle: isArabic
+              ? 'Ø®ØµØµ Ø­Ø³Ø§Ø¨Ùƒ ÙˆØ£Ø¯Ø± ØªØ¬Ø±Ø¨ØªÙƒ'
+              : 'Customize and manage your experience',
+        ),
+      ),
+      () => Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: _QuickActionsGrid(
+          isArabic: isArabic,
+          onVipCenter: _openVipCenter,
+          onStore: _openStore,
+          onBackpack: _openBackpack,
+          onLevels: _openLevels,
+          onMyRoom: _openMyRoom,
+          roomLoading: _roomLoading,
+          onWealthCenter: _openWealthCenter,
+          onSettings: () => _openProfileHub(SettingsScreen(isArabic: isArabic)),
+        ),
+      ),
+      if (errorMessage != null)
+        () => Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: _ProfileNotice(
+            message: errorMessage!,
+            isSuccess: false,
+            isArabic: isArabic,
+          ),
+        ),
+      if (successMessage != null)
+        () => Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: _ProfileNotice(
+            message: successMessage!,
+            isSuccess: true,
+            isArabic: isArabic,
+          ),
+        ),
+      () => Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: _DailyCheckinCard(isArabic: isArabic, onTap: _openCheckin),
+      ),
+      // Host & Agency routes to the secured Phase 1/2 flow (MyAgencyScreen),
+      // never the legacy direct-table AgencyManagementScreen.
+      () => Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: _HostAgencySection(
+          isArabic: isArabic,
+          onMyAgency: () => _openProfileHub(MyAgencyScreen(isArabic: isArabic)),
+        ),
+      ),
+      () => Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: _AccountSection(
+          isArabic: isArabic,
+          onWallet: _openWalletScreen,
+          onCustomerService: () =>
+              _openProfileHub(CustomerServiceScreen(isArabic: isArabic)),
+        ),
+      ),
+      () => _LogoutButton(isArabic: isArabic, onTap: _confirmLogout),
+    ];
 
     return Container(
       decoration: const BoxDecoration(
@@ -1116,216 +1383,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onRefresh: _loadProfile,
               color: const Color(0xFF8B26D9),
               backgroundColor: const Color(0xFF1A0D33),
-              child: SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(
-                  16,
-                  12,
-                  16,
-                  MediaQuery.of(context).padding.bottom + 32 + 80,
-                ),
-                child: Column(
-                  children: [
-                    // 1. Premium profile header â€” centered identity.
-                    SroodProfileHeader(
-                      displayName: displayName,
-                      publicUserId: publicUserId,
-                      avatarUrl: avatarUrl,
-                      frameKey: selectedAvatarFrameKey,
-                      vipLevel: effectiveVipLevel,
-                      isGoldenId: isGoldenId,
-                      goldenIdStyle: goldenIdStyle,
-                      goldenIdFrame: goldenIdFrame,
-                      country: country,
-                      isUploadingAvatar: isUploadingAvatar,
-                      isArabic: isArabic,
-                      onAvatarTap: _uploadAvatar,
-                      onEditTap: _showEditProfileSheet,
-                      onFrameTap: _chooseAvatarFrame,
-                      onCopyId: () => _copyPublicId(publicUserId),
-                      animatedFrame: _isPremiumFrameKey(selectedAvatarFrameKey),
+              // Lazy sliver list: first-frame layout covers only the visible
+              // sections instead of the whole page column.
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(
+                      metrics.horizontalPadding,
+                      12,
+                      metrics.horizontalPadding,
+                      metrics.bottomPadding,
                     ),
-                    const SizedBox(height: 10),
-
-                    // 2. Identity badges â€” Charm / Wealth / Gender.
-                    SroodProfileStats(
-                      isArabic: isArabic,
-                      gender: gender,
-                      charmLevel: _charmLevel,
-                      wealthLevel: _wealthLevel,
-                    ),
-                    const SizedBox(height: 10),
-
-                    // 3. Bio card â€” owner can edit; tap expands long bios.
-                    SroodProfileBioCard(
-                      bio: bio,
-                      isArabic: isArabic,
-                      onEditTap: _showEditProfileSheet,
-                    ),
-                    const SizedBox(height: 14),
-
-                    // 4. Social stats (Friends / Following / Followers)
-                    SroodSocialStatsCard(
-                      isArabic: isArabic,
-                      followers: followersCount,
-                      following: followingCount,
-                      friends: friendsCount,
-                      onFollowersTap: uid == null
-                          ? null
-                          : () => Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => FollowListScreen(
-                                  userId: uid,
-                                  kind: 'followers',
-                                  isArabic: isArabic,
-                                ),
-                              ),
-                            ),
-                      onFollowingTap: uid == null
-                          ? null
-                          : () => Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => FollowListScreen(
-                                  userId: uid,
-                                  kind: 'following',
-                                  isArabic: isArabic,
-                                ),
-                              ),
-                            ),
-                      onFriendsTap: uid == null
-                          ? null
-                          : () => Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => FollowListScreen(
-                                  userId: uid,
-                                  kind: 'friends',
-                                  isArabic: isArabic,
-                                ),
-                              ),
-                            ),
-                    ),
-                    const SizedBox(height: 14),
-
-                    SroodProgressCard(
-                      isArabic: isArabic,
-                      userLevel: _userLevel,
-                      vipLevel: effectiveVipLevel,
-                      charmLevel: _charmLevel,
-                      wealthLevel: _wealthLevel,
-                      onLevelTap: _openLevels,
-                      onVipTap: _openVipCenter,
-                      onWealthTap: _openWealthCenter,
-                    ),
-                    const SizedBox(height: 24),
-
-                    _MiniProfileSectionTitle(
-                      icon: Icons.bolt_rounded,
-                      title: isArabic
-                          ? 'Ø§Ù„ÙˆØµÙˆÙ„ Ø§Ù„Ø³Ø±ÙŠØ¹'
-                          : 'Quick Access',
-                      subtitle: isArabic
-                          ? 'Ø£Ù‡Ù… Ù…Ø²Ø§ÙŠØ§ Ø­Ø³Ø§Ø¨Ùƒ ÙÙŠ Ù…ÙƒØ§Ù† ÙˆØ§Ø­Ø¯'
-                          : 'Your most-used account features',
-                    ),
-                    const SizedBox(height: 12),
-
-                    // 3. Gifts Received
-                    _ProfileGiftWallCard(
-                      giftsReceived: giftsReceivedCount,
-                      isArabic: isArabic,
-                    ),
-                    const SizedBox(height: 10),
-
-                    // 5. Wallet Cards (Coins + Diamonds)
-                    _WalletCards(
-                      coins: coins,
-                      diamonds: diamonds,
-                      isArabic: isArabic,
-                      isLoading: isLoading,
-                      onCoinsTap: _openWalletScreen,
-                      onDiamondsTap: _openWalletScreen,
-                    ),
-                    const SizedBox(height: 14),
-
-                    // 7. VIP Banner
-                    _VipUpgradeBanner(
-                      vipLevel: effectiveVipLevel,
-                      isArabic: isArabic,
-                      onTap: _openVipCenter,
-                    ),
-                    const SizedBox(height: 14),
-
-                    _MiniProfileSectionTitle(
-                      icon: Icons.grid_view_rounded,
-                      title: isArabic
-                          ? 'Ø§Ù„Ù…Ø²Ø§ÙŠØ§ ÙˆØ§Ù„Ø£Ø¯ÙˆØ§Øª'
-                          : 'Features & Tools',
-                      subtitle: isArabic
-                          ? 'Ø®ØµØµ Ø­Ø³Ø§Ø¨Ùƒ ÙˆØ£Ø¯Ø± ØªØ¬Ø±Ø¨ØªÙƒ'
-                          : 'Customize and manage your experience',
-                    ),
-                    const SizedBox(height: 12),
-
-                    // 8. Quick Actions Grid (6 items)
-                    _QuickActionsGrid(
-                      isArabic: isArabic,
-                      onVipCenter: _openVipCenter,
-                      onStore: _openStore,
-                      onBackpack: _openBackpack,
-                      onLevels: _openLevels,
-                      onMyRoom: _openMyRoom,
-                      roomLoading: _roomLoading,
-                      onWealthCenter: _openWealthCenter,
-                      onSettings: () =>
-                          _openProfileHub(SettingsScreen(isArabic: isArabic)),
-                    ),
-
-                    // Notices
-                    if (errorMessage != null) ...[
-                      const SizedBox(height: 14),
-                      _ProfileNotice(
-                        message: errorMessage!,
-                        isSuccess: false,
-                        isArabic: isArabic,
-                      ),
-                    ],
-                    if (successMessage != null) ...[
-                      const SizedBox(height: 14),
-                      _ProfileNotice(
-                        message: successMessage!,
-                        isSuccess: true,
-                        isArabic: isArabic,
-                      ),
-                    ],
-                    const SizedBox(height: 14),
-
-                    // 9. Daily Check-in Card
-                    _DailyCheckinCard(isArabic: isArabic, onTap: _openCheckin),
-                    const SizedBox(height: 14),
-
-                    // 10. Host & Agency (moved out of Settings). Routes to the
-                    // secured Phase 1/2 flow (MyAgencyScreen), never the legacy
-                    // direct-table AgencyManagementScreen.
-                    _HostAgencySection(
-                      isArabic: isArabic,
-                      onMyAgency: () =>
-                          _openProfileHub(MyAgencyScreen(isArabic: isArabic)),
-                    ),
-                    const SizedBox(height: 14),
-
-                    // 11. Account & Support
-                    _AccountSection(
-                      isArabic: isArabic,
-                      onWallet: _openWalletScreen,
-                      onCustomerService: () => _openProfileHub(
-                        CustomerServiceScreen(isArabic: isArabic),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => sections[index](),
+                        childCount: sections.length,
                       ),
                     ),
-                    const SizedBox(height: 14),
-
-                    // 11. Logout
-                    _LogoutButton(isArabic: isArabic, onTap: _confirmLogout),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -1418,7 +1495,7 @@ class _WalletCards extends StatelessWidget {
         Expanded(
           child: WalletBalanceCard(
             icon: Icons.monetization_on_rounded,
-            label: isArabic ? 'Ø§Ù„Ø¹Ù…Ù„Ø§Øª' : 'Coin wallet',
+            label: isArabic ? 'Ã˜Â§Ã™â€žÃ˜Â¹Ã™â€¦Ã™â€žÃ˜Â§Ã˜Âª' : 'Coin wallet',
             value: coins,
             isLoading: isLoading,
             colors: const [
@@ -1435,7 +1512,9 @@ class _WalletCards extends StatelessWidget {
         Expanded(
           child: WalletBalanceCard(
             icon: Icons.diamond_rounded,
-            label: isArabic ? 'Ø§Ù„Ø£Ù„Ù…Ø§Ø³' : 'Diamonds wallet',
+            label: isArabic
+                ? 'Ã˜Â§Ã™â€žÃ˜Â£Ã™â€žÃ™â€¦Ã˜Â§Ã˜Â³'
+                : 'Diamonds wallet',
             value: diamonds,
             isLoading: isLoading,
             colors: const [
@@ -1810,7 +1889,7 @@ class _VipUpgradeBanner extends StatelessWidget {
                           Text(
                             active
                                 ? (isArabic
-                                      ? 'VIP Ù…Ø³ØªÙˆÙ‰ $vipLevel Ù†Ø´Ø·'
+                                      ? 'VIP Ã™â€¦Ã˜Â³Ã˜ÂªÃ™Ë†Ã™â€° $vipLevel Ã™â€ Ã˜Â´Ã˜Â·'
                                       : 'VIP Lv$vipLevel Active')
                                 : 'VIP',
                             style: const TextStyle(
@@ -1823,10 +1902,10 @@ class _VipUpgradeBanner extends StatelessWidget {
                           Text(
                             active
                                 ? (isArabic
-                                      ? 'Ø§Ø³ØªÙ…ØªØ¹ Ø¨Ù…Ø²Ø§ÙŠØ§ VIP Ø§Ù„Ø­ØµØ±ÙŠØ©'
+                                      ? 'Ã˜Â§Ã˜Â³Ã˜ÂªÃ™â€¦Ã˜ÂªÃ˜Â¹ Ã˜Â¨Ã™â€¦Ã˜Â²Ã˜Â§Ã™Å Ã˜Â§ VIP Ã˜Â§Ã™â€žÃ˜Â­Ã˜ÂµÃ˜Â±Ã™Å Ã˜Â©'
                                       : 'Enjoy your exclusive VIP benefits')
                                 : (isArabic
-                                      ? 'Ø§ÙØªØ­ ØªØ¬Ø±Ø¨Ø© Ù…Ù…ÙŠØ²Ø©'
+                                      ? 'Ã˜Â§Ã™ÂÃ˜ÂªÃ˜Â­ Ã˜ÂªÃ˜Â¬Ã˜Â±Ã˜Â¨Ã˜Â© Ã™â€¦Ã™â€¦Ã™Å Ã˜Â²Ã˜Â©'
                                       : 'Unlock Premium Experience'),
                             style: const TextStyle(
                               color: Color(0xFFF7E9FF),
@@ -1882,19 +1961,19 @@ class _QuickActionsGrid extends StatelessWidget {
     final items = [
       _FeatureTileData(
         icon: Icons.workspace_premium_rounded,
-        label: isArabic ? 'Ù…Ø±ÙƒØ² VIP' : 'VIP Center',
+        label: isArabic ? 'Ã™â€¦Ã˜Â±Ã™Æ’Ã˜Â² VIP' : 'VIP Center',
         onTap: onVipCenter,
         gradientColors: const [Color(0xFFF0C15A), Color(0xFFD99A2B)],
       ),
       _FeatureTileData(
         icon: Icons.storefront_rounded,
-        label: isArabic ? 'Ø§Ù„Ù…ØªØ¬Ø±' : 'Store',
+        label: isArabic ? 'Ã˜Â§Ã™â€žÃ™â€¦Ã˜ÂªÃ˜Â¬Ã˜Â±' : 'Store',
         onTap: onStore,
         gradientColors: const [Color(0xFF9BE88F), Color(0xFF2ECC71)],
       ),
       _FeatureTileData(
         icon: Icons.backpack_rounded,
-        label: isArabic ? 'Ø§Ù„Ø­Ù‚ÙŠØ¨Ø©' : 'Backpack',
+        label: isArabic ? 'Ã˜Â§Ã™â€žÃ˜Â­Ã™â€šÃ™Å Ã˜Â¨Ã˜Â©' : 'Backpack',
         onTap: onBackpack,
         gradientColors: const [Color(0xFFFFD978), Color(0xFFFF9500)],
       ),
@@ -1904,19 +1983,21 @@ class _QuickActionsGrid extends StatelessWidget {
       // are intentionally kept so it can be re-enabled without rebuilding it.
       _FeatureTileData(
         icon: roomLoading ? Icons.hourglass_top_rounded : Icons.home_rounded,
-        label: isArabic ? 'ØºØ±ÙØªÙŠ' : 'My Room',
+        label: isArabic ? 'Ã˜ÂºÃ˜Â±Ã™ÂÃ˜ÂªÃ™Å ' : 'My Room',
         onTap: onMyRoom,
         gradientColors: const [Color(0xFF8B26D9), Color(0xFF4A1478)],
       ),
       _FeatureTileData(
         icon: Icons.diamond_rounded,
-        label: isArabic ? 'Ø§Ù„Ø³Ø­Ø± / Ø§Ù„Ø«Ø±ÙˆØ©' : 'Charm / Wealth',
+        label: isArabic
+            ? 'Ã˜Â§Ã™â€žÃ˜Â³Ã˜Â­Ã˜Â± / Ã˜Â§Ã™â€žÃ˜Â«Ã˜Â±Ã™Ë†Ã˜Â©'
+            : 'Charm / Wealth',
         onTap: onWealthCenter,
         gradientColors: const [Color(0xFFFFD700), Color(0xFF8B26D9)],
       ),
       _FeatureTileData(
         icon: Icons.settings_rounded,
-        label: isArabic ? 'Ø§Ù„Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª' : 'Settings',
+        label: isArabic ? 'Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â¹Ã˜Â¯Ã˜Â§Ã˜Â¯Ã˜Â§Ã˜Âª' : 'Settings',
         onTap: onSettings,
         gradientColors: const [Color(0xFFBCAED6), Color(0xFF6B5E8E)],
       ),
@@ -1936,16 +2017,33 @@ class _QuickActionsGrid extends StatelessWidget {
           ),
         ],
       ),
-      child: GridView.count(
-        crossAxisCount: 3,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 4,
-        childAspectRatio: 0.88,
-        children: items
-            .map((data) => _ProfileFeatureTile(data: data, isArabic: isArabic))
-            .toList(),
+      // Fixed rows of equal tiles — cheaper than a shrinkWrap GridView,
+      // which forces a full grid layout pass inside the scroll view.
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var start = 0; start < items.length; start += 3) ...[
+            if (start > 0) const SizedBox(height: 8),
+            SizedBox(
+              height: 96,
+              child: Row(
+                children: [
+                  for (var i = start; i < start + 3; i++) ...[
+                    if (i > start) const SizedBox(width: 4),
+                    Expanded(
+                      child: i < items.length
+                          ? _ProfileFeatureTile(
+                              data: items[i],
+                              isArabic: isArabic,
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -2044,15 +2142,17 @@ class _AccountSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return _SectionCard(
       isArabic: isArabic,
-      title: isArabic ? 'Ø§Ù„Ø­Ø³Ø§Ø¨ ÙˆØ§Ù„Ø¯Ø¹Ù…' : 'Account & Support',
+      title: isArabic
+          ? 'Ã˜Â§Ã™â€žÃ˜Â­Ã˜Â³Ã˜Â§Ã˜Â¨ Ã™Ë†Ã˜Â§Ã™â€žÃ˜Â¯Ã˜Â¹Ã™â€¦'
+          : 'Account & Support',
       icon: Icons.settings_outlined,
       children: [
         ProfileListRow(
           icon: Icons.account_balance_wallet_rounded,
           iconColor: const Color(0xFF2ECC71),
-          title: isArabic ? 'Ø§Ù„Ù…Ø­ÙØ¸Ø©' : 'Wallet',
+          title: isArabic ? 'Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â­Ã™ÂÃ˜Â¸Ã˜Â©' : 'Wallet',
           subtitle: isArabic
-              ? 'Ø§Ù„Ø´Ø­Ù† ÙˆØ§Ù„Ù…Ø¹Ø§Ù…Ù„Ø§Øª'
+              ? 'Ã˜Â§Ã™â€žÃ˜Â´Ã˜Â­Ã™â€  Ã™Ë†Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â¹Ã˜Â§Ã™â€¦Ã™â€žÃ˜Â§Ã˜Âª'
               : 'Recharge & transactions',
           isArabic: isArabic,
           onTap: onWallet,
@@ -2060,9 +2160,11 @@ class _AccountSection extends StatelessWidget {
         ProfileListRow(
           icon: Icons.support_agent_rounded,
           iconColor: const Color(0xFFFFD978),
-          title: isArabic ? 'Ø®Ø¯Ù…Ø© Ø§Ù„Ø¹Ù…Ù„Ø§Ø¡' : 'Customer Service',
+          title: isArabic
+              ? 'Ã˜Â®Ã˜Â¯Ã™â€¦Ã˜Â© Ã˜Â§Ã™â€žÃ˜Â¹Ã™â€¦Ã™â€žÃ˜Â§Ã˜Â¡'
+              : 'Customer Service',
           subtitle: isArabic
-              ? 'Ù…Ø³Ø§Ø¹Ø¯Ø©ØŒ Ø´Ø­Ù†ØŒ ÙˆØ¨Ù„Ø§ØºØ§Øª'
+              ? 'Ã™â€¦Ã˜Â³Ã˜Â§Ã˜Â¹Ã˜Â¯Ã˜Â©Ã˜Å’ Ã˜Â´Ã˜Â­Ã™â€ Ã˜Å’ Ã™Ë†Ã˜Â¨Ã™â€žÃ˜Â§Ã˜ÂºÃ˜Â§Ã˜Âª'
               : 'Help, recharge & reports',
           isArabic: isArabic,
           onTap: onCustomerService,
@@ -2087,17 +2189,19 @@ class _HostAgencySection extends StatelessWidget {
   Widget build(BuildContext context) {
     return _SectionCard(
       isArabic: isArabic,
-      title: isArabic ? 'Ø§Ù„Ù…Ø¶ÙŠÙ ÙˆØ§Ù„ÙˆÙƒØ§Ù„Ø©' : 'Host & Agency',
+      title: isArabic
+          ? 'Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â¶Ã™Å Ã™Â Ã™Ë†Ã˜Â§Ã™â€žÃ™Ë†Ã™Æ’Ã˜Â§Ã™â€žÃ˜Â©'
+          : 'Host & Agency',
       icon: Icons.groups_rounded,
       children: [
         ProfileListRow(
           icon: Icons.apartment_rounded,
           iconColor: const Color(0xFFF0C15A),
           title: isArabic
-              ? 'Ø§Ù„ÙˆÙƒØ§Ù„Ø© ÙˆØ§Ù„Ø§Ø³ØªØ¶Ø§ÙØ©'
+              ? 'Ã˜Â§Ã™â€žÃ™Ë†Ã™Æ’Ã˜Â§Ã™â€žÃ˜Â© Ã™Ë†Ã˜Â§Ã™â€žÃ˜Â§Ã˜Â³Ã˜ÂªÃ˜Â¶Ã˜Â§Ã™ÂÃ˜Â©'
               : 'Agency & Hosting',
           subtitle: isArabic
-              ? 'Ø­Ø§Ù„ØªÙƒØŒ Ø§Ù†Ø¶Ù… Ø¨ÙƒÙˆØ¯ØŒ Ù‚Ø¯Ù‘Ù… ÙƒÙ…Ø¶ÙŠÙØŒ Ø£Ùˆ Ø£Ø¯Ø± ÙˆÙƒØ§Ù„ØªÙƒ'
+              ? 'Ã˜Â­Ã˜Â§Ã™â€žÃ˜ÂªÃ™Æ’Ã˜Å’ Ã˜Â§Ã™â€ Ã˜Â¶Ã™â€¦ Ã˜Â¨Ã™Æ’Ã™Ë†Ã˜Â¯Ã˜Å’ Ã™â€šÃ˜Â¯Ã™â€˜Ã™â€¦ Ã™Æ’Ã™â€¦Ã˜Â¶Ã™Å Ã™ÂÃ˜Å’ Ã˜Â£Ã™Ë† Ã˜Â£Ã˜Â¯Ã˜Â± Ã™Ë†Ã™Æ’Ã˜Â§Ã™â€žÃ˜ÂªÃ™Æ’'
               : 'Your status, join by code, apply, or manage your agency',
           isArabic: isArabic,
           onTap: onMyAgency,
@@ -2176,7 +2280,9 @@ class _DailyCheckinCard extends StatelessWidget {
                     : CrossAxisAlignment.start,
                 children: [
                   Text(
-                    isArabic ? 'Ø§Ù„Ø­Ø¶ÙˆØ± Ø§Ù„ÙŠÙˆÙ…ÙŠ' : 'Daily Check-in',
+                    isArabic
+                        ? 'Ã˜Â§Ã™â€žÃ˜Â­Ã˜Â¶Ã™Ë†Ã˜Â± Ã˜Â§Ã™â€žÃ™Å Ã™Ë†Ã™â€¦Ã™Å '
+                        : 'Daily Check-in',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
@@ -2186,7 +2292,7 @@ class _DailyCheckinCard extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     isArabic
-                        ? 'Ø³Ø¬Ù‘Ù„ Ø­Ø¶ÙˆØ±Ùƒ ÙˆØ§Ø­ØµÙ„ Ø¹Ù„Ù‰ Ù…ÙƒØ§ÙØ¢Øª ÙŠÙˆÙ…ÙŠØ©'
+                        ? 'Ã˜Â³Ã˜Â¬Ã™â€˜Ã™â€ž Ã˜Â­Ã˜Â¶Ã™Ë†Ã˜Â±Ã™Æ’ Ã™Ë†Ã˜Â§Ã˜Â­Ã˜ÂµÃ™â€ž Ã˜Â¹Ã™â€žÃ™â€° Ã™â€¦Ã™Æ’Ã˜Â§Ã™ÂÃ˜Â¢Ã˜Âª Ã™Å Ã™Ë†Ã™â€¦Ã™Å Ã˜Â©'
                         : 'Check in daily and earn rewards',
                     style: const TextStyle(
                       color: Color(0xFFBCAED6),
@@ -2205,7 +2311,7 @@ class _DailyCheckinCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text(
-                isArabic ? 'ØªØ­Ù‚Ù‚' : 'Check in',
+                isArabic ? 'Ã˜ÂªÃ˜Â­Ã™â€šÃ™â€š' : 'Check in',
                 style: const TextStyle(
                   color: Color(0xFF160B26),
                   fontSize: 12,
@@ -2433,7 +2539,9 @@ class _LogoutButton extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              isArabic ? 'ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø®Ø±ÙˆØ¬' : 'Sign Out',
+              isArabic
+                  ? 'Ã˜ÂªÃ˜Â³Ã˜Â¬Ã™Å Ã™â€ž Ã˜Â§Ã™â€žÃ˜Â®Ã˜Â±Ã™Ë†Ã˜Â¬'
+                  : 'Sign Out',
               style: const TextStyle(
                 color: Color(0xFFFF5C7A),
                 fontSize: 15,
@@ -2585,7 +2693,9 @@ class _AvatarFramePickerSheet extends StatelessWidget {
           child: ListView(
             children: [
               Text(
-                isArabic ? 'Ø¥Ø·Ø§Ø± Ø§Ù„ØµÙˆØ±Ø©' : 'Avatar Frame',
+                isArabic
+                    ? 'Ã˜Â¥Ã˜Â·Ã˜Â§Ã˜Â± Ã˜Â§Ã™â€žÃ˜ÂµÃ™Ë†Ã˜Â±Ã˜Â©'
+                    : 'Avatar Frame',
                 textAlign: isArabic ? TextAlign.right : TextAlign.left,
                 style: const TextStyle(
                   fontSize: 22,
@@ -2602,7 +2712,7 @@ class _AvatarFramePickerSheet extends StatelessWidget {
                 isArabic: isArabic,
               ),
               _AvatarFrameGroup(
-                title: isArabic ? 'Ø¹Ø§Ø¯ÙŠ' : 'Normal',
+                title: isArabic ? 'Ã˜Â¹Ã˜Â§Ã˜Â¯Ã™Å ' : 'Normal',
                 frames: frames
                     .where((frame) => frame.category == 'normal')
                     .toList(),
@@ -2612,7 +2722,7 @@ class _AvatarFramePickerSheet extends StatelessWidget {
                 isArabic: isArabic,
               ),
               _AvatarFrameGroup(
-                title: isArabic ? 'ÙØ§Ø®Ø±' : 'Luxury',
+                title: isArabic ? 'Ã™ÂÃ˜Â§Ã˜Â®Ã˜Â±' : 'Luxury',
                 frames: frames
                     .where((frame) => frame.category == 'luxury')
                     .toList(),
@@ -2734,7 +2844,7 @@ class _AvatarFramePickerTile extends StatelessWidget {
         SroodToast.show(
           context,
           isArabic
-              ? 'Ù‡Ø°Ø§ Ø§Ù„Ø¥Ø·Ø§Ø± Ù…ØªØ§Ø­ Ù„Ù…Ø³ØªÙˆÙ‰ VIP Ø£Ø¹Ù„Ù‰'
+              ? 'Ã™â€¡Ã˜Â°Ã˜Â§ Ã˜Â§Ã™â€žÃ˜Â¥Ã˜Â·Ã˜Â§Ã˜Â± Ã™â€¦Ã˜ÂªÃ˜Â§Ã˜Â­ Ã™â€žÃ™â€¦Ã˜Â³Ã˜ÂªÃ™Ë†Ã™â€° VIP Ã˜Â£Ã˜Â¹Ã™â€žÃ™â€°'
               : 'This frame requires a higher VIP level',
           type: SroodToastType.info,
         );
@@ -2762,7 +2872,10 @@ class _AvatarFramePickerTile extends StatelessWidget {
             const SizedBox(height: 5),
             Flexible(
               child: Text(
-                frame?.name ?? (isArabic ? 'Ø¨Ø¯ÙˆÙ† Ø¥Ø·Ø§Ø±' : 'No Frame'),
+                frame?.name ??
+                    (isArabic
+                        ? 'Ã˜Â¨Ã˜Â¯Ã™Ë†Ã™â€  Ã˜Â¥Ã˜Â·Ã˜Â§Ã˜Â±'
+                        : 'No Frame'),
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -2777,7 +2890,9 @@ class _AvatarFramePickerTile extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               unlocked
-                  ? (selected ? (isArabic ? 'Ù…Ø­Ø¯Ø¯' : 'Selected') : '')
+                  ? (selected
+                        ? (isArabic ? 'Ã™â€¦Ã˜Â­Ã˜Â¯Ã˜Â¯' : 'Selected')
+                        : '')
                   : (isArabic
                         ? 'VIP ${requiredVip ?? 1}'
                         : 'VIP ${requiredVip ?? 1}'),
@@ -2827,7 +2942,7 @@ class _ProfileGiftWallCard extends StatelessWidget {
           _CardHeader(
             icon: Icons.card_giftcard_rounded,
             label: isArabic
-                ? 'Ø§Ù„Ù‡Ø¯Ø§ÙŠØ§ Ø§Ù„Ù…Ø³ØªÙ„Ù…Ø©'
+                ? 'Ã˜Â§Ã™â€žÃ™â€¡Ã˜Â¯Ã˜Â§Ã™Å Ã˜Â§ Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â³Ã˜ÂªÃ™â€žÃ™â€¦Ã˜Â©'
                 : 'Gifts Received',
             iconColor: _rose,
             isArabic: isArabic,
@@ -2835,7 +2950,9 @@ class _ProfileGiftWallCard extends StatelessWidget {
           const SizedBox(height: 12),
           _GiftStatItem(
             icon: Icons.card_giftcard_rounded,
-            label: isArabic ? 'Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ù‡Ø¯Ø§ÙŠØ§' : 'Total gifts',
+            label: isArabic
+                ? 'Ã˜Â¥Ã˜Â¬Ã™â€¦Ã˜Â§Ã™â€žÃ™Å  Ã˜Â§Ã™â€žÃ™â€¡Ã˜Â¯Ã˜Â§Ã™Å Ã˜Â§'
+                : 'Total gifts',
             value: _formatCount(giftsReceived),
             iconColor: _rose,
             glowColor: _rose,

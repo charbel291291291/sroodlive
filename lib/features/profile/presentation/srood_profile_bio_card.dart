@@ -61,21 +61,19 @@ class _SroodProfileBioCardState extends State<SroodProfileBioCard> {
                   ),
                 ),
                 const SizedBox(width: 8),
+                // Plain swap on expand — AnimatedSize would re-measure the
+                // text on every layout pass, which shows up in first-entry
+                // frame times.
                 Expanded(
-                  child: AnimatedSize(
-                    duration: const Duration(milliseconds: 180),
-                    curve: Curves.easeOut,
-                    alignment: Alignment.topCenter,
-                    child: Text(
-                      text,
-                      maxLines: _expanded ? null : 3,
-                      overflow: _expanded ? null : TextOverflow.ellipsis,
-                      style: SroodProfileText.body.copyWith(
-                        color: hasBio
-                            ? SroodProfileColors.textSecondary
-                            : SroodProfileColors.textMuted,
-                        fontStyle: hasBio ? null : FontStyle.italic,
-                      ),
+                  child: Text(
+                    text,
+                    maxLines: _expanded ? null : 3,
+                    overflow: _expanded ? null : TextOverflow.ellipsis,
+                    style: SroodProfileText.body.copyWith(
+                      color: hasBio
+                          ? SroodProfileColors.textSecondary
+                          : SroodProfileColors.textMuted,
+                      fontStyle: hasBio ? null : FontStyle.italic,
                     ),
                   ),
                 ),
