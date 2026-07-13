@@ -53,6 +53,8 @@ class SroodProfileAvatar extends StatelessWidget {
     final avatarDy = showWebpFrame
         ? shellSize * frameLayout.avatarDyFraction
         : 0.0;
+    final dpr = MediaQuery.of(context).devicePixelRatio;
+    final shellCachePx = (shellSize * dpr).round();
 
     return RepaintBoundary(
       child: SizedBox(
@@ -105,13 +107,17 @@ class SroodProfileAvatar extends StatelessWidget {
             // VIP webp frame overlay — pure decoration inside the fixed shell;
             // never affects layout.
             if (showWebpFrame)
-              IgnorePointer(
-                child: Image.asset(
-                  VipAssets.frame(vipLevel),
-                  width: shellSize,
-                  height: shellSize,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+              RepaintBoundary(
+                child: IgnorePointer(
+                  child: Image.asset(
+                    VipAssets.frame(vipLevel),
+                    width: shellSize,
+                    height: shellSize,
+                    cacheWidth: shellCachePx,
+                    cacheHeight: shellCachePx,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                  ),
                 ),
               ),
 
@@ -148,7 +154,7 @@ class SroodProfileAvatar extends StatelessWidget {
                               color: SroodProfileColors.gold.withValues(
                                 alpha: 0.30,
                               ),
-                              blurRadius: 8,
+                              blurRadius: 6,
                               offset: const Offset(0, 2),
                             ),
                           ],

@@ -6,11 +6,7 @@ import 'package:flutter/services.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 class Country {
-  const Country({
-    required this.name,
-    required this.code,
-    required this.flag,
-  });
+  const Country({required this.name, required this.code, required this.flag});
 
   final String name;
   final String code; // ISO 3166-1 alpha-2
@@ -252,19 +248,12 @@ Future<Country?> showCountryPicker(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => CountryPickerSheet(
-      selected: selected,
-      isArabic: isArabic,
-    ),
+    builder: (_) => CountryPickerSheet(selected: selected, isArabic: isArabic),
   );
 }
 
 class CountryPickerSheet extends StatefulWidget {
-  const CountryPickerSheet({
-    super.key,
-    this.selected,
-    this.isArabic = false,
-  });
+  const CountryPickerSheet({super.key, this.selected, this.isArabic = false});
 
   final Country? selected;
   final bool isArabic;
@@ -296,10 +285,12 @@ class _CountryPickerSheetState extends State<CountryPickerSheet> {
       _filtered = q.isEmpty
           ? kAllCountries
           : kAllCountries
-              .where((c) =>
-                  c.name.toLowerCase().contains(q) ||
-                  c.code.toLowerCase().contains(q))
-              .toList();
+                .where(
+                  (c) =>
+                      c.name.toLowerCase().contains(q) ||
+                      c.code.toLowerCase().contains(q),
+                )
+                .toList();
     });
   }
 
@@ -333,8 +324,9 @@ class _CountryPickerSheetState extends State<CountryPickerSheet> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
-              textDirection:
-                  widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+              textDirection: widget.isArabic
+                  ? TextDirection.rtl
+                  : TextDirection.ltr,
               children: [
                 const Icon(
                   Icons.public_rounded,
@@ -369,8 +361,9 @@ class _CountryPickerSheetState extends State<CountryPickerSheet> {
               child: TextField(
                 controller: _search,
                 autofocus: false,
-                textDirection:
-                    widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
+                textDirection: widget.isArabic
+                    ? TextDirection.rtl
+                    : TextDirection.ltr,
                 style: const TextStyle(color: Colors.white, fontSize: 14),
                 decoration: InputDecoration(
                   hintText: widget.isArabic ? 'بحث عن دولة' : 'Search country',
@@ -408,10 +401,7 @@ class _CountryPickerSheetState extends State<CountryPickerSheet> {
           const SizedBox(height: 8),
 
           // Divider
-          Divider(
-            color: Colors.white.withValues(alpha: 0.08),
-            height: 1,
-          ),
+          Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
 
           // Country list
           Expanded(
@@ -432,8 +422,7 @@ class _CountryPickerSheetState extends State<CountryPickerSheet> {
                     itemCount: _filtered.length,
                     itemBuilder: (_, i) {
                       final country = _filtered[i];
-                      final isSelected =
-                          widget.selected?.code == country.code;
+                      final isSelected = widget.selected?.code == country.code;
                       return _CountryRow(
                         country: country,
                         isSelected: isSelected,
@@ -486,10 +475,7 @@ class _CountryRow extends StatelessWidget {
           child: Row(
             children: [
               // Flag emoji
-              Text(
-                country.flag,
-                style: const TextStyle(fontSize: 22),
-              ),
+              Text(country.flag, style: const TextStyle(fontSize: 22)),
               const SizedBox(width: 14),
 
               // Country name
@@ -587,8 +573,9 @@ class CountrySelector extends StatelessWidget {
               Expanded(
                 child: hasValue
                     ? Row(
-                        textDirection:
-                            isArabic ? TextDirection.rtl : TextDirection.ltr,
+                        textDirection: isArabic
+                            ? TextDirection.rtl
+                            : TextDirection.ltr,
                         children: [
                           Text(
                             selected!.flag,

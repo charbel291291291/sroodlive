@@ -48,8 +48,9 @@ class _AvatarCropScreenState extends State<AvatarCropScreen> {
     if (_saving) return;
     setState(() => _saving = true);
     try {
-      final boundary = _boundaryKey.currentContext!.findRenderObject()
-          as RenderRepaintBoundary;
+      final boundary =
+          _boundaryKey.currentContext!.findRenderObject()
+              as RenderRepaintBoundary;
       // Export ~512px square regardless of on-screen size.
       final pixelRatio = (512.0 / cropSize).clamp(1.0, 4.0);
       final ui.Image image = await boundary.toImage(pixelRatio: pixelRatio);
@@ -63,7 +64,13 @@ class _AvatarCropScreenState extends State<AvatarCropScreen> {
       debugError('AvatarCropScreen._save', e, st);
       if (!mounted) return;
       setState(() => _saving = false);
-      SroodToast.show(context, widget.isArabic ? 'تعذّر قص الصورة. حاول مرة أخرى.' : 'Could not crop the image. Please try again.', type: SroodToastType.error);
+      SroodToast.show(
+        context,
+        widget.isArabic
+            ? 'تعذّر قص الصورة. حاول مرة أخرى.'
+            : 'Could not crop the image. Please try again.',
+        type: SroodToastType.error,
+      );
     }
   }
 
@@ -71,8 +78,7 @@ class _AvatarCropScreenState extends State<AvatarCropScreen> {
   Widget build(BuildContext context) {
     final isArabic = widget.isArabic;
     final media = MediaQuery.of(context);
-    final cropSize =
-        (media.size.width - 48).clamp(220.0, 360.0).toDouble();
+    final cropSize = (media.size.width - 48).clamp(220.0, 360.0).toDouble();
 
     return Scaffold(
       backgroundColor: const Color(0xFF0C0518),
@@ -170,13 +176,19 @@ class _AvatarCropScreenState extends State<AvatarCropScreen> {
               ),
               const Spacer(),
               Padding(
-                padding: EdgeInsets.fromLTRB(24, 0, 24, 16 + media.padding.bottom),
+                padding: EdgeInsets.fromLTRB(
+                  24,
+                  0,
+                  24,
+                  16 + media.padding.bottom,
+                ),
                 child: Row(
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed:
-                            _saving ? null : () => Navigator.of(context).pop(),
+                        onPressed: _saving
+                            ? null
+                            : () => Navigator.of(context).pop(),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.white,
                           side: BorderSide(
@@ -246,7 +258,10 @@ class _CropGuidePainter extends CustomPainter {
       Path()..addRect(rect),
       Path()..addOval(Rect.fromCircle(center: center, radius: radius)),
     );
-    canvas.drawPath(outside, Paint()..color = Colors.black.withValues(alpha: 0.45));
+    canvas.drawPath(
+      outside,
+      Paint()..color = Colors.black.withValues(alpha: 0.45),
+    );
 
     // Circle guide.
     canvas.drawCircle(

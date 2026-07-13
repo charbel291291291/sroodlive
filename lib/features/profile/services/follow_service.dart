@@ -49,10 +49,10 @@ class FollowService {
       throw StateError('follow_blocked_by_vip');
     }
 
-    await client.from('user_follows').upsert(
-      {'follower_id': user.id, 'following_id': targetUserId},
-      ignoreDuplicates: true,
-    );
+    await client.from('user_follows').upsert({
+      'follower_id': user.id,
+      'following_id': targetUserId,
+    }, ignoreDuplicates: true);
   }
 
   Future<void> unfollowUser(String targetUserId) async {
@@ -135,8 +135,9 @@ class FollowService {
           .from('user_follows')
           .select('following_id')
           .eq('follower_id', userId);
-      final followingIds =
-          (followingData as List<dynamic>).map((e) => e['following_id'] as String).toSet();
+      final followingIds = (followingData as List<dynamic>)
+          .map((e) => e['following_id'] as String)
+          .toSet();
       if (followingIds.isEmpty) return 0;
       return await client
           .from('user_follows')

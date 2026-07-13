@@ -2,14 +2,15 @@
 ///
 /// Top row: "Srood Profile" label (start) and Edit pill (end). Below it the
 /// fixed-shell avatar, display name (one line, ellipsis), copyable public ID
-/// chip, and a compact country + VIP badge row. All data and callbacks come
-/// from the screen state; the VIP frame never drives the layout size.
+/// chip, and a balanced country + VIP identity row. All data and callbacks
+/// come from the screen state; the VIP frame never drives the layout size.
 library;
 
 import 'package:flutter/material.dart';
 
-import '../../../shared/widgets/vip_badge.dart';
+import '../../../core/vip/vip_spec.dart';
 import '../../../shared/widgets/vip_username.dart';
+import '../../rooms/utils/vip_room_features.dart';
 import '../widgets/country_picker_sheet.dart';
 import 'srood_profile_avatar.dart';
 import 'srood_profile_metrics.dart';
@@ -254,7 +255,7 @@ class SroodProfileHeader extends StatelessWidget {
                 ),
               ),
 
-            // ── Country + VIP badges — one fixed-height row ───────────
+            // ── Country + VIP identity row — one balanced, centered row ──
             if (countryLabel.isNotEmpty || vipLevel > 0) ...[
               const SizedBox(height: 10),
               Row(
@@ -264,10 +265,12 @@ class SroodProfileHeader extends StatelessWidget {
                   if (countryLabel.isNotEmpty)
                     Flexible(
                       child: Container(
-                        height: 24,
-                        padding: const EdgeInsets.symmetric(horizontal: 9),
+                        height: SroodProfileDims.identityChipHeight,
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
                         decoration: BoxDecoration(
-                          color: SroodProfileColors.glassFill,
+                          color: SroodProfileColors.violet.withValues(
+                            alpha: 0.12,
+                          ),
                           borderRadius: BorderRadius.circular(
                             SroodProfileDims.chipRadius,
                           ),
@@ -282,7 +285,7 @@ class SroodProfileHeader extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: SroodProfileColors.textSecondary,
-                              fontSize: 11,
+                              fontSize: 17,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -290,13 +293,61 @@ class SroodProfileHeader extends StatelessWidget {
                       ),
                     ),
                   if (countryLabel.isNotEmpty && vipLevel > 0)
-                    const SizedBox(width: 6),
-                  if (vipLevel > 0) VipBadge(vipLevel: vipLevel),
+                    const SizedBox(width: 10),
+                  if (vipLevel > 0) _ProfileVipChip(vipLevel: vipLevel),
                 ],
               ),
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// VIP identity chip sized to match the country chip in the header row.
+/// Sources its gradient, icon, and label from the same [VipSpecResolver] /
+/// [VipFeatures] data as the shared [VipBadge] elsewhere in the app — only
+/// this row's container dimensions are redesigned.
+class _ProfileVipChip extends StatelessWidget {
+  const _ProfileVipChip({required this.vipLevel});
+
+  final int vipLevel;
+
+  @override
+  Widget build(BuildContext context) {
+    final spec = VipSpecResolver.resolve(vipLevel);
+    final label = VipFeatures.vipLabel(vipLevel);
+
+    return Container(
+      height: SroodProfileDims.identityChipHeight,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: spec.badgeGradient),
+        borderRadius: BorderRadius.circular(SroodProfileDims.chipRadius),
+        boxShadow: [
+          BoxShadow(
+            color: spec.glowColor.withValues(alpha: spec.glowIntensity * 0.55),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(spec.badgeIcon, color: spec.badgeTextColor, size: 18),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: spec.badgeTextColor,
+              fontWeight: FontWeight.w900,
+              fontSize: 16,
+            ),
+          ),
+        ],
       ),
     );
   }

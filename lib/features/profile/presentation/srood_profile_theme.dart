@@ -51,6 +51,9 @@ abstract final class SroodProfileDims {
   static const double chipRadius = 999;
   static const double touchTarget = 44;
 
+  /// Shared height for the header's country + VIP identity chips.
+  static const double identityChipHeight = 44;
+
   /// Fixed avatar shell diameter for the centered identity header,
   /// responsive between phones but never driven by the frame art.
   static double avatarShell(double maxWidth) {
@@ -110,8 +113,8 @@ BoxDecoration sroodProfileCard({bool raised = false, Color? borderColor}) {
     boxShadow: [
       BoxShadow(
         color: const Color(0xFF8B26D9).withValues(alpha: raised ? 0.18 : 0.10),
-        blurRadius: 22,
-        offset: const Offset(0, 10),
+        blurRadius: 10,
+        offset: const Offset(0, 6),
       ),
     ],
   );

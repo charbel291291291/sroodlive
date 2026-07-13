@@ -51,7 +51,10 @@ class _FollowListScreenState extends State<FollowListScreen> {
       }
       // Counts and list share the same source: the get_follow_list RPC over
       // user_follows. viewer_follows comes back per row, so no N+1 queries.
-      final users = await _followService.getFollowList(widget.userId, widget.kind);
+      final users = await _followService.getFollowList(
+        widget.userId,
+        widget.kind,
+      );
       if (!mounted) return;
       setState(() {
         _users = users;
@@ -146,8 +149,11 @@ class _FollowListScreenState extends State<FollowListScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline_rounded,
-                color: Color(0xFFFF6B8A), size: 38),
+            const Icon(
+              Icons.error_outline_rounded,
+              color: Color(0xFFFF6B8A),
+              size: 38,
+            ),
             const SizedBox(height: 12),
             Text(
               isArabic ? 'تعذّر تحميل القائمة' : 'Could not load the list',
@@ -156,8 +162,10 @@ class _FollowListScreenState extends State<FollowListScreen> {
             const SizedBox(height: 12),
             TextButton(
               onPressed: _load,
-              child: Text(isArabic ? 'إعادة المحاولة' : 'Retry',
-                  style: const TextStyle(color: Color(0xFFF0C15A))),
+              child: Text(
+                isArabic ? 'إعادة المحاولة' : 'Retry',
+                style: const TextStyle(color: Color(0xFFF0C15A)),
+              ),
             ),
           ],
         ),
@@ -232,8 +240,11 @@ class _FollowListScreenState extends State<FollowListScreen> {
               shape: BoxShape.circle,
               border: Border.all(color: const Color(0xFF4A3470)),
             ),
-            child: const Icon(Icons.people_outline_rounded,
-                color: Color(0xFF9E91B8), size: 38),
+            child: const Icon(
+              Icons.people_outline_rounded,
+              color: Color(0xFF9E91B8),
+              size: 38,
+            ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -272,7 +283,8 @@ class _UserTile extends StatelessWidget {
     return GestureDetector(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => UserProfileScreen(userId: user.id, isArabic: isArabic),
+          builder: (_) =>
+              UserProfileScreen(userId: user.id, isArabic: isArabic),
         ),
       ),
       child: Container(
@@ -280,7 +292,9 @@ class _UserTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFF160B24),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFF6E3AA8).withValues(alpha: 0.4)),
+          border: Border.all(
+            color: const Color(0xFF6E3AA8).withValues(alpha: 0.4),
+          ),
         ),
         child: Row(
           textDirection: dir,
@@ -288,8 +302,9 @@ class _UserTile extends StatelessWidget {
             CircleAvatar(
               radius: 26,
               backgroundColor: const Color(0xFF241638),
-              backgroundImage:
-                  user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
+              backgroundImage: user.avatarUrl != null
+                  ? NetworkImage(user.avatarUrl!)
+                  : null,
               child: user.avatarUrl == null
                   ? Text(
                       user.displayName.isNotEmpty
@@ -325,7 +340,8 @@ class _UserTile extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (user.gender != null && _genderColor(user.gender) != null) ...[
+                      if (user.gender != null &&
+                          _genderColor(user.gender) != null) ...[
                         const SizedBox(width: 6),
                         _GenderChip(gender: user.gender!),
                       ],
@@ -357,8 +373,10 @@ class _UserTile extends StatelessWidget {
                 onTap: isPending ? null : onToggleFollow,
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: user.viewerFollows
                         ? const Color(0xFF1B102B)
@@ -375,7 +393,9 @@ class _UserTile extends StatelessWidget {
                           width: 14,
                           height: 14,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : Text(
                           user.viewerFollows
@@ -445,7 +465,9 @@ class _VipChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFF0C15A).withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFF0C15A).withValues(alpha: 0.5)),
+        border: Border.all(
+          color: const Color(0xFFF0C15A).withValues(alpha: 0.5),
+        ),
       ),
       child: Text(
         'VIP $level',

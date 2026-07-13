@@ -85,23 +85,17 @@ class RoomUserProfileService {
       wealthLevel: wealthLevel,
       wealthTierNumber: wealthTierNumber,
       isFollowedByMe: await _followService.isFollowing(userId),
-      isOfficialAgent: _boolFrom(
-        data,
-        const [
-          'is_official_agent',
-          'official_agent',
-          'is_agent',
-          'agent_verified',
-        ],
-      ),
-      agencyName: _stringFrom(
-        data,
-        const ['agency_name', 'agent_agency_name'],
-      ),
-      agencyCountry: _stringFrom(
-        data,
-        const ['agency_country', 'agent_country'],
-      ),
+      isOfficialAgent: _boolFrom(data, const [
+        'is_official_agent',
+        'official_agent',
+        'is_agent',
+        'agent_verified',
+      ]),
+      agencyName: _stringFrom(data, const ['agency_name', 'agent_agency_name']),
+      agencyCountry: _stringFrom(data, const [
+        'agency_country',
+        'agent_country',
+      ]),
     );
   }
 
@@ -183,7 +177,6 @@ class RoomUserProfileService {
       return 0;
     }
   }
-
 
   String _safeDisplayName(Map<String, dynamic>? profile) {
     final displayName = profile?['display_name']?.toString().trim();

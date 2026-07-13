@@ -2,6 +2,7 @@ import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:srood_live/shared/utils/error_utils.dart';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -289,6 +290,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _wealthLevel = loadedWealthLevel;
         isLoading = false;
       });
+      _precacheProfileVisuals(
+        data['avatar_url']?.toString(),
+        _effectiveProfileVipLevel(),
+        data['selected_avatar_frame_key']?.toString(),
+      );
     } catch (error) {
       setState(() {
         isLoading = false;
@@ -296,6 +302,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ? 'Ã™ÂÃ˜Â´Ã™â€ž Ã˜ÂªÃ˜Â­Ã™â€¦Ã™Å Ã™â€ž Ã˜Â§Ã™â€žÃ™â€¦Ã™â€žÃ™Â Ã˜Â§Ã™â€žÃ˜Â´Ã˜Â®Ã˜ÂµÃ™Å : $error'
             : 'Failed to load profile: $error';
       });
+    }
+  }
+
+  /// Warms the image cache for the visuals shown on Profile entry (current
+  /// avatar photo, and — only when active — this user's own VIP frame/hero
+  /// tier). Fire-and-forget: never blocks or gates the profile UI.
+  void _precacheProfileVisuals(
+    String? avatarUrl,
+    int vipLevel,
+    String? frameKey,
+  ) {
+    if (!mounted) return;
+    if (avatarUrl != null && avatarUrl.trim().isNotEmpty) {
+      precacheImage(
+        CachedNetworkImageProvider(avatarUrl),
+        context,
+      ).catchError((_) {});
+    }
+    if (VipAssets.hasVip(vipLevel)) {
+      final hasCustomFrame = frameKey != null && frameKey.trim().isNotEmpty;
+      if (!hasCustomFrame) {
+        precacheImage(
+          AssetImage(VipAssets.frame(vipLevel)),
+          context,
+        ).catchError((_) {});
+      }
+      precacheImage(
+        AssetImage(VipAssets.hero(vipLevel)),
+        context,
+      ).catchError((_) {});
     }
   }
 
@@ -1580,8 +1616,8 @@ class WalletBalanceCard extends StatelessWidget {
             boxShadow: [
               BoxShadow(
                 color: glowColor.withValues(alpha: 0.40),
-                blurRadius: 22,
-                offset: const Offset(0, 10),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
                 spreadRadius: -2,
               ),
             ],
@@ -1590,11 +1626,13 @@ class WalletBalanceCard extends StatelessWidget {
             children: [
               // Top glossy shine.
               const Positioned.fill(child: GlossSheen(opacity: 0.30)),
-              // Right-side programmatic wallet artwork (decorative).
+              // Right-side programmatic wallet artwork (decorative, static).
               Positioned(
                 right: -14,
                 bottom: -10,
-                child: _WalletArt(accent: icon, tint: onColor),
+                child: RepaintBoundary(
+                  child: _WalletArt(accent: icon, tint: onColor),
+                ),
               ),
               // Content.
               Padding(
@@ -1828,8 +1866,8 @@ class _VipUpgradeBanner extends StatelessWidget {
           boxShadow: [
             BoxShadow(
               color: const Color(0xFFB000FF).withValues(alpha: 0.22),
-              blurRadius: 22,
-              offset: const Offset(0, 12),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
@@ -1844,16 +1882,19 @@ class _VipUpgradeBanner extends StatelessWidget {
                   left: isArabic ? 0 : null,
                   top: 0,
                   bottom: 0,
-                  child: IgnorePointer(
-                    child: Opacity(
-                      opacity: 0.82,
+                  child: RepaintBoundary(
+                    child: IgnorePointer(
                       child: Image.asset(
                         VipAssets.hero(vipLevel),
                         width: 140,
+                        cacheWidth: (140 * MediaQuery.of(context).devicePixelRatio)
+                            .round(),
                         fit: BoxFit.contain,
                         alignment: isArabic
                             ? Alignment.centerLeft
                             : Alignment.centerRight,
+                        color: Colors.white.withValues(alpha: 0.82),
+                        colorBlendMode: BlendMode.modulate,
                         errorBuilder: (_, _, _) => const SizedBox.shrink(),
                       ),
                     ),
@@ -2012,7 +2053,7 @@ class _QuickActionsGrid extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF8B26D9).withValues(alpha: 0.10),
-            blurRadius: 18,
+            blurRadius: 10,
             offset: const Offset(0, 6),
           ),
         ],
@@ -2095,7 +2136,7 @@ class _ProfileFeatureTile extends StatelessWidget {
                     boxShadow: [
                       BoxShadow(
                         color: data.gradientColors.last.withValues(alpha: 0.35),
-                        blurRadius: 10,
+                        blurRadius: 6,
                         offset: const Offset(0, 4),
                       ),
                     ],
@@ -2242,7 +2283,7 @@ class _DailyCheckinCard extends StatelessWidget {
           boxShadow: [
             BoxShadow(
               color: const Color(0xFF8B26D9).withValues(alpha: 0.14),
-              blurRadius: 18,
+              blurRadius: 10,
               offset: const Offset(0, 6),
             ),
           ],
@@ -2261,7 +2302,7 @@ class _DailyCheckinCard extends StatelessWidget {
                 boxShadow: [
                   BoxShadow(
                     color: const Color(0xFFFF3D6B).withValues(alpha: 0.35),
-                    blurRadius: 10,
+                    blurRadius: 6,
                     offset: const Offset(0, 4),
                   ),
                 ],
@@ -2353,7 +2394,7 @@ class _SectionCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF8B26D9).withValues(alpha: 0.08),
-            blurRadius: 18,
+            blurRadius: 10,
             offset: const Offset(0, 6),
           ),
         ],
@@ -2523,7 +2564,7 @@ class _LogoutButton extends StatelessWidget {
           boxShadow: [
             BoxShadow(
               color: const Color(0xFFFF5C7A).withValues(alpha: 0.10),
-              blurRadius: 16,
+              blurRadius: 10,
               offset: const Offset(0, 4),
             ),
           ],
@@ -2995,7 +3036,7 @@ class _GiftStatItem extends StatelessWidget {
               boxShadow: [
                 BoxShadow(
                   color: glowColor.withValues(alpha: 0.22),
-                  blurRadius: 8,
+                  blurRadius: 6,
                 ),
               ],
             ),
@@ -3059,8 +3100,8 @@ class _GlassCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF8B26D9).withValues(alpha: 0.18),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+            blurRadius: 10,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
