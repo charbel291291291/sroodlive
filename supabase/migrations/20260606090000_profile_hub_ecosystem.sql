@@ -54,6 +54,10 @@ create table if not exists public.agency_applications (
   created_at timestamptz not null default now()
 );
 
+alter table public.agency_applications
+  add column if not exists updated_at timestamptz not null default now(),
+  add column if not exists admin_reply text;
+
 create table if not exists public.income_accounts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null unique references auth.users(id) on delete cascade,

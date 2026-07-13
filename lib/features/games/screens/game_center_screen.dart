@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'crash_rocket_screen.dart';
 import 'gold_ladder_quiz_screen.dart';
 import 'hungry_cat_webview_screen.dart';
 import 'magic_srood_screen.dart';
@@ -140,20 +139,6 @@ class GameCenterScreen extends StatelessWidget {
       ),
     ),
     _GameData(
-      emoji: '🚀',
-      assetPath: null,
-      title: ar ? 'صاروخ سرود' : 'Srood Rocket',
-      subtitle: ar ? 'اسحب قبل الانفجار' : 'Cash out before the crash',
-      colors: const [Color(0xFF28C7FA), Color(0xFF102B52)],
-      glowColor: const Color(0xFFF4C95D),
-      badge: ar ? 'مباشر' : 'LIVE',
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => CrashRocketScreen(isArabic: ar),
-        ),
-      ),
-    ),
-    _GameData(
       emoji: '🏆',
       assetPath: 'assets/images/games/gold_ladder.webp',
       title: ar ? 'سلم الذهب' : 'Gold Ladder',
@@ -217,11 +202,6 @@ class GameCenterScreen extends StatelessWidget {
       ),
     ),
   ];
-}
-
-@Deprecated('Use GameCenterScreen.')
-class CrashGameScreen extends GameCenterScreen {
-  const CrashGameScreen({required super.isArabic, super.key});
 }
 
 // ── Data ──────────────────────────────────────────────────────────────────────
