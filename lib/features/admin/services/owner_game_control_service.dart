@@ -78,8 +78,6 @@ class GameSettings {
     required this.eventMultiplierBoost,
     this.forcedNextResult,
     this.forcedNextResultExpiresAt,
-    this.forcedCrashMultiplier,
-    this.forcedCrashMultiplierExpiresAt,
   });
 
   final String gameKey;
@@ -93,8 +91,6 @@ class GameSettings {
   final double eventMultiplierBoost;
   final String? forcedNextResult;
   final DateTime? forcedNextResultExpiresAt;
-  final double? forcedCrashMultiplier;
-  final DateTime? forcedCrashMultiplierExpiresAt;
 
   factory GameSettings.fromJson(Map<String, dynamic> j) => GameSettings(
         gameKey: j['game_key'] as String,
@@ -111,30 +107,20 @@ class GameSettings {
         forcedNextResultExpiresAt: j['forced_next_result_expires_at'] == null
             ? null
             : DateTime.parse(j['forced_next_result_expires_at'] as String),
-        forcedCrashMultiplier:
-            (j['forced_crash_multiplier'] as num?)?.toDouble(),
-        forcedCrashMultiplierExpiresAt:
-            j['forced_crash_multiplier_expires_at'] == null
-                ? null
-                : DateTime.parse(
-                    j['forced_crash_multiplier_expires_at'] as String),
       );
 }
 
 class GameRiskSnapshot {
   const GameRiskSnapshot({
     required this.hungryCat,
-    required this.crashRocket,
     required this.snapshotAt,
   });
 
   final Map<String, dynamic> hungryCat;
-  final Map<String, dynamic> crashRocket;
   final DateTime snapshotAt;
 
   factory GameRiskSnapshot.fromJson(Map<String, dynamic> j) => GameRiskSnapshot(
         hungryCat: (j['hungry_cat'] as Map<String, dynamic>?) ?? const {},
-        crashRocket: (j['crash_rocket'] as Map<String, dynamic>?) ?? const {},
         snapshotAt: DateTime.parse(j['snapshot_at'] as String),
       );
 }
@@ -212,28 +198,6 @@ class OwnerGameControlService {
       'owner_void_hungry_cat_round',
       params: {'p_round_id': roundId},
     );
-  }
-
-  // ── Crash Rocket ──────────────────────────────────────────────────────────
-
-  Future<GameSettings> fetchCrashConfig() async {
-    final data = await SupabaseService.requiredClient
-        .rpc('owner_get_crash_full_config') as Map<String, dynamic>;
-    return GameSettings.fromJson(data);
-  }
-
-  Future<Map<String, dynamic>> setCrashForcedMultiplier(
-      double multiplier) async {
-    final data = await SupabaseService.requiredClient.rpc(
-      'owner_set_rocket_crash_forced_multiplier',
-      params: {'p_multiplier': multiplier},
-    ) as Map<String, dynamic>;
-    return data;
-  }
-
-  Future<void> clearCrashForcedMultiplier() async {
-    await SupabaseService.requiredClient
-        .rpc('owner_clear_rocket_crash_forced_multiplier');
   }
 
   // ── Gold Ladder ───────────────────────────────────────────────────────────

@@ -11,7 +11,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../games/screens/gold_ladder_quiz_screen.dart';
-import '../../games/screens/crash_rocket_screen.dart';
 import '../../games/screens/hungry_cat_webview_screen.dart';
 import '../../games/screens/magic_srood_screen.dart';
 import '../../games/screens/spin_wheel_screen.dart';
@@ -220,8 +219,7 @@ class _RoomToolsSheetState extends State<RoomToolsSheet> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useRootNavigator: true,
-      builder: (_) =>
-          _GameCenterSheet(isArabic: isArabic, roomId: widget.room.id),
+      builder: (_) => _GameCenterSheet(isArabic: isArabic),
     );
   }
 
@@ -3013,10 +3011,9 @@ class _BagPresetChip extends StatelessWidget {
 // --------------------
 
 class _GameCenterSheet extends StatelessWidget {
-  const _GameCenterSheet({required this.isArabic, required this.roomId});
+  const _GameCenterSheet({required this.isArabic});
 
   final bool isArabic;
-  final String roomId;
 
   String get _title => isArabic ? 'مركز الألعاب' : 'Game Center';
 
@@ -3030,13 +3027,6 @@ class _GameCenterSheet extends StatelessWidget {
         labelEn: 'Spin Wheel',
         accent: const Color(0xFFF0C15A),
         screen: SpinWheelScreen(isArabic: isArabic),
-      ),
-      _GameEntry(
-        icon: Icons.rocket_launch_rounded,
-        labelAr: 'صاروخ سرود',
-        labelEn: 'Srood Rocket',
-        accent: const Color(0xFF28C7FA),
-        screen: CrashRocketScreen(isArabic: isArabic, roomId: roomId),
       ),
       _GameEntry(
         icon: Icons.pets_rounded,

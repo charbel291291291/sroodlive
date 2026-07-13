@@ -16,15 +16,6 @@ import '../models/room_game_models.dart';
 ///   4. All clients receive Realtime update with result_json
 ///   5. Clients animate the wheel to the official winning slot
 ///
-/// ## Lifecycle (Crash Rocket)
-///   1. Host calls [createRound] → status = betting_open (crash_m pre-committed)
-///   2. All room members call [placeBet]
-///   3. Host calls [lockRound] (betting closes) → status = running, started_at set
-///   4. All clients start the multiplier curve from started_at
-///   5. Users call [cashoutCrash] to cash out mid-flight
-///   6. Host calls [revealCrashRound] at reveal_at → server settles, result revealed
-///   7. All clients receive Realtime update with crash_multiplier
-///
 /// ## Late joiner / reconnect
 ///   Call [getActiveRound] on join to sync to current state immediately.
 class RoomGameService {
@@ -53,22 +44,10 @@ class RoomGameService {
     return RoomGameRoundCreated.fromJson(data);
   }
 
-  /// Closes betting and (for hungry_cat) immediately reveals result + settles.
-  /// For crash_rocket, transitions to 'running' — call [revealCrashRound] later.
+  /// Closes betting and immediately reveals result + settles.
   Future<Map<String, dynamic>> lockRound(String roundId) async {
     final data = await _client.rpc(
       'lock_room_game_round',
-      params: {'p_round_id': roundId},
-    ) as Map<String, dynamic>;
-    return data;
-  }
-
-  /// Reveals the crash multiplier and settles all crash bets.
-  /// Host calls this when [RoomGameRound.revealAt] has passed.
-  /// Server validates the timing server-side.
-  Future<Map<String, dynamic>> revealCrashRound(String roundId) async {
-    final data = await _client.rpc(
-      'reveal_room_crash_round',
       params: {'p_round_id': roundId},
     ) as Map<String, dynamic>;
     return data;
@@ -95,8 +74,7 @@ class RoomGameService {
   /// Deducts coins atomically on the server.
   ///
   /// [betJson] is game-specific:
-  ///   hungry_cat:   {"food_id": "golden_fish"}
-  ///   crash_rocket: {"auto_cashout_multiplier": 2.5}  // optional
+  ///   hungry_cat: {"food_id": "golden_fish"}
   Future<RoomGameBet> placeBet({
     required String roundId,
     required int betAmount,
@@ -119,24 +97,6 @@ class RoomGameService {
         .eq('id', betId)
         .single();
     return RoomGameBet.fromJson(betRow);
-  }
-
-  /// Cashes out a crash bet mid-flight.
-  /// The server validates: round is still running AND the submitted multiplier
-  /// hasn't exceeded the pre-committed crash point.
-  /// Client-submitted multiplier is clamped to server's current value.
-  Future<Map<String, dynamic>> cashoutCrash({
-    required String betId,
-    required double multiplier,
-  }) async {
-    final data = await _client.rpc(
-      'cashout_room_crash_bet',
-      params: {
-        'p_bet_id': betId,
-        'p_multiplier': multiplier,
-      },
-    ) as Map<String, dynamic>;
-    return data;
   }
 
   // ── State sync ────────────────────────────────────────────────────────────
