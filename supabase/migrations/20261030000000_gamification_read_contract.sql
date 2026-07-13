@@ -152,6 +152,8 @@ grant select on table public.gamification_tasks to authenticated;
 grant select on table public.gamification_task_progress to authenticated;
 grant select on table public.gamification_backpack_items to authenticated;
 
+drop function if exists public.get_store_items();
+
 create or replace function public.get_store_items()
 returns table (
   id uuid,
@@ -216,6 +218,8 @@ $function$;
 comment on function public.get_store_items() is
   'Returns active gamification catalog items and ownership for the authenticated user.';
 
+drop function if exists public.get_my_tasks();
+
 create or replace function public.get_my_tasks()
 returns table (
   id uuid,
@@ -278,6 +282,8 @@ $function$;
 
 comment on function public.get_my_tasks() is
   'Returns active tasks with progress only for the authenticated user and current reset period.';
+
+drop function if exists public.get_my_backpack();
 
 create or replace function public.get_my_backpack()
 returns table (
