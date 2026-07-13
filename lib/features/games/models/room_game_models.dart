@@ -7,17 +7,14 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum GameCode {
-  hungryCat,
-  crashRocket;
+  hungryCat;
 
   String get value => switch (this) {
         GameCode.hungryCat => 'hungry_cat',
-        GameCode.crashRocket => 'crash_rocket',
       };
 
   static GameCode fromValue(String v) => switch (v) {
         'hungry_cat' => GameCode.hungryCat,
-        'crash_rocket' => GameCode.crashRocket,
         _ => throw ArgumentError('Unknown game_code: $v'),
       };
 }
@@ -100,28 +97,18 @@ class RoomGameRound {
   /// Null until status is revealed/finished.
   /// hungry_cat: {winning_food_id, winning_food_icon, winning_food_name,
   ///              winning_multiplier, rarity}
-  /// crash_rocket: {crash_multiplier}
   final Map<String, dynamic>? resultJson;
 
   final DateTime? bettingOpensAt;
   final DateTime? bettingClosesAt;
-  final DateTime? startedAt; // crash: rocket launch time
-  final DateTime? revealAt;  // crash: pre-computed crash moment
+  final DateTime? startedAt;
+  final DateTime? revealAt;
   final DateTime? finishedAt;
   final String? createdBy;
 
   // ── Convenience getters ──────────────────────────────────────────────────
 
-  bool get isCrashRocket => gameCode == GameCode.crashRocket;
   bool get isHungryCat => gameCode == GameCode.hungryCat;
-
-  double? get crashMultiplier {
-    if (!isResultVisible) return null;
-    final v = resultJson?['crash_multiplier'];
-    if (v is num) return v.toDouble();
-    if (v is String) return double.tryParse(v);
-    return null;
-  }
 
   String? get winningFoodId => resultJson?['winning_food_id'] as String?;
   String? get winningFoodIcon => resultJson?['winning_food_icon'] as String?;
@@ -141,28 +128,6 @@ class RoomGameRound {
     if (bettingClosesAt == null) return 0;
     return bettingClosesAt!.difference(DateTime.now().toUtc()).inMilliseconds /
         1000.0;
-  }
-
-  /// Server-authoritative multiplier at this moment (crash game only).
-  /// Mirrors the JS formula: exp(0.15 * elapsed_seconds).
-  double get currentCrashMultiplier {
-    if (startedAt == null) return 1.0;
-    final elapsed =
-        DateTime.now().toUtc().difference(startedAt!).inMilliseconds / 1000.0;
-    if (elapsed <= 0) return 1.0;
-    return _exp(0.15 * elapsed);
-  }
-
-  static double _exp(double x) {
-    // dart:math is imported by callers; avoid import here in model.
-    // Simple series approximation (accurate enough for display, use dart:math
-    // in real widgets).
-    double result = 1.0, term = 1.0;
-    for (int i = 1; i <= 20; i++) {
-      term *= x / i;
-      result += term;
-    }
-    return result;
   }
 
   factory RoomGameRound.fromJson(Map<String, dynamic> j) => RoomGameRound(
@@ -276,14 +241,6 @@ class RoomGameBet {
 
   // Hungry Cat helpers
   String? get foodId => betJson['food_id'] as String?;
-
-  // Crash Rocket helpers
-  double? get autoCashoutMultiplier {
-    final v = betJson['auto_cashout_multiplier'];
-    if (v is num) return v.toDouble();
-    if (v is String) return double.tryParse(v);
-    return null;
-  }
 
   factory RoomGameBet.fromJson(Map<String, dynamic> j) => RoomGameBet(
         id: j['id'] as String,
