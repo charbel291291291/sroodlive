@@ -1383,8 +1383,12 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
     return LayoutBuilder(
       builder: (context, cs) {
         // Clamp so the layout is safe on tiny or very tall screens.
-        final cardH = ((cs.maxHeight - 13.0) / 4.0).clamp(52.0, 120.0);
-        final midH = cardH * 2 + 5;
+        final compactHeight = cs.maxHeight < 260;
+        final outerGap = compactHeight ? 0.0 : 4.0;
+        final middleGap = compactHeight ? 3.0 : 5.0;
+        final totalGap = outerGap * 2 + middleGap;
+        final cardH = ((cs.maxHeight - totalGap) / 4.0).clamp(0.0, 120.0);
+        final midH = cardH * 2 + middleGap;
 
         return Stack(
           children: [
@@ -1403,7 +1407,7 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
                       ],
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: outerGap),
                   // ── Middle: side columns + center panel ─────────────────────
                   SizedBox(
                     height: midH,
@@ -1416,7 +1420,7 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
                           child: Column(
                             children: [
                               Expanded(child: _countryCard(4)), // Germany
-                              const SizedBox(height: 5),
+                              SizedBox(height: middleGap),
                               Expanded(child: _countryCard(2)), // Portugal
                             ],
                           ),
@@ -1430,7 +1434,7 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
                           child: Column(
                             children: [
                               Expanded(child: _countryCard(5)), // England
-                              const SizedBox(height: 5),
+                              SizedBox(height: middleGap),
                               Expanded(child: _countryCard(7)), // France
                             ],
                           ),
@@ -1438,7 +1442,7 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
                       ],
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: outerGap),
                   // ── Bottom row ───────────────────────────────────────────────
                   SizedBox(
                     height: cardH,
@@ -1516,10 +1520,11 @@ class _MagicSroodScreenState extends State<MagicSroodScreen>
         borderRadius: BorderRadius.circular(14),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final diameter = (constraints.biggest.shortestSide * 0.65).clamp(
-              48.0,
-              86.0,
-            );
+            final compactHeight = constraints.maxHeight < 110;
+            final diameter =
+                (constraints.biggest.shortestSide *
+                        (compactHeight ? 0.58 : 0.65))
+                    .clamp(48.0, 86.0);
             return Center(
               child: SizedBox.square(
                 dimension: diameter,

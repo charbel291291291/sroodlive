@@ -1199,7 +1199,7 @@ class _BannerSlide extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             isArabic ? slide.titleAr : slide.titleEn,
             textAlign: align,
@@ -1212,7 +1212,7 @@ class _BannerSlide extends StatelessWidget {
               height: 1.2,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             isArabic ? slide.subtitleAr : slide.subtitleEn,
             textAlign: align,
@@ -1225,11 +1225,11 @@ class _BannerSlide extends StatelessWidget {
               height: 1.3,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Align(
             alignment: isRtl ? Alignment.centerRight : Alignment.centerLeft,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(999),
@@ -1248,7 +1248,7 @@ class _BannerSlide extends StatelessWidget {
         ],
       );
       innerContent = Padding(
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+        padding: const EdgeInsets.fromLTRB(18, 6, 18, 6),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
