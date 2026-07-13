@@ -1,0 +1,4 @@
+-- Baseline 070 — grants / Data API privileges (anon, authenticated, service_role).
+-- SOURCE: pg_dump 'GRANT/REVOKE' section + default privileges. Preserve REVOKE
+-- PUBLIC on sensitive SECURITY DEFINER fns; preserve authenticated read grants
+-- the Flutter Data API relies on.

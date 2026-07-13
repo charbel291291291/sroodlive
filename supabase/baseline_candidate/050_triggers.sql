@@ -1,0 +1,3 @@
+-- Baseline 050 — triggers (11 on public tables).
+-- SOURCE: pg_dump 'CREATE TRIGGER' section (pg_get_triggerdef). Placed after
+-- 030 so trigger functions exist.
