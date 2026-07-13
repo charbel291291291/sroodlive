@@ -305,9 +305,9 @@ begin
   perform cron.schedule(
     v_job_name,
     '* * * * *',  -- every minute; see note above
-    $$
+    $cron$
       select public.get_or_create_hungry_cat_round();
-    $$
+    $cron$
   );
 
   raise notice 'Hungry Cat auto-advance cron job scheduled (every minute)';
