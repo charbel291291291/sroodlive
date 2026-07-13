@@ -61,3 +61,5 @@ add_luxury_gifts.sql
 gift_code_report.txt
 patch_luxury_gifts.py
 .claude/
+
+supabase/.branches/
