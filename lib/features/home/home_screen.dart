@@ -8,7 +8,7 @@ import '../../core/update/app_update_service.dart';
 import '../../main.dart';
 import '../daily_reward/daily_reward_popup.dart';
 import '../daily_reward/daily_reward_service.dart';
-import '../games/screens/crash_game_screen.dart';
+import '../games/screens/game_center_screen.dart';
 import '../messages/screens/messages_screen.dart';
 import '../profile/profile_screen.dart';
 import '../rooms/screens/rooms_screen.dart';

@@ -204,11 +204,6 @@ class GameCenterScreen extends StatelessWidget {
   ];
 }
 
-@Deprecated('Use GameCenterScreen.')
-class CrashGameScreen extends GameCenterScreen {
-  const CrashGameScreen({required super.isArabic, super.key});
-}
-
 // ── Data ──────────────────────────────────────────────────────────────────────
 
 class _GameData {
