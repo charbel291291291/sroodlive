@@ -79,3 +79,9 @@ android/app/google-services.json
 *.keystore
 *.jks
 android/key.properties
+
+# Local generated/scratch artifacts (not build outputs, not source)
+graphify-out/
+backup_gift_videos_20260703/
+devtools_options.yaml
+srood-current.png
