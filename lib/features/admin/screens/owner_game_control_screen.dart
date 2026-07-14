@@ -56,7 +56,7 @@ class _OwnerGameControlScreenState extends State<OwnerGameControlScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 3, vsync: this);
+    _tabs = TabController(length: 4, vsync: this);
     _checkOwner();
   }
 
@@ -127,6 +127,7 @@ class _OwnerGameControlScreenState extends State<OwnerGameControlScreen>
                 tabs: const [
                   Tab(text: 'Hungry Cat'),
                   Tab(text: 'Gold Ladder'),
+                  Tab(text: 'Crash V3'),
                   Tab(text: 'Audit Log'),
                 ],
               )
@@ -138,9 +139,7 @@ class _OwnerGameControlScreenState extends State<OwnerGameControlScreen>
 
   Widget _body() {
     if (_checking) {
-      return const Center(
-        child: CircularProgressIndicator(color: _kOwner),
-      );
+      return const Center(child: CircularProgressIndicator(color: _kOwner));
     }
     if (!_authorized) {
       return _NotAuthorized(error: _error);
@@ -150,10 +149,302 @@ class _OwnerGameControlScreenState extends State<OwnerGameControlScreen>
       children: [
         _HungryCatTab(svc: _svc),
         _GoldLadderTab(svc: _svc),
+        _CrashV3Tab(svc: _svc),
         _AuditLogTab(svc: _svc),
       ],
     );
   }
+}
+
+class _CrashV3Tab extends StatefulWidget {
+  const _CrashV3Tab({required this.svc});
+  final OwnerGameControlService svc;
+  @override
+  State<_CrashV3Tab> createState() => _CrashV3TabState();
+}
+
+class _CrashV3TabState extends State<_CrashV3Tab> {
+  Map<String, dynamic>? settings;
+  Map<String, dynamic>? risk;
+  List<Map<String, dynamic>> reconciliation = const [];
+  bool loading = true;
+  String? error;
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  Future<void> _load() async {
+    try {
+      final values = await Future.wait([
+        widget.svc.fetchCrashV3Settings(),
+        widget.svc.fetchCrashV3Risk(),
+        widget.svc.fetchCrashV3Reconciliation(),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        settings = values[0] as Map<String, dynamic>;
+        risk = values[1] as Map<String, dynamic>;
+        reconciliation = values[2] as List<Map<String, dynamic>>;
+        loading = false;
+        error = null;
+      });
+    } catch (exception) {
+      if (mounted) {
+        setState(() {
+          loading = false;
+          error = '$exception';
+        });
+      }
+    }
+  }
+
+  Future<void> _setEnabled(bool enabled) async {
+    setState(() => loading = true);
+    try {
+      await widget.svc.updateCrashV3Settings({'game_enabled': enabled});
+      await _load();
+    } catch (exception) {
+      if (mounted) {
+        setState(() {
+          loading = false;
+          error = '$exception';
+        });
+      }
+    }
+  }
+
+  Future<void> _editSettings() async {
+    final current = settings;
+    if (current == null) return;
+    const integerKeys = [
+      'minimum_bet',
+      'maximum_bet',
+      'maximum_payout_per_bet',
+      'maximum_total_round_exposure',
+      'daily_user_loss_limit',
+      'daily_user_wager_limit',
+      'house_edge_bps',
+      'waiting_duration_ms',
+      'betting_duration_ms',
+      'locked_duration_ms',
+      'settlement_timeout_ms',
+      'inter_round_delay_ms',
+    ];
+    const decimalKeys = ['maximum_multiplier', 'default_growth_rate'];
+    final controllers = {
+      for (final key in [...integerKeys, ...decimalKeys])
+        key: TextEditingController(text: '${current[key]}'),
+    };
+    final patch = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Crash V3 settings'),
+        content: SizedBox(
+          width: 440,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final entry in controllers.entries)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: TextField(
+                      controller: entry.value,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: entry.key.replaceAll('_', ' '),
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final result = <String, dynamic>{};
+              for (final key in integerKeys) {
+                final value = int.tryParse(controllers[key]!.text.trim());
+                if (value == null) return;
+                result[key] = value;
+              }
+              for (final key in decimalKeys) {
+                final value = double.tryParse(controllers[key]!.text.trim());
+                if (value == null) return;
+                result[key] = value;
+              }
+              Navigator.pop(dialogContext, result);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    for (final controller in controllers.values) {
+      controller.dispose();
+    }
+    if (patch == null || !mounted) return;
+    setState(() => loading = true);
+    try {
+      await widget.svc.updateCrashV3Settings(patch);
+      await _load();
+    } catch (exception) {
+      if (mounted) {
+        setState(() {
+          loading = false;
+          error = '$exception';
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return const Center(child: CircularProgressIndicator(color: _kOwner));
+    }
+    if (error != null) {
+      return Center(
+        child: Text(error!, style: const TextStyle(color: _kRed)),
+      );
+    }
+    final activeRound = risk?['round'] as Map?;
+    final engine = risk?['engine'] as Map?;
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        children: [
+          _Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Crash Rocket V3', style: _titleStyle),
+                const SizedBox(height: 10),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text(
+                    'Game enabled',
+                    style: TextStyle(color: _kTxt),
+                  ),
+                  subtitle: const Text(
+                    'Keep disabled unless the engine is healthy',
+                    style: _mutedStyle,
+                  ),
+                  value: settings?['game_enabled'] == true,
+                  onChanged: _setEnabled,
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text(
+                    'Maintenance mode',
+                    style: TextStyle(color: _kTxt),
+                  ),
+                  value: settings?['maintenance_mode'] == true,
+                  onChanged: (value) async {
+                    setState(() => loading = true);
+                    await widget.svc.updateCrashV3Settings({
+                      'maintenance_mode': value,
+                    });
+                    await _load();
+                  },
+                ),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: () async {
+                        await widget.svc.crashV3EmergencyStop();
+                        await _load();
+                      },
+                      style: FilledButton.styleFrom(backgroundColor: _kRed),
+                      icon: const Icon(Icons.stop_circle_outlined),
+                      label: const Text('Emergency stop'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        await widget.svc.crashV3Resume();
+                        await _load();
+                      },
+                      icon: const Icon(Icons.play_arrow),
+                      label: const Text('Resume'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _editSettings,
+                      icon: const Icon(Icons.tune),
+                      label: const Text('Limits & timing'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          _Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Live risk', style: _titleStyle),
+                const SizedBox(height: 8),
+                _kv('Round', activeRound?['public_round_id']),
+                _kv('Status', activeRound?['status']),
+                _kv('Active bets', risk?['active_bets']),
+                _kv('Total wagered', activeRound?['total_wagered']),
+                _kv('Total paid', activeRound?['total_paid']),
+                _kv('Total cash-outs', activeRound?['cashout_count']),
+                _kv('Worst-case payout', risk?['estimated_worst_case_payout']),
+                _kv('Engine instance', engine?['engine_instance_id']),
+                _kv('Heartbeat', engine?['heartbeat_at']),
+                _kv('Reconciliation alerts', risk?['reconciliation_alerts']),
+              ],
+            ),
+          ),
+          _Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Financial reconciliation', style: _titleStyle),
+                const SizedBox(height: 8),
+                if (reconciliation.isEmpty)
+                  const Text('No completed rounds yet.', style: _mutedStyle)
+                else
+                  for (final row in reconciliation.take(10))
+                    _kv(
+                      'Round ${row['round_id']}',
+                      row['reconciliation_status'],
+                    ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _kv(String label, Object? value) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      children: [
+        Expanded(child: Text(label, style: _mutedStyle)),
+        Flexible(
+          child: Text(
+            '${value ?? '—'}',
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: _kTxt, fontWeight: FontWeight.w700),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -267,7 +558,10 @@ class _TestOnlyBanner extends StatelessWidget {
             child: Text(
               text,
               style: const TextStyle(
-                  color: _kAmber, fontSize: 11, fontWeight: FontWeight.w600),
+                color: _kAmber,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -318,24 +612,28 @@ class _ToggleRow extends StatelessWidget {
 }
 
 Widget _saveBtn(String label, VoidCallback? onPressed) => SizedBox(
-      width: double.infinity,
-      child: FilledButton(
-        onPressed: onPressed,
-        style: FilledButton.styleFrom(
-          backgroundColor: _kOwner,
-          foregroundColor: Colors.black,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-        child: Text(label,
-            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
-      ),
-    );
+  width: double.infinity,
+  child: FilledButton(
+    onPressed: onPressed,
+    style: FilledButton.styleFrom(
+      backgroundColor: _kOwner,
+      foregroundColor: Colors.black,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ),
+    child: Text(
+      label,
+      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+    ),
+  ),
+);
 
 void _snack(BuildContext ctx, String msg, {bool error = false}) {
   if (!ctx.mounted) return;
-  SroodToast.show(ctx, msg, type: error ? SroodToastType.error : SroodToastType.success);
+  SroodToast.show(
+    ctx,
+    msg,
+    type: error ? SroodToastType.error : SroodToastType.success,
+  );
 }
 
 Future<bool?> _confirm(BuildContext ctx, String title, String body) {
@@ -435,8 +733,9 @@ class _HungryCatTabState extends State<_HungryCatTab>
       }
       _weightCtrls.clear();
       for (final f in result.foods) {
-        _weightCtrls[f.foodId] =
-            TextEditingController(text: f.weight.toStringAsFixed(1));
+        _weightCtrls[f.foodId] = TextEditingController(
+          text: f.weight.toStringAsFixed(1),
+        );
       }
       if (!mounted) return;
       setState(() {
@@ -445,8 +744,8 @@ class _HungryCatTabState extends State<_HungryCatTab>
         _maxBetCtrl.text = result.settings.maxBet.toString();
         _maxPayoutCtrl.text = result.settings.maxPayout.toString();
         _dailyCapCtrl.text = result.settings.dailyPayoutCap.toString();
-        _eventBoostCtrl.text =
-            result.settings.eventMultiplierBoost.toStringAsFixed(2);
+        _eventBoostCtrl.text = result.settings.eventMultiplierBoost
+            .toStringAsFixed(2);
         _riskMode = result.settings.riskMode;
         _loading = false;
       });
@@ -613,8 +912,8 @@ class _HungryCatTabState extends State<_HungryCatTab>
                 label: 'Game Enabled',
                 subtitle: s.isEnabled ? 'Running' : 'Paused',
                 value: s.isEnabled,
-                onChanged: (v) => setState(
-                    () => _settings = _copySettings(s, isEnabled: v)),
+                onChanged: (v) =>
+                    setState(() => _settings = _copySettings(s, isEnabled: v)),
               ),
               const Divider(color: _kBorder, height: 20),
               _ToggleRow(
@@ -636,28 +935,36 @@ class _HungryCatTabState extends State<_HungryCatTab>
               ),
               const Divider(color: _kBorder, height: 20),
               _LabeledField(
-                  label: 'Risk Mode',
-                  child: _RiskDropdown(
-                    value: _riskMode,
-                    onChanged: (v) => setState(() => _riskMode = v!),
-                  )),
+                label: 'Risk Mode',
+                child: _RiskDropdown(
+                  value: _riskMode,
+                  onChanged: (v) => setState(() => _riskMode = v!),
+                ),
+              ),
               const SizedBox(height: 12),
               _LabeledField(
-                  label: 'Event Boost (×)',
-                  child: _NumField(
-                      ctrl: _eventBoostCtrl, hint: '1.00', decimal: true)),
+                label: 'Event Boost (×)',
+                child: _NumField(
+                  ctrl: _eventBoostCtrl,
+                  hint: '1.00',
+                  decimal: true,
+                ),
+              ),
               const SizedBox(height: 12),
               _LabeledField(
-                  label: 'Max Bet (coins)',
-                  child: _NumField(ctrl: _maxBetCtrl, hint: '100000')),
+                label: 'Max Bet (coins)',
+                child: _NumField(ctrl: _maxBetCtrl, hint: '100000'),
+              ),
               const SizedBox(height: 12),
               _LabeledField(
-                  label: 'Max Payout (coins)',
-                  child: _NumField(ctrl: _maxPayoutCtrl, hint: '1000000')),
+                label: 'Max Payout (coins)',
+                child: _NumField(ctrl: _maxPayoutCtrl, hint: '1000000'),
+              ),
               const SizedBox(height: 12),
               _LabeledField(
-                  label: 'Daily Payout Cap (coins)',
-                  child: _NumField(ctrl: _dailyCapCtrl, hint: '10000000')),
+                label: 'Daily Payout Cap (coins)',
+                child: _NumField(ctrl: _dailyCapCtrl, hint: '10000000'),
+              ),
               const SizedBox(height: 16),
               _saveBtn('Save Config', _busy ? null : _saveConfig),
             ],
@@ -672,13 +979,15 @@ class _HungryCatTabState extends State<_HungryCatTab>
             child: Text('No foods configured.', style: _mutedStyle),
           )
         else
-          ..._foods.map((food) => _FoodOddsCard(
-                food: food,
-                ctrl: _weightCtrls[food.foodId]!,
-                busy: _busy,
-                onSave: () => _saveFoodOdds(food),
-                onToggle: () => _toggleFoodActive(food),
-              )),
+          ..._foods.map(
+            (food) => _FoodOddsCard(
+              food: food,
+              ctrl: _weightCtrls[food.foodId]!,
+              busy: _busy,
+              onSave: () => _saveFoodOdds(food),
+              onToggle: () => _toggleFoodActive(food),
+            ),
+          ),
 
         // ── Force result (test only) ───────────────────────────────────────
         const _SectionTitle('Force Next Result', color: _kAmber),
@@ -772,10 +1081,13 @@ class _HungryCatTabState extends State<_HungryCatTab>
                   style: FilledButton.styleFrom(
                     backgroundColor: _kRed,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
-                  child: const Text('Void Round',
-                      style: TextStyle(fontWeight: FontWeight.w800)),
+                  child: const Text(
+                    'Void Round',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
                 ),
               ),
             ],
@@ -790,20 +1102,19 @@ class _HungryCatTabState extends State<_HungryCatTab>
     bool? isEnabled,
     bool? testMode,
     bool? eventMode,
-  }) =>
-      GameSettings(
-        gameKey: s.gameKey,
-        isEnabled: isEnabled ?? s.isEnabled,
-        testMode: testMode ?? s.testMode,
-        maxBet: s.maxBet,
-        maxPayout: s.maxPayout,
-        dailyPayoutCap: s.dailyPayoutCap,
-        riskMode: s.riskMode,
-        eventMode: eventMode ?? s.eventMode,
-        eventMultiplierBoost: s.eventMultiplierBoost,
-        forcedNextResult: s.forcedNextResult,
-        forcedNextResultExpiresAt: s.forcedNextResultExpiresAt,
-      );
+  }) => GameSettings(
+    gameKey: s.gameKey,
+    isEnabled: isEnabled ?? s.isEnabled,
+    testMode: testMode ?? s.testMode,
+    maxBet: s.maxBet,
+    maxPayout: s.maxPayout,
+    dailyPayoutCap: s.dailyPayoutCap,
+    riskMode: s.riskMode,
+    eventMode: eventMode ?? s.eventMode,
+    eventMultiplierBoost: s.eventMultiplierBoost,
+    forcedNextResult: s.forcedNextResult,
+    forcedNextResultExpiresAt: s.forcedNextResultExpiresAt,
+  );
 }
 
 class _FoodOddsCard extends StatelessWidget {
@@ -850,12 +1161,13 @@ class _FoodOddsCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(food.name,
-                        style: _titleStyle.copyWith(fontSize: 13)),
+                    Text(food.name, style: _titleStyle.copyWith(fontSize: 13)),
                     const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: _rarityColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(4),
@@ -863,9 +1175,10 @@ class _FoodOddsCard extends StatelessWidget {
                       child: Text(
                         food.rarity,
                         style: TextStyle(
-                            color: _rarityColor,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700),
+                          color: _rarityColor,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ],
@@ -881,10 +1194,11 @@ class _FoodOddsCard extends StatelessWidget {
             width: 70,
             child: TextFormField(
               controller: ctrl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))
+                FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
               ],
               style: const TextStyle(color: _kTxt, fontSize: 12),
               decoration: _inputDeco('weight'),
@@ -1022,8 +1336,8 @@ class _GoldLadderTabState extends State<_GoldLadderTab>
               _ToggleRow(
                 label: 'Game Enabled',
                 value: s.isEnabled,
-                onChanged: (v) => setState(
-                    () => _settings = _copy(s, isEnabled: v)),
+                onChanged: (v) =>
+                    setState(() => _settings = _copy(s, isEnabled: v)),
               ),
               const Divider(color: _kBorder, height: 20),
               _ToggleRow(
@@ -1035,22 +1349,27 @@ class _GoldLadderTabState extends State<_GoldLadderTab>
               ),
               const Divider(color: _kBorder, height: 20),
               _LabeledField(
-                  label: 'Risk Mode',
-                  child: _RiskDropdown(
-                      value: _riskMode,
-                      onChanged: (v) => setState(() => _riskMode = v!))),
+                label: 'Risk Mode',
+                child: _RiskDropdown(
+                  value: _riskMode,
+                  onChanged: (v) => setState(() => _riskMode = v!),
+                ),
+              ),
               const SizedBox(height: 12),
               _LabeledField(
-                  label: 'Max Entry Fee (coins)',
-                  child: _NumField(ctrl: _maxBetCtrl, hint: '1000')),
+                label: 'Max Entry Fee (coins)',
+                child: _NumField(ctrl: _maxBetCtrl, hint: '1000'),
+              ),
               const SizedBox(height: 12),
               _LabeledField(
-                  label: 'Max Prize (coins)',
-                  child: _NumField(ctrl: _maxPayoutCtrl, hint: '1000000')),
+                label: 'Max Prize (coins)',
+                child: _NumField(ctrl: _maxPayoutCtrl, hint: '1000000'),
+              ),
               const SizedBox(height: 12),
               _LabeledField(
-                  label: 'Daily Payout Cap (coins)',
-                  child: _NumField(ctrl: _dailyCapCtrl, hint: '10000000')),
+                label: 'Daily Payout Cap (coins)',
+                child: _NumField(ctrl: _dailyCapCtrl, hint: '10000000'),
+              ),
               const SizedBox(height: 16),
               _saveBtn('Save Config', _busy ? null : _saveConfig),
             ],
@@ -1082,8 +1401,7 @@ class _GoldLadderTabState extends State<_GoldLadderTab>
     );
   }
 
-  GameSettings _copy(GameSettings s,
-          {bool? isEnabled, bool? testMode}) =>
+  GameSettings _copy(GameSettings s, {bool? isEnabled, bool? testMode}) =>
       GameSettings(
         gameKey: s.gameKey,
         isEnabled: isEnabled ?? s.isEnabled,
@@ -1160,12 +1478,12 @@ class _AuditLogTabState extends State<_AuditLogTab>
             child: Center(child: CircularProgressIndicator(color: _kOwner)),
           )
         else if (_error != null)
-          Expanded(child: _ErrorRetry(error: _error!, onRetry: _load))
+          Expanded(
+            child: _ErrorRetry(error: _error!, onRetry: _load),
+          )
         else if (_logs.isEmpty)
           const Expanded(
-            child: Center(
-              child: Text('No audit entries.', style: _mutedStyle),
-            ),
+            child: Center(child: Text('No audit entries.', style: _mutedStyle)),
           )
         else
           Expanded(
@@ -1189,11 +1507,7 @@ class _AuditLogTabState extends State<_AuditLogTab>
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: [
-                  null,
-                  'hungry_cat',
-                  'gold_ladder',
-                ].map((g) {
+                children: [null, 'hungry_cat', 'gold_ladder'].map((g) {
                   final active = _filterGame == g;
                   final label = g == null ? 'All' : g.replaceAll('_', ' ');
                   return Padding(
@@ -1258,10 +1572,7 @@ class _AuditEntryTile extends StatelessWidget {
             child: Container(
               width: 8,
               height: 8,
-              decoration: BoxDecoration(
-                color: _dot,
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: _dot, shape: BoxShape.circle),
             ),
           ),
           const SizedBox(width: 10),
@@ -1281,8 +1592,7 @@ class _AuditEntryTile extends StatelessWidget {
                 if (entry.newValue != null && entry.newValue!.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Text(
-                    entry.newValue
-                            ?.entries
+                    entry.newValue?.entries
                             .map((e) => '${e.key}: ${e.value}')
                             .join('  ') ??
                         '',
@@ -1319,14 +1629,17 @@ class _ErrorRetry extends StatelessWidget {
           children: [
             const Icon(Icons.error_outline_rounded, color: _kRed, size: 40),
             const SizedBox(height: 12),
-            Text(error,
-                style: const TextStyle(color: _kMuted, fontSize: 12),
-                textAlign: TextAlign.center),
+            Text(
+              error,
+              style: const TextStyle(color: _kMuted, fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 12),
             FilledButton(
-                onPressed: onRetry,
-                style: FilledButton.styleFrom(backgroundColor: _kOwner),
-                child: const Text('Retry')),
+              onPressed: onRetry,
+              style: FilledButton.styleFrom(backgroundColor: _kOwner),
+              child: const Text('Retry'),
+            ),
           ],
         ),
       ),
@@ -1391,8 +1704,10 @@ class _RiskDropdown extends StatelessWidget {
       items: const [
         DropdownMenuItem(
           value: 'conservative',
-          child: Text('Conservative',
-              style: TextStyle(color: _kTxt, fontSize: 13)),
+          child: Text(
+            'Conservative',
+            style: TextStyle(color: _kTxt, fontSize: 13),
+          ),
         ),
         DropdownMenuItem(
           value: 'normal',
@@ -1400,8 +1715,10 @@ class _RiskDropdown extends StatelessWidget {
         ),
         DropdownMenuItem(
           value: 'aggressive',
-          child: Text('Aggressive',
-              style: TextStyle(color: _kTxt, fontSize: 13)),
+          child: Text(
+            'Aggressive',
+            style: TextStyle(color: _kTxt, fontSize: 13),
+          ),
         ),
       ],
       onChanged: onChanged,
@@ -1414,29 +1731,28 @@ class _RiskDropdown extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 InputDecoration _inputDeco(String hint) => InputDecoration(
-      hintText: hint,
-      hintStyle: _mutedStyle,
-      filled: true,
-      fillColor: _kBg,
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: _kBorder),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: _kBorder),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: _kOwner),
-      ),
-      disabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: _kBorder.withValues(alpha: 0.5)),
-      ),
-    );
+  hintText: hint,
+  hintStyle: _mutedStyle,
+  filled: true,
+  fillColor: _kBg,
+  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+  border: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(8),
+    borderSide: const BorderSide(color: _kBorder),
+  ),
+  enabledBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(8),
+    borderSide: const BorderSide(color: _kBorder),
+  ),
+  focusedBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(8),
+    borderSide: const BorderSide(color: _kOwner),
+  ),
+  disabledBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(8),
+    borderSide: BorderSide(color: _kBorder.withValues(alpha: 0.5)),
+  ),
+);
 
 String _fmt(DateTime? dt) {
   if (dt == null) return '—';

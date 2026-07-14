@@ -54,15 +54,15 @@ class HungryCatFood {
   final int sortOrder;
 
   factory HungryCatFood.fromJson(Map<String, dynamic> j) => HungryCatFood(
-        foodId: j['food_id'] as String,
-        name: j['name'] as String,
-        icon: j['icon'] as String? ?? '🍽️',
-        multiplier: (j['multiplier'] as num).toDouble(),
-        weight: (j['weight'] as num).toDouble(),
-        rarity: j['rarity'] as String? ?? 'common',
-        isActive: j['is_active'] as bool? ?? true,
-        sortOrder: j['sort_order'] as int? ?? 0,
-      );
+    foodId: j['food_id'] as String,
+    name: j['name'] as String,
+    icon: j['icon'] as String? ?? '🍽️',
+    multiplier: (j['multiplier'] as num).toDouble(),
+    weight: (j['weight'] as num).toDouble(),
+    rarity: j['rarity'] as String? ?? 'common',
+    isActive: j['is_active'] as bool? ?? true,
+    sortOrder: j['sort_order'] as int? ?? 0,
+  );
 }
 
 class GameSettings {
@@ -93,36 +93,33 @@ class GameSettings {
   final DateTime? forcedNextResultExpiresAt;
 
   factory GameSettings.fromJson(Map<String, dynamic> j) => GameSettings(
-        gameKey: j['game_key'] as String,
-        isEnabled: j['is_enabled'] as bool? ?? true,
-        testMode: j['test_mode'] as bool? ?? false,
-        maxBet: j['max_bet'] as int? ?? 100000,
-        maxPayout: j['max_payout'] as int? ?? 1000000,
-        dailyPayoutCap: j['daily_payout_cap'] as int? ?? 10000000,
-        riskMode: j['risk_mode'] as String? ?? 'normal',
-        eventMode: j['event_mode'] as bool? ?? false,
-        eventMultiplierBoost:
-            (j['event_multiplier_boost'] as num?)?.toDouble() ?? 1.0,
-        forcedNextResult: j['forced_next_result'] as String?,
-        forcedNextResultExpiresAt: j['forced_next_result_expires_at'] == null
-            ? null
-            : DateTime.parse(j['forced_next_result_expires_at'] as String),
-      );
+    gameKey: j['game_key'] as String,
+    isEnabled: j['is_enabled'] as bool? ?? true,
+    testMode: j['test_mode'] as bool? ?? false,
+    maxBet: j['max_bet'] as int? ?? 100000,
+    maxPayout: j['max_payout'] as int? ?? 1000000,
+    dailyPayoutCap: j['daily_payout_cap'] as int? ?? 10000000,
+    riskMode: j['risk_mode'] as String? ?? 'normal',
+    eventMode: j['event_mode'] as bool? ?? false,
+    eventMultiplierBoost:
+        (j['event_multiplier_boost'] as num?)?.toDouble() ?? 1.0,
+    forcedNextResult: j['forced_next_result'] as String?,
+    forcedNextResultExpiresAt: j['forced_next_result_expires_at'] == null
+        ? null
+        : DateTime.parse(j['forced_next_result_expires_at'] as String),
+  );
 }
 
 class GameRiskSnapshot {
-  const GameRiskSnapshot({
-    required this.hungryCat,
-    required this.snapshotAt,
-  });
+  const GameRiskSnapshot({required this.hungryCat, required this.snapshotAt});
 
   final Map<String, dynamic> hungryCat;
   final DateTime snapshotAt;
 
   factory GameRiskSnapshot.fromJson(Map<String, dynamic> j) => GameRiskSnapshot(
-        hungryCat: (j['hungry_cat'] as Map<String, dynamic>?) ?? const {},
-        snapshotAt: DateTime.parse(j['snapshot_at'] as String),
-      );
+    hungryCat: (j['hungry_cat'] as Map<String, dynamic>?) ?? const {},
+    snapshotAt: DateTime.parse(j['snapshot_at'] as String),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -135,25 +132,69 @@ class OwnerGameControlService {
   // ── Auth ──────────────────────────────────────────────────────────────────
 
   Future<bool> isOwner() async {
-    final result = await SupabaseService.requiredClient
-        .rpc('is_owner_control_user') as bool;
+    final result =
+        await SupabaseService.requiredClient.rpc('is_owner_control_user')
+            as bool;
     return result;
+  }
+
+  Future<Map<String, dynamic>> fetchCrashV3Settings() async =>
+      Map<String, dynamic>.from(
+        await SupabaseService.requiredClient.rpc('crash_v3_admin_get_settings')
+            as Map,
+      );
+
+  Future<Map<String, dynamic>> fetchCrashV3Risk() async =>
+      Map<String, dynamic>.from(
+        await SupabaseService.requiredClient.rpc('crash_v3_admin_get_live_risk')
+            as Map,
+      );
+
+  Future<void> updateCrashV3Settings(Map<String, dynamic> patch) async {
+    await SupabaseService.requiredClient.rpc(
+      'crash_v3_admin_update_settings',
+      params: {'p_patch': patch},
+    );
+  }
+
+  Future<void> crashV3EmergencyStop() async {
+    await SupabaseService.requiredClient.rpc('crash_v3_admin_emergency_stop');
+  }
+
+  Future<void> crashV3Resume() async {
+    await SupabaseService.requiredClient.rpc('crash_v3_admin_resume');
+  }
+
+  Future<List<Map<String, dynamic>>> fetchCrashV3Reconciliation() async {
+    final raw =
+        await SupabaseService.requiredClient.rpc(
+              'crash_v3_admin_get_reconciliation',
+              params: {'p_limit': 30},
+            )
+            as List;
+    return raw
+        .map((value) => Map<String, dynamic>.from(value as Map))
+        .toList(growable: false);
   }
 
   // ── Risk snapshot ─────────────────────────────────────────────────────────
 
   Future<GameRiskSnapshot> fetchRiskSnapshot() async {
-    final data = await SupabaseService.requiredClient
-        .rpc('owner_get_game_risk_snapshot') as Map<String, dynamic>;
+    final data =
+        await SupabaseService.requiredClient.rpc('owner_get_game_risk_snapshot')
+            as Map<String, dynamic>;
     return GameRiskSnapshot.fromJson(data);
   }
 
   // ── Hungry Cat ────────────────────────────────────────────────────────────
 
   Future<({GameSettings settings, List<HungryCatFood> foods})>
-      fetchHungryCatFullConfig() async {
-    final data = await SupabaseService.requiredClient
-        .rpc('owner_get_hungry_cat_full_config') as Map<String, dynamic>;
+  fetchHungryCatFullConfig() async {
+    final data =
+        await SupabaseService.requiredClient.rpc(
+              'owner_get_hungry_cat_full_config',
+            )
+            as Map<String, dynamic>;
     final settings = GameSettings.fromJson(
       data['settings'] as Map<String, dynamic>,
     );
@@ -180,17 +221,21 @@ class OwnerGameControlService {
   }
 
   Future<Map<String, dynamic>> setHungryCatForcedResult(
-      String outcomeKey) async {
-    final data = await SupabaseService.requiredClient.rpc(
-      'owner_set_hungry_cat_forced_result',
-      params: {'p_outcome_key': outcomeKey},
-    ) as Map<String, dynamic>;
+    String outcomeKey,
+  ) async {
+    final data =
+        await SupabaseService.requiredClient.rpc(
+              'owner_set_hungry_cat_forced_result',
+              params: {'p_outcome_key': outcomeKey},
+            )
+            as Map<String, dynamic>;
     return data;
   }
 
   Future<void> clearHungryCatForcedResult() async {
-    await SupabaseService.requiredClient
-        .rpc('owner_clear_hungry_cat_forced_result');
+    await SupabaseService.requiredClient.rpc(
+      'owner_clear_hungry_cat_forced_result',
+    );
   }
 
   Future<void> voidHungryCatRound(String roundId) async {
@@ -203,8 +248,11 @@ class OwnerGameControlService {
   // ── Gold Ladder ───────────────────────────────────────────────────────────
 
   Future<GameSettings> fetchGoldLadderConfig() async {
-    final data = await SupabaseService.requiredClient
-        .rpc('owner_get_gold_ladder_full_config') as Map<String, dynamic>;
+    final data =
+        await SupabaseService.requiredClient.rpc(
+              'owner_get_gold_ladder_full_config',
+            )
+            as Map<String, dynamic>;
     return GameSettings.fromJson(data);
   }
 
@@ -245,15 +293,10 @@ class OwnerGameControlService {
   }) async {
     final data = await SupabaseService.requiredClient.rpc(
       'owner_get_audit_log',
-      params: {
-        'p_game_type': ?gameType,
-        'p_limit': limit,
-      },
+      params: {'p_game_type': ?gameType, 'p_limit': limit},
     );
     return (data as List)
-        .map(
-          (e) => OwnerGameAuditEntry.fromJson(e as Map<String, dynamic>),
-        )
+        .map((e) => OwnerGameAuditEntry.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 }
