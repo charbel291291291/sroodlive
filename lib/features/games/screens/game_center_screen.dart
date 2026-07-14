@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../crash_v3/screens/crash_v3_screen.dart';
+
 import 'gold_ladder_quiz_screen.dart';
 import 'hungry_cat_webview_screen.dart';
 import 'magic_srood_screen.dart';
@@ -114,6 +116,18 @@ class GameCenterScreen extends StatelessWidget {
   }
 
   List<_GameData> _gamesData(BuildContext context, bool ar) => [
+    _GameData(
+      emoji: '🚀',
+      assetPath: null,
+      title: ar ? 'صاروخ كراش V3' : 'Crash Rocket V3',
+      subtitle: ar ? 'حلّق واسحب قبل التحطم' : 'Fly & cash out',
+      colors: const [Color(0xFF8B5CF6), Color(0xFF831843)],
+      glowColor: const Color(0xFFEC4899),
+      badge: 'V3',
+      onTap: () => Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => const CrashV3Screen())),
+    ),
     _GameData(
       emoji: '🎡',
       assetPath: 'assets/images/games/spin_wheel.webp',
