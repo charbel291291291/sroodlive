@@ -35,7 +35,7 @@ class CrashV3Controller extends ChangeNotifier with WidgetsBindingObserver {
       },
     );
     _frameTimer = Timer.periodic(
-      const Duration(milliseconds: 50),
+      const Duration(milliseconds: 16),
       (_) => _animate(),
     );
     _resyncTimer = Timer.periodic(
