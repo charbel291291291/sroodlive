@@ -1,6 +1,7 @@
-/// Gift selection sheet: receiver rail, category tabs, gift grid, quantity
-/// chips, and the send bar. Pops a [SroodGiftSendResult]; the screen state
-/// performs the actual send and wallet handling.
+/// Gift selection sheet: receiver rail, smart-collection rail, category
+/// tabs, gift grid (or VIP sub-sections), and the send bar. Pops a
+/// [SroodGiftSendResult]; the screen state performs the actual send and
+/// wallet handling.
 library;
 
 import 'package:flutter/material.dart';
@@ -15,8 +16,13 @@ import '../../../../models/room_member.dart';
 import '../../../../utils/vip_room_features.dart';
 import '../../../theme/srood_room_theme.dart';
 import '../../models/srood_gift_events.dart';
-import '../common/srood_gift_artwork.dart';
 import '../common/srood_room_avatar.dart';
+import '../gifts/gift_collections.dart';
+import '../gifts/srood_gift_bottom_bar.dart';
+import '../gifts/srood_gift_category_tabs.dart';
+import '../gifts/srood_gift_collection_rail.dart';
+import '../gifts/srood_gift_section.dart';
+import '../gifts/srood_gift_tile.dart';
 
 class SroodGiftSheet extends StatefulWidget {
   const SroodGiftSheet({
@@ -42,7 +48,8 @@ class _SroodGiftSheetState extends State<SroodGiftSheet> {
   RoomMember? _selectedReceiver;
   RoomGift? _selectedGift;
   String _selectedCategoryKey = 'hot';
-  int _quantity = 1;
+  SroodGiftCollectionKey _selectedCollection = SroodGiftCollectionKey.all;
+  final ValueNotifier<int> _quantity = ValueNotifier<int>(1);
   int _userCoinsBalance = 0;
 
   @override
@@ -60,6 +67,12 @@ class _SroodGiftSheetState extends State<SroodGiftSheet> {
     }
 
     _loadBalance();
+  }
+
+  @override
+  void dispose() {
+    _quantity.dispose();
+    super.dispose();
   }
 
   Future<void> _loadBalance() async {
@@ -82,6 +95,53 @@ class _SroodGiftSheetState extends State<SroodGiftSheet> {
     }
   }
 
+  void _onCategorySelected(String key) {
+    setState(() {
+      _selectedCategoryKey = key;
+      _selectedCollection = SroodGiftCollectionKey.all;
+      if (_selectedGift?.categoryKey != key) {
+        _selectedGift = null;
+      }
+    });
+  }
+
+  void _onCollectionSelected(SroodGiftCollectionKey key) {
+    setState(() {
+      _selectedCollection = key;
+      final selected = _selectedGift;
+      if (key != SroodGiftCollectionKey.all && selected != null) {
+        final stillVisible = giftsForCollection(
+          widget.gifts,
+          key,
+        ).any((gift) => gift.code == selected.code);
+        if (!stillVisible) {
+          _selectedGift = null;
+        }
+      }
+    });
+  }
+
+  List<RoomGift> _resolveVisibleGifts() {
+    if (_selectedCollection != SroodGiftCollectionKey.all) {
+      return giftsForCollection(widget.gifts, _selectedCollection);
+    }
+    final byCategory = widget.gifts
+        .where((gift) => gift.categoryKey == _selectedCategoryKey)
+        .toList();
+    return byCategory.isEmpty ? widget.gifts : byCategory;
+  }
+
+  String _vipSectionTitle(String key) {
+    final isArabic = widget.isArabic;
+    return switch (key) {
+      'country_royals' => isArabic ? 'ملوك الدول' : 'Country Royals',
+      'lebanese_icons' => isArabic ? 'رموز لبنانية' : 'Lebanese Icons',
+      'royal_and_mythic' => isArabic ? 'ملكي وأسطوري' : 'Royal and Mythic',
+      'classic_vip' => isArabic ? 'VIP كلاسيكي' : 'Classic VIP',
+      _ => key,
+    };
+  }
+
   void _sendGift() {
     final receiver = _selectedReceiver;
     final gift = _selectedGift;
@@ -100,12 +160,21 @@ class _SroodGiftSheetState extends State<SroodGiftSheet> {
       return;
     }
 
+    if (gift.priceCoins * _quantity.value > _userCoinsBalance) {
+      SroodToast.show(
+        context,
+        widget.isArabic ? 'رصيدك غير كافٍ.' : 'Insufficient balance.',
+        type: SroodToastType.info,
+      );
+      return;
+    }
+
     Navigator.of(context).pop(
       SroodGiftSendResult(
         gift: gift,
         receiverUserId: receiver.userId,
         receiverName: receiver.fallbackName(widget.isArabic),
-        quantity: _quantity,
+        quantity: _quantity.value,
       ),
     );
   }
@@ -123,10 +192,12 @@ class _SroodGiftSheetState extends State<SroodGiftSheet> {
   @override
   Widget build(BuildContext context) {
     final maxHeight = MediaQuery.sizeOf(context).height * 0.78;
-    final visibleGifts = widget.gifts
-        .where((gift) => gift.categoryKey == _selectedCategoryKey)
-        .toList();
-    final gifts = visibleGifts.isEmpty ? widget.gifts : visibleGifts;
+    final showVipSections =
+        _selectedCollection == SroodGiftCollectionKey.all &&
+        _selectedCategoryKey == 'vip';
+    final visibleGifts = showVipSections
+        ? const <RoomGift>[]
+        : _resolveVisibleGifts();
 
     return SafeArea(
       top: false,
@@ -135,11 +206,11 @@ class _SroodGiftSheetState extends State<SroodGiftSheet> {
         child: Container(
           padding: EdgeInsets.fromLTRB(
             SroodRoomDims.space12,
-            SroodRoomDims.space12,
+            SroodRoomDims.space8,
             SroodRoomDims.space12,
             MediaQuery.of(context).viewInsets.bottom > 0
                 ? MediaQuery.of(context).viewInsets.bottom
-                : SroodRoomDims.space8,
+                : SroodRoomDims.space6,
           ),
           decoration: const BoxDecoration(
             color: Color(0xFF06030A),
@@ -150,7 +221,7 @@ class _SroodGiftSheetState extends State<SroodGiftSheet> {
           child: Column(
             children: [
               _GiftSheetGrabber(isArabic: widget.isArabic),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               _GiftReceiverRail(
                 isArabic: widget.isArabic,
                 receivers: widget.receivers,
@@ -162,29 +233,63 @@ class _SroodGiftSheetState extends State<SroodGiftSheet> {
                   });
                 },
               ),
-              const SizedBox(height: SroodRoomDims.space12),
-              _GiftCategoryTabs(
+              const SizedBox(height: SroodRoomDims.space8),
+              SroodGiftCollectionRail(
+                isArabic: widget.isArabic,
+                selected: _selectedCollection,
+                onSelected: _onCollectionSelected,
+              ),
+              const SizedBox(height: SroodRoomDims.space8),
+              SroodGiftCategoryTabs(
                 isArabic: widget.isArabic,
                 selectedCategoryKey: _selectedCategoryKey,
-                onSelected: (key) {
-                  setState(() {
-                    _selectedCategoryKey = key;
-                    if (_selectedGift?.categoryKey != key) {
-                      _selectedGift = null;
-                    }
-                  });
-                },
+                onSelected: _onCategorySelected,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final cols = constraints.maxWidth < 320 ? 3 : 4;
+
+                    if (showVipSections) {
+                      return ListView(
+                        padding: const EdgeInsets.only(
+                          bottom: SroodRoomDims.space8,
+                        ),
+                        children: [
+                          for (final section in kVipGiftSections)
+                            SroodGiftSection(
+                              title: _vipSectionTitle(section.titleKey),
+                              gifts: giftsByCodes(widget.gifts, section.codes),
+                              isArabic: widget.isArabic,
+                              selectedGiftCode: _selectedGift?.code,
+                              onGiftTap: _chooseGift,
+                              crossAxisCount: cols,
+                            ),
+                        ],
+                      );
+                    }
+
+                    if (visibleGifts.isEmpty) {
+                      return Center(
+                        child: Text(
+                          widget.isArabic
+                              ? 'لا توجد هدايا في هذه المجموعة.'
+                              : 'No gifts in this collection.',
+                          style: const TextStyle(
+                            color: Color(0xFF8C819E),
+                            fontWeight: FontWeight.w700,
+                            fontSize: SroodRoomDims.textMd,
+                          ),
+                        ),
+                      );
+                    }
+
                     return GridView.builder(
                       padding: const EdgeInsets.only(
                         bottom: SroodRoomDims.space8,
                       ),
-                      itemCount: gifts.length,
+                      itemCount: visibleGifts.length,
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: cols,
                         mainAxisSpacing: 8,
@@ -192,11 +297,12 @@ class _SroodGiftSheetState extends State<SroodGiftSheet> {
                         childAspectRatio: 0.78,
                       ),
                       itemBuilder: (context, index) {
-                        final gift = gifts[index];
-                        return _GiftCard(
+                        final gift = visibleGifts[index];
+                        return SroodGiftTile(
+                          key: ValueKey('gift_grid_tile_${gift.code}'),
                           gift: gift,
                           isArabic: widget.isArabic,
-                          selected: _selectedGift?.name == gift.name,
+                          selected: _selectedGift?.code == gift.code,
                           onTap: () => _chooseGift(gift),
                         );
                       },
@@ -204,12 +310,13 @@ class _SroodGiftSheetState extends State<SroodGiftSheet> {
                   },
                 ),
               ),
-              _GiftSendBar(
+              SroodGiftBottomBar(
                 isArabic: widget.isArabic,
-                quantity: _quantity,
+                quantityListenable: _quantity,
                 selectedGift: _selectedGift,
+                hasReceiver: _selectedReceiver != null,
                 userCoinsBalance: _userCoinsBalance,
-                onQuantityChanged: (q) => setState(() => _quantity = q),
+                onQuantityChanged: (q) => _quantity.value = q,
                 onSend: _sendGift,
               ),
             ],
@@ -268,22 +375,36 @@ class _GiftReceiverRail extends StatelessWidget {
     if (receivers.isEmpty) {
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        height: 60,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
           color: const Color(0xFF12091D),
           borderRadius: BorderRadius.circular(SroodRoomDims.radiusLg),
           border: Border.all(color: const Color(0xFF4A3470)),
         ),
-        child: Text(
-          isArabic ? 'لا يوجد مستلمون آخرون.' : 'No other active users.',
-          textAlign: isArabic ? TextAlign.right : TextAlign.left,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Color(0xFFD8CFEA),
-            fontWeight: FontWeight.w800,
-            fontSize: SroodRoomDims.textMd,
-          ),
+        child: Row(
+          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+          children: [
+            const Icon(
+              Icons.person_off_rounded,
+              color: Color(0xFF8C819E),
+              size: 18,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                isArabic ? 'لا يوجد مستلمون آخرون.' : 'No other active users.',
+                textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFFD8CFEA),
+                  fontWeight: FontWeight.w800,
+                  fontSize: SroodRoomDims.textMd,
+                ),
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -387,349 +508,6 @@ class _GiftReceiverBubble extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _GiftCategoryTabs extends StatelessWidget {
-  const _GiftCategoryTabs({
-    required this.isArabic,
-    required this.selectedCategoryKey,
-    required this.onSelected,
-  });
-
-  final bool isArabic;
-  final String selectedCategoryKey;
-  final ValueChanged<String> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final categories = [
-      (key: 'event', label: isArabic ? 'حدث' : 'Event'),
-      (key: 'hot', label: isArabic ? 'رائج' : 'Hot'),
-      (key: 'lucky', label: isArabic ? 'حظ' : 'Lucky'),
-      (key: 'vip', label: 'VIP'),
-    ];
-
-    return Row(
-      textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-      children: categories.map((category) {
-        final selected = category.key == selectedCategoryKey;
-
-        return Expanded(
-          child: InkWell(
-            borderRadius: BorderRadius.circular(SroodRoomDims.radiusMd),
-            onTap: () => onSelected(category.key),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 5),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    category.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: selected ? Colors.white : const Color(0xFF8C819E),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Container(
-                    width: selected ? 22 : 0,
-                    height: 3,
-                    decoration: BoxDecoration(
-                      color: SroodRoomColors.gold,
-                      borderRadius: BorderRadius.circular(
-                        SroodRoomDims.radiusPill,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-}
-
-class _GiftCard extends StatelessWidget {
-  const _GiftCard({
-    required this.gift,
-    required this.isArabic,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final RoomGift gift;
-  final bool isArabic;
-  final bool selected;
-  final VoidCallback onTap;
-
-  String _fmtPrice(int p) {
-    if (p >= 1000000) return 'M';
-    if (p >= 1000) {
-      return 'K';
-    }
-    return p.toString();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(SroodRoomDims.radiusMd + 2),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(5, 7, 5, 6),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFF42105C) : Colors.transparent,
-          borderRadius: BorderRadius.circular(SroodRoomDims.radiusMd + 2),
-          border: Border.all(
-            color: selected ? const Color(0xFFD10DFF) : Colors.transparent,
-            width: 1.5,
-          ),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFFD10DFF).withValues(alpha: 0.28),
-                    blurRadius: 14,
-                  ),
-                ]
-              : [],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Expanded(
-              child: Center(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final sz = (constraints.maxWidth * 0.82).clamp(32.0, 56.0);
-                    return SroodGiftArtwork(gift: gift, size: sz);
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: SroodRoomDims.space4),
-            Text(
-              isArabic ? gift.arabicName : gift.name,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: SroodRoomDims.textSm,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.monetization_on_rounded,
-                  color: SroodRoomColors.gold,
-                  size: 11,
-                ),
-                const SizedBox(width: 2),
-                Flexible(
-                  child: Text(
-                    _fmtPrice(gift.priceCoins),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFFD8CFEA),
-                      fontWeight: FontWeight.w700,
-                      fontSize: SroodRoomDims.textXs,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _GiftSendBar extends StatelessWidget {
-  const _GiftSendBar({
-    required this.isArabic,
-    required this.quantity,
-    required this.selectedGift,
-    required this.userCoinsBalance,
-    required this.onQuantityChanged,
-    required this.onSend,
-  });
-
-  static const _quantities = [1, 7, 17, 77];
-
-  final bool isArabic;
-  final int quantity;
-  final RoomGift? selectedGift;
-  final int userCoinsBalance;
-  final ValueChanged<int> onQuantityChanged;
-  final VoidCallback onSend;
-
-  String _formatCoins(int c) {
-    if (c >= 1000000) return '${(c / 1000000).toStringAsFixed(1)}M';
-    if (c >= 1000) return '${(c / 1000).toStringAsFixed(1)}K';
-    return c.toString();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final total = (selectedGift?.priceCoins ?? 0) * quantity;
-    final displayValue = selectedGift == null
-        ? _formatCoins(userCoinsBalance)
-        : _formatCoins(total);
-
-    return SafeArea(
-      top: false,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(6, 10, 6, 4),
-        decoration: BoxDecoration(
-          color: const Color(0xFF06030A).withValues(alpha: 0.96),
-          border: Border(
-            top: BorderSide(
-              color: const Color(0xFF4A3470).withValues(alpha: 0.45),
-            ),
-          ),
-        ),
-        child: Row(
-          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-          children: [
-            // ── coin balance / total ─────────────────────────────────────────
-            const Icon(
-              Icons.monetization_on_rounded,
-              color: SroodRoomColors.gold,
-              size: SroodRoomDims.iconMd,
-            ),
-            const SizedBox(width: SroodRoomDims.space4),
-            Flexible(
-              flex: 3,
-              child: Text(
-                displayValue,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-            const SizedBox(width: 3),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: Color(0xFF8C819E),
-              size: 18,
-            ),
-            const Spacer(),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: _quantities
-                  .map(
-                    (q) => Padding(
-                      padding: const EdgeInsets.only(
-                        right: SroodRoomDims.space6,
-                      ),
-                      child: _QuantityChip(
-                        value: q,
-                        selected: quantity == q,
-                        onTap: () => onQuantityChanged(q),
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
-            const SizedBox(width: SroodRoomDims.space8),
-            // ── send button ─────────────────────────────────────────────────
-            Flexible(
-              flex: 4,
-              child: SizedBox(
-                height: SroodRoomDims.touchTarget,
-                child: FilledButton(
-                  onPressed: onSend,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFB000FF),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        SroodRoomDims.radiusPill,
-                      ),
-                    ),
-                  ),
-                  child: Text(
-                    isArabic ? 'إرسال' : 'Send',
-                    maxLines: 1,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: SroodRoomDims.textLg,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _QuantityChip extends StatelessWidget {
-  const _QuantityChip({
-    required this.value,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final int value;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: SroodRoomMotion.fast,
-        height: 36,
-        constraints: const BoxConstraints(minWidth: 40),
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          gradient: selected
-              ? const LinearGradient(
-                  colors: [SroodRoomColors.violetSoft, Color(0xFFB56DFF)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          color: selected ? null : const Color(0xFF1D1A20),
-          borderRadius: BorderRadius.circular(SroodRoomDims.radiusPill),
-          border: Border.all(
-            color: selected ? const Color(0xFFB56DFF) : const Color(0xFF3A2F4A),
-            width: 1.2,
-          ),
-        ),
-        child: Center(
-          child: Text(
-            value.toString(),
-            style: TextStyle(
-              fontSize: SroodRoomDims.textLg,
-              fontWeight: FontWeight.w800,
-              color: selected ? Colors.white : const Color(0xFF8C819E),
-            ),
-          ),
         ),
       ),
     );
