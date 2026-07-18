@@ -4387,23 +4387,131 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen>
 
 const List<RoomGift> _localLuxuryRoomGifts = [
   RoomGift(
+    id: 'local-baalbek-temple',
+    code: 'baalbek_temple',
+    name: 'Baalbek Temple',
+    arabicName: '\u0642\u0644\u0639\u0629 \u0628\u0639\u0644\u0628\u0643',
+    priceCoins: 350000,
+    icon: '',
+    sortOrder: 90,
+  ),
+  RoomGift(
     id: 'local-golden-lion',
     code: 'golden_lion',
     name: 'Golden Lion',
     arabicName:
         '\u0627\u0644\u0623\u0633\u062f \u0627\u0644\u0630\u0647\u0628\u064a',
-    priceCoins: 999,
-    icon: '',
-    sortOrder: 90,
-  ),
-  RoomGift(
-    id: 'local-baalbek-temple',
-    code: 'baalbek_temple',
-    name: 'Baalbek Temple',
-    arabicName: '\u0642\u0644\u0639\u0629 \u0628\u0639\u0644\u0628\u0643',
-    priceCoins: 777,
+    priceCoins: 500000,
     icon: '',
     sortOrder: 91,
+  ),
+  RoomGift(
+    id: 'local-egypt-royal',
+    code: 'egypt_royal',
+    name: 'Egypt Royal',
+    arabicName: '\u0645\u0635\u0631 \u0627\u0644\u0645\u0644\u0643\u064a\u0629',
+    priceCoins: 650000,
+    icon: '',
+    sortOrder: 92,
+  ),
+  RoomGift(
+    id: 'local-jordan-royal',
+    code: 'jordan_royal',
+    name: 'Jordan Royal',
+    arabicName:
+        '\u0627\u0644\u0623\u0631\u062f\u0646 \u0627\u0644\u0645\u0644\u0643\u064a',
+    priceCoins: 700000,
+    icon: '',
+    sortOrder: 93,
+  ),
+  RoomGift(
+    id: 'local-iraq-royal',
+    code: 'iraq_royal',
+    name: 'Iraq Royal',
+    arabicName:
+        '\u0627\u0644\u0639\u0631\u0627\u0642 \u0627\u0644\u0645\u0644\u0643\u064a',
+    priceCoins: 750000,
+    icon: '',
+    sortOrder: 94,
+  ),
+  RoomGift(
+    id: 'local-palestine-royal',
+    code: 'palestine_royal',
+    name: 'Palestine Royal',
+    arabicName:
+        '\u0641\u0644\u0633\u0637\u064a\u0646 \u0627\u0644\u0645\u0644\u0643\u064a\u0629',
+    priceCoins: 850000,
+    icon: '',
+    sortOrder: 95,
+  ),
+  RoomGift(
+    id: 'local-saudi-arabia-royal',
+    code: 'saudi_arabia_royal',
+    name: 'Saudi Arabia Royal',
+    arabicName:
+        '\u0627\u0644\u0633\u0639\u0648\u062f\u064a\u0629 \u0627\u0644\u0645\u0644\u0643\u064a\u0629',
+    priceCoins: 900000,
+    icon: '',
+    sortOrder: 96,
+  ),
+  RoomGift(
+    id: 'local-lebanon-royal',
+    code: 'lebanon_royal',
+    name: 'Lebanon Royal',
+    arabicName:
+        '\u0644\u0628\u0646\u0627\u0646 \u0627\u0644\u0645\u0644\u0643\u064a',
+    priceCoins: 1000000,
+    icon: '',
+    sortOrder: 97,
+  ),
+  RoomGift(
+    id: 'local-cedar-throne',
+    code: 'cedar_throne',
+    name: 'Cedar Throne',
+    arabicName: '\u0639\u0631\u0634 \u0627\u0644\u0623\u0631\u0632',
+    priceCoins: 1100000,
+    icon: '',
+    sortOrder: 98,
+  ),
+  RoomGift(
+    id: 'local-byblos-royal-crown',
+    code: 'byblos_royal_crown',
+    name: 'Byblos Royal Crown',
+    arabicName:
+        '\u062a\u0627\u062c \u062c\u0628\u064a\u0644 \u0627\u0644\u0645\u0644\u0643\u064a',
+    priceCoins: 1300000,
+    icon: '',
+    sortOrder: 99,
+  ),
+  RoomGift(
+    id: 'local-jeita-crystal-palace',
+    code: 'jeita_crystal_palace',
+    name: 'Jeita Crystal Palace',
+    arabicName:
+        '\u0642\u0635\u0631 \u062c\u0639\u064a\u062a\u0627 \u0627\u0644\u0643\u0631\u064a\u0633\u062a\u0627\u0644\u064a',
+    priceCoins: 1500000,
+    icon: '',
+    sortOrder: 100,
+  ),
+  RoomGift(
+    id: 'local-phoenician-ship',
+    code: 'phoenician_ship',
+    name: 'Phoenician Ship',
+    arabicName:
+        '\u0627\u0644\u0633\u0641\u064a\u0646\u0629 \u0627\u0644\u0641\u064a\u0646\u064a\u0642\u064a\u0629',
+    priceCoins: 1800000,
+    icon: '',
+    sortOrder: 101,
+  ),
+  RoomGift(
+    id: 'local-lebanese-phoenix',
+    code: 'lebanese_phoenix',
+    name: 'Lebanese Phoenix',
+    arabicName:
+        '\u0627\u0644\u0639\u0646\u0642\u0627\u0621 \u0627\u0644\u0644\u0628\u0646\u0627\u0646\u064a',
+    priceCoins: 2500000,
+    icon: '',
+    sortOrder: 102,
   ),
 ];
 

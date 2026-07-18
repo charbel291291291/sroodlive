@@ -29,6 +29,50 @@ class SroodLuxuryGiftVideoConfig {
         return const SroodLuxuryGiftVideoConfig(
           assetPath: 'assets/gift_effects/videos/odrob_royal.mp4',
         );
+      case 'lebanese_phoenix':
+        return const SroodLuxuryGiftVideoConfig(
+          assetPath: 'assets/gift_effects/videos/lebanese_phoenix.mp4',
+        );
+      case 'cedar_throne':
+        return const SroodLuxuryGiftVideoConfig(
+          assetPath: 'assets/gift_effects/videos/cedar_throne.mp4',
+        );
+      case 'phoenician_ship':
+        return const SroodLuxuryGiftVideoConfig(
+          assetPath: 'assets/gift_effects/videos/phoenician_ship.mp4',
+        );
+      case 'jeita_crystal_palace':
+        return const SroodLuxuryGiftVideoConfig(
+          assetPath: 'assets/gift_effects/videos/jeita_crystal_palace.mp4',
+        );
+      case 'byblos_royal_crown':
+        return const SroodLuxuryGiftVideoConfig(
+          assetPath: 'assets/gift_effects/videos/byblos_royal_crown.mp4',
+        );
+      case 'egypt_royal':
+        return const SroodLuxuryGiftVideoConfig(
+          assetPath: 'assets/gift_effects/videos/egypt_royal.mp4',
+        );
+      case 'iraq_royal':
+        return const SroodLuxuryGiftVideoConfig(
+          assetPath: 'assets/gift_effects/videos/iraq_royal.mp4',
+        );
+      case 'jordan_royal':
+        return const SroodLuxuryGiftVideoConfig(
+          assetPath: 'assets/gift_effects/videos/jordan_royal.mp4',
+        );
+      case 'lebanon_royal':
+        return const SroodLuxuryGiftVideoConfig(
+          assetPath: 'assets/gift_effects/videos/lebanon_royal.mp4',
+        );
+      case 'palestine_royal':
+        return const SroodLuxuryGiftVideoConfig(
+          assetPath: 'assets/gift_effects/videos/palestine_royal.mp4',
+        );
+      case 'saudi_arabia_royal':
+        return const SroodLuxuryGiftVideoConfig(
+          assetPath: 'assets/gift_effects/videos/saudi_arabia_royal.mp4',
+        );
       default:
         return null;
     }
