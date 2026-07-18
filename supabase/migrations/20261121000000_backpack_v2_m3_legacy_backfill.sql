@@ -373,6 +373,47 @@ begin
       and is_active and is_equippable and is_equip_enabled
       and equip_slot = 'avatar_frame'
   ),
+  -- The highest-priority claim (rn=1) is not silently dropped when it fails
+  -- the validity checks above (revoked/expired/inactive/not-equip-enabled/
+  -- wrong-slot catalog target): it is logged. No automatic fallback to a
+  -- lower-priority (rn>1) claim is performed — which source should "win"
+  -- when the top priority's target is broken is an unresolved product
+  -- question, not something to invent here (see dry-run report).
+  invalid_top_claim as (
+    select r.*
+    from ranked r
+    where r.rn = 1
+      and not (
+        r.ownership_id is not null
+        and (r.expires_at is null or r.expires_at > now())
+        and r.is_active and r.is_equippable and r.is_equip_enabled
+        and r.equip_slot = 'avatar_frame'
+      )
+  ),
+  log_invalid_top_claim as (
+    insert into public.backpack_v2_migration_issues
+      (batch, source_table, source_row_id, source_user_id, issue_type, detail)
+    select v_batch, t.claim_source, 'invalid_equip_target', t.user_id, 'equip_conflict_resolved',
+      jsonb_build_object('claimed_code', t.resolved_code,
+        'reason', 'highest-priority equip claim resolves to a catalog item that is missing ownership/expired/inactive/not-equip-enabled/wrong-slot; no automatic fallback to a lower-priority valid claim is performed')
+    from invalid_top_claim t
+    on conflict (batch, source_table, coalesce(source_row_id, ''), coalesce(source_user_id::text, ''), issue_type)
+      do nothing
+    returning 1
+  ),
+  -- A user may already have a real, non-legacy equipped item in this slot
+  -- (e.g. purchased or admin-granted through the actual M2 RPCs, entirely
+  -- independent of any legacy system). That is a genuine Backpack V2 record
+  -- and must never be downgraded by a legacy claim, no matter how the
+  -- R2>R4>R1 priority resolves among the legacy claims themselves.
+  blocked_by_existing_v2 as (
+    select w.user_id
+    from winners w
+    join public.user_equipped_items uei
+      on uei.user_id = w.user_id and uei.slot_type = 'avatar_frame'
+    join public.user_backpack_items existing_ubi on existing_ubi.id = uei.user_backpack_item_id
+    where existing_ubi.source_type <> 'legacy_migration'
+  ),
   log_conflicts as (
     insert into public.backpack_v2_migration_issues
       (batch, source_table, source_row_id, source_user_id, issue_type, detail)
@@ -385,10 +426,23 @@ begin
       do nothing
     returning 1
   ),
+  log_protected_existing as (
+    insert into public.backpack_v2_migration_issues
+      (batch, source_table, source_row_id, source_user_id, issue_type, detail)
+    select v_batch, w.claim_source, 'existing_v2_equip', w.user_id, 'equip_conflict_resolved',
+      jsonb_build_object('overridden_code', w.resolved_code,
+        'reason', 'a pre-existing, non-legacy Backpack V2 equipped item was preserved over this legacy migration claim')
+    from winners w
+    join blocked_by_existing_v2 b on b.user_id = w.user_id
+    on conflict (batch, source_table, coalesce(source_row_id, ''), coalesce(source_user_id::text, ''), issue_type)
+      do nothing
+    returning 1
+  ),
   equip_ins as (
     insert into public.user_equipped_items (user_id, slot_type, user_backpack_item_id, equipped_at)
-    select user_id, 'avatar_frame', ownership_id, now()
-    from winners
+    select w.user_id, 'avatar_frame', w.ownership_id, now()
+    from winners w
+    where w.user_id not in (select user_id from blocked_by_existing_v2)
     on conflict (user_id, slot_type) do update
       set user_backpack_item_id = excluded.user_backpack_item_id,
           equipped_at = excluded.equipped_at
@@ -439,19 +493,28 @@ begin
   -- profile_frame, badge-by-tier): no per-user ownership row exists anywhere
   -- for these; only tier-level attributes. One category-level log entry
   -- each, not one per user, since there is no source row to iterate.
+  --
+  -- source_row_id is set to the manifest_record label (not null) so each of
+  -- these four rows has a distinct dedupe key. All four otherwise share
+  -- identical (batch, source_table, source_user_id, issue_type), and the
+  -- dedupe unique index does not consider `detail` — leaving source_row_id
+  -- null here caused all four rows to collide against each other inside the
+  -- same INSERT..ON CONFLICT DO NOTHING statement, silently dropping three
+  -- of the four (only R6 survived). Confirmed by direct execution against
+  -- the M3 disposable dataset (Step 4).
   insert into public.backpack_v2_migration_issues
     (batch, source_table, source_row_id, source_user_id, issue_type, detail)
   values
-    (v_batch, 'vip_levels', null, null, 'deferred_synthesis',
+    (v_batch, 'vip_levels', 'R6_vip_tier_entry_effect', null, 'deferred_synthesis',
       jsonb_build_object('manifest_record', 'R6_vip_tier_entry_effect',
         'reason', 'synthesized from tier membership, not an ownership row; catalog code/equipped-state design undecided')),
-    (v_batch, 'vip_levels', null, null, 'deferred_synthesis',
+    (v_batch, 'vip_levels', 'R7_vip_tier_mic_effect', null, 'deferred_synthesis',
       jsonb_build_object('manifest_record', 'R7_vip_tier_mic_effect',
         'reason', 'mic_frame_url is unpopulated in every observed row; no source value to migrate or synthesize from')),
-    (v_batch, 'vip_levels', null, null, 'deferred_synthesis',
+    (v_batch, 'vip_levels', 'R8_vip_tier_profile_frame', null, 'deferred_synthesis',
       jsonb_build_object('manifest_record', 'R8_vip_tier_profile_frame',
         'reason', 'profile_frame_url is unpopulated in every observed row; no source value to migrate or synthesize from')),
-    (v_batch, 'vip_levels', null, null, 'deferred_synthesis',
+    (v_batch, 'vip_levels', 'R10_vip_tier_badge', null, 'deferred_synthesis',
       jsonb_build_object('manifest_record', 'R10_vip_tier_badge',
         'reason', 'no key-shaped identifier exists for a per-tier badge; badge_label is a display string, not an identity'))
   on conflict (batch, source_table, coalesce(source_row_id, ''), coalesce(source_user_id::text, ''), issue_type)
