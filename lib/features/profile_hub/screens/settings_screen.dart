@@ -4,6 +4,8 @@ import '../../../core/auth/safe_logout.dart';
 import '../../../core/update/app_update_dialog.dart';
 import '../../../core/update/app_update_service.dart';
 import '../../../main.dart';
+import '../../backpack_v2/backpack_v2_ui_flag_service.dart';
+import '../../backpack_v2/presentation/backpack_v2_screen.dart';
 import '../../discovery/screens/discovery_screen.dart';
 import '../../gifts/screens/gift_catalog_screen.dart';
 import '../../games/screens/spin_wheel_screen.dart';
@@ -43,10 +45,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isLoggingOut = false;
   final Set<String> _savingKeys = <String>{};
 
+  /// M5: gates the single Backpack V2 preview entry below. Defaults to
+  /// hidden — the menu item is only inserted once the
+  /// `backpack_v2_ui_enabled` RPC (see backpack_v2_ui_flag_service.dart)
+  /// resolves `true`; any failure/missing-config case leaves this `false`
+  /// and the item stays absent, so this screen's production behavior is
+  /// unchanged whenever the flag is off.
+  bool _backpackV2UiEnabled = false;
+
   @override
   void initState() {
     super.initState();
     _future = _load();
+    BackpackV2UiFlagService.instance.load().then((enabled) {
+      if (mounted && enabled) setState(() => _backpackV2UiEnabled = true);
+    });
   }
 
   Future<UserSettings> _load() async {
@@ -77,7 +90,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       debugPrint('[Settings._update] failed: $e');
       if (!mounted) return false;
-      SroodToast.show(context, context.isArabic ? 'تعذر حفظ الإعداد. حاول مرة أخرى.' : 'Could not save setting. Please try again.', type: SroodToastType.error);
+      SroodToast.show(
+        context,
+        context.isArabic
+            ? 'تعذر حفظ الإعداد. حاول مرة أخرى.'
+            : 'Could not save setting. Please try again.',
+        type: SroodToastType.error,
+      );
       return false;
     } finally {
       if (mounted) {
@@ -92,7 +111,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final info = await const AppUpdateService().checkForUpdate();
     if (!mounted) return;
     if (info == null) {
-      SroodToast.show(context, widget.isArabic ? 'التطبيق محدّث بالفعل' : 'App is up to date', type: SroodToastType.info);
+      SroodToast.show(
+        context,
+        widget.isArabic ? 'التطبيق محدّث بالفعل' : 'App is up to date',
+        type: SroodToastType.info,
+      );
       return;
     }
     await showAppUpdateDialog(context, info: info, isArabic: widget.isArabic);
@@ -186,7 +209,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       debugPrint('[SettingsLogout] SafeLogout threw: $e');
       if (mounted) {
         setState(() => _isLoggingOut = false);
-        SroodToast.show(context, widget.isArabic ? 'فشل تسجيل الخروج. حاول مجددًا.' : 'Sign out failed. Please try again.', type: SroodToastType.error);
+        SroodToast.show(
+          context,
+          widget.isArabic
+              ? 'فشل تسجيل الخروج. حاول مجددًا.'
+              : 'Sign out failed. Please try again.',
+          type: SroodToastType.error,
+        );
       }
     }
   }
@@ -295,62 +324,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           child: InkWell(
                             borderRadius: BorderRadius.circular(16),
                             onTap: () => Navigator.of(context).pop(option.key),
-                          child: Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: selected
-                                  ? profileHubGold.withValues(alpha: 0.12)
-                                  : const Color(0xFF1A0D2A),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
                                 color: selected
-                                    ? profileHubGold
-                                    : profileHubBorder,
+                                    ? profileHubGold.withValues(alpha: 0.12)
+                                    : const Color(0xFF1A0D2A),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: selected
+                                      ? profileHubGold
+                                      : profileHubBorder,
+                                ),
                               ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  option.icon,
-                                  color: profileHubGold,
-                                  size: 22,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: isArabic
-                                        ? CrossAxisAlignment.end
-                                        : CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        option.title,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w900,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 3),
-                                      Text(
-                                        option.body,
-                                        style: const TextStyle(
-                                          color: profileHubMuted,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (selected)
-                                  const Icon(
-                                    Icons.check_circle_rounded,
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    option.icon,
                                     color: profileHubGold,
+                                    size: 22,
                                   ),
-                              ],
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: isArabic
+                                          ? CrossAxisAlignment.end
+                                          : CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          option.title,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          option.body,
+                                          style: const TextStyle(
+                                            color: profileHubMuted,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (selected)
+                                    const Icon(
+                                      Icons.check_circle_rounded,
+                                      color: profileHubGold,
+                                    ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
-                      ),
                       ),
                     );
                   }),
@@ -814,6 +843,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   isArabic: isArabic,
                   onTap: _checkForUpdate,
                 ),
+                // M5: single flag-gated Backpack V2 preview entry. Only
+                // inserted when BackpackV2UiFlagService resolves true — see
+                // docs/backpack_v2/M5_FLAG_GATED_UI_REPORT.md. Does not
+                // replace or modify the existing production backpack entry.
+                if (_backpackV2UiEnabled)
+                  ProfileMenuItem(
+                    icon: Icons.backpack_outlined,
+                    title: isArabic ? 'الحقيبة (معاينة)' : 'Backpack (Preview)',
+                    subtitle: isArabic
+                        ? 'معاينة داخلية لنظام الحقيبة الجديد'
+                        : 'Internal preview of the new backpack system',
+                    isArabic: isArabic,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => BackpackV2Screen(isArabic: isArabic),
+                      ),
+                    ),
+                  ),
                 ProfileSectionTitle(
                   title: isArabic ? 'الخروج' : 'Session',
                   isArabic: isArabic,
