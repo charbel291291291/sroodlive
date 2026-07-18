@@ -47,6 +47,8 @@ test/features/backpack_v2/
 docs/backpack_v2/M4_FLUTTER_DOMAIN_REPORT.md   (this file)
 ```
 
+**Total: 21 files** (16 under `lib/features/backpack_v2/` — 11 models, 1 exceptions, 2 repositories, 2 controllers — plus 4 under `test/features/backpack_v2/` and this report). Matches `git show --stat --oneline 67522c0` / `git diff-tree --no-commit-id --name-status -r 67522c0`: `21 files changed, 2384 insertions(+)`. An earlier draft of this report undercounted the breakdown as 20; corrected here.
+
 No existing file was modified. No migration was touched.
 
 ## 3. Domain models
