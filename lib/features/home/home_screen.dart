@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:srood_live/shared/utils/error_utils.dart';
 
+import '../../core/frames/frame_catalog_sync_service.dart';
+import '../../core/frames/frames_v2_rendering_flag_service.dart';
 import '../../core/update/app_update_dialog.dart';
 import '../../core/update/app_update_service.dart';
 import '../../main.dart';
@@ -37,6 +39,16 @@ class _HomeScreenState extends State<HomeScreen> {
     RoomReadService.instance.unreadCount.addListener(_onRoomsUnreadChanged);
     _roomsUnread = RoomReadService.instance.unreadCount.value;
     unawaited(RoomReadService.instance.initialize());
+    // Fire-and-forget: populates the cached frames_v2_rendering_enabled
+    // value for this session. Every SroodAvatarFrame reads the cache
+    // synchronously and defaults to false (legacy path) until this
+    // resolves, so there is no loading gate to wait on here.
+    unawaited(FramesV2RenderingFlagService.instance.load());
+    // Same fire-and-forget contract: hydrates FrameRegistry with the live
+    // frame_catalog so admin-created frames can render at all. Loaded here
+    // rather than in main() because get_frame_catalog_v2 is granted to
+    // `authenticated` only. Failure leaves the built-in catalog in place.
+    unawaited(FrameCatalogSyncService.instance.load());
 
     // Run startup checks once per session, after the first frame so the
     // navigator is ready to show dialogs.
