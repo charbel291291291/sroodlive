@@ -139,6 +139,13 @@ class AdminRole {
           kPermTreasurePrize,
         }.contains(key);
       case kRoleAdmin:
+        // kPermFramesManage is granted here because the server gate on every
+        // frames-v2 admin RPC and on the avatar-frames storage policies is
+        // public.has_admin_access() = has_app_role('admin') or
+        // has_app_role('super_admin'), which a plain admin satisfies. Without
+        // it the client hid Frame Management from an account the database
+        // would have accepted. The server stays authoritative; this entry only
+        // stops the UI from being stricter than the database.
         return {
           kPermUsersView,
           kPermUsersTempBan,
@@ -147,6 +154,7 @@ class AdminRole {
           kPermReportsView,
           kPermReportsManage,
           kPermContentRemove,
+          kPermFramesManage,
         }.contains(key);
       default:
         return false;
